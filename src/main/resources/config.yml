@@ -1,0 +1,47 @@
+# Towny Plugin Configuration
+# This file contains default settings for the Towny plugin
+
+# General Settings
+language: en
+debug: false
+
+# Town Settings
+town:
+  default_tax: 0.0
+  max_name_length: 20
+  min_name_length: 3
+  max_residents: 50
+  creation_cost: 0.0
+  deletion_refund: 0.0
+
+# Plot Settings
+plot:
+  size: 16
+  claim_cost: 0.0
+  unclaim_refund: 0.0
+
+# Permission Settings
+permissions:
+  default_build: false
+  default_destroy: false
+  default_switch: false
+  default_item_use: false
+
+# Database Settings
+database:
+  auto_backup: true
+  backup_interval: 3600  # seconds
+
+# Message Settings
+messages:
+  prefix: "&6[Towny]&r "
+  success_color: "&a"
+  error_color: "&c"
+  info_color: "&e"
+
+# Economic Settings (for future integration)
+economy:
+  enabled: false
+  starting_balance: 100.0
+  daily_upkeep: true
+  upkeep_cost: 10.0

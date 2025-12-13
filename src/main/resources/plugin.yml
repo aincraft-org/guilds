@@ -1,0 +1,91 @@
+name: Towny
+version: 1.0.0
+main: org.aincraft.towny.TownyPlugin
+api-version: 1.21
+author: Aincraft
+description: Enhanced town and nation management plugin
+website: https://github.com/aincraft/towny
+
+depend: []
+softdepend: [Vault, WorldEdit, WorldGuard]
+
+commands:
+  town:
+    description: Town management commands
+    usage: /<command> [subcommand]
+    aliases: [t]
+    permission: towny.town
+
+  resident:
+    description: Resident commands
+    usage: /<command> [subcommand]
+    aliases: [res]
+    permission: towny.resident
+
+  plot:
+    description: Plot commands
+    usage: /<command> [subcommand]
+    aliases: [plot]
+    permission: towny.plot
+
+  towny:
+    description: General Towny commands and admin tools
+    usage: /<command> [subcommand]
+    aliases: [townyadmin]
+    permission: towny.admin
+
+permissions:
+  towny.*:
+    description: All Towny permissions
+    children:
+      towny.town.*: true
+      towny.resident.*: true
+      towny.plot.*: true
+      towny.admin.*: true
+
+  towny.town.*:
+    description: All town-related permissions
+    children:
+      towny.town.create: true
+      towny.town.delete: true
+      towny.town.join: true
+      towny.town.leave: true
+      towny.town.claim: true
+      towny.town.unclaim: true
+      towny.town.spawn: true
+      towny.town.set: true
+      towny.town.kick: true
+      towny.town.invite: true
+      towny.town.mayor: true
+      towny.town.assistant: true
+
+  towny.resident.*:
+    description: All resident-related permissions
+    children:
+      towny.resident.info: true
+      towny.resident.list: true
+      towny.resident.friend: true
+      towny.resident.town: true
+
+  towny.plot.*:
+    description: All plot-related permissions
+    children:
+      towny.plot.claim: true
+      towny.plot.unclaim: true
+      towny.plot.info: true
+      towny.plot.set: true
+      towny.plot.perms: true
+      towny.plot.toggle: true
+
+  towny.admin.*:
+    description: All admin permissions
+    children:
+      towny.admin.reload: true
+      towny.admin.backup: true
+      towny.admin.purge: true
+      towny.admin.town: true
+      towny.admin.resident: true
+      towny.admin.plot: true
+      towny.admin.unclaim: true
+      towny.admin.claim: true
+      towny.admin.bypass: true
