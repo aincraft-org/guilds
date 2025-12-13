@@ -37,8 +37,25 @@ public class SchemaInitializer {
         // Add spawn location support
         migrations.add(new AddTownSpawnMigration());
 
+        // Add home_block_y column for better spawn fallback support
+        migrations.add(new AddHomeBlockYMigration());
+
+        // Add town level system
+        migrations.add(new AddTownLevelSystemMigration());
+
+        // Migrate TownBlock permissions to bitwise system
+        migrations.add(new MigrateTownBlockToBitwiseMigration());
+
+        // Add town toggle system
+        migrations.add(new AddTownToggleMigration());
+
+        // Add plot type system with extensible registry
+        migrations.add(new AddPlotTypeSystemMigration());
+
+        // Add town broadcasting system
+        migrations.add(new AddBroadcastSystemMigration());
+
         // Future migrations will be added here
-        // migrations.add(new MigrationV2_AddPlotTypes());
         // migrations.add(new MigrationV3_AddPermissionFlags());
     }
 
@@ -196,7 +213,7 @@ public class SchemaInitializer {
             try (Statement statement = connection.createStatement()) {
                 // Create residents table
                 statement.execute("""
-                    CREATE TABLE residents (
+                    CREATE TABLE IF NOT EXISTS residents (
                         uuid TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
                         town_name TEXT,
@@ -209,7 +226,7 @@ public class SchemaInitializer {
 
                 // Create towns table
                 statement.execute("""
-                    CREATE TABLE towns (
+                    CREATE TABLE IF NOT EXISTS towns (
                         id TEXT PRIMARY KEY,
                         name TEXT UNIQUE NOT NULL,
                         mayor_uuid TEXT NOT NULL,
@@ -227,7 +244,7 @@ public class SchemaInitializer {
 
                 // Create town residents mapping table
                 statement.execute("""
-                    CREATE TABLE town_residents (
+                    CREATE TABLE IF NOT EXISTS town_residents (
                         town_id TEXT,
                         resident_uuid TEXT,
                         role TEXT DEFAULT 'resident',
@@ -240,7 +257,7 @@ public class SchemaInitializer {
 
                 // Create town blocks table
                 statement.execute("""
-                    CREATE TABLE town_blocks (
+                    CREATE TABLE IF NOT EXISTS town_blocks (
                         id TEXT PRIMARY KEY,
                         x INTEGER NOT NULL,
                         z INTEGER NOT NULL,
@@ -260,7 +277,7 @@ public class SchemaInitializer {
 
                 // Create permissions table with bitwise flags
                 statement.execute("""
-                    CREATE TABLE permissions (
+                    CREATE TABLE IF NOT EXISTS permissions (
                         id TEXT PRIMARY KEY,
                         context TEXT NOT NULL,
                         context_id TEXT NOT NULL,
@@ -274,19 +291,30 @@ public class SchemaInitializer {
                 """);
 
                 // Create indexes
-                statement.execute("CREATE INDEX idx_residents_town ON residents(town_name)");
-                statement.execute("CREATE INDEX idx_towns_name ON towns(name)");
-                statement.execute("CREATE INDEX idx_town_blocks_location ON town_blocks(x, z, world)");
-                statement.execute("CREATE INDEX idx_town_blocks_town ON town_blocks(town_id)");
-                statement.execute("CREATE INDEX idx_town_blocks_owner ON town_blocks(owner_uuid)");
-                statement.execute("CREATE INDEX idx_permissions_context ON permissions(context, context_id)");
-                statement.execute("CREATE INDEX idx_permissions_target ON permissions(target_type, target_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_residents_town ON residents(town_name)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_towns_name ON towns(name)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_location ON town_blocks(x, z, world)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_town ON town_blocks(town_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_owner ON town_blocks(owner_uuid)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_context ON permissions(context, context_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_target ON permissions(target_type, target_id)");
             }
         }
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {
-            return false; // This is the initial migration, never considered applied
+            // Check if migration is already recorded in schema_migrations table
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM schema_migrations WHERE version = 1")) {
+
+                if (resultSet.next()) {
+                    return resultSet.getInt(1) > 0;
+                }
+            } catch (SQLException e) {
+                // Table doesn't exist yet, so migration is not applied
+                return false;
+            }
+            return false;
         }
 
         @Override
@@ -356,6 +384,422 @@ public class SchemaInitializer {
                 }
             } catch (SQLException e) {
                 // Table doesn't exist or other error, consider not applied
+                return false;
+            }
+            return false;
+        }
+
+        @Override
+        public void markAsApplied(Connection connection) throws SQLException {
+            String sql = "INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)";
+
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setInt(1, getVersion());
+                statement.setString(2, getDescription());
+                statement.setString(3, java.time.LocalDateTime.now().toString());
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    /**
+     * Migration to add home_block_y column to towns table
+     */
+    private static class AddHomeBlockYMigration implements DatabaseMigration {
+
+        @Override
+        public int getVersion() {
+            return 3;
+        }
+
+        @Override
+        public String getDescription() {
+            return "Add home_block_y column to towns table for better spawn fallback";
+        }
+
+        @Override
+        public void migrate(Connection connection) throws SQLException {
+            try (Statement statement = connection.createStatement()) {
+                // Add home_block_y column to towns table
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN home_block_y INTEGER DEFAULT NULL
+                """);
+            }
+        }
+
+        @Override
+        public boolean isApplied(Connection connection) throws SQLException {
+            // Check if home_block_y column exists
+            try (Statement statement = connection.createStatement()) {
+                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(towns)")) {
+                    while (resultSet.next()) {
+                        String columnName = resultSet.getString("name");
+                        if ("home_block_y".equals(columnName)) {
+                            return true;
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                // Table doesn't exist or other error, consider not applied
+                return false;
+            }
+            return false;
+        }
+
+        @Override
+        public void markAsApplied(Connection connection) throws SQLException {
+            String sql = "INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)";
+
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setInt(1, getVersion());
+                statement.setString(2, getDescription());
+                statement.setString(3, java.time.LocalDateTime.now().toString());
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    /**
+     * Migration to add town level system tables and columns
+     */
+    private static class AddTownLevelSystemMigration implements DatabaseMigration {
+
+        @Override
+        public int getVersion() {
+            return 4;
+        }
+
+        @Override
+        public String getDescription() {
+            return "Add town level system with resource contributions and tech tree points";
+        }
+
+        @Override
+        public void migrate(Connection connection) throws SQLException {
+            try (Statement statement = connection.createStatement()) {
+                // Add town level columns to towns table
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN town_level INTEGER DEFAULT 1
+                """);
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN tech_points INTEGER DEFAULT 0
+                """);
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN upgrade_progress TEXT DEFAULT '{}'
+                """);
+
+                // Create town levels table (level definitions)
+                statement.execute("""
+                    CREATE TABLE IF NOT EXISTS town_levels (
+                        level INTEGER PRIMARY KEY,
+                        diamond_cost INTEGER NOT NULL DEFAULT 0,
+                        gold_cost INTEGER NOT NULL DEFAULT 0,
+                        iron_cost INTEGER NOT NULL DEFAULT 0,
+                        emerald_cost INTEGER NOT NULL DEFAULT 0,
+                        experience_cost INTEGER NOT NULL DEFAULT 0,
+                        tech_points_reward INTEGER NOT NULL DEFAULT 0,
+                        claim_limit_bonus INTEGER NOT NULL DEFAULT 0,
+                        assistant_slots_bonus INTEGER NOT NULL DEFAULT 0,
+                        daily_income_bonus REAL NOT NULL DEFAULT 0.0,
+                        unlocked_plot_types TEXT DEFAULT '[]',
+                        created_at TEXT NOT NULL
+                    )
+                """);
+
+                // Create town resource bank table
+                statement.execute("""
+                    CREATE TABLE IF NOT EXISTS town_resources (
+                        id TEXT PRIMARY KEY,
+                        town_id TEXT NOT NULL,
+                        resource_type TEXT NOT NULL,
+                        amount INTEGER NOT NULL DEFAULT 0,
+                        last_updated TEXT NOT NULL,
+                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
+                        UNIQUE(town_id, resource_type)
+                    )
+                """);
+
+                // Create resource contributions table
+                statement.execute("""
+                    CREATE TABLE IF NOT EXISTS resource_contributions (
+                        id TEXT PRIMARY KEY,
+                        town_id TEXT NOT NULL,
+                        contributor_uuid TEXT NOT NULL,
+                        resource_type TEXT NOT NULL,
+                        amount INTEGER NOT NULL,
+                        contribution_time TEXT NOT NULL,
+                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
+                        FOREIGN KEY (contributor_uuid) REFERENCES residents(uuid) ON DELETE CASCADE
+                    )
+                """);
+
+                // Create level benefits table for tracking unlocked benefits
+                statement.execute("""
+                    CREATE TABLE IF NOT EXISTS town_level_benefits (
+                        id TEXT PRIMARY KEY,
+                        town_id TEXT NOT NULL,
+                        level INTEGER NOT NULL,
+                        benefit_type TEXT NOT NULL,
+                        benefit_value TEXT NOT NULL,
+                        unlocked_at TEXT NOT NULL,
+                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
+                        UNIQUE(town_id, level, benefit_type)
+                    )
+                """);
+
+                // Insert default level data (levels 1-150 with exponential scaling)
+                insertDefaultLevelData(statement);
+
+                // Create indexes for performance
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_resources_town ON town_resources(town_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_resources_type ON town_resources(resource_type)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_town ON resource_contributions(town_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_contributor ON resource_contributions(contributor_uuid)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_time ON resource_contributions(contribution_time)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_level_benefits_town ON town_level_benefits(town_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_level_benefits_level ON town_level_benefits(level)");
+            }
+        }
+
+        /**
+         * Insert default level data with exponential scaling
+         */
+        private void insertDefaultLevelData(Statement statement) throws SQLException {
+            String currentTime = java.time.LocalDateTime.now().toString();
+
+            for (int level = 1; level <= 150; level++) {
+                // Calculate costs with exponential scaling
+                double baseMultiplier = Math.pow(1.15, level - 1);
+
+                int diamondCost = (int) Math.round(50 * baseMultiplier);
+                int goldCost = (int) Math.round(100 * baseMultiplier);
+                int ironCost = (int) Math.round(20 * baseMultiplier);
+                int emeraldCost = level >= 10 ? (int) Math.round(10 * baseMultiplier) : 0;
+                int experienceCost = level >= 25 ? (int) Math.round(25 * baseMultiplier) : 0;
+
+                // Tech points reward (1 for level 2-9, 2 for 10-24, 3 for 25-49, 5 for 50-99, 10 for 100+)
+                int techPoints = 0;
+                if (level >= 2) {
+                    if (level <= 9) techPoints = 1;
+                    else if (level <= 24) techPoints = 2;
+                    else if (level <= 49) techPoints = 3;
+                    else if (level <= 99) techPoints = 5;
+                    else techPoints = 10;
+                }
+
+                // Benefits
+                int claimLimitBonus = (level - 1) * 2; // +2 chunks per level
+                int assistantSlotsBonus = (level - 1) / 10; // +1 slot every 10 levels
+                double dailyIncomeBonus = level * level * 0.5; // Quadratic scaling
+
+                // Unlocked plot types (as JSON array)
+                String unlockedPlotTypes = "[]";
+                if (level >= 10 && level < 25) unlockedPlotTypes = "[\"BANK\"]";
+                else if (level >= 25 && level < 50) unlockedPlotTypes = "[\"BANK\", \"ARENA\"]";
+                else if (level >= 50 && level < 100) unlockedPlotTypes = "[\"BANK\", \"ARENA\", \"EMBASSY\"]";
+                else if (level >= 100) unlockedPlotTypes = "[\"BANK\", \"ARENA\", \"EMBASSY\", \"JAIL\", \"INN\"]";
+
+                String sql = String.format("""
+                    INSERT OR REPLACE INTO town_levels (
+                        level, diamond_cost, gold_cost, iron_cost, emerald_cost, experience_cost,
+                        tech_points_reward, claim_limit_bonus, assistant_slots_bonus, daily_income_bonus,
+                        unlocked_plot_types, created_at
+                    ) VALUES (%d, %d, %d, %d, %d, %d, %d, %d, %d, %f, '%s', '%s')
+                    """,
+                    level, diamondCost, goldCost, ironCost, emeraldCost, experienceCost,
+                    techPoints, claimLimitBonus, assistantSlotsBonus, dailyIncomeBonus,
+                    unlockedPlotTypes, currentTime
+                );
+
+                statement.execute(sql);
+            }
+        }
+
+        @Override
+        public boolean isApplied(Connection connection) throws SQLException {
+            // Check if town_level column exists
+            try (Statement statement = connection.createStatement()) {
+                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(towns)")) {
+                    while (resultSet.next()) {
+                        String columnName = resultSet.getString("name");
+                        if ("town_level".equals(columnName)) {
+                            return true;
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                return false;
+            }
+            return false;
+        }
+
+        @Override
+        public void markAsApplied(Connection connection) throws SQLException {
+            String sql = "INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)";
+
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setInt(1, getVersion());
+                statement.setString(2, getDescription());
+                statement.setString(3, java.time.LocalDateTime.now().toString());
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    /**
+     * Migration to convert TownBlock permissions from Map<String, Boolean> to bitwise flags
+     */
+    private static class MigrateTownBlockToBitwiseMigration implements DatabaseMigration {
+
+        @Override
+        public int getVersion() {
+            return 5;
+        }
+
+        @Override
+        public String getDescription() {
+            return "Convert TownBlock permissions to bitwise system using existing Permission.Flag constants";
+        }
+
+        @Override
+        public void migrate(Connection connection) throws SQLException {
+            try (Statement statement = connection.createStatement()) {
+                // The town_blocks table already has permissions_flags column, so we don't need to convert from string permissions
+                // Just ensure all existing town_blocks have proper permissions_flags set
+
+                // Set default permissions for town-owned plots (no owner_uuid)
+                // Town-owned plots get basic build permissions for residents
+                statement.execute("""
+                    UPDATE town_blocks
+                    SET permissions_flags = 15
+                    WHERE owner_uuid IS NULL
+                    AND (permissions_flags = 0 OR permissions_flags IS NULL)
+                """);
+
+                // Set full permissions for player-owned plots
+                // Player-owned plots get all permissions for the owner
+                statement.execute("""
+                    UPDATE town_blocks
+                    SET permissions_flags = 65535
+                    WHERE owner_uuid IS NOT NULL
+                    AND (permissions_flags = 0 OR permissions_flags IS NULL)
+                """);
+
+                // Set specific permissions based on plot type
+                statement.execute("""
+                    UPDATE town_blocks
+                    SET permissions_flags = 13
+                    WHERE plot_type = 'shop'
+                    AND owner_uuid IS NULL
+                    AND (permissions_flags = 15 OR permissions_flags = 0)
+                """);
+
+                statement.execute("""
+                    UPDATE town_blocks
+                    SET permissions_flags = 15
+                    WHERE plot_type = 'farm'
+                    AND owner_uuid IS NULL
+                    AND (permissions_flags = 0 OR permissions_flags = 15)
+                """);
+
+                // Ensure all town_blocks have non-null permissions_flags
+                statement.execute("""
+                    UPDATE town_blocks
+                    SET permissions_flags = 15
+                    WHERE permissions_flags IS NULL OR permissions_flags = 0
+                """);
+            }
+        }
+
+        @Override
+        public boolean isApplied(Connection connection) throws SQLException {
+            // Check if migration is already recorded in schema_migrations table
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM schema_migrations WHERE version = 5")) {
+
+                if (resultSet.next()) {
+                    return resultSet.getInt(1) > 0;
+                }
+            } catch (SQLException e) {
+                // Table doesn't exist yet, so migration is not applied
+                return false;
+            }
+            return false;
+        }
+
+        @Override
+        public void markAsApplied(Connection connection) throws SQLException {
+            String sql = "INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)";
+
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setInt(1, getVersion());
+                statement.setString(2, getDescription());
+                statement.setString(3, java.time.LocalDateTime.now().toString());
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    /**
+     * Add town toggle system - adds dedicated columns for town toggles
+     */
+    private static class AddTownToggleMigration implements DatabaseMigration {
+
+        @Override
+        public int getVersion() {
+            return 6;
+        }
+
+        @Override
+        public String getDescription() {
+            return "Add town toggle system with dedicated boolean columns";
+        }
+
+        @Override
+        public void migrate(Connection connection) throws SQLException {
+            try (Statement statement = connection.createStatement()) {
+                // Add toggle columns to towns table
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN pvp_enabled BOOLEAN DEFAULT FALSE
+                """);
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN fire_enabled BOOLEAN DEFAULT FALSE
+                """);
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN explosions_enabled BOOLEAN DEFAULT FALSE
+                """);
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN mobs_enabled BOOLEAN DEFAULT TRUE
+                """);
+                statement.execute("""
+                    ALTER TABLE towns ADD COLUMN public_enabled BOOLEAN DEFAULT FALSE
+                """);
+
+                // Initialize existing towns with default values from permissions map if it exists
+                // For now, set defaults - towns can be migrated from JSON permissions later
+                statement.execute("""
+                    UPDATE towns
+                    SET pvp_enabled = FALSE,
+                        fire_enabled = FALSE,
+                        explosions_enabled = FALSE,
+                        mobs_enabled = TRUE,
+                        public_enabled = FALSE
+                    WHERE pvp_enabled IS NULL
+                """);
+            }
+        }
+
+        @Override
+        public boolean isApplied(Connection connection) throws SQLException {
+            // Check if migration is already recorded in schema_migrations table
+            try (Statement statement = connection.createStatement();
+                 ResultSet resultSet = statement.executeQuery("SELECT COUNT(*) FROM schema_migrations WHERE version = 6")) {
+
+                if (resultSet.next()) {
+                    return resultSet.getInt(1) > 0;
+                }
+            } catch (SQLException e) {
+                // Table doesn't exist yet, so migration is not applied
                 return false;
             }
             return false;

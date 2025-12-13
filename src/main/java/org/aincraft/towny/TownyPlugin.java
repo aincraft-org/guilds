@@ -2,17 +2,36 @@ package org.aincraft.towny;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import org.aincraft.towny.commands.BrigadierCommandRegistry;
 import org.aincraft.towny.commands.TownCommand;
+import org.aincraft.towny.commands.MapCommand;
+import org.aincraft.towny.commands.TownyGeneralCommand;
+import org.aincraft.towny.commands.TownLevelCommand;
+import org.aincraft.towny.commands.PlotCommand;
+import org.aincraft.towny.commands.PlotTypeCommand;
+import org.aincraft.towny.commands.PermCommand;
+import org.aincraft.towny.commands.TownBroadcastCommand;
 import org.aincraft.towny.dependency.TownyModule;
+import org.aincraft.towny.listeners.PlayerMovementListener;
+import org.aincraft.towny.listeners.TownToggleListener;
+import org.aincraft.towny.listeners.TownPublicAccessListener;
+import org.aincraft.towny.listeners.TownBroadcastListener;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * Main plugin class for Towny - Enhanced town and nation management plugin
  */
-public class TownyPlugin extends JavaPlugin {
+public class TownyPlugin extends JavaPlugin implements Listener {
 
     private static TownyPlugin instance;
     private Injector injector;
+    private PlayerMovementListener playerMovementListener;
+    private TownToggleListener townToggleListener;
+    private TownPublicAccessListener townPublicAccessListener;
+    private TownBroadcastListener townBroadcastListener;
 
     @Override
     public void onEnable() {
@@ -90,20 +109,25 @@ public class TownyPlugin extends JavaPlugin {
     }
 
     /**
-     * Register plugin commands
+     * Register plugin commands using Brigadier
      */
     private void registerCommands() {
         try {
-            // Get command handlers from injector
-            TownCommand townCommand = injector.getInstance(TownCommand.class);
+            // Check if injector was initialized successfully
+            if (injector == null) {
+                getLogger().severe("Cannot register commands - dependency injection failed to initialize.");
+                return;
+            }
 
-            // Register commands
-            getCommand("town").setExecutor(townCommand);
-            getCommand("town").setTabCompleter(townCommand);
+            // Get Brigadier command registry from injector
+            BrigadierCommandRegistry commandRegistry = injector.getInstance(BrigadierCommandRegistry.class);
 
-            getLogger().info("Town commands registered successfully.");
+            // Register all Brigadier commands
+            commandRegistry.registerCommands();
+
+            getLogger().info("Brigadier commands registered successfully.");
         } catch (Exception e) {
-            getLogger().severe("Failed to register commands: " + e.getMessage());
+            getLogger().severe("Failed to register Brigadier commands: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -112,8 +136,29 @@ public class TownyPlugin extends JavaPlugin {
      * Register event listeners
      */
     private void registerListeners() {
-        // Listeners will be registered through Guice injection
-        // This is a placeholder - we'll implement actual listener registration later
+        // Get player movement listener from Guice injector
+        playerMovementListener = injector.getInstance(PlayerMovementListener.class);
+
+        // Get toggle listeners from Guice injector
+        townToggleListener = injector.getInstance(TownToggleListener.class);
+        townPublicAccessListener = injector.getInstance(TownPublicAccessListener.class);
+        townBroadcastListener = injector.getInstance(TownBroadcastListener.class);
+
+        // Register events
+        getServer().getPluginManager().registerEvents(playerMovementListener, this);
+        getServer().getPluginManager().registerEvents(townToggleListener, this);
+        getServer().getPluginManager().registerEvents(townPublicAccessListener, this);
+        getServer().getPluginManager().registerEvents(townBroadcastListener, this);
+        getServer().getPluginManager().registerEvents(this, this);
+
         getLogger().info("Event listeners registered.");
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        // Clean up player data to prevent memory leaks
+        if (playerMovementListener != null) {
+            playerMovementListener.cleanupOfflinePlayer(event.getPlayer().getUniqueId());
+        }
     }
 }

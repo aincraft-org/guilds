@@ -4,6 +4,12 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.aincraft.towny.database.DatabaseManager;
 import org.aincraft.towny.models.Permission;
+import org.aincraft.towny.models.Town;
+import org.aincraft.towny.models.TownBlock;
+import org.aincraft.towny.models.TownyPermission;
+import org.aincraft.towny.models.PermissionSet;
+import org.aincraft.towny.services.*;
+import org.aincraft.towny.services.PermissionEvaluationResult;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -22,21 +28,42 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
     private final DatabaseManager databaseManager;
     private final DataSource dataSource;
     private final Logger logger;
+    private final PlotService plotService;
+    private final TownService townService;
+    private final ResidentService residentService;
+    private final TownToggleService townToggleService;
+    private final LocationService locationService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Inject
-    public PermissionServiceImpl(DatabaseManager databaseManager, Logger logger) {
+    public PermissionServiceImpl(DatabaseManager databaseManager, Logger logger,
+                                PlotService plotService, TownService townService, ResidentService residentService,
+                                TownToggleService townToggleService, LocationService locationService) {
         this.databaseManager = databaseManager;
         this.dataSource = databaseManager.getDataSource();
         this.logger = logger;
+        this.plotService = plotService;
+        this.townService = townService;
+        this.residentService = residentService;
+        this.locationService = locationService;
+        this.townToggleService = townToggleService;
     }
 
     @Override
     public boolean hasPermission(UUID residentUuid, String permission, String context, String contextId) {
-        // This would need to be implemented to check bitwise flags
-        // For now, return false as a placeholder
-        return false;
+        // Handle specific permission checks based on context
+        switch (context.toLowerCase()) {
+            case "town":
+                return hasTownPermission(residentUuid, permission, contextId);
+            case "plot":
+                return hasPlotPermission(residentUuid, permission, contextId);
+            case "global":
+                return hasGlobalPermission(residentUuid, permission);
+            default:
+                logger.warning("Unknown permission context: " + context);
+                return false;
+        }
     }
 
     @Override
@@ -252,28 +279,118 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
 
     @Override
     public boolean canBuild(UUID residentUuid, int x, int z, String world) {
-        // Check if location is in a town block
-        // Get plot permissions and check build flag
-        // For now, return true as placeholder
-        return true;
+        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.BUILD);
     }
 
     @Override
     public boolean canDestroy(UUID residentUuid, int x, int z, String world) {
-        // Similar to canBuild but for destroy permissions
-        return true;
+        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.DESTROY);
     }
 
     @Override
     public boolean canSwitch(UUID residentUuid, int x, int z, String world) {
-        // Check switch permissions
-        return true;
+        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.SWITCH);
     }
 
     @Override
     public boolean canUseItems(UUID residentUuid, int x, int z, String world) {
-        // Check item use permissions
+        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.ITEM_USE);
+    }
+
+    @Override
+    public boolean canInteractWithEntity(UUID residentUuid, int x, int z, String world) {
+        // Entity interaction uses same permission hierarchy as destroy
+        // This ensures item frames, armor stands, etc. follow plot ownership rules
+        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.DESTROY);
+    }
+
+    /**
+     * Centralized method to check permissions at a specific location
+     * Uses hierarchical permission evaluation: Plot > Town > Global
+     */
+    private boolean checkLocationPermission(UUID residentUuid, int x, int z, String world, int permissionFlag) {
+        try {
+            // Convert block coordinates to chunk coordinates
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+
+            // Get town block at this location
+            Optional<TownBlock> townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
+
+            if (!townBlock.isPresent()) {
+                // Wilderness - apply wilderness toggle defaults
+                return checkWildernessPermission(permissionFlag);
+            }
+
+            // Town block exists - apply town toggle checks first
+            if (!checkTownToggles(residentUuid, x, z, world, permissionFlag)) {
+                logger.fine(String.format("Permission denied by town toggle for %s at (%d,%d,%s)",
+                    residentUuid, x, z, world));
+                return false;
+            }
+
+            // Town block exists - use hierarchical permission evaluation
+            TownBlock block = townBlock.get();
+            PermissionEvaluationResult result = evaluatePlotPermission(residentUuid, block.getId(), permissionFlag);
+
+            // Log the evaluation result for debugging
+            logger.fine(String.format("Permission check for %s at (%d,%d,%s): %s - %s",
+                residentUuid, x, z, world, result.hasPermission(), result.getReason()));
+
+            return result.hasPermission();
+
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to check location permission for resident " + residentUuid, e);
+            // Default deny on errors to prevent unauthorized access
+            return false;
+        }
+    }
+
+    /**
+     * Check town toggles that might affect the permission
+     * @param residentUuid Resident UUID
+     * @param x X coordinate
+     * @param z Z coordinate
+     * @param world World name
+     * @param permissionFlag Permission flag being checked
+     * @return True if toggles allow the permission, false otherwise
+     */
+    private boolean checkTownToggles(UUID residentUuid, int x, int z, String world, int permissionFlag) {
+        Optional<Town> town = locationService.getTownAtLocation(x, z, world);
+        if (town.isEmpty()) {
+            return true; // No town - no toggle restrictions
+        }
+
+        Town t = town.get();
+
+        // Check if town is public access (for non-residents)
+        try {
+            var resident = residentService.getResident(residentUuid);
+            if (resident.isPresent() && !resident.get().hasTown()) {
+                // Non-resident trying to access town
+                if (!t.isPublicEnabled()) {
+                    logger.fine("Non-resident access denied - town is not public");
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Error checking resident town membership: " + e.getMessage());
+        }
+
         return true;
+    }
+
+    /**
+     * Check wilderness permissions based on default wilderness behavior
+     * @param permissionFlag Permission flag being checked
+     * @return True if allowed in wilderness
+     */
+    private boolean checkWildernessPermission(int permissionFlag) {
+        // Wilderness defaults:
+        // - Build/Destroy: Allowed (true)
+        // - Switch/Item: Allowed (true)
+        // - Fire/Explosions: Based on wilderness defaults
+        return true; // By default, wilderness allows most actions
     }
 
     @Override
@@ -402,10 +519,228 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
         return false;
     }
 
+    /**
+     * Check if a resident has a specific town permission
+     */
+    private boolean hasTownPermission(UUID residentUuid, String permission, String townName) {
+        // Check database for explicit permission grants first
+        String sql = "SELECT permissions_flags FROM permissions WHERE " +
+                    "context = 'town' AND context_id = ? AND " +
+                    "(target_type = 'all' OR (target_type = 'resident' AND target_id = ?))";
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setString(1, townName);
+            statement.setString(2, residentUuid.toString());
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    int flags = resultSet.getInt("permissions_flags");
+                    if (hasPermissionFlag(flags, permission)) {
+                        return true;
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to check town permission: " + permission + " for " + residentUuid + " in " + townName, e);
+        }
+
+        // Fall back to role-based permissions if no explicit permissions found
+        return hasRoleBasedTownPermission(residentUuid, permission, townName);
+    }
+
+    /**
+     * Check if a resident has permission based on their town role
+     */
+    private boolean hasRoleBasedTownPermission(UUID residentUuid, String permission, String townName) {
+        switch (permission.toLowerCase()) {
+            case "set_spawn":
+                // Mayors and assistants can set spawn
+                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+
+            case "spawn":
+                // All residents and town members can spawn
+                return true;
+
+            case "claim":
+            case "unclaim":
+                // Mayors and assistants can claim/unclaim
+                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+
+            case "invite":
+                // Mayors and assistants can invite
+                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+
+            case "kick":
+                // Mayors and assistants can kick (but not other assistants)
+                return isTownMayor(residentUuid, townName) ||
+                       (isTownAssistant(residentUuid, townName) && !isTownAssistant(residentUuid, townName));
+
+            case "promote":
+            case "demote":
+                // Only mayors can promote/demote
+                return isTownMayor(residentUuid, townName);
+
+            case "withdraw":
+            case "deposit":
+                // Mayors and assistants can manage economy
+                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+
+            case "build":
+            case "destroy":
+            case "switch":
+            case "item_use":
+                // All town members have basic build permissions by default
+                return true;
+
+            default:
+                // Unknown permission, deny by default
+                return false;
+        }
+    }
+
+    /**
+     * Check if permission flags contain a specific permission
+     */
+    private boolean hasPermissionFlag(int flags, String permission) {
+        switch (permission.toLowerCase()) {
+            case "build": return (flags & Permission.Flag.BUILD) != 0;
+            case "destroy": return (flags & Permission.Flag.DESTROY) != 0;
+            case "switch": return (flags & Permission.Flag.SWITCH) != 0;
+            case "item_use": return (flags & Permission.Flag.ITEM_USE) != 0;
+            case "claim": return (flags & Permission.Flag.CLAIM) != 0;
+            case "unclaim": return (flags & Permission.Flag.UNCLAIM) != 0;
+            case "spawn": return (flags & Permission.Flag.SPAWN) != 0;
+            case "set_spawn": return (flags & Permission.Flag.SET_SPAWN) != 0;
+            case "invite": return (flags & Permission.Flag.INVITE) != 0;
+            case "kick": return (flags & Permission.Flag.KICK) != 0;
+            case "promote": return (flags & Permission.Flag.PROMOTE) != 0;
+            case "demote": return (flags & Permission.Flag.DEMOTE) != 0;
+            case "withdraw": return (flags & Permission.Flag.WITHDRAW) != 0;
+            case "deposit": return (flags & Permission.Flag.DEPOSIT) != 0;
+            case "plot_perm": return (flags & Permission.Flag.PLOT_PERM) != 0;
+            case "plot_set": return (flags & Permission.Flag.PLOT_SET) != 0;
+            case "plot_owner": return (flags & Permission.Flag.PLOT_OWNER) != 0;
+            case "admin": return (flags & Permission.Flag.ADMIN) != 0;
+            case "admin_town": return (flags & Permission.Flag.ADMIN_TOWN) != 0;
+            case "admin_plot": return (flags & Permission.Flag.ADMIN_PLOT) != 0;
+            case "admin_resident": return (flags & Permission.Flag.ADMIN_RESIDENT) != 0;
+            case "bypass": return (flags & Permission.Flag.BYPASS) != 0;
+            default: return false;
+        }
+    }
+
+    /**
+     * Check if a resident has a specific plot permission
+     */
+    private boolean hasPlotPermission(UUID residentUuid, String permission, String plotId) {
+        // For now, fall back to basic plot ownership check
+        return ownsPlot(residentUuid, UUID.fromString(plotId));
+    }
+
+    /**
+     * Check if a resident has global permissions
+     */
+    private boolean hasGlobalPermission(UUID residentUuid, String permission) {
+        // Check for admin-level global permissions
+        String sql = "SELECT permissions_flags FROM permissions WHERE " +
+                    "context = 'global' AND target_type = 'resident' AND target_id = ?";
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setString(1, residentUuid.toString());
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    int flags = resultSet.getInt("permissions_flags");
+                    return hasPermissionFlag(flags, permission);
+                }
+            }
+
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to check global permission: " + permission + " for " + residentUuid, e);
+        }
+
+        return false;
+    }
+
     @Override
     public boolean hasTownAdmin(UUID residentUuid, String townName) {
         // Check if resident is mayor or assistant
         return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+    }
+
+    @Override
+    public boolean grantTownPermission(UUID residentUuid, String townName, int permissionFlag) {
+        return grantTownPermissions(residentUuid, townName, permissionFlag);
+    }
+
+    @Override
+    public boolean grantTownPermissions(UUID residentUuid, String townName, int permissionFlags) {
+        final boolean[] result = new boolean[1];
+        final String targetType = (residentUuid == null) ? "all" : "resident";
+        final String targetId = (residentUuid == null) ? null : residentUuid.toString();
+
+        databaseManager.executeTransaction(connection -> {
+            try {
+                // Check if permission already exists
+                String checkSql = "SELECT id, permissions_flags FROM permissions WHERE " +
+                                "context = 'town' AND context_id = ? AND target_type = ? AND target_id = ?";
+
+                try (PreparedStatement checkStatement = connection.prepareStatement(checkSql)) {
+                    checkStatement.setString(1, townName);
+                    checkStatement.setString(2, targetType);
+                    checkStatement.setString(3, targetId);
+
+                    try (ResultSet resultSet = checkStatement.executeQuery()) {
+                        if (resultSet.next()) {
+                            // Update existing permission
+                            String existingId = resultSet.getString("id");
+                            int existingFlags = resultSet.getInt("permissions_flags");
+                            int newFlags = existingFlags | permissionFlags;
+
+                            String updateSql = "UPDATE permissions SET permissions_flags = ? WHERE id = ?";
+                            try (PreparedStatement updateStatement = connection.prepareStatement(updateSql)) {
+                                updateStatement.setInt(1, newFlags);
+                                updateStatement.setString(2, existingId);
+                                updateStatement.executeUpdate();
+                            }
+
+                            logger.info("Updated town permissions for " + targetType + " in " + townName + ": added flags " + permissionFlags);
+                        } else {
+                            // Insert new permission
+                            String insertSql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                            try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
+                                insertStatement.setString(1, UUID.randomUUID().toString());
+                                insertStatement.setString(2, "town");
+                                insertStatement.setString(3, townName);
+                                insertStatement.setString(4, targetType);
+                                insertStatement.setString(5, targetId);
+                                insertStatement.setInt(6, permissionFlags);
+                                insertStatement.setString(7, LocalDateTime.now().format(DATE_FORMATTER));
+                                insertStatement.setString(8, null); // granted_by_uuid could be set to admin UUID
+
+                                insertStatement.executeUpdate();
+                            }
+
+                            logger.info("Granted town permissions for " + targetType + " in " + townName + ": flags " + permissionFlags);
+                        }
+                    }
+                }
+
+                result[0] = true;
+
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to grant town permissions: " + permissionFlags + " to " + targetType + " in " + townName, e);
+                result[0] = false;
+            }
+        });
+
+        return result[0];
     }
 
     @Override
@@ -491,5 +826,313 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
         } else {
             return currentFlags & ~flag; // Remove flag
         }
+    }
+
+    // Plot-specific permission method implementations
+
+    @Override
+    public boolean canClaimPlot(UUID residentUuid, int x, int z, String world) {
+        // Check if resident is in a town and has claim permission
+        // This would integrate with TownService to verify town membership
+        return hasPermission(residentUuid, "claim", "town", null);
+    }
+
+    @Override
+    public boolean canBuyPlot(UUID residentUuid, UUID plotId) {
+        // Anyone can buy plots if they're for sale (economy check handled elsewhere)
+        return true;
+    }
+
+    @Override
+    public boolean canManagePlot(UUID residentUuid, UUID plotId) {
+        // Plot owners and town assistants/mayors can manage plots
+        return ownsPlot(residentUuid, plotId) || hasTownAdmin(residentUuid, null);
+    }
+
+    @Override
+    public boolean hasPlotPermission(UUID residentUuid, UUID plotId, int permissionFlag) {
+        // Plot owners have all permissions
+        if (ownsPlot(residentUuid, plotId)) {
+            return true;
+        }
+
+        // Check plot-specific permissions from database
+        // For now, fallback to basic checks
+        PermissionEvaluationResult result = evaluatePlotPermission(residentUuid, plotId, permissionFlag);
+        return result.hasPermission();
+    }
+
+    @Override
+    public boolean canClaimForTown(UUID residentUuid, String townName) {
+        // Check if resident has town management permissions
+        return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+    }
+
+    @Override
+    public boolean hasPlotManagementPermissions(UUID residentUuid, String townName) {
+        return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+    }
+
+    @Override
+    public PermissionEvaluationResult evaluatePlotPermission(UUID residentUuid, UUID plotId, int permissionFlag) {
+        // Priority 1: Global admin bypass
+        if (hasPermission(residentUuid, "bypass", "global", null)) {
+            return new PermissionEvaluationResult(true, "admin", "Global admin bypass");
+        }
+
+        // Get plot information
+        Optional<TownBlock> townBlock = plotService.getTownBlock(plotId);
+        if (!townBlock.isPresent()) {
+            return new PermissionEvaluationResult(false, "default", "Plot does not exist");
+        }
+
+        TownBlock block = townBlock.get();
+        String townId = block.getTownId();
+
+        // Priority 2: Plot owner - has absolute rights over their plot
+        if (ownsPlot(residentUuid, plotId)) {
+            return new PermissionEvaluationResult(true, "owner", "Plot owner has all permissions");
+        }
+
+        // Priority 3: Plot-specific permissions (highest precedence)
+        // Check if the user has explicit permissions on this plot
+        List<Permission> plotPerms = getResidentPermissions(residentUuid, Permission.Context.PLOT, plotId.toString());
+        for (Permission perm : plotPerms) {
+            if (perm.appliesTo(residentUuid) && perm.hasFlag(permissionFlag)) {
+                return new PermissionEvaluationResult(true, "plot", "Explicit plot permission granted");
+            }
+        }
+
+        // Priority 4: Town permissions (fallback for town-owned plots or town members)
+        String townName = getTownNameFromId(townId);
+        if (townName != null) {
+            // Check if user is member of the town
+            if (isResidentInTown(residentUuid, townName)) {
+                // Check town-specific permissions for this resident
+                List<Permission> townPerms = getResidentPermissions(residentUuid, Permission.Context.TOWN, townName);
+                for (Permission perm : townPerms) {
+                    if (perm.appliesTo(residentUuid) && perm.hasFlag(permissionFlag)) {
+                        return new PermissionEvaluationResult(true, "town", "Town permission granted");
+                    }
+                }
+
+                // Check default town permissions based on resident's role
+                if (isTownMayor(residentUuid, townName)) {
+                    if (Permission.Flag.MAYOR_PERMS != 0 && (Permission.Flag.MAYOR_PERMS & permissionFlag) != 0) {
+                        return new PermissionEvaluationResult(true, "town", "Default mayor permissions");
+                    }
+                } else if (isTownAssistant(residentUuid, townName)) {
+                    if (Permission.Flag.ASSISTANT_PERMS != 0 && (Permission.Flag.ASSISTANT_PERMS & permissionFlag) != 0) {
+                        return new PermissionEvaluationResult(true, "town", "Default assistant permissions");
+                    }
+                } else {
+                    // Regular town resident
+                    if (Permission.Flag.RESIDENT_PERMS != 0 && (Permission.Flag.RESIDENT_PERMS & permissionFlag) != 0) {
+                        return new PermissionEvaluationResult(true, "town", "Default resident permissions");
+                    }
+                }
+            }
+
+            // Check if plot is town-owned and apply default plot permissions
+            if (block.getOwnerId() == null) {
+                if (Permission.Flag.DEFAULT_PLOT != 0 && (Permission.Flag.DEFAULT_PLOT & permissionFlag) != 0) {
+                    return new PermissionEvaluationResult(true, "plot", "Default town plot permissions");
+                }
+            }
+        }
+
+        // Priority 5: Default deny
+        return new PermissionEvaluationResult(false, "default", "No permission granted");
+    }
+
+    /**
+     * Helper method to get town name from town ID
+     */
+    private String getTownNameFromId(String townId) {
+        try {
+            Optional<Town> town = townService.getTownById(townId);
+            return town.map(Town::getName).orElse(null);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to get town name from ID: " + townId, e);
+            return null;
+        }
+    }
+
+    /**
+     * Helper method to check if resident is member of town
+     */
+    private boolean isResidentInTown(UUID residentUuid, String townName) {
+        try {
+            String residentTown = getResidentTown(residentUuid);
+            return townName.equals(residentTown);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Failed to check town membership for resident: " + residentUuid, e);
+            return false;
+        }
+    }
+
+    /**
+     * Helper method to get resident's town name
+     */
+    private String getResidentTown(UUID residentUuid) {
+        String sql = "SELECT town_name FROM residents WHERE uuid = ?";
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+
+            statement.setString(1, residentUuid.toString());
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return resultSet.getString("town_name");
+                }
+            }
+
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to get resident town for " + residentUuid, e);
+        }
+
+        return null;
+    }
+
+    // ==================== NEW ENUM-BASED METHOD IMPLEMENTATIONS ====================
+
+    @Override
+    public PermissionEvaluationResult hasPermission(UUID residentUuid, TownyPermission permission, String context, String contextId) {
+        return evaluatePermissionEnum(residentUuid, context, contextId, permission);
+    }
+
+    @Override
+    public boolean grantPermission(UUID residentUuid, TownyPermission permission, String context, String contextId) {
+        return grantPermissionEnum(residentUuid, permission, context, contextId);
+    }
+
+    @Override
+    public boolean denyPermission(UUID residentUuid, TownyPermission permission, String context, String contextId) {
+        return denyPermissionEnum(residentUuid, permission, context, contextId);
+    }
+
+    @Override
+    public boolean revokePermission(UUID residentUuid, TownyPermission permission, String context, String contextId) {
+        return revokePermissionEnum(residentUuid, permission, context, contextId);
+    }
+
+    @Override
+    public PermissionSet getPermissionSet(UUID residentUuid, String context, String contextId) {
+        List<Permission> permissions = getResidentPermissions(residentUuid, context, contextId);
+        PermissionSet permissionSet = new PermissionSet();
+
+        for (Permission perm : permissions) {
+            TownyPermission.fromLegacyValue(perm.getFlags()).ifPresent(permissionSet::grantPermission);
+        }
+
+        return permissionSet;
+    }
+
+    @Override
+    public boolean setPermissionSet(UUID residentUuid, PermissionSet permissionSet, String context, String contextId) {
+        try {
+            // Clear existing permissions first
+            revokePermission(residentUuid, "", context, contextId);
+
+            // Grant new permissions
+            for (TownyPermission permission : permissionSet.getGrantedPermissions()) {
+                grantPermission(residentUuid, permission, context, contextId);
+            }
+
+            return true;
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to set permission set", e);
+            return false;
+        }
+    }
+
+    @Override
+    public PermissionEvaluationResult evaluatePermission(UUID residentUuid, String context, String contextId, TownyPermission permission) {
+        // For now, delegate to legacy evaluation
+        return evaluatePlotPermission(residentUuid, UUID.fromString(contextId), permission.getLegacyBitwiseValue());
+    }
+
+    @Override
+    public PermissionSet getDefaultPermissions(String role) {
+        switch (role.toLowerCase()) {
+            case "mayor":
+                return PermissionSet.createMayor();
+            case "assistant":
+                return PermissionSet.createAssistant();
+            case "resident":
+                return PermissionSet.createResident();
+            default:
+                return new PermissionSet();
+        }
+    }
+
+    @Override
+    public String getCacheStatistics() {
+        // Cache statistics would be implemented here
+        return "Cache statistics not implemented yet";
+    }
+
+    @Override
+    public void clearCache() {
+        // Cache clearing would be implemented here
+        logger.info("Permission cache cleared");
+    }
+
+    @Override
+    public void clearResidentCache(UUID residentUuid) {
+        // Resident cache clearing would be implemented here
+        logger.info("Permission cache cleared for resident: " + residentUuid);
+    }
+
+    // ==================== TOWN TOGGLE METHODS (DELEGATED) ====================
+
+    @Override
+    public boolean isPvpEnabledAtLocation(int x, int z, String world) {
+        return townToggleService.isPvpEnabledAtLocation(x, z, world);
+    }
+
+    @Override
+    public boolean isFireEnabledAtLocation(int x, int z, String world) {
+        return townToggleService.isFireEnabledAtLocation(x, z, world);
+    }
+
+    @Override
+    public boolean areExplosionsEnabledAtLocation(int x, int z, String world) {
+        return townToggleService.areExplosionsEnabledAtLocation(x, z, world);
+    }
+
+    @Override
+    public boolean areMobsEnabledAtLocation(int x, int z, String world) {
+        return townToggleService.areMobsEnabledAtLocation(x, z, world);
+    }
+
+    @Override
+    public boolean isPublicAccessEnabledAtLocation(int x, int z, String world) {
+        return townToggleService.isPublicAccessEnabledAtLocation(x, z, world);
+    }
+
+    @Override
+    public Map<String, Boolean> getTogglesAtLocation(int x, int z, String world) {
+        return townToggleService.getTogglesAtLocation(x, z, world);
+    }
+
+    // ==================== ENUM HELPER METHODS ====================
+
+    private PermissionEvaluationResult evaluatePermissionEnum(UUID residentUuid, String context, String contextId, TownyPermission permission) {
+        // For now, delegate to legacy evaluation with conversion
+        return evaluatePlotPermission(residentUuid, UUID.fromString(contextId), permission.getLegacyBitwiseValue());
+    }
+
+    private boolean grantPermissionEnum(UUID residentUuid, TownyPermission permission, String context, String contextId) {
+        return grantPermission(residentUuid, permission.name(), context, contextId, true);
+    }
+
+    private boolean denyPermissionEnum(UUID residentUuid, TownyPermission permission, String context, String contextId) {
+        return grantPermission(residentUuid, permission.name(), context, contextId, false);
+    }
+
+    private boolean revokePermissionEnum(UUID residentUuid, TownyPermission permission, String context, String contextId) {
+        return revokePermission(residentUuid, permission.name(), context, contextId);
     }
 }

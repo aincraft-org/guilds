@@ -9,30 +9,8 @@ website: https://github.com/aincraft/towny
 depend: []
 softdepend: [Vault, WorldEdit, WorldGuard]
 
-commands:
-  town:
-    description: Town management commands
-    usage: /<command> [subcommand]
-    aliases: [t]
-    permission: towny.town
-
-  resident:
-    description: Resident commands
-    usage: /<command> [subcommand]
-    aliases: [res]
-    permission: towny.resident
-
-  plot:
-    description: Plot commands
-    usage: /<command> [subcommand]
-    aliases: [plot]
-    permission: towny.plot
-
-  towny:
-    description: General Towny commands and admin tools
-    usage: /<command> [subcommand]
-    aliases: [townyadmin]
-    permission: towny.admin
+# Command registrations are handled by Brigadier dynamically
+# No command definitions needed here - Brigadier manages registration
 
 permissions:
   towny.*:
@@ -41,6 +19,8 @@ permissions:
       towny.town.*: true
       towny.resident.*: true
       towny.plot.*: true
+      towny.general.*: true
+      towny.map: true
       towny.admin.*: true
 
   towny.town.*:
@@ -77,6 +57,44 @@ permissions:
       towny.plot.perms: true
       towny.plot.toggle: true
 
+  towny.broadcast:
+    description: Permission to use town broadcast commands
+    default: true
+
+  towny.broadcast.*:
+    description: All broadcast permissions
+    children:
+      towny.broadcast.create: true
+      towny.broadcast.read: true
+      towny.broadcast.manage: true
+
+  towny.general.*:
+    description: General towny permissions
+    children:
+      towny.general.info: true
+      towny.general.chat: true
+      towny.general.top: true
+      towny.general.prices: true
+      towny.general.time: true
+      towny.general.universe: true
+      towny.general.version: true
+
+  towny.chat:
+    description: Permission to use town chat commands
+    default: true
+
+  towny.map:
+    description: Permission to use towny map commands
+    default: true
+
+  towny.level:
+    description: Permission to use town level commands
+    default: true
+
+  towny.admin.perm:
+    description: Permission to use permission debugging commands
+    default: op
+
   towny.admin.*:
     description: All admin permissions
     children:
@@ -86,6 +104,11 @@ permissions:
       towny.admin.town: true
       towny.admin.resident: true
       towny.admin.plot: true
+      towny.admin.plottype: true
       towny.admin.unclaim: true
       towny.admin.claim: true
       towny.admin.bypass: true
+
+  towny.admin.plottype:
+    description: Permission to use plot type management commands
+    default: op

@@ -29,8 +29,23 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
     // Testing
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testCompileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
+    testImplementation("org.junit.platform:junit-platform-commons:1.10.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     testImplementation("org.mockito:mockito-core:5.11.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.11.0")
+
+    // MockBukkit for Bukkit testing (using v1.20 for compatibility)
+    testImplementation("com.github.seeseemelk:MockBukkit-v1.20:3.88.0")
+
+    // Additional testing utilities
+    testImplementation("org.assertj:assertj-core:3.25.3")
+
+    // H2 in-memory database for testing
+    testImplementation("com.h2database:h2:2.2.224")
 }
 
 java {
@@ -38,6 +53,13 @@ java {
 }
 
 tasks {
+    test {
+        useJUnitPlatform()
+        testLogging {
+            events("passed", "skipped", "failed")
+        }
+    }
+
     shadowJar {
         archiveBaseName.set("Towny")
         archiveClassifier.set("")

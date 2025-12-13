@@ -21,6 +21,12 @@ public class Town {
     private LocalDateTime createdAt;
     private Map<String, Boolean> permissions;
 
+    // Town level system (composition)
+    private TownLevelData levelData;
+
+    // Town toggle system (composition)
+    private TownToggles toggles;
+
     /**
      * Default constructor for database mapping
      */
@@ -32,6 +38,10 @@ public class Town {
         this.balance = 0.0;
         this.isOpen = true;
         this.createdAt = LocalDateTime.now();
+
+        // Initialize composition objects
+        this.levelData = new TownLevelData();
+        this.toggles = new TownToggles();
     }
 
     /**
@@ -151,6 +161,98 @@ public class Town {
 
     public void setPermissions(Map<String, Boolean> permissions) {
         this.permissions = permissions != null ? permissions : new HashMap<>();
+    }
+
+    // Town level system getters and setters (delegating to TownLevelData)
+    public TownLevelData getLevelData() {
+        return levelData;
+    }
+
+    public void setLevelData(TownLevelData levelData) {
+        this.levelData = levelData != null ? levelData : new TownLevelData();
+    }
+
+    public int getTownLevel() {
+        return levelData.getLevel();
+    }
+
+    public void setTownLevel(int townLevel) {
+        levelData.setLevel(townLevel);
+    }
+
+    public int getTechPoints() {
+        return levelData.getTechPoints();
+    }
+
+    public void setTechPoints(int techPoints) {
+        levelData.setTechPoints(techPoints);
+    }
+
+    public Map<String, Integer> getUpgradeProgress() {
+        return levelData.getUpgradeProgress();
+    }
+
+    public void setUpgradeProgress(Map<String, Integer> upgradeProgress) {
+        levelData.setUpgradeProgress(upgradeProgress);
+    }
+
+    // Town toggle system getters and setters (delegating to TownToggles)
+    public TownToggles getToggles() {
+        return toggles;
+    }
+
+    public void setToggles(TownToggles toggles) {
+        this.toggles = toggles != null ? toggles : new TownToggles();
+    }
+
+    public boolean isPvpEnabled() {
+        return toggles.isPvpEnabled();
+    }
+
+    public void setPvpEnabled(boolean pvpEnabled) {
+        toggles.setPvpEnabled(pvpEnabled);
+        // Update permissions map for backward compatibility
+        this.permissions.put("pvp", pvpEnabled);
+    }
+
+    public boolean isFireEnabled() {
+        return toggles.isFireEnabled();
+    }
+
+    public void setFireEnabled(boolean fireEnabled) {
+        toggles.setFireEnabled(fireEnabled);
+        // Update permissions map for backward compatibility
+        this.permissions.put("fire", fireEnabled);
+    }
+
+    public boolean isExplosionsEnabled() {
+        return toggles.isExplosionsEnabled();
+    }
+
+    public void setExplosionsEnabled(boolean explosionsEnabled) {
+        toggles.setExplosionsEnabled(explosionsEnabled);
+        // Update permissions map for backward compatibility
+        this.permissions.put("explosions", explosionsEnabled);
+    }
+
+    public boolean isMobsEnabled() {
+        return toggles.isMobsEnabled();
+    }
+
+    public void setMobsEnabled(boolean mobsEnabled) {
+        toggles.setMobsEnabled(mobsEnabled);
+        // Update permissions map for backward compatibility
+        this.permissions.put("mobs", mobsEnabled);
+    }
+
+    public boolean isPublicEnabled() {
+        return toggles.isPublicEnabled();
+    }
+
+    public void setPublicEnabled(boolean publicEnabled) {
+        toggles.setPublicEnabled(publicEnabled);
+        // Update permissions map for backward compatibility
+        this.permissions.put("public", publicEnabled);
     }
 
     // Business methods
@@ -308,12 +410,199 @@ public class Town {
         permissions.put("public", false);
     }
 
+    // Town toggle system convenience methods (delegating to TownToggles)
+
+    /**
+     * Toggle PvP setting for the town
+     * @return New PvP state after toggle
+     */
+    public boolean togglePvp() {
+        boolean newState = toggles.togglePvp();
+        permissions.put("pvp", newState); // Update backward compatibility map
+        return newState;
+    }
+
+    /**
+     * Toggle fire setting for the town
+     * @return New fire state after toggle
+     */
+    public boolean toggleFire() {
+        boolean newState = toggles.toggleFire();
+        permissions.put("fire", newState);
+        return newState;
+    }
+
+    /**
+     * Toggle explosions setting for the town
+     * @return New explosions state after toggle
+     */
+    public boolean toggleExplosions() {
+        boolean newState = toggles.toggleExplosions();
+        permissions.put("explosions", newState);
+        return newState;
+    }
+
+    /**
+     * Toggle mobs setting for the town
+     * @return New mobs state after toggle
+     */
+    public boolean toggleMobs() {
+        boolean newState = toggles.toggleMobs();
+        permissions.put("mobs", newState);
+        return newState;
+    }
+
+    /**
+     * Toggle public setting for the town
+     * @return New public state after toggle
+     */
+    public boolean togglePublic() {
+        boolean newState = toggles.togglePublic();
+        permissions.put("public", newState);
+        return newState;
+    }
+
+    /**
+     * Get all town toggle states
+     * @return Map of toggle names to their current states
+     */
+    public Map<String, Boolean> getAllToggles() {
+        return toggles.getAllToggles();
+    }
+
+    /**
+     * Set a specific toggle state
+     * @param toggleType The toggle type to set
+     * @param value The new value for the toggle
+     * @return True if toggle was set successfully, false if toggle type not found
+     */
+    public boolean setToggle(String toggleType, boolean value) {
+        boolean success = toggles.setToggle(toggleType, value);
+        if (success) {
+            permissions.put(toggleType.toLowerCase(), value); // Update backward compatibility map
+        }
+        return success;
+    }
+
+    /**
+     * Get the current state of a specific toggle
+     * @param toggleType The toggle type to get
+     * @return The toggle state, or false if toggle type not found
+     */
+    public boolean getToggle(String toggleType) {
+        return toggles.getToggle(toggleType);
+    }
+
     /**
      * Check if town is bankrupt (balance below 0)
      * @return True if bankrupt
      */
     public boolean isBankrupt() {
         return balance < 0;
+    }
+
+    // Town level system business methods (delegating to TownLevelData)
+
+    /**
+     * Add tech points to the town
+     * @param points Tech points to add
+     */
+    public void addTechPoints(int points) {
+        levelData.addTechPoints(points);
+    }
+
+    /**
+     * Check if town can afford an upgrade to the next level
+     * @param nextLevelRequirements Resource requirements for next level
+     * @return Map of resource affordability
+     */
+    public Map<String, Boolean> canAffordUpgrade(Map<String, Integer> nextLevelRequirements) {
+        return levelData.canAffordUpgrade(nextLevelRequirements);
+    }
+
+    /**
+     * Check if all requirements for the next level are met
+     * @param nextLevelRequirements Resource requirements for next level
+     * @return True if all requirements are met
+     */
+    public boolean canUpgradeToNextLevel(Map<String, Integer> nextLevelRequirements) {
+        return levelData.canUpgradeToNextLevel(nextLevelRequirements);
+    }
+
+    /**
+     * Contribute resources to town upgrade progress
+     * @param resourceType Type of resource (diamond, gold, iron, emerald, experience)
+     * @param amount Amount to contribute
+     */
+    public void contributeToUpgrade(String resourceType, int amount) {
+        levelData.contributeToUpgrade(resourceType, amount);
+    }
+
+    /**
+     * Get the contribution progress for a specific resource
+     * @param resourceType Type of resource
+     * @param requiredAmount Required amount for next level
+     * @return Progress percentage (0-100)
+     */
+    public double getResourceProgress(String resourceType, int requiredAmount) {
+        return levelData.getResourceProgress(resourceType, requiredAmount);
+    }
+
+    /**
+     * Calculate overall upgrade progress percentage
+     * @param nextLevelRequirements Resource requirements for next level
+     * @return Overall progress percentage (0-100)
+     */
+    public double getOverallUpgradeProgress(Map<String, Integer> nextLevelRequirements) {
+        return levelData.getOverallUpgradeProgress(nextLevelRequirements);
+    }
+
+    /**
+     * Reset upgrade progress for next level preparation
+     */
+    public void resetUpgradeProgress() {
+        levelData.resetUpgradeProgress();
+    }
+
+    /**
+     * Level up the town to the next level
+     * @param newLevel New level to set
+     * @param techPointsReward Tech points to add for this level
+     */
+    public void levelUp(int newLevel, int techPointsReward) {
+        levelData.levelUp(newLevel, techPointsReward);
+    }
+
+    /**
+     * Get the maximum number of assistant slots based on town level
+     * @return Maximum assistant slots
+     */
+    public int getMaxAssistantSlots() {
+        return levelData.getMaxAssistantSlots();
+    }
+
+    /**
+     * Check if the town has reached its assistant limit
+     * @return True if at assistant limit
+     */
+    public boolean isAtAssistantLimit() {
+        return levelData.isAtAssistantLimit(assistants.size());
+    }
+
+    /**
+     * Get the maximum claim limit based on town level
+     * @return Maximum claim limit in chunks
+     */
+    public int getMaxClaimLimit() {
+        return levelData.getMaxClaimLimit();
+    }
+
+    /**
+     * Get daily income bonus based on town level
+     * @return Daily income bonus
+     */
+    public double getDailyIncomeBonus() {
+        return levelData.getDailyIncomeBonus();
     }
 
     @Override
@@ -337,6 +626,8 @@ public class Town {
                 ", mayorUuid=" + mayorUuid +
                 ", residentCount=" + getResidentCount() +
                 ", balance=" + balance +
+                ", townLevel=" + getTownLevel() +
+                ", techPoints=" + getTechPoints() +
                 ", isOpen=" + isOpen +
                 '}';
     }

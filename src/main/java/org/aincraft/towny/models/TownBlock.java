@@ -15,36 +15,21 @@ public class TownBlock {
     private String townId;
     private UUID ownerId;
     private String plotType;
+    private String plotTypeDefinition; // Reference to PlotTypeDefinition
     private double price;
-    private Map<String, Boolean> permissions;
+    private int permissionsFlags;
     private LocalDateTime claimedAt;
     private String customName;
-
-    /**
-     * Plot types available in the system
-     */
-    public static class PlotType {
-        public static final String DEFAULT = "default";
-        public static final String SHOP = "shop";
-        public static final String FARM = "farm";
-        public static final String WILDERNESS = "wilderness";
-        public static final String BANK = "bank";
-        public static final String INN = "inn";
-        public static final String EMBASSY = "embassy";
-        public static final String JAIL = "jail";
-        public static final String ARENA = "arena";
-    }
 
     /**
      * Default constructor for database mapping
      */
     public TownBlock() {
         this.id = UUID.randomUUID();
-        this.permissions = new HashMap<>();
-        this.plotType = PlotType.DEFAULT;
+        this.permissionsFlags = Permission.Flag.DEFAULT_PLOT;
+        this.plotType = PlotTypes.DEFAULT;
         this.price = 0.0;
         this.claimedAt = LocalDateTime.now();
-        setDefaultPermissions();
     }
 
     /**
@@ -116,7 +101,7 @@ public class TownBlock {
     }
 
     public void setPlotType(String plotType) {
-        this.plotType = plotType != null ? plotType : PlotType.DEFAULT;
+        this.plotType = plotType != null ? plotType : PlotTypes.DEFAULT;
     }
 
     public double getPrice() {
@@ -127,12 +112,12 @@ public class TownBlock {
         this.price = Math.max(0.0, price); // Ensure non-negative
     }
 
-    public Map<String, Boolean> getPermissions() {
-        return permissions;
+    public int getPermissionsFlags() {
+        return permissionsFlags;
     }
 
-    public void setPermissions(Map<String, Boolean> permissions) {
-        this.permissions = permissions != null ? permissions : new HashMap<>();
+    public void setPermissionsFlags(int permissionsFlags) {
+        this.permissionsFlags = permissionsFlags;
     }
 
     public LocalDateTime getClaimedAt() {
@@ -149,6 +134,14 @@ public class TownBlock {
 
     public void setCustomName(String customName) {
         this.customName = customName;
+    }
+
+    public String getPlotTypeDefinition() {
+        return plotTypeDefinition;
+    }
+
+    public void setPlotTypeDefinition(String plotTypeDefinition) {
+        this.plotTypeDefinition = plotTypeDefinition;
     }
 
     // Business methods
@@ -222,31 +215,130 @@ public class TownBlock {
     }
 
     /**
-     * Check if this plot has a specific permission
-     * @param permission Permission node
+     * Check if this plot has a specific permission flag
+     * @param flag Permission flag to check
      * @return True if has permission
      */
-    public boolean hasPermission(String permission) {
-        return permissions.getOrDefault(permission, false);
+    public boolean hasPermissionFlag(int flag) {
+        return (permissionsFlags & flag) != 0;
     }
 
     /**
-     * Set a permission for this plot
-     * @param permission Permission node
+     * Add a permission flag to this plot
+     * @param flag Permission flag to add
+     */
+    public void addPermissionFlag(int flag) {
+        permissionsFlags |= flag;
+    }
+
+    /**
+     * Remove a permission flag from this plot
+     * @param flag Permission flag to remove
+     */
+    public void removePermissionFlag(int flag) {
+        permissionsFlags &= ~flag;
+    }
+
+    /**
+     * Set a specific permission flag for this plot
+     * @param flag Permission flag to set
+     * @param value Permission value (true to add, false to remove)
+     */
+    public void setPermissionFlag(int flag, boolean value) {
+        if (value) {
+            addPermissionFlag(flag);
+        } else {
+            removePermissionFlag(flag);
+        }
+    }
+
+    /**
+     * Get permission by name for backward compatibility
+     * @param permissionName Permission name (build, destroy, switch, item_use)
+     * @return True if has permission
+     */
+    public boolean hasPermission(String permissionName) {
+        switch (permissionName.toLowerCase()) {
+            case "build":
+                return hasPermissionFlag(Permission.Flag.BUILD);
+            case "destroy":
+                return hasPermissionFlag(Permission.Flag.DESTROY);
+            case "switch":
+                return hasPermissionFlag(Permission.Flag.SWITCH);
+            case "item_use":
+                return hasPermissionFlag(Permission.Flag.ITEM_USE);
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Set permission by name for backward compatibility
+     * @param permissionName Permission name (build, destroy, switch, item_use)
      * @param value Permission value
      */
-    public void setPermission(String permission, boolean value) {
-        permissions.put(permission, value);
+    public void setPermission(String permissionName, boolean value) {
+        switch (permissionName.toLowerCase()) {
+            case "build":
+                setPermissionFlag(Permission.Flag.BUILD, value);
+                break;
+            case "destroy":
+                setPermissionFlag(Permission.Flag.DESTROY, value);
+                break;
+            case "switch":
+                setPermissionFlag(Permission.Flag.SWITCH, value);
+                break;
+            case "item_use":
+                setPermissionFlag(Permission.Flag.ITEM_USE, value);
+                break;
+        }
     }
 
     /**
-     * Set default permissions for a new plot
+     * Get a list of all active permission flags for this plot
+     * @return List of active permission names
      */
-    private void setDefaultPermissions() {
-        permissions.put("build", false);
-        permissions.put("destroy", false);
-        permissions.put("switch", false);
-        permissions.put("item_use", false);
+    public List<String> getActivePermissionNames() {
+        List<String> activePermissions = new ArrayList<>();
+
+        if (hasPermissionFlag(Permission.Flag.BUILD)) activePermissions.add("BUILD");
+        if (hasPermissionFlag(Permission.Flag.DESTROY)) activePermissions.add("DESTROY");
+        if (hasPermissionFlag(Permission.Flag.SWITCH)) activePermissions.add("SWITCH");
+        if (hasPermissionFlag(Permission.Flag.ITEM_USE)) activePermissions.add("ITEM_USE");
+        if (hasPermissionFlag(Permission.Flag.PLOT_PERM)) activePermissions.add("PLOT_PERM");
+        if (hasPermissionFlag(Permission.Flag.PLOT_SET)) activePermissions.add("PLOT_SET");
+        if (hasPermissionFlag(Permission.Flag.PLOT_OWNER)) activePermissions.add("PLOT_OWNER");
+
+        return activePermissions;
+    }
+
+    /**
+     * Reset permissions to default for this plot type and ownership
+     */
+    public void resetToDefaultPermissions() {
+        if (hasOwner()) {
+            // Player-owned plots get full permissions for owner
+            permissionsFlags = Permission.Flag.ALL;
+        } else {
+            // Town-owned plots get default permissions based on type
+            permissionsFlags = PlotTypes.getDefaultPermissions(plotType);
+        }
+    }
+
+    /**
+     * Check if the plot allows build actions for non-owners
+     * @return True if non-owners can build
+     */
+    public boolean allowsPublicBuild() {
+        return hasPermissionFlag(Permission.Flag.BUILD);
+    }
+
+    /**
+     * Check if the plot allows destroy actions for non-owners
+     * @return True if non-owners can destroy
+     */
+    public boolean allowsPublicDestroy() {
+        return hasPermissionFlag(Permission.Flag.DESTROY);
     }
 
     /**
@@ -257,7 +349,67 @@ public class TownBlock {
         if (customName != null && !customName.trim().isEmpty()) {
             return customName;
         }
-        return plotType.substring(0, 1).toUpperCase() + plotType.substring(1).toLowerCase();
+        return PlotTypes.getDisplayName(plotType);
+    }
+
+    /**
+     * Check if this plot has an extensible plot type definition
+     * @return True if plot type definition is set
+     */
+    public boolean hasPlotTypeDefinition() {
+        return plotTypeDefinition != null && !plotTypeDefinition.trim().isEmpty();
+    }
+
+    /**
+     * Check if this plot type supports custom metadata
+     * @return True if plot type has extensible definition
+     */
+    public boolean supportsCustomMetadata() {
+        return hasPlotTypeDefinition();
+    }
+
+    /**
+     * Get the effective plot type name
+     * @return Effective plot type name
+     */
+    public String getEffectivePlotType() {
+        if (hasPlotTypeDefinition()) {
+            return plotTypeDefinition;
+        }
+        return plotType != null ? plotType : PlotTypes.DEFAULT;
+    }
+
+    /**
+     * Check if this plot type is a built-in type
+     * @return True if built-in plot type
+     */
+    public boolean isBuiltInPlotType() {
+        return PlotTypes.isBuiltIn(getEffectivePlotType());
+    }
+
+    /**
+     * Get plot type category for grouping
+     * @return Plot type category
+     */
+    public String getPlotTypeCategory() {
+        return PlotTypes.getCategory(getEffectivePlotType());
+    }
+
+    /**
+     * Check if this plot type supports a specific feature
+     * @param feature Feature name to check
+     * @return True if feature is supported
+     */
+    public boolean supportsFeature(String feature) {
+        return PlotTypes.supportsFeature(getEffectivePlotType(), feature);
+    }
+
+    /**
+     * Get plot priority for ordering and display purposes
+     * @return Priority value (higher = more important)
+     */
+    public int getPlotTypePriority() {
+        return PlotTypes.getPriority(getEffectivePlotType());
     }
 
     /**

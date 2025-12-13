@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.aincraft.towny.TownyPlugin;
 import org.aincraft.towny.config.DatabaseConfig;
+import org.aincraft.towny.database.migration.SchemaInitializer;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -22,12 +23,14 @@ public class DatabaseManager {
     private final TownyPlugin plugin;
     private final DatabaseConfig databaseConfig;
     private final DataSource dataSource;
+    private final SchemaInitializer schemaInitializer;
 
     @Inject
-    public DatabaseManager(TownyPlugin plugin, DatabaseConfig databaseConfig) {
+    public DatabaseManager(TownyPlugin plugin, DatabaseConfig databaseConfig, SchemaInitializer schemaInitializer) {
         this.plugin = plugin;
         this.databaseConfig = databaseConfig;
         this.dataSource = databaseConfig.getDataSource();
+        this.schemaInitializer = schemaInitializer;
 
         // Initialize database
         initializeDatabase();
@@ -46,8 +49,8 @@ public class DatabaseManager {
                 if (connection != null && !connection.isClosed()) {
                     plugin.getLogger().info("Database connection established successfully.");
 
-                    // Create tables
-                    createTables();
+                    // Initialize schema with migrations
+                    schemaInitializer.initialize(connection);
 
                     plugin.getLogger().info("Database initialization completed.");
                 }

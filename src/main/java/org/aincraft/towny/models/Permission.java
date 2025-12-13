@@ -5,7 +5,22 @@ import java.util.UUID;
 
 /**
  * Represents a permission in the Towny system
+ *
+ * @deprecated Use {@link TownyPermission} enum and {@link PermissionSet} instead.
+ * This class is maintained for backward compatibility only.
+ * The bitwise flag system has been superseded by a type-safe enum-based approach.
+ *
+ * <p><b>Migration Guide:</b></p>
+ * <ul>
+ *   <li>Replace {@code Permission.Flag} constants with {@link TownyPermission} enum values</li>
+ *   <li>Use {@link PermissionSet} instead of manual bitwise flag manipulation</li>
+ *   <li>Example: {@code hasFlag(Permission.Flag.BUILD)} → {@code permSet.hasPermission(TownyPermission.BUILD)}</li>
+ * </ul>
+ *
+ * @see TownyPermission
+ * @see PermissionSet
  */
+@Deprecated
 public class Permission {
 
     private UUID id;
@@ -19,7 +34,10 @@ public class Permission {
 
     /**
      * Permission contexts
+     *
+     * @deprecated Part of the deprecated Permission system. Use {@link TownyPermission} instead.
      */
+    @Deprecated
     public static class Context {
         public static final String GLOBAL = "global";
         public static final String TOWN = "town";
@@ -31,7 +49,10 @@ public class Permission {
     /**
      * Permission flags using bitwise operations
      * Each permission is a power of 2, allowing combinations in a single integer
+     *
+     * @deprecated Use {@link TownyPermission} enum instead for type-safe permissions
      */
+    @Deprecated
     public static class Flag {
         // Build permissions (bits 0-3)
         public static final int BUILD = 1 << 0;      // 1
@@ -86,7 +107,10 @@ public class Permission {
 
     /**
      * Target types
+     *
+     * @deprecated Part of the deprecated Permission system. Use {@link TownyPermission} instead.
      */
+    @Deprecated
     public static class Target {
         public static final String RESIDENT = "resident";
         public static final String TOWN = "town";
