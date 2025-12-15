@@ -114,6 +114,16 @@ public interface TownLevelService {
     void resetAllTownLevelData();
 
     /**
+     * Reload level definitions from config and sync to database
+     */
+    void reloadLevelDefinitions();
+
+    /**
+     * Sync configuration-defined town levels to database
+     */
+    void syncConfigToDatabase();
+
+    /**
      * Result of an upgrade eligibility check
      */
     class UpgradeEligibility {

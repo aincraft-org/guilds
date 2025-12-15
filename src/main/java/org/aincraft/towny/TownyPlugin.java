@@ -11,11 +11,13 @@ import org.aincraft.towny.commands.PlotCommand;
 import org.aincraft.towny.commands.PlotTypeCommand;
 import org.aincraft.towny.commands.PermCommand;
 import org.aincraft.towny.commands.TownBroadcastCommand;
+import org.aincraft.towny.config.TownLevelConfigLoader;
 import org.aincraft.towny.dependency.TownyModule;
 import org.aincraft.towny.listeners.PlayerMovementListener;
 import org.aincraft.towny.listeners.TownToggleListener;
 import org.aincraft.towny.listeners.TownPublicAccessListener;
 import org.aincraft.towny.listeners.TownBroadcastListener;
+import org.aincraft.towny.services.TownLevelService;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -99,8 +101,31 @@ public class TownyPlugin extends JavaPlugin implements Listener {
      */
     private void initializeServices() {
         try {
-            // Services will be automatically injected through Guice
-            // This is just a placeholder for any additional initialization needed
+            // Load town level configuration from config.yml
+            TownLevelConfigLoader configLoader = injector.getInstance(TownLevelConfigLoader.class);
+            configLoader.loadConfiguration();
+            getLogger().info("Town level configuration loaded successfully.");
+
+            // Sync configuration to database
+            TownLevelService townLevelService = injector.getInstance(TownLevelService.class);
+            townLevelService.syncConfigToDatabase();
+            getLogger().info("Town level data synchronized to database.");
+
+            // Load tech tree configuration
+            org.aincraft.towny.config.TechTreeConfigLoader techTreeConfigLoader = injector.getInstance(org.aincraft.towny.config.TechTreeConfigLoader.class);
+            techTreeConfigLoader.loadConfiguration();
+            getLogger().info("Tech tree configuration loaded successfully.");
+
+            // Sync tech tree configuration to database
+            org.aincraft.towny.services.TechTreeService techTreeService = injector.getInstance(org.aincraft.towny.services.TechTreeService.class);
+            techTreeService.syncConfigToDatabase();
+            getLogger().info("Tech tree data synchronized to database.");
+
+            // Initialize plot types
+            org.aincraft.towny.services.PlotTypeService plotTypeService = injector.getInstance(org.aincraft.towny.services.PlotTypeService.class);
+            plotTypeService.initializeBuiltInTypes();
+            getLogger().info("Plot type registry initialized.");
+
             getLogger().info("Core services initialized.");
         } catch (Exception e) {
             getLogger().severe("Failed to initialize core services: " + e.getMessage());
@@ -149,6 +174,7 @@ public class TownyPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(townToggleListener, this);
         getServer().getPluginManager().registerEvents(townPublicAccessListener, this);
         getServer().getPluginManager().registerEvents(townBroadcastListener, this);
+        getServer().getPluginManager().registerEvents(injector.getInstance(org.aincraft.towny.gui.TechTreeGUI.class), this);
         getServer().getPluginManager().registerEvents(this, this);
 
         getLogger().info("Event listeners registered.");

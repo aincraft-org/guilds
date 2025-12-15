@@ -453,16 +453,15 @@ public class PlotBrigadierCommand {
         sender.sendMessage("§7/plot set <type>§f - Set plot type");
         sender.sendMessage("");
         sender.sendMessage("§7Available plot types:");
-        sender.sendMessage("§f  residential§7 - For player homes");
-        sender.sendMessage("§f  commercial§7 - For shops and businesses");
-        sender.sendMessage("§f  embassy§7 - For other nations' embassies");
-        sender.sendMessage("§f  arena§7 - For PvP arenas");
-        sender.sendMessage("§f  public§7 - Public areas");
-        sender.sendMessage("§f  farm§7 - For farming");
-        sender.sendMessage("§f  bank§7 - For banking");
-        sender.sendMessage("§f  inn§7 - For inns and taverns");
-        sender.sendMessage("§f  jail§7 - For jails");
-        sender.sendMessage("§f  wilds§7 - Wilderness areas");
+
+        // Dynamically list all registered plot types
+        var plotTypes = plotTypeService.getAllPlotTypes();
+        for (var plotType : plotTypes) {
+            if (plotType.isEnabled()) {
+                sender.sendMessage("§f  " + plotType.getTypeName() + "§7 - " + plotType.getDescription());
+            }
+        }
+
         return Command.SINGLE_SUCCESS;
     }
 
@@ -487,8 +486,15 @@ public class PlotBrigadierCommand {
         }
 
         TownBlock plot = plotOpt.get();
-        if (!plot.isOwner(playerUuid) && !permissionService.hasPermission(playerUuid, "plot_set", "plot", plot.getTownId())) {
-            player.sendMessage("§cYou don't own this plot and don't have permission to modify it.");
+
+        // Check if player is plot owner, town admin, or has plot_set permission
+        var townOpt = townService.getTownById(plot.getTownId());
+        boolean isTownAdmin = townOpt.isPresent() && permissionService.hasTownAdmin(playerUuid, townOpt.get().getName());
+        boolean isPlotOwner = plot.isOwner(playerUuid);
+        boolean hasPermission = permissionService.hasPermission(playerUuid, "plot_set", "plot", plot.getTownId());
+
+        if (!isPlotOwner && !isTownAdmin && !hasPermission) {
+            player.sendMessage("§cYou don't have permission to modify this plot.");
             return 0;
         }
 

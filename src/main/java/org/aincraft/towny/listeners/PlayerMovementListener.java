@@ -12,6 +12,7 @@ import org.aincraft.towny.models.Town;
 import org.aincraft.towny.models.TownBlock;
 import org.aincraft.towny.models.Resident;
 import org.aincraft.towny.plot.PlotTypeHandlerManager;
+import org.aincraft.towny.plot.PlotTypeRegistry;
 import org.aincraft.towny.services.PlotService;
 import org.aincraft.towny.services.TownService;
 import org.aincraft.towny.services.ResidentService;
@@ -32,6 +33,7 @@ public class PlayerMovementListener implements Listener {
     private final TownService townService;
     private final ResidentService residentService;
     private final PlotTypeHandlerManager plotTypeHandlerManager;
+    private final PlotTypeRegistry plotTypeRegistry;
 
     // Track last known town for each player to detect boundary crossings
     private final Map<UUID, String> lastTownByPlayer = new ConcurrentHashMap<>();
@@ -41,12 +43,14 @@ public class PlayerMovementListener implements Listener {
 
     @Inject
     public PlayerMovementListener(TownyPlugin plugin, PlotService plotService, TownService townService,
-                                  ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager) {
+                                  ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager,
+                                  PlotTypeRegistry plotTypeRegistry) {
         this.plugin = plugin;
         this.plotService = plotService;
         this.townService = townService;
         this.residentService = residentService;
         this.plotTypeHandlerManager = plotTypeHandlerManager;
+        this.plotTypeRegistry = plotTypeRegistry;
     }
 
     @EventHandler
@@ -104,37 +108,36 @@ public class PlayerMovementListener implements Listener {
 
             // Check if player crossed a boundary
             String lastTownName = lastTownByPlayer.get(playerUuid);
+            String lastPlotType = lastPlotTypeByPlayer.get(playerUuid);
 
             if (lastTownName == null && currentTownName == null) {
                 // Still in wilderness, no change
                 return;
             } else if (lastTownName == null && currentTownName != null) {
                 // Entering town from wilderness
-                String message = ChatColor.GREEN + "Entering " + ChatColor.YELLOW + currentTownName;
-                if (plotInfo != null) {
-                    message += " - " + plotInfo;
-                }
+                String plotTypeName = getPlotTypeDisplayName(currentPlotType);
+                String message = ChatColor.GREEN + "Entering " + ChatColor.YELLOW + currentTownName +
+                               ChatColor.DARK_GRAY + " - " + ChatColor.GREEN + plotTypeName;
                 sendActionBarMessage(player, message);
             } else if (lastTownName != null && currentTownName == null) {
                 // Leaving town for wilderness
                 sendActionBarMessage(player, ChatColor.GRAY + "Leaving " + ChatColor.YELLOW + lastTownName + ChatColor.GRAY + " for Wilderness");
             } else if (!lastTownName.equals(currentTownName)) {
                 // Moving between different towns
+                String plotTypeName = getPlotTypeDisplayName(currentPlotType);
                 String message = ChatColor.GREEN + "Entering " + ChatColor.YELLOW + currentTownName +
-                               ChatColor.GRAY + " from " + ChatColor.YELLOW + lastTownName;
-                if (plotInfo != null) {
-                    message += " - " + plotInfo;
-                }
+                               ChatColor.DARK_GRAY + " - " + ChatColor.GREEN + plotTypeName;
                 sendActionBarMessage(player, message);
             } else if (townBlock.isPresent()) {
-                // Same town but might be different plot ownership - show plot info periodically
-                if (plotInfo != null) {
-                    sendActionBarMessage(player, ChatColor.YELLOW + currentTownName + ChatColor.DARK_GRAY + " - " + plotInfo);
+                // Same town - check if plot type changed
+                if (lastPlotType == null || !lastPlotType.equals(currentPlotType)) {
+                    String plotTypeName = getPlotTypeDisplayName(currentPlotType);
+                    sendActionBarMessage(player, ChatColor.YELLOW + currentTownName + ChatColor.DARK_GRAY + " - " + ChatColor.GREEN + plotTypeName);
                 }
+                // Don't show ownership info if we just showed plot type
             }
 
             // Check for plot type changes and dispatch events
-            String lastPlotType = lastPlotTypeByPlayer.get(playerUuid);
             if (lastPlotType != null && !lastPlotType.equals(currentPlotType)) {
                 // Player left the previous plot type
                 if (townBlock.isPresent()) {
@@ -182,6 +185,13 @@ public class PlayerMovementListener implements Listener {
                 player.sendActionBar(message);
             }
         }.runTask(plugin);
+    }
+
+    private String getPlotTypeDisplayName(String plotType) {
+        if (plotType == null) return "Unknown";
+        return plotTypeRegistry.getPlotType(plotType)
+            .map(def -> def.getDisplayName())
+            .orElse(plotType);
     }
 
     /**

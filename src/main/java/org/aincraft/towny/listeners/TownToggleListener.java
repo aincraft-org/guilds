@@ -104,14 +104,21 @@ public class TownToggleListener implements Listener {
      * Prevent fire spread when fire is disabled
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onBlockSpread(BlockSpreadEvent event) {
-        if (event.getSource().getType() == Material.FIRE || event.getSource().getType() == Material.LAVA) {
-            if (!permissionService.isFireEnabledAtLocation(
-                    event.getBlock().getX(),
-                    event.getBlock().getZ(),
-                    event.getBlock().getWorld().getName())) {
+    public void onBlockFromTo(BlockFromToEvent event) {
+        if (event.getBlock().getType() == Material.FIRE) {
+            boolean fireEnabled = permissionService.isFireEnabledAtLocation(
+                    event.getToBlock().getX(),
+                    event.getToBlock().getZ(),
+                    event.getToBlock().getWorld().getName());
+
+            plugin.getLogger().info("BlockFromTo fire spread at (" + event.getToBlock().getX() +
+                                   ", " + event.getToBlock().getZ() + "): fire enabled = " + fireEnabled);
+
+            if (!fireEnabled) {
                 event.setCancelled(true);
-                plugin.getLogger().fine("Fire spread prevented - Fire disabled at location");
+                plugin.getLogger().info("Fire spread CANCELLED via BlockFromTo");
+            } else {
+                plugin.getLogger().info("Fire spread ALLOWED via BlockFromTo");
             }
         }
     }

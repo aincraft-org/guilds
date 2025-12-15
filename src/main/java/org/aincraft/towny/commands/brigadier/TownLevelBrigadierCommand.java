@@ -51,7 +51,9 @@ public class TownLevelBrigadierCommand {
             .then(Commands.literal("deposit")
                 .then(Commands.argument("resource", StringArgumentType.word())
                     .suggests((ctx, builder) -> {
-                        for (String resource : Arrays.asList("diamond", "gold", "iron", "emerald", "experience")) {
+                        // Suggest common materials
+                        for (String resource : Arrays.asList("DIAMOND", "GOLD_INGOT", "IRON_INGOT", "EMERALD",
+                                                             "NETHERITE_INGOT", "COAL", "QUARTZ", "REDSTONE")) {
                             if (resource.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
                                 builder.suggest(resource);
                             }
@@ -99,9 +101,9 @@ public class TownLevelBrigadierCommand {
         player.sendMessage("§f/townlevel top [type] [count]§7 - Show top towns (level/residents/balance/techpoints)");
 
         player.sendMessage("§7");
-        player.sendMessage("§7Supported Resources: diamond, gold, iron, emerald, experience");
-        player.sendMessage("§7Example: /townlevel deposit diamond 10");
-        player.sendMessage("§7Aliases: /tl deposit diamond 10");
+        player.sendMessage("§7Supported Resources: Any Minecraft item (DIAMOND, GOLD_INGOT, NETHERITE_INGOT, etc.)");
+        player.sendMessage("§7Example: /townlevel deposit DIAMOND 10");
+        player.sendMessage("§7Aliases: /tl deposit DIAMOND 10");
 
         return Command.SINGLE_SUCCESS;
     }
@@ -136,7 +138,7 @@ public class TownLevelBrigadierCommand {
         player.sendMessage("§eAssistant Slots: §a" + town.getMaxAssistantSlots());
         player.sendMessage("§eDaily Income Bonus: §6§" + String.format("%.2f", town.getDailyIncomeBonus()));
 
-        if (town.getTownLevel() < 150) {
+        if (town.getTownLevel() < townLevelService.getMaxLevel()) {
             player.sendMessage("§eNext Level: §a" + (town.getTownLevel() + 1));
             player.sendMessage("§7  Progress: §eUse /town level deposit to contribute resources");
         } else {
@@ -166,12 +168,12 @@ public class TownLevelBrigadierCommand {
         }
 
         Town town = townOpt.get();
-        String resourceType = StringArgumentType.getString(ctx, "resource").toLowerCase();
+        String resourceType = StringArgumentType.getString(ctx, "resource").toUpperCase();
         int amount = IntegerArgumentType.getInteger(ctx, "amount");
 
-        if (!isSupportedResource(resourceType)) {
+        if (!resourceService.isSupportedResourceType(resourceType)) {
             player.sendMessage("§cUnsupported resource type: " + resourceType);
-            player.sendMessage("§eSupported resources: diamond, gold, iron, emerald, experience");
+            player.sendMessage("§eSupported resources: Any Minecraft item (DIAMOND, GOLD_INGOT, NETHERITE_INGOT, etc.)");
             return 0;
         }
 
@@ -198,8 +200,8 @@ public class TownLevelBrigadierCommand {
         player.sendMessage("§eTotal contributed: " + newAmount + " " + resourceType);
 
         // Show upgrade progress if applicable
-        if (town.getTownLevel() < 150) {
-            Map<String, Integer> requirements = getLevelRequirements(town.getTownLevel() + 1);
+        townLevelService.getNextTownLevel(town).ifPresent(nextLevel -> {
+            Map<String, Integer> requirements = nextLevel.getResourceCosts();
             if (requirements.containsKey(resourceType)) {
                 int required = requirements.get(resourceType);
                 if (newAmount >= required) {
@@ -208,7 +210,7 @@ public class TownLevelBrigadierCommand {
                     player.sendMessage("§eProgress for next level: " + newAmount + "/" + required + " " + resourceType);
                 }
             }
-        }
+        });
 
         return Command.SINGLE_SUCCESS;
     }
@@ -278,39 +280,25 @@ public class TownLevelBrigadierCommand {
 
         Town town = townOpt.get();
 
-        Map<String, Integer> required = getLevelRequirements(town.getTownLevel() + 1);
-        Map<String, Integer> contributed = town.getUpgradeProgress();
-
-        boolean canUpgrade = true;
-        for (Map.Entry<String, Integer> req : required.entrySet()) {
-            int has = contributed.getOrDefault(req.getKey(), 0);
-            if (has < req.getValue()) {
-                canUpgrade = false;
-                break;
-            }
+        if (town.getTownLevel() >= townLevelService.getMaxLevel()) {
+            player.sendMessage("§aYour town is already at the maximum level!");
+            return Command.SINGLE_SUCCESS;
         }
 
-        if (canUpgrade && town.getTownLevel() < 150) {
-            int newLevel = town.getTownLevel() + 1;
-            int techPoints = getTechPointsForLevel(newLevel);
+        TownLevelService.UpgradeResult result = townLevelService.performTownUpgrade(town);
 
-            town.levelUp(newLevel, techPoints);
-            townService.updateTown(town);
-
+        if (result.isSuccessful()) {
             player.sendMessage("");
             player.sendMessage("§e=== 🎉 TOWN UPGRADE COMPLETE! 🎉 ===");
-            player.sendMessage("§aYour town has been upgraded to level §a" + newLevel + "!");
-            player.sendMessage("§eYou earned §d" + techPoints + "§e tech points!");
+            player.sendMessage("§aYour town has been upgraded to level §a" + result.getNewLevel() + "!");
+            player.sendMessage("§eYou earned §d" + result.getTechPointsEarned() + "§e tech points!");
 
             player.sendMessage("§eNew Benefits:");
             player.sendMessage("§7  Claim Limit: §a" + town.getMaxClaimLimit() + " chunks");
             player.sendMessage("§7  Assistant Slots: §a" + town.getMaxAssistantSlots());
             player.sendMessage("§7  Daily Income: §6§" + String.format("%.2f", town.getDailyIncomeBonus()));
-
-        } else if (town.getTownLevel() >= 150) {
-            player.sendMessage("§aYour town is already at the maximum level!");
         } else {
-            player.sendMessage("§cNot enough resources for upgrade!");
+            player.sendMessage("§c" + result.getMessage());
             player.sendMessage("§eUse '/town level' to see requirements");
         }
 
@@ -360,16 +348,16 @@ public class TownLevelBrigadierCommand {
         }
 
         // Show player's progress toward next level
-        Map<String, Integer> required = getLevelRequirements(town.getTownLevel() + 1);
-        if (!required.isEmpty() && town.getTownLevel() < 150) {
-            player.sendMessage("§eProgress to Level " + (town.getTownLevel() + 1) + ":");
+        townLevelService.getNextTownLevel(town).ifPresent(nextLevel -> {
+            Map<String, Integer> required = nextLevel.getResourceCosts();
+            player.sendMessage("§eProgress to Level " + nextLevel.getLevel() + ":");
             for (Map.Entry<String, Integer> req : required.entrySet()) {
                 int has = contributions.getOrDefault(req.getKey(), 0);
                 String status = has >= req.getValue() ? "§a✓" : "§c✗";
                 player.sendMessage("§7  " + status + " " + req.getKey() + ": " +
                                  "§e" + has + "§7/§e" + req.getValue());
             }
-        }
+        });
 
         return Command.SINGLE_SUCCESS;
     }
@@ -412,20 +400,11 @@ public class TownLevelBrigadierCommand {
                 .orElse(null);
     }
 
-    private boolean isSupportedResource(String resourceType) {
-        return resourceType.equals("diamond") || resourceType.equals("gold") ||
-               resourceType.equals("iron") || resourceType.equals("emerald") ||
-               resourceType.equals("experience");
-    }
-
     private org.bukkit.Material getMaterialForResource(String resourceType) {
-        switch (resourceType) {
-            case "diamond": return org.bukkit.Material.DIAMOND;
-            case "gold": return org.bukkit.Material.GOLD_INGOT;
-            case "iron": return org.bukkit.Material.IRON_INGOT;
-            case "emerald": return org.bukkit.Material.EMERALD;
-            case "experience": return org.bukkit.Material.EXPERIENCE_BOTTLE;
-            default: return null;
+        try {
+            return org.bukkit.Material.valueOf(resourceType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 
@@ -484,36 +463,4 @@ public class TownLevelBrigadierCommand {
         return remaining == 0;
     }
 
-    private Map<String, Integer> getLevelRequirements(int level) {
-        Map<String, Integer> requirements = new HashMap<>();
-
-        if (level <= 5) {
-            requirements.put("diamond", level * 10);
-            requirements.put("gold", level * 20);
-        } else if (level <= 10) {
-            requirements.put("diamond", level * 20);
-            requirements.put("gold", level * 40);
-            requirements.put("iron", level * 15);
-        } else {
-            requirements.put("diamond", level * 50);
-            requirements.put("gold", level * 100);
-            requirements.put("iron", level * 50);
-            if (level >= 10) {
-                requirements.put("emerald", level * 5);
-            }
-            if (level >= 25) {
-                requirements.put("experience", level * 25);
-            }
-        }
-
-        return requirements;
-    }
-
-    private int getTechPointsForLevel(int level) {
-        if (level <= 9) return 1;
-        if (level <= 24) return 2;
-        if (level <= 49) return 3;
-        if (level <= 99) return 5;
-        return 10;
-    }
 }

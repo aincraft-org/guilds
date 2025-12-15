@@ -2,7 +2,9 @@ package org.aincraft.towny.models;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Represents a town level definition with costs and benefits
@@ -10,11 +12,7 @@ import java.util.List;
 public class TownLevel {
 
     private int level;
-    private int diamondCost;
-    private int goldCost;
-    private int ironCost;
-    private int emeraldCost;
-    private int experienceCost;
+    private Map<String, Integer> resourceCosts; // Material name -> quantity
     private int techPointsReward;
     private int claimLimitBonus;
     private int assistantSlotsBonus;
@@ -28,21 +26,18 @@ public class TownLevel {
     public TownLevel() {
         this.createdAt = LocalDateTime.now();
         this.unlockedPlotTypes = List.of();
+        this.resourceCosts = new HashMap<>();
     }
 
     /**
      * Constructor for creating a new town level
      */
-    public TownLevel(int level, int diamondCost, int goldCost, int ironCost, int emeraldCost,
-                     int experienceCost, int techPointsReward, int claimLimitBonus,
-                     int assistantSlotsBonus, double dailyIncomeBonus, List<String> unlockedPlotTypes) {
+    public TownLevel(int level, Map<String, Integer> resourceCosts, int techPointsReward,
+                     int claimLimitBonus, int assistantSlotsBonus, double dailyIncomeBonus,
+                     List<String> unlockedPlotTypes) {
         this();
         this.level = level;
-        this.diamondCost = diamondCost;
-        this.goldCost = goldCost;
-        this.ironCost = ironCost;
-        this.emeraldCost = emeraldCost;
-        this.experienceCost = experienceCost;
+        this.resourceCosts = resourceCosts != null ? new HashMap<>(resourceCosts) : new HashMap<>();
         this.techPointsReward = techPointsReward;
         this.claimLimitBonus = claimLimitBonus;
         this.assistantSlotsBonus = assistantSlotsBonus;
@@ -59,44 +54,12 @@ public class TownLevel {
         this.level = Math.max(1, level);
     }
 
-    public int getDiamondCost() {
-        return diamondCost;
+    public Map<String, Integer> getResourceCosts() {
+        return new HashMap<>(resourceCosts);
     }
 
-    public void setDiamondCost(int diamondCost) {
-        this.diamondCost = Math.max(0, diamondCost);
-    }
-
-    public int getGoldCost() {
-        return goldCost;
-    }
-
-    public void setGoldCost(int goldCost) {
-        this.goldCost = Math.max(0, goldCost);
-    }
-
-    public int getIronCost() {
-        return ironCost;
-    }
-
-    public void setIronCost(int ironCost) {
-        this.ironCost = Math.max(0, ironCost);
-    }
-
-    public int getEmeraldCost() {
-        return emeraldCost;
-    }
-
-    public void setEmeraldCost(int emeraldCost) {
-        this.emeraldCost = Math.max(0, emeraldCost);
-    }
-
-    public int getExperienceCost() {
-        return experienceCost;
-    }
-
-    public void setExperienceCost(int experienceCost) {
-        this.experienceCost = Math.max(0, experienceCost);
+    public void setResourceCosts(Map<String, Integer> resourceCosts) {
+        this.resourceCosts = resourceCosts != null ? new HashMap<>(resourceCosts) : new HashMap<>();
     }
 
     public int getTechPointsReward() {
@@ -150,64 +113,13 @@ public class TownLevel {
     // Business methods
 
     /**
-     * Get the total resource cost as a map
-     * @return Map of resource types to their costs
+     * Get the cost for a specific resource/material
+     * @param materialName Material name (e.g., "DIAMOND", "GOLD_INGOT")
+     * @return Cost amount, or 0 if not required
      */
-    public java.util.Map<String, Integer> getResourceCosts() {
-        java.util.Map<String, Integer> costs = new java.util.HashMap<>();
-
-        if (diamondCost > 0) costs.put(ResourceType.DIAMOND.getNormalizedName(), diamondCost);
-        if (goldCost > 0) costs.put(ResourceType.GOLD.getNormalizedName(), goldCost);
-        if (ironCost > 0) costs.put(ResourceType.IRON.getNormalizedName(), ironCost);
-        if (emeraldCost > 0) costs.put(ResourceType.EMERALD.getNormalizedName(), emeraldCost);
-        if (experienceCost > 0) costs.put(ResourceType.EXPERIENCE.getNormalizedName(), experienceCost);
-
-        return costs;
-    }
-
-    /**
-     * Get the total resource cost as a map with enum keys
-     * @return Map of ResourceType enum to their costs
-     */
-    public java.util.Map<ResourceType, Integer> getResourceCostsEnum() {
-        java.util.Map<ResourceType, Integer> costs = new java.util.HashMap<>();
-
-        if (diamondCost > 0) costs.put(ResourceType.DIAMOND, diamondCost);
-        if (goldCost > 0) costs.put(ResourceType.GOLD, goldCost);
-        if (ironCost > 0) costs.put(ResourceType.IRON, ironCost);
-        if (emeraldCost > 0) costs.put(ResourceType.EMERALD, emeraldCost);
-        if (experienceCost > 0) costs.put(ResourceType.EXPERIENCE, experienceCost);
-
-        return costs;
-    }
-
-    /**
-     * Get the cost for a specific resource type
-     * @param resourceType Resource type enum
-     * @return Cost amount, or 0 if not applicable
-     */
-    public int getResourceCost(ResourceType resourceType) {
-        if (resourceType == null) return 0;
-
-        switch (resourceType) {
-            case DIAMOND: return diamondCost;
-            case GOLD: return goldCost;
-            case IRON: return ironCost;
-            case EMERALD: return emeraldCost;
-            case EXPERIENCE: return experienceCost;
-            default: return 0;
-        }
-    }
-
-    /**
-     * Get the cost for a specific resource type from string (backward compatibility)
-     * @param resourceTypeStr Resource type string
-     * @return Cost amount, or 0 if not applicable
-     */
-    public int getResourceCost(String resourceTypeStr) {
-        return ResourceType.fromString(resourceTypeStr)
-                .map(this::getResourceCost)
-                .orElse(0);
+    public int getResourceCost(String materialName) {
+        if (materialName == null || resourceCosts == null) return 0;
+        return resourceCosts.getOrDefault(materialName.toUpperCase(), 0);
     }
 
     /**
@@ -227,21 +139,7 @@ public class TownLevel {
      * @return True if there are resource costs
      */
     public boolean hasResourceCosts() {
-        return diamondCost > 0 || goldCost > 0 || ironCost > 0 ||
-               emeraldCost > 0 || experienceCost > 0;
-    }
-
-    /**
-     * Get the total cost in "diamond equivalent" (for comparison purposes)
-     * Diamond = 1, Gold = 0.5, Iron = 0.25, Emerald = 2, Experience = 0.1
-     * @return Total cost in diamond equivalent
-     */
-    public double getDiamondEquivalentCost() {
-        return diamondCost +
-               (goldCost * 0.5) +
-               (ironCost * 0.25) +
-               (emeraldCost * 2.0) +
-               (experienceCost * 0.1);
+        return resourceCosts != null && !resourceCosts.isEmpty();
     }
 
     /**
@@ -291,27 +189,25 @@ public class TownLevel {
         StringBuilder description = new StringBuilder();
         description.append("Level ").append(level).append(" Costs:\n");
 
-        if (diamondCost > 0) {
-            description.append(diamondCost).append(" Diamonds\n");
-        }
-
-        if (goldCost > 0) {
-            description.append(goldCost).append(" Gold Ingots\n");
-        }
-
-        if (ironCost > 0) {
-            description.append(ironCost).append(" Iron Ingots\n");
-        }
-
-        if (emeraldCost > 0) {
-            description.append(emeraldCost).append(" Emeralds\n");
-        }
-
-        if (experienceCost > 0) {
-            description.append(experienceCost).append(" Experience Bottles\n");
+        if (resourceCosts != null && !resourceCosts.isEmpty()) {
+            for (Map.Entry<String, Integer> entry : resourceCosts.entrySet()) {
+                String materialName = formatMaterialName(entry.getKey());
+                description.append(entry.getValue()).append(" ").append(materialName).append("\n");
+            }
         }
 
         return description.toString();
+    }
+
+    /**
+     * Format material name for display (GOLD_INGOT -> Gold Ingot)
+     */
+    private String formatMaterialName(String materialName) {
+        if (materialName == null) return "";
+        return Arrays.stream(materialName.split("_"))
+                .map(word -> word.substring(0, 1).toUpperCase() + word.substring(1).toLowerCase())
+                .reduce((a, b) -> a + " " + b)
+                .orElse(materialName);
     }
 
     @Override
@@ -331,11 +227,7 @@ public class TownLevel {
     public String toString() {
         return "TownLevel{" +
                 "level=" + level +
-                ", diamondCost=" + diamondCost +
-                ", goldCost=" + goldCost +
-                ", ironCost=" + ironCost +
-                ", emeraldCost=" + emeraldCost +
-                ", experienceCost=" + experienceCost +
+                ", resourceCosts=" + resourceCosts +
                 ", techPointsReward=" + techPointsReward +
                 ", claimLimitBonus=" + claimLimitBonus +
                 ", assistantSlotsBonus=" + assistantSlotsBonus +

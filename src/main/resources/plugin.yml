@@ -7,7 +7,7 @@ description: Enhanced town and nation management plugin
 website: https://github.com/aincraft/towny
 
 depend: []
-softdepend: [Vault, WorldEdit, WorldGuard]
+softdepend: [Vault, WorldEdit, WorldGuard, triumph-gui]
 
 # Command registrations are handled by Brigadier dynamically
 # No command definitions needed here - Brigadier manages registration

@@ -27,6 +27,9 @@ public class Town {
     // Town toggle system (composition)
     private TownToggles toggles;
 
+    // Town tech tree system (composition)
+    private TownTechData techData;
+
     /**
      * Default constructor for database mapping
      */
@@ -42,6 +45,7 @@ public class Town {
         // Initialize composition objects
         this.levelData = new TownLevelData();
         this.toggles = new TownToggles();
+        this.techData = new TownTechData();
     }
 
     /**
@@ -630,5 +634,56 @@ public class Town {
                 ", techPoints=" + getTechPoints() +
                 ", isOpen=" + isOpen +
                 '}';
+    }
+
+    // Town tech tree system methods (delegating to TownTechData)
+
+    /**
+     * Check if a tech node is unlocked
+     */
+    public boolean isTechNodeUnlocked(String nodeId) {
+        return techData.isNodeUnlocked(nodeId);
+    }
+
+    /**
+     * Unlock a tech node
+     */
+    public void unlockTechNode(String nodeId) {
+        techData.unlockNode(nodeId);
+    }
+
+    /**
+     * Unlock a tech node with specific timestamp
+     */
+    public void unlockTechNode(String nodeId, LocalDateTime timestamp) {
+        techData.unlockNode(nodeId, timestamp);
+    }
+
+    /**
+     * Get all unlocked tech node IDs
+     */
+    public Set<String> getUnlockedTechNodes() {
+        return techData.getUnlockedNodeIds();
+    }
+
+    /**
+     * Get total number of unlocked tech nodes
+     */
+    public int getTotalUnlockedTechNodes() {
+        return techData.getTotalUnlockedNodes();
+    }
+
+    /**
+     * Get tech data (for service layer access)
+     */
+    public TownTechData getTechData() {
+        return techData;
+    }
+
+    /**
+     * Set tech data (for database loading)
+     */
+    public void setTechData(TownTechData techData) {
+        this.techData = techData != null ? techData : new TownTechData();
     }
 }

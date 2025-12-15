@@ -3,6 +3,8 @@ package org.aincraft.towny.services.impl;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.aincraft.towny.TownyPlugin;
+import org.aincraft.towny.config.TownLevelConfigLoader;
+import org.aincraft.towny.config.model.LevelDefinition;
 import org.aincraft.towny.database.DatabaseManager;
 import org.aincraft.towny.models.Town;
 import org.aincraft.towny.models.TownLevel;
@@ -10,6 +12,7 @@ import org.aincraft.towny.services.TownLevelService;
 import org.aincraft.towny.services.TownService;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -22,16 +25,18 @@ public class TownLevelServiceImpl implements TownLevelService {
     private final TownyPlugin plugin;
     private final DatabaseManager databaseManager;
     private final TownService townService;
+    private final TownLevelConfigLoader configLoader;
 
     // Cache for town level definitions
     private final Map<Integer, TownLevel> levelCache = new HashMap<>();
     private boolean cacheInitialized = false;
 
     @Inject
-    public TownLevelServiceImpl(TownyPlugin plugin, DatabaseManager databaseManager, TownService townService) {
+    public TownLevelServiceImpl(TownyPlugin plugin, DatabaseManager databaseManager, TownService townService, TownLevelConfigLoader configLoader) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.townService = townService;
+        this.configLoader = configLoader;
     }
 
     @Override
@@ -188,8 +193,7 @@ public class TownLevelServiceImpl implements TownLevelService {
 
     @Override
     public int getMaxLevel() {
-        // Default max level is 150, but this could be configurable
-        return 150;
+        return configLoader.getMaxLevel();
     }
 
     @Override
@@ -361,20 +365,59 @@ public class TownLevelServiceImpl implements TownLevelService {
      */
     private TownLevel mapResultSetToTownLevel(ResultSet resultSet) throws SQLException {
         List<String> unlockedPlotTypes = parseJsonArray(resultSet.getString("unlocked_plot_types"));
+        Map<String, Integer> resourceCosts = parseResourceCostsJson(resultSet.getString("resource_costs_json"));
 
         return new TownLevel(
                 resultSet.getInt("level"),
-                resultSet.getInt("diamond_cost"),
-                resultSet.getInt("gold_cost"),
-                resultSet.getInt("iron_cost"),
-                resultSet.getInt("emerald_cost"),
-                resultSet.getInt("experience_cost"),
+                resourceCosts,
                 resultSet.getInt("tech_points_reward"),
                 resultSet.getInt("claim_limit_bonus"),
                 resultSet.getInt("assistant_slots_bonus"),
                 resultSet.getDouble("daily_income_bonus"),
                 unlockedPlotTypes
         );
+    }
+
+    /**
+     * Parse resource costs JSON into a Map
+     */
+    private Map<String, Integer> parseResourceCostsJson(String json) {
+        Map<String, Integer> costs = new HashMap<>();
+
+        if (json == null || json.isEmpty() || json.equals("{}")) {
+            return costs;
+        }
+
+        try {
+            // Simple JSON parsing for key-value pairs
+            String content = json.trim();
+            if (content.startsWith("{") && content.endsWith("}")) {
+                content = content.substring(1, content.length() - 1);
+            }
+
+            if (content.trim().isEmpty()) {
+                return costs;
+            }
+
+            String[] pairs = content.split(",");
+            for (String pair : pairs) {
+                String[] keyValue = pair.split(":");
+                if (keyValue.length == 2) {
+                    String key = keyValue[0].trim().replace("\"", "");
+                    String value = keyValue[1].trim();
+                    try {
+                        costs.put(key, Integer.parseInt(value));
+                    } catch (NumberFormatException e) {
+                        plugin.getLogger().warning("Invalid number in resource costs JSON: " + value);
+                    }
+                }
+            }
+
+            return costs;
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to parse resource costs JSON: " + json);
+            return costs;
+        }
     }
 
     /**
@@ -523,5 +566,113 @@ public class TownLevelServiceImpl implements TownLevelService {
         } catch (SQLException e) {
             plugin.getLogger().log(Level.WARNING, "Failed to record level benefits for town " + town.getName() + ": " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Reload level definitions from config
+     */
+    public void reloadLevelDefinitions() {
+        configLoader.loadConfiguration();
+        levelCache.clear();
+        cacheInitialized = false;
+        plugin.getLogger().info("Reloaded town level definitions from config");
+    }
+
+    /**
+     * Sync configuration to database
+     */
+    public void syncConfigToDatabase() {
+        try {
+            Map<Integer, LevelDefinition> definitions = configLoader.getLevelDefinitions();
+
+            if (definitions.isEmpty()) {
+                plugin.getLogger().warning("No level definitions to sync to database");
+                return;
+            }
+
+            String sql = """
+                INSERT OR REPLACE INTO town_levels (
+                    level, resource_costs_json, tech_points_reward, claim_limit_bonus,
+                    assistant_slots_bonus, daily_income_bonus, unlocked_plot_types, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+
+            try (Connection connection = databaseManager.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(sql)) {
+
+                String currentTime = LocalDateTime.now().toString();
+
+                for (LevelDefinition definition : definitions.values()) {
+                    // Serialize resource costs to JSON
+                    String resourceCostsJson = serializeResourceCosts(definition.getRequirements());
+
+                    // Serialize unlocked plot types to JSON
+                    String unlockedPlotTypesJson = serializeList(definition.getUnlockedPlotTypes());
+
+                    statement.setInt(1, definition.getLevel());
+                    statement.setString(2, resourceCostsJson);
+                    statement.setInt(3, definition.getTechPoints());
+                    statement.setInt(4, definition.getClaimLimitBonus());
+                    statement.setInt(5, definition.getAssistantSlotsBonus());
+                    statement.setDouble(6, definition.getDailyIncomeBonus());
+                    statement.setString(7, unlockedPlotTypesJson);
+                    statement.setString(8, currentTime);
+
+                    statement.addBatch();
+                }
+
+                int[] results = statement.executeBatch();
+                plugin.getLogger().info("Synced " + results.length + " town level definitions to database");
+
+                // Clear cache to force reload from database
+                levelCache.clear();
+                cacheInitialized = false;
+            }
+
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to sync config to database: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Serialize resource costs map to JSON string
+     */
+    private String serializeResourceCosts(Map<String, Integer> costs) {
+        if (costs == null || costs.isEmpty()) {
+            return "{}";
+        }
+
+        StringBuilder json = new StringBuilder("{");
+        boolean first = true;
+
+        for (Map.Entry<String, Integer> entry : costs.entrySet()) {
+            if (!first) {
+                json.append(",");
+            }
+            json.append("\"").append(entry.getKey()).append("\":").append(entry.getValue());
+            first = false;
+        }
+
+        json.append("}");
+        return json.toString();
+    }
+
+    /**
+     * Serialize list to JSON array string
+     */
+    private String serializeList(List<String> list) {
+        if (list == null || list.isEmpty()) {
+            return "[]";
+        }
+
+        StringBuilder json = new StringBuilder("[");
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) {
+                json.append(",");
+            }
+            json.append("\"").append(list.get(i)).append("\"");
+        }
+        json.append("]");
+        return json.toString();
     }
 }

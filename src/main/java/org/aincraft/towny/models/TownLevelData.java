@@ -225,6 +225,15 @@ public class TownLevelData {
         return currentAssistants >= getMaxAssistantSlots();
     }
 
+    /**
+     * Check if the town has reached its claim limit
+     * @param currentClaims Current number of claimed chunks
+     * @return True if at claim limit
+     */
+    public boolean isAtClaimLimit(int currentClaims) {
+        return currentClaims >= getMaxClaimLimit();
+    }
+
     @Override
     public String toString() {
         return "TownLevelData{" +

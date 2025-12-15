@@ -61,8 +61,11 @@ public class BrigadierCommandRegistry {
             // Register all commands with Brigadier
             Commands commands = event.registrar();
 
-            // Register main town command
+            // Register main town command with alias
             commands.register(townCommand.buildCommand());
+            commands.register(Commands.literal("t")
+                .redirect(townCommand.buildCommand())
+                .build());
 
             // Register plot command
             commands.register(plotCommand.buildCommand());

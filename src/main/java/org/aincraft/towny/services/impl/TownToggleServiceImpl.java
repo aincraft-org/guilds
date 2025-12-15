@@ -33,13 +33,22 @@ public class TownToggleServiceImpl implements TownToggleService {
     @Override
     public boolean isFireEnabledAtLocation(int x, int z, String world) {
         Optional<Town> town = locationService.getTownAtLocation(x, z, world);
-        return town.map(Town::isFireEnabled).orElse(false); // Default to disabled in wilderness
+
+        if (town.isPresent()) {
+            boolean fireEnabled = town.get().isFireEnabled();
+            System.out.println("[DEBUG] Fire check at (" + x + ", " + z + ") in town " +
+                             town.get().getName() + ": " + fireEnabled);
+            return fireEnabled;
+        } else {
+            System.out.println("[DEBUG] Fire check at (" + x + ", " + z + "): wilderness (enabled)");
+            return true; // Default to enabled in wilderness
+        }
     }
 
     @Override
     public boolean areExplosionsEnabledAtLocation(int x, int z, String world) {
         Optional<Town> town = locationService.getTownAtLocation(x, z, world);
-        return town.map(Town::isExplosionsEnabled).orElse(false); // Default to disabled in wilderness
+        return town.map(Town::isExplosionsEnabled).orElse(true); // Default to enabled in wilderness
     }
 
     @Override

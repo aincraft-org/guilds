@@ -24,7 +24,10 @@ import org.aincraft.towny.listeners.TownPublicAccessListener;
 import org.aincraft.towny.listeners.TownBroadcastListener;
 import org.aincraft.towny.config.DatabaseConfig;
 import org.aincraft.towny.config.TownyConfig;
+import org.aincraft.towny.config.TownLevelConfigLoader;
+import org.aincraft.towny.config.TechTreeConfigLoader;
 import org.aincraft.towny.database.DatabaseManager;
+import org.aincraft.towny.gui.TechTreeGUI;
 import org.aincraft.towny.services.*;
 
 import javax.sql.DataSource;
@@ -49,10 +52,12 @@ public class TownyModule extends AbstractModule {
         // Bind plugin instance
         bind(TownyPlugin.class).toInstance(plugin);
 
-        
+
         // Bind configurations
         bind(TownyConfig.class).asEagerSingleton();
         bind(DatabaseConfig.class).asEagerSingleton();
+        bind(TownLevelConfigLoader.class).asEagerSingleton();
+        bind(TechTreeConfigLoader.class).asEagerSingleton();
 
         // Bind database
         bind(DatabaseManager.class).asEagerSingleton();
@@ -71,6 +76,9 @@ public class TownyModule extends AbstractModule {
         // Bind town level system services
         bind(TownLevelService.class).to(org.aincraft.towny.services.impl.TownLevelServiceImpl.class).asEagerSingleton();
         bind(ResourceService.class).to(org.aincraft.towny.services.impl.ResourceServiceImpl.class).asEagerSingleton();
+
+        // Bind tech tree system services
+        bind(TechTreeService.class).to(org.aincraft.towny.services.impl.TechTreeServiceImpl.class).asEagerSingleton();
 
         // Bind broadcast service
         bind(BroadcastService.class).to(org.aincraft.towny.services.impl.BroadcastServiceImpl.class).asEagerSingleton();
@@ -103,6 +111,10 @@ public class TownyModule extends AbstractModule {
         bind(PlotTypeBrigadierCommand.class).asEagerSingleton();
         bind(TownBroadcastBrigadierCommand.class).asEagerSingleton();
         bind(TownPermBrigadierCommand.class).asEagerSingleton();
+        bind(TechTreeBrigadierCommand.class).asEagerSingleton();
+
+        // Bind GUI classes
+        bind(TechTreeGUI.class).asEagerSingleton();
 
         // Bind listener classes
         bind(PlayerMovementListener.class).asEagerSingleton();

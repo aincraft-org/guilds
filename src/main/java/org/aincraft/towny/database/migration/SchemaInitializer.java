@@ -55,6 +55,9 @@ public class SchemaInitializer {
         // Add town broadcasting system
         migrations.add(new AddBroadcastSystemMigration());
 
+        // Add tech tree system
+        migrations.add(new AddTechTreeSystemMigration());
+
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
     }
@@ -492,11 +495,7 @@ public class SchemaInitializer {
                 statement.execute("""
                     CREATE TABLE IF NOT EXISTS town_levels (
                         level INTEGER PRIMARY KEY,
-                        diamond_cost INTEGER NOT NULL DEFAULT 0,
-                        gold_cost INTEGER NOT NULL DEFAULT 0,
-                        iron_cost INTEGER NOT NULL DEFAULT 0,
-                        emerald_cost INTEGER NOT NULL DEFAULT 0,
-                        experience_cost INTEGER NOT NULL DEFAULT 0,
+                        resource_costs_json TEXT NOT NULL DEFAULT '{}',
                         tech_points_reward INTEGER NOT NULL DEFAULT 0,
                         claim_limit_bonus INTEGER NOT NULL DEFAULT 0,
                         assistant_slots_bonus INTEGER NOT NULL DEFAULT 0,
@@ -547,8 +546,8 @@ public class SchemaInitializer {
                     )
                 """);
 
-                // Insert default level data (levels 1-150 with exponential scaling)
-                insertDefaultLevelData(statement);
+                // Level data will be populated from config.yml on plugin startup
+                // See TownLevelConfigLoader and TownLevelService.syncConfigToDatabase()
 
                 // Create indexes for performance
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_town_resources_town ON town_resources(town_id)");
@@ -561,59 +560,6 @@ public class SchemaInitializer {
             }
         }
 
-        /**
-         * Insert default level data with exponential scaling
-         */
-        private void insertDefaultLevelData(Statement statement) throws SQLException {
-            String currentTime = java.time.LocalDateTime.now().toString();
-
-            for (int level = 1; level <= 150; level++) {
-                // Calculate costs with exponential scaling
-                double baseMultiplier = Math.pow(1.15, level - 1);
-
-                int diamondCost = (int) Math.round(50 * baseMultiplier);
-                int goldCost = (int) Math.round(100 * baseMultiplier);
-                int ironCost = (int) Math.round(20 * baseMultiplier);
-                int emeraldCost = level >= 10 ? (int) Math.round(10 * baseMultiplier) : 0;
-                int experienceCost = level >= 25 ? (int) Math.round(25 * baseMultiplier) : 0;
-
-                // Tech points reward (1 for level 2-9, 2 for 10-24, 3 for 25-49, 5 for 50-99, 10 for 100+)
-                int techPoints = 0;
-                if (level >= 2) {
-                    if (level <= 9) techPoints = 1;
-                    else if (level <= 24) techPoints = 2;
-                    else if (level <= 49) techPoints = 3;
-                    else if (level <= 99) techPoints = 5;
-                    else techPoints = 10;
-                }
-
-                // Benefits
-                int claimLimitBonus = (level - 1) * 2; // +2 chunks per level
-                int assistantSlotsBonus = (level - 1) / 10; // +1 slot every 10 levels
-                double dailyIncomeBonus = level * level * 0.5; // Quadratic scaling
-
-                // Unlocked plot types (as JSON array)
-                String unlockedPlotTypes = "[]";
-                if (level >= 10 && level < 25) unlockedPlotTypes = "[\"BANK\"]";
-                else if (level >= 25 && level < 50) unlockedPlotTypes = "[\"BANK\", \"ARENA\"]";
-                else if (level >= 50 && level < 100) unlockedPlotTypes = "[\"BANK\", \"ARENA\", \"EMBASSY\"]";
-                else if (level >= 100) unlockedPlotTypes = "[\"BANK\", \"ARENA\", \"EMBASSY\", \"JAIL\", \"INN\"]";
-
-                String sql = String.format("""
-                    INSERT OR REPLACE INTO town_levels (
-                        level, diamond_cost, gold_cost, iron_cost, emerald_cost, experience_cost,
-                        tech_points_reward, claim_limit_bonus, assistant_slots_bonus, daily_income_bonus,
-                        unlocked_plot_types, created_at
-                    ) VALUES (%d, %d, %d, %d, %d, %d, %d, %d, %d, %f, '%s', '%s')
-                    """,
-                    level, diamondCost, goldCost, ironCost, emeraldCost, experienceCost,
-                    techPoints, claimLimitBonus, assistantSlotsBonus, dailyIncomeBonus,
-                    unlockedPlotTypes, currentTime
-                );
-
-                statement.execute(sql);
-            }
-        }
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {

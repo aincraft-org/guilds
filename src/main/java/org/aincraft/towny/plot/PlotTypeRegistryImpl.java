@@ -186,20 +186,11 @@ public class PlotTypeRegistryImpl implements PlotTypeRegistry {
 
     @Override
     public void registerBuiltInTypes() {
-        // Register built-in plot types from PlotTypes constants
         registerPlotType(PlotTypeDefinition.builder()
-                .typeName("default")
-                .displayName("Default")
-                .description("Standard residential plot")
+                .typeName("resident")
+                .displayName("Resident")
+                .description("Standard residential plot for town members")
                 .pluginName(null)
-                .build());
-
-        registerPlotType(PlotTypeDefinition.builder()
-                .typeName("shop")
-                .displayName("Shop")
-                .description("Commercial plot for shops and markets")
-                .pluginName(null)
-                .metadata("shop_type", "commercial")
                 .build());
 
         registerPlotType(PlotTypeDefinition.builder()
@@ -211,11 +202,11 @@ public class PlotTypeRegistryImpl implements PlotTypeRegistry {
                 .build());
 
         registerPlotType(PlotTypeDefinition.builder()
-                .typeName("wilderness")
-                .displayName("Wilderness")
-                .description("Unclaimed territory")
+                .typeName("blacksmith")
+                .displayName("Blacksmith")
+                .description("Crafting and smithing plot")
                 .pluginName(null)
-                .metadata("unclaimable", true)
+                .metadata("smithing_bonus", true)
                 .build());
 
         registerPlotType(PlotTypeDefinition.builder()
@@ -227,35 +218,11 @@ public class PlotTypeRegistryImpl implements PlotTypeRegistry {
                 .build());
 
         registerPlotType(PlotTypeDefinition.builder()
-                .typeName("inn")
-                .displayName("Inn")
-                .description("Hospitality and accommodation plot")
+                .typeName("storage")
+                .displayName("Storage")
+                .description("Storage and warehouse plot")
                 .pluginName(null)
-                .metadata("bed_healing", true)
-                .build());
-
-        registerPlotType(PlotTypeDefinition.builder()
-                .typeName("embassy")
-                .displayName("Embassy")
-                .description("Diplomatic representation plot")
-                .pluginName(null)
-                .metadata("diplomatic_immunity", true)
-                .build());
-
-        registerPlotType(PlotTypeDefinition.builder()
-                .typeName("jail")
-                .displayName("Jail")
-                .description("Law enforcement and detention plot")
-                .pluginName(null)
-                .metadata("prison_effect", true)
-                .build());
-
-        registerPlotType(PlotTypeDefinition.builder()
-                .typeName("arena")
-                .displayName("Arena")
-                .description("Combat and entertainment plot")
-                .pluginName(null)
-                .metadata("pvp_enabled", true)
+                .metadata("storage_capacity_bonus", 1.5)
                 .build());
 
         logger.info("Registered " + getBuiltInPlotTypes().size() + " built-in plot types");

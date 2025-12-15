@@ -26,11 +26,16 @@ import java.util.stream.Collectors;
  */
 public class TownLevelCommand extends TownyCommand implements CommandExecutor, TabCompleter {
 
+    private final TownLevelService townLevelService;
+    private final ResourceService resourceService;
+
     @Inject
     public TownLevelCommand(TownyPlugin plugin, ResidentService residentService, TownService townService,
                             PlotService plotService, PermissionService permissionService,
                             TownLevelService townLevelService, ResourceService resourceService) {
         super(plugin, residentService, townService, plotService, permissionService);
+        this.townLevelService = townLevelService;
+        this.resourceService = resourceService;
     }
 
     @Override
@@ -136,11 +141,11 @@ public class TownLevelCommand extends TownyCommand implements CommandExecutor, T
         }
 
         Town town = townOpt.get();
-        String resourceType = args[1].toLowerCase();
+        String resourceType = args[1].toUpperCase();
 
-        if (!isSupportedResource(resourceType)) {
+        if (!resourceService.isSupportedResourceType(resourceType)) {
             sendError(player, "Unsupported resource type: " + resourceType);
-            sendInfo(player, "Supported resources: diamond, gold, iron, emerald, experience");
+            sendInfo(player, "Use any valid Minecraft material (DIAMOND, GOLD_INGOT, NETHERITE_INGOT, etc.)");
             return;
         }
 
@@ -179,16 +184,18 @@ public class TownLevelCommand extends TownyCommand implements CommandExecutor, T
         sendInfo(player, "Total contributed: " + newAmount + " " + resourceType);
 
         // Show upgrade progress if applicable
-        if (town.getTownLevel() < 150) {
-            Map<String, Integer> requirements = getLevelRequirements(town.getTownLevel() + 1);
-            if (requirements.containsKey(resourceType)) {
-                int required = requirements.get(resourceType);
-                if (newAmount >= required) {
-                    sendSuccess(player, "You have enough " + resourceType + " for the next level!");
-                } else {
-                    sendInfo(player, "Progress for next level: " + newAmount + "/" + required + " " + resourceType);
+        if (town.getTownLevel() < townLevelService.getMaxLevel()) {
+            townLevelService.getNextTownLevel(town).ifPresent(nextLevel -> {
+                Map<String, Integer> requirements = nextLevel.getResourceCosts();
+                if (requirements.containsKey(resourceType)) {
+                    int required = requirements.get(resourceType);
+                    if (newAmount >= required) {
+                        sendSuccess(player, "You have enough " + resourceType + " for the next level!");
+                    } else {
+                        sendInfo(player, "Progress for next level: " + newAmount + "/" + required + " " + resourceType);
+                    }
                 }
-            }
+            });
         }
     }
 
@@ -249,43 +256,26 @@ public class TownLevelCommand extends TownyCommand implements CommandExecutor, T
 
         Town town = townOpt.get();
 
-        // Basic upgrade check - simulate upgrade when enough resources are contributed
-        Map<String, Integer> required = getLevelRequirements(town.getTownLevel() + 1);
-        Map<String, Integer> contributed = town.getUpgradeProgress();
+        // Use TownLevelService to handle upgrade
+        TownLevelService.UpgradeResult result = townLevelService.performTownUpgrade(town);
 
-        boolean canUpgrade = true;
-        for (Map.Entry<String, Integer> req : required.entrySet()) {
-            int has = contributed.getOrDefault(req.getKey(), 0);
-            if (has < req.getValue()) {
-                canUpgrade = false;
-                break;
-            }
-        }
-
-        if (canUpgrade && town.getTownLevel() < 150) {
-            int newLevel = town.getTownLevel() + 1;
-            int techPoints = getTechPointsForLevel(newLevel);
-
-            town.levelUp(newLevel, techPoints);
-            townService.updateTown(town);
-
+        if (result.isSuccessful()) {
             // Send celebration message
             player.sendMessage("");
             sendHelpHeader(player, "🎉 TOWN UPGRADE COMPLETE! 🎉");
-            sendSuccess(player, "Your town has been upgraded to level " + ChatColor.GREEN + newLevel + "!");
-            sendInfo(player, "You earned " + ChatColor.LIGHT_PURPLE + techPoints + ChatColor.RESET + " tech points!");
+            sendSuccess(player, "Your town has been upgraded to level " + ChatColor.GREEN + result.getNewLevel() + "!");
+            sendInfo(player, "You earned " + ChatColor.LIGHT_PURPLE + result.getTechPointsEarned() + ChatColor.RESET + " tech points!");
 
             // Show new benefits
             player.sendMessage(ChatColor.YELLOW + "New Benefits:");
             player.sendMessage(ChatColor.GRAY + "  Claim Limit: " + ChatColor.GREEN + town.getMaxClaimLimit() + " chunks");
             player.sendMessage(ChatColor.GRAY + "  Assistant Slots: " + ChatColor.GREEN + town.getMaxAssistantSlots());
             player.sendMessage(ChatColor.GRAY + "  Daily Income: " + ChatColor.GOLD + "§" + String.format("%.2f", town.getDailyIncomeBonus()));
-
-        } else if (town.getTownLevel() >= 150) {
-            sendSuccess(player, "Your town is already at the maximum level!");
         } else {
-            sendError(player, "Not enough resources for upgrade!");
-            sendInfo(player, "Use '/town level' to see requirements");
+            sendError(player, result.getMessage());
+            if (!townLevelService.isAtMaxLevel(town)) {
+                sendInfo(player, "Use '/town level' to see requirements");
+            }
         }
     }
 
@@ -329,15 +319,17 @@ public class TownLevelCommand extends TownyCommand implements CommandExecutor, T
         }
 
         // Show player's progress toward next level
-        Map<String, Integer> required = getLevelRequirements(town.getTownLevel() + 1);
-        if (!required.isEmpty() && town.getTownLevel() < 150) {
-            player.sendMessage(ChatColor.YELLOW + "Progress to Level " + (town.getTownLevel() + 1) + ":");
-            for (Map.Entry<String, Integer> req : required.entrySet()) {
-                int has = contributions.getOrDefault(req.getKey(), 0);
-                String status = has >= req.getValue() ? ChatColor.GREEN + "✓" : ChatColor.RED + "✗";
-                player.sendMessage(ChatColor.GRAY + "  " + status + " " + req.getKey() + ": " +
-                                 ChatColor.YELLOW + has + ChatColor.GRAY + "/" + ChatColor.YELLOW + req.getValue());
-            }
+        if (town.getTownLevel() < townLevelService.getMaxLevel()) {
+            townLevelService.getNextTownLevel(town).ifPresent(nextLevel -> {
+                Map<String, Integer> required = nextLevel.getResourceCosts();
+                player.sendMessage(ChatColor.YELLOW + "Progress to Level " + (town.getTownLevel() + 1) + ":");
+                for (Map.Entry<String, Integer> req : required.entrySet()) {
+                    int has = contributions.getOrDefault(req.getKey(), 0);
+                    String status = has >= req.getValue() ? ChatColor.GREEN + "✓" : ChatColor.RED + "✗";
+                    player.sendMessage(ChatColor.GRAY + "  " + status + " " + req.getKey() + ": " +
+                                     ChatColor.YELLOW + has + ChatColor.GRAY + "/" + ChatColor.YELLOW + req.getValue());
+                }
+            });
         }
     }
 
@@ -381,76 +373,20 @@ public class TownLevelCommand extends TownyCommand implements CommandExecutor, T
         sendHelpLine(player, "/townlevel top [type] [count]", "Show top towns (level/residents/balance/techpoints)");
 
         sendSecondary(player, "");
-        sendSecondary(player, "Supported Resources: diamond, gold, iron, emerald, experience");
-        sendSecondary(player, "Example: /townlevel deposit diamond 10");
-        sendSecondary(player, "Aliases: /tl deposit diamond 10");
+        sendSecondary(player, "Supported Resources: Any Minecraft item (DIAMOND, GOLD_INGOT, NETHERITE_INGOT, etc.)");
+        sendSecondary(player, "Example: /townlevel deposit DIAMOND 10");
+        sendSecondary(player, "Aliases: /tl deposit IRON_INGOT 50");
     }
 
-    /**
-     * Get level requirements for a specific level (simplified)
-     */
-    private Map<String, Integer> getLevelRequirements(int level) {
-        Map<String, Integer> requirements = new HashMap<>();
-
-        if (level <= 5) {
-            requirements.put("diamond", level * 10);
-            requirements.put("gold", level * 20);
-        } else if (level <= 10) {
-            requirements.put("diamond", level * 20);
-            requirements.put("gold", level * 40);
-            requirements.put("iron", level * 15);
-        } else {
-            requirements.put("diamond", level * 50);
-            requirements.put("gold", level * 100);
-            requirements.put("iron", level * 50);
-            if (level >= 10) {
-                requirements.put("emerald", level * 5);
-            }
-            if (level >= 25) {
-                requirements.put("experience", level * 25);
-            }
-        }
-
-        return requirements;
-    }
-
-    /**
-     * Get tech points for a level
-     */
-    private int getTechPointsForLevel(int level) {
-        if (level <= 9) return 1;
-        if (level <= 24) return 2;
-        if (level <= 49) return 3;
-        if (level <= 99) return 5;
-        return 10;
-    }
-
-    /**
-     * Check if resource type is supported
-     */
-    private boolean isSupportedResource(String resourceType) {
-        return resourceType.equals("diamond") || resourceType.equals("gold") ||
-               resourceType.equals("iron") || resourceType.equals("emerald") ||
-               resourceType.equals("experience");
-    }
 
     /**
      * Get the Minecraft material for a resource type
      */
     private org.bukkit.Material getMaterialForResource(String resourceType) {
-        switch (resourceType) {
-            case "diamond":
-                return org.bukkit.Material.DIAMOND;
-            case "gold":
-                return org.bukkit.Material.GOLD_INGOT;
-            case "iron":
-                return org.bukkit.Material.IRON_INGOT;
-            case "emerald":
-                return org.bukkit.Material.EMERALD;
-            case "experience":
-                return org.bukkit.Material.EXPERIENCE_BOTTLE;
-            default:
-                return null;
+        try {
+            return org.bukkit.Material.valueOf(resourceType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
         }
     }
 
@@ -549,7 +485,7 @@ public class TownLevelCommand extends TownyCommand implements CommandExecutor, T
 
         if (args.length == 3) {
             String subCommand = args[0].toLowerCase();
-            if (subCommand.equals("deposit") && isSupportedResource(args[1])) {
+            if (subCommand.equals("deposit") && resourceService.isSupportedResourceType(args[1])) {
                 return Arrays.asList("1", "5", "10", "25", "50", "100").stream()
                         .filter(s -> s.toLowerCase().startsWith(args[2].toLowerCase()))
                         .collect(Collectors.toList());

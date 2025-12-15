@@ -50,7 +50,9 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
         return databaseManager.executeTransactionWithResult(connection -> {
             try {
                 // Insert town
-                String townSql = "INSERT INTO towns (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                String townSql = "INSERT INTO towns (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
+                                "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled) " +
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 String townId = UUID.randomUUID().toString();
                 String createdAt = LocalDateTime.now().format(DATE_FORMATTER);
@@ -67,6 +69,12 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                     statement.setString(6, createdAt);
                     statement.setInt(7, 0); // Default permission flags
                     statement.setString(8, taxRates);
+                    // Set toggle defaults
+                    statement.setBoolean(9, true); // PvP enabled by default
+                    statement.setBoolean(10, true); // Fire enabled by default
+                    statement.setBoolean(11, true); // Explosions enabled by default
+                    statement.setBoolean(12, true); // Mobs enabled by default
+                    statement.setBoolean(13, false); // Public disabled by default (only residents can build)
 
                     statement.executeUpdate();
                 }
@@ -132,8 +140,9 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                 // Insert town with home block and spawn (storing BLOCK coordinates)
                 String townSql = "INSERT INTO towns (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
                                 "home_block_x, home_block_z, home_block_world, " +
-                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world) " +
-                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
+                                "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled) " +
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 String townId = UUID.randomUUID().toString();
                 String createdAt = LocalDateTime.now().format(DATE_FORMATTER);
@@ -160,6 +169,12 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                     statement.setDouble(15, homeBlockLocation.getYaw());
                     statement.setDouble(16, homeBlockLocation.getPitch());
                     statement.setString(17, homeBlockLocation.getWorld());
+                    // Set toggle defaults
+                    statement.setBoolean(18, true); // PvP enabled by default
+                    statement.setBoolean(19, true); // Fire enabled by default
+                    statement.setBoolean(20, true); // Explosions enabled by default
+                    statement.setBoolean(21, true); // Mobs enabled by default
+                    statement.setBoolean(22, false); // Public disabled by default (only residents can build)
 
                     statement.executeUpdate();
                 }
@@ -216,7 +231,8 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
         try {
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                               "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE name = ?";
+                               "is_open, created_at, permissions_flags, tax_rates, " +
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE name = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -236,7 +252,8 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                 logger.info("Spawn columns not found in getTown(), using query without spawn columns for town: " + name);
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                                         "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE name = ?";
+                                         "is_open, created_at, permissions_flags, tax_rates, " +
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE name = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -270,7 +287,8 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
         try {
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                               "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE id = ?";
+                               "is_open, created_at, permissions_flags, tax_rates, " +
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -293,7 +311,8 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                 logger.info("Spawn columns not found in getTown(UUID), using query without spawn columns");
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                                         "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE id = ?";
+                                         "is_open, created_at, permissions_flags, tax_rates, " +
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -325,7 +344,8 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
         try {
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                               "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE id = ?";
+                               "is_open, created_at, permissions_flags, tax_rates, " +
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -345,7 +365,8 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                 logger.info("Spawn columns not found in getTownById(), using query without spawn columns");
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                                         "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE id = ?";
+                                         "is_open, created_at, permissions_flags, tax_rates, " +
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {

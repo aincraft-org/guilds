@@ -15,6 +15,8 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
+import java.util.Arrays;
 
 /**
  * Implementation of ResourceService for town resource management and contribution tracking
@@ -25,8 +27,6 @@ public class ResourceServiceImpl implements ResourceService {
     private final TownyPlugin plugin;
     private final DatabaseManager databaseManager;
     private final TownService townService;
-
-    private static final List<String> SUPPORTED_RESOURCES = List.of("diamond", "gold", "iron", "emerald", "experience");
 
     @Inject
     public ResourceServiceImpl(TownyPlugin plugin, DatabaseManager databaseManager, TownService townService) {
@@ -261,13 +261,8 @@ public class ResourceServiceImpl implements ResourceService {
     public Map<String, Integer> calculateTotalContributionsByResource(String townId) {
         Map<String, Integer> totals = new HashMap<>();
 
-        // Initialize with zero for all supported resources
-        for (String resourceType : SUPPORTED_RESOURCES) {
-            totals.put(resourceType, 0);
-        }
-
         // Implementation would sum from database
-        // For now, return initialized map
+        // For now, return empty map (will be populated by actual contributions)
 
         return totals;
     }
@@ -276,13 +271,8 @@ public class ResourceServiceImpl implements ResourceService {
     public Map<String, Integer> calculatePlayerContributions(UUID contributorUuid) {
         Map<String, Integer> totals = new HashMap<>();
 
-        // Initialize with zero for all supported resources
-        for (String resourceType : SUPPORTED_RESOURCES) {
-            totals.put(resourceType, 0);
-        }
-
         // Implementation would sum from database
-        // For now, return initialized map
+        // For now, return empty map (will be populated by actual contributions)
 
         return totals;
     }
@@ -379,12 +369,25 @@ public class ResourceServiceImpl implements ResourceService {
 
     @Override
     public List<String> getSupportedResourceTypes() {
-        return new ArrayList<>(SUPPORTED_RESOURCES);
+        // Return all Bukkit Material types that are items
+        return Arrays.stream(Material.values())
+                .filter(Material::isItem)
+                .map(Enum::name)
+                .collect(Collectors.toList());
     }
 
     @Override
     public boolean isSupportedResourceType(String resourceType) {
-        return resourceType != null && SUPPORTED_RESOURCES.contains(resourceType.toLowerCase());
+        if (resourceType == null) {
+            return false;
+        }
+
+        try {
+            Material material = Material.valueOf(resourceType.toUpperCase());
+            return material.isItem();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     @Override

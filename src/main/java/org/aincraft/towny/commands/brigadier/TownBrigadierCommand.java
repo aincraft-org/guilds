@@ -11,9 +11,15 @@ import io.papermc.paper.command.brigadier.Commands;
 import org.aincraft.towny.TownyPlugin;
 import org.aincraft.towny.commands.arguments.TownArgumentType;
 import org.aincraft.towny.models.Location;
+import org.aincraft.towny.models.TownBlock;
+import org.aincraft.towny.plot.PlotTypeDefinition;
+import org.aincraft.towny.plot.PlotTypeRegistry;
 import org.aincraft.towny.services.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Brigadier implementation of the town command
@@ -25,16 +31,22 @@ public class TownBrigadierCommand {
     private final TownService townService;
     private final PlotService plotService;
     private final PermissionService permissionService;
+    private final TechTreeBrigadierCommand techTreeCommand;
+    private final PlotTypeRegistry plotTypeRegistry;
 
     @Inject
     public TownBrigadierCommand(TownyPlugin plugin, ResidentService residentService,
                                TownService townService, PlotService plotService,
-                               PermissionService permissionService) {
+                               PermissionService permissionService,
+                               TechTreeBrigadierCommand techTreeCommand,
+                               PlotTypeRegistry plotTypeRegistry) {
         this.plugin = plugin;
         this.residentService = residentService;
         this.townService = townService;
         this.plotService = plotService;
         this.permissionService = permissionService;
+        this.techTreeCommand = techTreeCommand;
+        this.plotTypeRegistry = plotTypeRegistry;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -108,6 +120,8 @@ public class TownBrigadierCommand {
                             return builder.buildFuture();
                         })
                         .executes(this::handleToggleValue))))
+            // Tech tree subcommand
+            .then(techTreeCommand.buildCommand())
             .build();
     }
 
@@ -433,6 +447,19 @@ public class TownBrigadierCommand {
             return 0;
         }
 
+        // Check if town has reached its claim limit
+        int currentClaims = plotService.getTownBlockCount(townName);
+        var townOpt = townService.getTown(townName);
+        if (townOpt.isPresent()) {
+            var levelData = townOpt.get().getLevelData();
+            int maxClaims = levelData.getMaxClaimLimit();
+            if (levelData.isAtClaimLimit(currentClaims)) {
+                player.sendMessage("§cYour town has reached its claim limit! §7(" + currentClaims + "/" + maxClaims + " chunks)");
+                player.sendMessage("§7Level up your town to increase the claim limit.");
+                return 0;
+            }
+        }
+
         // Check if this claim is adjacent to an existing town claim
         if (!isAdjacentToTownClaim(chunkX, chunkZ, world, townName)) {
             player.sendMessage("§cClaims must be adjacent to your existing town chunks!");
@@ -571,6 +598,7 @@ public class TownBrigadierCommand {
                 player.sendMessage("§fResidents: §a" + town.getResidentCount());
                 player.sendMessage("§fBalance: §6$" + String.format("%.2f", town.getBalance()));
                 player.sendMessage("§fOpen: " + (town.isOpen() ? "§aYes" : "§cNo"));
+                sendPlotTypeBreakdown(player, townName);
             } else {
                 player.sendMessage("§cTown information could not be loaded.");
             }
@@ -592,6 +620,7 @@ public class TownBrigadierCommand {
             sender.sendMessage("§fResidents: §a" + town.getResidentCount());
             sender.sendMessage("§fBalance: §6$" + String.format("%.2f", town.getBalance()));
             sender.sendMessage("§fOpen: " + (town.isOpen() ? "§aYes" : "§cNo"));
+            sendPlotTypeBreakdown(sender, townName);
         } else {
             sender.sendMessage("§cTown information could not be loaded.");
         }
@@ -995,5 +1024,30 @@ public class TownBrigadierCommand {
         }
 
         return false; // No adjacent claims found
+    }
+
+    private void sendPlotTypeBreakdown(org.bukkit.command.CommandSender sender, String townName) {
+        List<TownBlock> blocks = plotService.getTownBlocksInTown(townName);
+
+        if (blocks.isEmpty()) {
+            sender.sendMessage("§fPlots: §70 total");
+            return;
+        }
+
+        // Count plots by type
+        Map<String, Long> typeCounts = blocks.stream()
+            .collect(Collectors.groupingBy(
+                b -> b.getPlotType() != null ? b.getPlotType() : "default",
+                Collectors.counting()
+            ));
+
+        // Build display with display names from registry
+        sender.sendMessage("§fPlots: §7" + blocks.size() + " total");
+        typeCounts.forEach((type, count) -> {
+            String displayName = plotTypeRegistry.getPlotType(type)
+                .map(PlotTypeDefinition::getDisplayName)
+                .orElse(type);
+            sender.sendMessage("  §8- §f" + displayName + ": §a" + count);
+        });
     }
 }
