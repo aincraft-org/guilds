@@ -1,0 +1,63 @@
+name: Guilds
+version: '1.0.0'
+main: org.aincraft.GuildsPlugin
+api-version: 1.21
+description: A comprehensive guild system for Minecraft servers
+author: Ainecraft
+website: https://github.com/aincraft
+
+commands:
+  g:
+    description: Guild management commands
+    usage: /g <create|join|leave|delete|kick|info|list|claim|unclaim [all]|role>
+    permission: guilds.use
+
+permissions:
+  guilds.use:
+    description: Allow use of guild commands
+    default: true
+  guilds.create:
+    description: Allow creating guilds
+    default: true
+  guilds.join:
+    description: Allow joining guilds
+    default: true
+  guilds.leave:
+    description: Allow leaving guilds
+    default: true
+  guilds.delete:
+    description: Allow deleting guilds
+    default: true
+  guilds.info:
+    description: Allow viewing guild info
+    default: true
+  guilds.list:
+    description: Allow listing all guilds
+    default: true
+  guilds.claim:
+    description: Allow claiming chunks
+    default: true
+  guilds.unclaim:
+    description: Allow unclaiming chunks
+    default: true
+  guilds.kick:
+    description: Allow kicking guild members
+    default: true
+  guilds.role:
+    description: Allow managing guild roles
+    default: true
+  guilds.admin:
+    description: All guild permissions
+    children:
+      - guilds.use
+      - guilds.create
+      - guilds.join
+      - guilds.leave
+      - guilds.delete
+      - guilds.kick
+      - guilds.info
+      - guilds.list
+      - guilds.claim
+      - guilds.unclaim
+      - guilds.role
+    default: op

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__claude-context__search_code",
+      "mcp__context7__get-library-docs",
+      "Bash(sqlite3:*)",
+      "Bash(.git \")"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "claude-context"
+  ]
+}
