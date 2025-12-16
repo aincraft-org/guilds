@@ -122,19 +122,21 @@ public class GuildMapRenderer {
      */
     private void sendLegend(Player player) {
         Component legend = Component.text()
-            .append(Component.text("Legend: "))
+            .append(Component.text("└─ "))
             .color(NamedTextColor.GOLD)
             .append(Component.text(MapSymbols.PLAYER).color(NamedTextColor.AQUA))
-            .append(Component.text("=You "))
+            .append(Component.text("=You  "))
             .color(NamedTextColor.GRAY)
             .append(Component.text(MapSymbols.OWN_GUILD).color(NamedTextColor.GREEN))
-            .append(Component.text("=Guild "))
+            .append(Component.text("=Guild  "))
             .color(NamedTextColor.GRAY)
             .append(Component.text(MapSymbols.OTHER_GUILD).color(NamedTextColor.YELLOW))
-            .append(Component.text("=Other "))
+            .append(Component.text("=Other  "))
             .color(NamedTextColor.GRAY)
             .append(Component.text(MapSymbols.WILDERNESS).color(NamedTextColor.DARK_GRAY))
-            .append(Component.text("=Wild"))
+            .append(Component.text("=Wild  "))
+            .color(NamedTextColor.GRAY)
+            .append(Component.text("*=Center"))
             .color(NamedTextColor.GRAY)
             .build();
         player.sendMessage(legend);
