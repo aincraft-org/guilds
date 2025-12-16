@@ -118,7 +118,7 @@ public class GuildMapRenderer {
                 .color(NamedTextColor.DARK_GRAY);
         }
 
-        Guild owner = guildService.getGuildById(data.guildId()).orElse(null);
+        Guild owner = guildService.getGuildById(data.guildId());
         if (owner == null) {
             return Component.text("? ").color(NamedTextColor.DARK_GRAY);
         }
