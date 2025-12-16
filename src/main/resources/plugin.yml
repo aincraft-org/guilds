@@ -9,7 +9,7 @@ website: https://github.com/aincraft
 commands:
   g:
     description: Guild management commands
-    usage: /g <create|join|leave|delete|kick|info|list|claim|unclaim [all]|role>
+    usage: /g <create|join|leave|delete|kick|info|list|claim|unclaim [all]|map [size]|role|region>
     permission: guilds.use
 
 permissions:
@@ -46,6 +46,9 @@ permissions:
   guilds.role:
     description: Allow managing guild roles
     default: true
+  guilds.map:
+    description: Allow viewing guild map
+    default: true
   guilds.admin:
     description: All guild permissions
     children:
@@ -59,5 +62,6 @@ permissions:
       - guilds.list
       - guilds.claim
       - guilds.unclaim
+      - guilds.map
       - guilds.role
     default: op

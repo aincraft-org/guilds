@@ -3,6 +3,7 @@ package org.aincraft.storage;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.aincraft.ChunkKey;
+import org.aincraft.map.ChunkClaimData;
 
 import java.sql.*;
 import java.util.*;
@@ -182,5 +183,57 @@ public class SQLiteChunkClaimRepository implements ChunkClaimRepository {
         }
 
         return 0;
+    }
+
+    @Override
+    public Map<ChunkKey, ChunkClaimData> getOwnersForChunks(List<ChunkKey> chunks) {
+        Objects.requireNonNull(chunks, "Chunks cannot be null");
+
+        if (chunks.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        Map<ChunkKey, ChunkClaimData> result = new HashMap<>();
+
+        // Build SQL with IN clause for all chunks
+        StringBuilder sql = new StringBuilder(
+            "SELECT world, chunk_x, chunk_z, guild_id, claimed_by, claimed_at FROM guild_chunks WHERE "
+        );
+
+        List<String> conditions = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            conditions.add("(world = ? AND chunk_x = ? AND chunk_z = ?)");
+        }
+        sql.append(String.join(" OR ", conditions));
+
+        try (Connection conn = DriverManager.getConnection(connectionString);
+             PreparedStatement pstmt = conn.prepareStatement(sql.toString())) {
+
+            int paramIndex = 1;
+            for (ChunkKey chunk : chunks) {
+                pstmt.setString(paramIndex++, chunk.world());
+                pstmt.setInt(paramIndex++, chunk.x());
+                pstmt.setInt(paramIndex++, chunk.z());
+            }
+
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                ChunkKey key = new ChunkKey(
+                    rs.getString("world"),
+                    rs.getInt("chunk_x"),
+                    rs.getInt("chunk_z")
+                );
+                ChunkClaimData data = new ChunkClaimData(
+                    rs.getString("guild_id"),
+                    UUID.fromString(rs.getString("claimed_by")),
+                    rs.getLong("claimed_at")
+                );
+                result.put(key, data);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get chunk owners", e);
+        }
+
+        return result;
     }
 }

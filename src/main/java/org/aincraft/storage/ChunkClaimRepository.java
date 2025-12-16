@@ -1,8 +1,10 @@
 package org.aincraft.storage;
 
 import org.aincraft.ChunkKey;
+import org.aincraft.map.ChunkClaimData;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -57,4 +59,12 @@ public interface ChunkClaimRepository {
      * @return the chunk count
      */
     int getChunkCount(String guildId);
+
+    /**
+     * Gets ownership data for multiple chunks in a single query.
+     *
+     * @param chunks list of chunks to query
+     * @return map of chunk to claim data (excludes unclaimed chunks)
+     */
+    Map<ChunkKey, ChunkClaimData> getOwnersForChunks(List<ChunkKey> chunks);
 }

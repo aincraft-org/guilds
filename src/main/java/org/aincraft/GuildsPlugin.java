@@ -10,6 +10,9 @@ import org.aincraft.commands.MessageFormatter;
 import org.aincraft.commands.components.RegionComponent;
 import org.aincraft.inject.GuildsModule;
 import org.aincraft.listeners.GuildProtectionListener;
+import org.aincraft.map.GuildColorMapper;
+import org.aincraft.map.GuildMapRenderer;
+import org.aincraft.storage.ChunkClaimRepository;
 import org.aincraft.subregion.SelectionManager;
 import org.aincraft.subregion.SubregionService;
 import org.aincraft.subregion.SubregionTypeRegistry;
@@ -30,6 +33,7 @@ public class GuildsPlugin extends JavaPlugin {
     private GuildManager guildManager;
     private RegionComponent regionComponent;
     private SubregionTypeRegistry typeRegistry;
+    private GuildMapRenderer mapRenderer;
 
     @Override
     public void onEnable() {
@@ -42,6 +46,11 @@ public class GuildsPlugin extends JavaPlugin {
         SelectionManager selectionManager = injector.getInstance(SelectionManager.class);
         this.typeRegistry = injector.getInstance(SubregionTypeRegistry.class);
         this.regionComponent = new RegionComponent(guildService, subregionService, selectionManager, typeRegistry);
+
+        // Initialize map renderer
+        ChunkClaimRepository chunkClaimRepository = injector.getInstance(ChunkClaimRepository.class);
+        GuildColorMapper colorMapper = new GuildColorMapper();
+        this.mapRenderer = new GuildMapRenderer(guildService, chunkClaimRepository, colorMapper);
 
         // Register protection listener
         GuildProtectionListener protectionListener = injector.getInstance(GuildProtectionListener.class);
@@ -147,6 +156,15 @@ public class GuildsPlugin extends JavaPlugin {
                                     com.mojang.brigadier.arguments.StringArgumentType.getString(context, "args"));
                             })
                         )
+                    )
+                )
+                .then(Commands.literal("map")
+                    .executes(context -> handleMapCommand(context, 1))
+                    .then(Commands.argument("size", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 5))
+                        .executes(context -> {
+                            int size = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "size");
+                            return handleMapCommand(context, size);
+                        })
                     )
                 )
                 .then(Commands.literal("region")
@@ -407,6 +425,26 @@ public class GuildsPlugin extends JavaPlugin {
         // TODO: Implement role command handling
         player.sendMessage("§cRole management not yet implemented in plugin command!");
         return 0;
+    }
+
+    private int handleMapCommand(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, int size) {
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can view the map"));
+            return 0;
+        }
+
+        Player player = (Player) sender;
+
+        // Check permission
+        if (!player.hasPermission("guilds.map")) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to view the map"));
+            return 0;
+        }
+
+        // Render and send map
+        mapRenderer.renderMap(player, size);
+        return 1;
     }
 
     private int handleRegionCommand(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String[] args) {
