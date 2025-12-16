@@ -1,13 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./gradlew:*)",
-      "mcp__context7__resolve-library-id",
-      "mcp__claude-context__search_code",
-      "mcp__context7__get-library-docs",
-      "Bash(sqlite3:*)",
-      "Bash(.git \")"
-    ]
+      "Bash(git worktree:*)",
+      "Bash(./gradlew build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ],
+    "deny": [],
+    "ask": []
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [

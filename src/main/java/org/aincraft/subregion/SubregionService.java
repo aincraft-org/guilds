@@ -40,12 +40,21 @@ public class SubregionService {
     }
 
     /**
-     * Creates a new subregion after validating all constraints.
-     *
-     * @return the created subregion, or empty if validation failed
+     * Creates a new subregion after validating all constraints (without type).
      */
     public SubregionCreationResult createSubregion(String guildId, UUID playerId, String name,
                                                     Location pos1, Location pos2) {
+        return createSubregion(guildId, playerId, name, pos1, pos2, null);
+    }
+
+    /**
+     * Creates a new subregion after validating all constraints.
+     *
+     * @param type optional type ID (null for untyped regions)
+     * @return the created subregion, or empty if validation failed
+     */
+    public SubregionCreationResult createSubregion(String guildId, UUID playerId, String name,
+                                                    Location pos1, Location pos2, String type) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
@@ -55,6 +64,11 @@ public class SubregionService {
         // Check permission
         if (!guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS)) {
             return SubregionCreationResult.failure("You don't have permission to manage regions");
+        }
+
+        // Validate type if specified
+        if (type != null && !typeRegistry.isRegistered(type)) {
+            return SubregionCreationResult.failure("Unknown region type: " + type);
         }
 
         // Check same world
@@ -68,7 +82,7 @@ public class SubregionService {
         }
 
         // Create temp subregion to calculate properties
-        Subregion temp = Subregion.fromLocations(guildId, name, pos1, pos2, playerId);
+        Subregion temp = Subregion.fromLocations(guildId, name, pos1, pos2, playerId, type);
 
         // Check volume limit
         long volume = temp.getVolume();
@@ -97,7 +111,7 @@ public class SubregionService {
         }
 
         // All validations passed, save the region
-        Subregion region = Subregion.fromLocations(guildId, name, pos1, pos2, playerId);
+        Subregion region = Subregion.fromLocations(guildId, name, pos1, pos2, playerId, type);
         subregionRepository.save(region);
 
         return SubregionCreationResult.success(region);
@@ -245,6 +259,52 @@ public class SubregionService {
      */
     public List<Subregion> getSubregionsInChunk(ChunkKey chunk) {
         return subregionRepository.findOverlappingChunk(chunk);
+    }
+
+    /**
+     * Gets a subregion by its ID.
+     */
+    public Optional<Subregion> getSubregionById(String regionId) {
+        return subregionRepository.findById(regionId);
+    }
+
+    /**
+     * Sets the type of an existing subregion.
+     *
+     * @param guildId     the guild ID
+     * @param requesterId the requesting player's ID
+     * @param regionName  the region name
+     * @param typeId      the new type ID (null to remove type)
+     * @return true if updated successfully
+     */
+    public boolean setSubregionType(String guildId, UUID requesterId, String regionName, String typeId) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(requesterId, "Requester ID cannot be null");
+        Objects.requireNonNull(regionName, "Region name cannot be null");
+
+        // Validate type if specified
+        if (typeId != null && !typeRegistry.isRegistered(typeId)) {
+            return false;
+        }
+
+        Optional<Subregion> regionOpt = subregionRepository.findByGuildAndName(guildId, regionName);
+        if (regionOpt.isEmpty()) {
+            return false;
+        }
+
+        Subregion region = regionOpt.get();
+
+        // Check permission: must have MANAGE_REGIONS or be a region owner
+        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
+        boolean isOwner = region.isOwner(requesterId);
+
+        if (!hasPermission && !isOwner) {
+            return false;
+        }
+
+        region.setType(typeId);
+        subregionRepository.save(region);
+        return true;
     }
 
     /**

@@ -7,6 +7,8 @@ import org.aincraft.commands.MessageFormatter;
 import org.aincraft.subregion.SelectionManager;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
+import org.aincraft.subregion.SubregionType;
+import org.aincraft.subregion.SubregionTypeRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -19,18 +21,20 @@ import java.util.UUID;
 
 /**
  * Command component for managing subregions.
- * Handles: pos1, pos2, create, delete, list, info, addowner, removeowner
+ * Handles: pos1, pos2, create, delete, list, info, addowner, removeowner, types, settype
  */
 public class RegionComponent implements GuildCommand {
     private final GuildService guildService;
     private final SubregionService subregionService;
     private final SelectionManager selectionManager;
+    private final SubregionTypeRegistry typeRegistry;
 
     public RegionComponent(GuildService guildService, SubregionService subregionService,
-                           SelectionManager selectionManager) {
+                           SelectionManager selectionManager, SubregionTypeRegistry typeRegistry) {
         this.guildService = guildService;
         this.subregionService = subregionService;
         this.selectionManager = selectionManager;
+        this.typeRegistry = typeRegistry;
     }
 
     @Override
@@ -45,7 +49,7 @@ public class RegionComponent implements GuildCommand {
 
     @Override
     public String getUsage() {
-        return "/g region <pos1|pos2|create|delete|list|info|addowner|removeowner>";
+        return "/g region <pos1|pos2|create|delete|list|info|types|settype|addowner|removeowner>";
     }
 
     @Override
@@ -69,6 +73,8 @@ public class RegionComponent implements GuildCommand {
             case "delete" -> handleDelete(player, args);
             case "list" -> handleList(player);
             case "info" -> handleInfo(player, args);
+            case "types" -> handleTypes(player);
+            case "settype" -> handleSetType(player, args);
             case "addowner" -> handleAddOwner(player, args);
             case "removeowner" -> handleRemoveOwner(player, args);
             default -> {
@@ -82,10 +88,12 @@ public class RegionComponent implements GuildCommand {
         player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Region Commands", ""));
         player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region pos1", "Set first corner at your location"));
         player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region pos2", "Set second corner at your location"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region create <name>", "Create region from selection"));
+        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region create <name> [type]", "Create region from selection"));
         player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region delete <name>", "Delete a region"));
         player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region list", "List your guild's regions"));
         player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region info <name>", "Show region details"));
+        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region types", "List available region types"));
+        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region settype <name> <type>", "Change region type"));
         player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region addowner <region> <player>", "Add region owner"));
         player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g region removeowner <region> <player>", "Remove region owner"));
     }
@@ -130,7 +138,7 @@ public class RegionComponent implements GuildCommand {
 
     private boolean handleCreate(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region create <name>"));
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region create <name> [type]"));
             return true;
         }
 
@@ -147,15 +155,24 @@ public class RegionComponent implements GuildCommand {
         }
 
         String name = args[2];
+        String type = args.length >= 4 ? args[3].toLowerCase() : null;
+
+        // Validate type if provided
+        if (type != null && !typeRegistry.isRegistered(type)) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Unknown region type: " + type + ". Use /g region types to see available types."));
+            return true;
+        }
+
         SelectionManager.PlayerSelection sel = selectionManager.getSelection(player.getUniqueId()).get();
 
         SubregionService.SubregionCreationResult result = subregionService.createSubregion(
-                guild.getId(), player.getUniqueId(), name, sel.pos1(), sel.pos2());
+                guild.getId(), player.getUniqueId(), name, sel.pos1(), sel.pos2(), type);
 
         if (result.success()) {
             Subregion region = result.region();
+            String typeInfo = type != null ? " [" + typeRegistry.getType(type).map(SubregionType::getDisplayName).orElse(type) + "]" : "";
             player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Created region <gold>" + name + "</gold> (" + region.getVolume() + " blocks)</green>"));
+                    "<green>Created region <gold>" + name + "</gold>" + typeInfo + " (" + region.getVolume() + " blocks)</green>"));
             selectionManager.clearSelection(player.getUniqueId());
         } else {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
@@ -203,12 +220,16 @@ public class RegionComponent implements GuildCommand {
 
         player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Guild Regions", " (" + regions.size() + ")"));
         for (Subregion region : regions) {
+            String typeBadge = "";
+            if (region.getType() != null) {
+                String displayName = typeRegistry.getType(region.getType())
+                        .map(SubregionType::getDisplayName)
+                        .orElse(region.getType());
+                typeBadge = "<yellow>[" + displayName.toUpperCase() + "]</yellow> ";
+            }
             player.sendMessage(MessageFormatter.deserialize(
-                    "<gray>• <gold>" + region.getName() + "</gold> - " +
-                    region.getWorld() + " [" +
-                    region.getMinX() + "," + region.getMinY() + "," + region.getMinZ() + " to " +
-                    region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ() + "] " +
-                    "(" + region.getVolume() + " blocks)</gray>"));
+                    "<gray>• " + typeBadge + "<gold>" + region.getName() + "</gold> - " +
+                    region.getWorld() + " (" + region.getVolume() + " blocks)</gray>"));
         }
 
         return true;
@@ -243,6 +264,18 @@ public class RegionComponent implements GuildCommand {
         Subregion region = regionOpt.get();
 
         player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Region: " + region.getName(), ""));
+
+        // Type info
+        if (region.getType() != null) {
+            Optional<SubregionType> typeOpt = typeRegistry.getType(region.getType());
+            if (typeOpt.isPresent()) {
+                SubregionType type = typeOpt.get();
+                player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Type", type.getDisplayName() + " - " + type.getDescription()));
+            } else {
+                player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Type", region.getType()));
+            }
+        }
+
         player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "World", region.getWorld()));
         player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Bounds",
                 region.getMinX() + "," + region.getMinY() + "," + region.getMinZ() + " to " +
@@ -253,6 +286,66 @@ public class RegionComponent implements GuildCommand {
 
         if (region.getPermissions() != 0) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Custom Permissions", String.valueOf(region.getPermissions())));
+        }
+
+        return true;
+    }
+
+    private boolean handleTypes(Player player) {
+        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Region Types", " (" + typeRegistry.size() + ")"));
+
+        for (SubregionType type : typeRegistry.getAllTypes()) {
+            String builtIn = typeRegistry.isBuiltIn(type.getId()) ? " <gray>(built-in)</gray>" : "";
+            player.sendMessage(MessageFormatter.deserialize(
+                    "<gray>• <gold>" + type.getId() + "</gold> - " + type.getDisplayName() + builtIn));
+            if (!type.getDescription().isEmpty()) {
+                player.sendMessage(MessageFormatter.deserialize("  <dark_gray>" + type.getDescription() + "</dark_gray>"));
+            }
+        }
+
+        return true;
+    }
+
+    private boolean handleSetType(Player player, String[] args) {
+        if (args.length < 4) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region settype <name> <type>"));
+            return true;
+        }
+
+        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        if (guild == null) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            return true;
+        }
+
+        String regionName = args[2];
+        String typeId = args[3].toLowerCase();
+
+        // Special case: "none" or "clear" removes the type
+        if (typeId.equals("none") || typeId.equals("clear")) {
+            if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, null)) {
+                player.sendMessage(MessageFormatter.deserialize(
+                        "<green>Cleared type from region <gold>" + regionName + "</gold></green>"));
+            } else {
+                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
+                        "Failed to update region type. Region may not exist or you lack permission."));
+            }
+            return true;
+        }
+
+        // Validate type exists
+        if (!typeRegistry.isRegistered(typeId)) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Unknown region type: " + typeId + ". Use /g region types to see available types."));
+            return true;
+        }
+
+        if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, typeId)) {
+            String displayName = typeRegistry.getType(typeId).map(SubregionType::getDisplayName).orElse(typeId);
+            player.sendMessage(MessageFormatter.deserialize(
+                    "<green>Set type of region <gold>" + regionName + "</gold> to <yellow>" + displayName + "</yellow></green>"));
+        } else {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
+                    "Failed to update region type. Region may not exist or you lack permission."));
         }
 
         return true;

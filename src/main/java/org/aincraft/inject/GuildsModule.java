@@ -24,6 +24,9 @@ import org.aincraft.subregion.SelectionManager;
 import org.aincraft.subregion.SQLiteSubregionRepository;
 import org.aincraft.subregion.SubregionRepository;
 import org.aincraft.subregion.SubregionService;
+import org.aincraft.subregion.SubregionTypeRegistry;
+import org.aincraft.subregion.RegionMovementTracker;
+import org.aincraft.subregion.RegionEntryNotifier;
 
 import java.io.File;
 
@@ -47,8 +50,11 @@ public class GuildsModule extends AbstractModule {
 
         // Subregion bindings
         bind(SubregionRepository.class).to(SQLiteSubregionRepository.class).in(Singleton.class);
+        bind(SubregionTypeRegistry.class).in(Singleton.class);
         bind(SubregionService.class).in(Singleton.class);
         bind(SelectionManager.class).in(Singleton.class);
+        bind(RegionMovementTracker.class).in(Singleton.class);
+        bind(RegionEntryNotifier.class).in(Singleton.class);
 
         // Services
         bind(GuildService.class).in(Singleton.class);

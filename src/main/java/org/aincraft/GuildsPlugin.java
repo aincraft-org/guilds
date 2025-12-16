@@ -12,6 +12,9 @@ import org.aincraft.inject.GuildsModule;
 import org.aincraft.listeners.GuildProtectionListener;
 import org.aincraft.subregion.SelectionManager;
 import org.aincraft.subregion.SubregionService;
+import org.aincraft.subregion.SubregionTypeRegistry;
+import org.aincraft.subregion.RegionMovementTracker;
+import org.aincraft.subregion.RegionEntryNotifier;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -26,6 +29,7 @@ public class GuildsPlugin extends JavaPlugin {
     private Injector injector;
     private GuildManager guildManager;
     private RegionComponent regionComponent;
+    private SubregionTypeRegistry typeRegistry;
 
     @Override
     public void onEnable() {
@@ -36,11 +40,18 @@ public class GuildsPlugin extends JavaPlugin {
         GuildService guildService = injector.getInstance(GuildService.class);
         SubregionService subregionService = injector.getInstance(SubregionService.class);
         SelectionManager selectionManager = injector.getInstance(SelectionManager.class);
-        this.regionComponent = new RegionComponent(guildService, subregionService, selectionManager);
+        this.typeRegistry = injector.getInstance(SubregionTypeRegistry.class);
+        this.regionComponent = new RegionComponent(guildService, subregionService, selectionManager, typeRegistry);
 
         // Register protection listener
         GuildProtectionListener protectionListener = injector.getInstance(GuildProtectionListener.class);
         getServer().getPluginManager().registerEvents(protectionListener, this);
+
+        // Register region movement tracking and notifications
+        RegionMovementTracker movementTracker = injector.getInstance(RegionMovementTracker.class);
+        RegionEntryNotifier entryNotifier = injector.getInstance(RegionEntryNotifier.class);
+        getServer().getPluginManager().registerEvents(movementTracker, this);
+        getServer().getPluginManager().registerEvents(entryNotifier, this);
 
         LifecycleEventManager<Plugin> manager = this.getLifecycleManager();
         manager.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
@@ -54,6 +65,16 @@ public class GuildsPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         getLogger().info("Guilds plugin disabled!");
+    }
+
+    /**
+     * Gets the subregion type registry for external plugin integration.
+     * External plugins can register custom region types via this registry.
+     *
+     * @return the type registry
+     */
+    public SubregionTypeRegistry getTypeRegistry() {
+        return typeRegistry;
     }
 
     private void registerGuildCommands(Commands commands) {
