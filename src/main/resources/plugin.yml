@@ -1,7 +1,7 @@
 name: Guilds
 version: '1.0.0'
 main: org.aincraft.GuildsPlugin
-api-version: 1.21
+api-version: 1.21.11
 description: A comprehensive guild system for Minecraft servers
 author: Ainecraft
 website: https://github.com/aincraft
@@ -64,6 +64,15 @@ permissions:
   guilds.name:
     description: Allow changing guild name
     default: true
+  guilds.chat:
+    description: Allow using guild and ally chat
+    default: true
+  guilds.levelup:
+    description: Allow leveling up the guild
+    default: true
+  guilds.admin.bypass:
+    description: Bypass all guild claim protections
+    default: op
   guilds.admin:
     description: All guild permissions
     children:
@@ -86,4 +95,7 @@ permissions:
       - guilds.neutral
       - guilds.description
       - guilds.name
+      - guilds.chat
+      - guilds.levelup
+      - guilds.admin.bypass
     default: op

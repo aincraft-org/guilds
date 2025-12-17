@@ -588,6 +588,24 @@ public class GuildService {
     }
 
     /**
+     * Admin-only method to claim a chunk for a guild, bypassing all checks.
+     * Used by administrators to force-claim chunks.
+     *
+     * @param guildId the guild ID
+     * @param chunk the chunk to claim
+     */
+    public void adminClaimChunk(String guildId, ChunkKey chunk) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(chunk, "Chunk cannot be null");
+
+        // Force claim, bypassing all validation
+        chunkClaimRepository.claim(chunk, guildId, null);
+
+        // Log the claim action with null player (admin action)
+        claimLogRepository.log(new ChunkClaimLog(guildId, chunk, null, ChunkClaimLog.ActionType.CLAIM));
+    }
+
+    /**
      * Unclaims a chunk from a guild.
      * Requires the player to have UNCLAIM permission.
      *
@@ -1244,6 +1262,28 @@ public class GuildService {
         }
 
         return ClaimResult.success();
+    }
+
+    /**
+     * Updates a guild's maximum capacity for members and chunks.
+     * Used by progression system to apply level-up rewards.
+     *
+     * @param guildId the guild ID
+     * @param maxMembers the new maximum members
+     * @param maxChunks the new maximum chunks
+     */
+    public void updateGuildCapacities(String guildId, int maxMembers, int maxChunks) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+
+        Optional<Guild> guildOpt = guildRepository.findById(guildId);
+        if (guildOpt.isEmpty()) {
+            return;
+        }
+
+        Guild guild = guildOpt.get();
+        guild.setMaxMembers(maxMembers);
+        guild.setMaxChunks(maxChunks);
+        guildRepository.save(guild);
     }
 
     /**

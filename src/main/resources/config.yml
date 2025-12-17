@@ -5,3 +5,70 @@ claim:
   # Set to 0 to disable buffer (allows adjacent claims)
   # Default: 4 chunks
   buffer-distance: 4
+
+# Guild progression settings
+progression:
+  # Maximum level guilds can reach
+  max-level: 100
+
+  # Base XP required for level 2 (formula: base-xp * (growth-factor ^ (level-1)))
+  base-xp: 1000
+
+  # Exponential growth factor for XP requirements
+  growth-factor: 1.15
+
+  # XP sources configuration
+  xp-sources:
+    mob-kill:
+      enabled: true
+      base-xp: 10
+      multipliers:
+        ZOMBIE: 1.0
+        SKELETON: 1.0
+        CREEPER: 1.2
+        SPIDER: 1.0
+        ENDERMAN: 2.0
+        BLAZE: 1.5
+        WITHER_SKELETON: 3.0
+        ENDER_DRAGON: 100.0
+        WITHER: 50.0
+
+    block-mining:
+      enabled: true
+      base-xp: 1
+      multipliers:
+        DIAMOND_ORE: 10.0
+        DEEPSLATE_DIAMOND_ORE: 10.0
+        EMERALD_ORE: 15.0
+        DEEPSLATE_EMERALD_ORE: 15.0
+        ANCIENT_DEBRIS: 20.0
+        GOLD_ORE: 2.0
+        DEEPSLATE_GOLD_ORE: 2.0
+        IRON_ORE: 1.5
+        DEEPSLATE_IRON_ORE: 1.5
+
+    playtime:
+      enabled: true
+      xp-per-minute: 5
+      check-interval-seconds: 60
+
+  # Rewards for leveling up
+  rewards:
+    members-per-level: 2
+    chunks-per-level: 5
+    base-max-members: 100
+    base-max-chunks: 50
+
+  # Material costs for leveling up
+  material-costs:
+    # Cost multiplier per level (formula: base-amount * (cost-multiplier ^ (level-1)))
+    cost-multiplier: 1.1
+    materials:
+      DIAMOND:
+        base-amount: 10
+      EMERALD:
+        base-amount: 5
+      GOLD_INGOT:
+        base-amount: 20
+      IRON_INGOT:
+        base-amount: 64

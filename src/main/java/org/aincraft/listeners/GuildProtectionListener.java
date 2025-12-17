@@ -100,9 +100,14 @@ public class GuildProtectionListener implements Listener {
 
     /**
      * Checks if a player can perform an action at a location.
-     * Priority: Subregion permissions > Guild/relationship chunk permissions
+     * Priority: Admin bypass > Subregion permissions > Guild/relationship chunk permissions
      */
     private boolean canPerformAction(Player player, Location loc, GuildPermission permission) {
+        // Check for admin bypass permission
+        if (player.hasPermission("guilds.admin.bypass")) {
+            return true;
+        }
+
         // Check if location is in a claimed chunk
         ChunkKey chunk = ChunkKey.from(loc.getChunk());
         Guild chunkOwner = guildService.getChunkOwner(chunk);

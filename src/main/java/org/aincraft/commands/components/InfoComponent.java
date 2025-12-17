@@ -12,6 +12,9 @@ import org.aincraft.GuildService;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.progression.GuildProgression;
+import org.aincraft.progression.ProgressionConfig;
+import org.aincraft.progression.ProgressionService;
 import org.aincraft.subregion.RegionTypeLimit;
 import org.aincraft.subregion.SubregionService;
 import org.aincraft.subregion.SubregionType;
@@ -25,13 +28,18 @@ public class InfoComponent implements GuildCommand {
     private final GuildService guildService;
     private final RelationshipService relationshipService;
     private final SubregionService subregionService;
+    private final ProgressionService progressionService;
+    private final ProgressionConfig progressionConfig;
 
     @Inject
     public InfoComponent(GuildService guildService, RelationshipService relationshipService,
-                         SubregionService subregionService) {
+                         SubregionService subregionService, ProgressionService progressionService,
+                         ProgressionConfig progressionConfig) {
         this.guildService = guildService;
         this.relationshipService = relationshipService;
         this.subregionService = subregionService;
+        this.progressionService = progressionService;
+        this.progressionConfig = progressionConfig;
     }
 
     @Override
@@ -91,20 +99,37 @@ public class InfoComponent implements GuildCommand {
      * @param guild the guild to display
      */
     private void displayGuildInfo(Player player, Guild guild) {
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Guild Information", ""));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Name", guild.getName()));
+        // Header with guild name embedded
+        String guildName = guild.getName();
+        int totalWidth = 40;
+        int nameLength = guildName.length() + 4; // +4 for brackets and spaces
+        int sideLength = (totalWidth - nameLength) / 2;
 
+        StringBuilder header = new StringBuilder();
+        header.append("<dark_gray>o<gold>0<yellow>o<gold>.");
+        for (int i = 0; i < Math.max(0, sideLength - 4); i++) {
+            header.append("_");
+        }
+        header.append("<dark_gray>[ <white>").append(guildName).append(" <dark_gray>]");
+        for (int i = 0; i < Math.max(0, sideLength - 4); i++) {
+            header.append("<gold>_");
+        }
+        header.append("<yellow>o<gold>0<dark_gray>o");
+
+        player.sendMessage(MessageFormatter.deserialize(header.toString()));
+
+        // Description if exists
         if (guild.getDescription() != null && !guild.getDescription().isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Description", guild.getDescription()));
+            player.sendMessage(Component.empty());
+            player.sendMessage(MessageFormatter.deserialize("  <gray>\"" + guild.getDescription() + "\""));
+            player.sendMessage(Component.empty());
         }
 
-        // Owner with hover - display actual player name instead of "you"
+        // Owner with hover
         var ownerPlayer = org.bukkit.Bukkit.getOfflinePlayer(guild.getOwnerId());
         String ownerName = ownerPlayer.getName() != null ? ownerPlayer.getName() : "Unknown";
-
         Component ownerLine = Component.text()
-            .append(Component.text("Owner", NamedTextColor.YELLOW))
-            .append(Component.text(": ", NamedTextColor.WHITE))
+            .append(Component.text("  Owner: ", NamedTextColor.GRAY))
             .append(Component.text(ownerName, NamedTextColor.WHITE)
                 .hoverEvent(HoverEvent.showText(Component.text()
                     .append(Component.text("Player: ", NamedTextColor.YELLOW))
@@ -120,17 +145,12 @@ public class InfoComponent implements GuildCommand {
             .build();
         player.sendMessage(ownerLine);
 
-        player.sendMessage(MessageFormatter.deserialize("<yellow>Members<reset>: <white>" +
-            guild.getMemberCount() + "<gray>/<white>" + guild.getMaxMembers()));
-
         // Created date with hover
         String dateOnly = new SimpleDateFormat("yyyy-MM-dd").format(new Date(guild.getCreatedAt()));
         String fullDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").format(new Date(guild.getCreatedAt()));
         long daysAgo = (System.currentTimeMillis() - guild.getCreatedAt()) / (1000 * 60 * 60 * 24);
-
         Component createdLine = Component.text()
-            .append(Component.text("Created", NamedTextColor.YELLOW))
-            .append(Component.text(": ", NamedTextColor.WHITE))
+            .append(Component.text("  Created: ", NamedTextColor.GRAY))
             .append(Component.text(dateOnly, NamedTextColor.WHITE)
                 .hoverEvent(HoverEvent.showText(Component.text()
                     .append(Component.text("Created: ", NamedTextColor.YELLOW))
@@ -142,37 +162,44 @@ public class InfoComponent implements GuildCommand {
             .build();
         player.sendMessage(createdLine);
 
-        // Display toggles
-        displayToggles(player, guild);
+        player.sendMessage(Component.empty());
 
-        // Display relationships
-        displayRelationships(player, guild);
+        // Level and progression section
+        player.sendMessage(MessageFormatter.deserialize("  <yellow>Progression"));
+        displayLevelProgress(player, guild);
 
-        // Display region type limits usage
-        displayRegionLimits(player, guild);
-    }
+        player.sendMessage(Component.empty());
 
-
-    /**
-     * Displays guild toggle settings and chunk information.
-     *
-     * @param player the player to send the info to
-     * @param guild the guild to display toggles for
-     */
-    private void displayToggles(Player player, Guild guild) {
-        String explosions = guild.isExplosionsAllowed() ? "<green>Enabled</green>" : "<red>Disabled</red>";
-        String fire = guild.isFireAllowed() ? "<green>Enabled</green>" : "<red>Disabled</red>";
-        String isPublic = guild.isPublic() ? "<green>Public</green>" : "<red>Private</red>";
-
-        player.sendMessage(MessageFormatter.deserialize("<yellow>Explosions<reset>: " + explosions));
-        player.sendMessage(MessageFormatter.deserialize("<yellow>Fire Spread<reset>: " + fire));
-        player.sendMessage(MessageFormatter.deserialize("<yellow>Access<reset>: " + isPublic));
+        // Statistics section
+        player.sendMessage(MessageFormatter.deserialize("  <yellow>Statistics"));
+        player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Members: <white>" +
+            guild.getMemberCount() + "<dark_gray>/<white>" + guild.getMaxMembers()));
 
         int claimedChunks = guildService.getGuildChunkCount(guild.getId());
         int maxChunks = guild.getMaxChunks();
-        player.sendMessage(MessageFormatter.deserialize("<yellow>Chunks<reset>: <white>" +
-            claimedChunks + "<gray>/<white>" + maxChunks));
+        player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Chunks: <white>" +
+            claimedChunks + "<dark_gray>/<white>" + maxChunks));
+
+        // Display toggles inline
+        String explosions = guild.isExplosionsAllowed() ? "<green>✓" : "<red>✗";
+        String fire = guild.isFireAllowed() ? "<green>✓" : "<red>✗";
+        String isPublic = guild.isPublic() ? "<green>Public" : "<red>Private";
+        player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Explosions: " + explosions +
+            "  <dark_gray>• <gray>Fire: " + fire + "  <dark_gray>• <gray>Access: " + isPublic));
+
+        player.sendMessage(Component.empty());
+
+        // Relationships
+        displayRelationships(player, guild);
+
+        // Region limits
+        displayRegionLimits(player, guild);
+
+        // Footer
+        player.sendMessage(MessageFormatter.deserialize("<dark_gray>o<gold>0<yellow>o<gold>._____________________________.<yellow>o<gold>0<dark_gray>o"));
     }
+
+
 
     /**
      * Displays guild relationships (allies and enemies).
@@ -184,30 +211,33 @@ public class InfoComponent implements GuildCommand {
         List<String> allies = relationshipService.getAllies(guild.getId());
         List<String> enemies = relationshipService.getEnemies(guild.getId());
 
-        // Display allies
-        if (!allies.isEmpty()) {
-            player.sendMessage(MessageFormatter.deserialize("<yellow>Allies<reset>: <green>" + allies.size()));
-            for (String allyGuildId : allies) {
-                Guild allyGuild = guildService.getGuildById(allyGuildId);
-                if (allyGuild != null) {
-                    player.sendMessage(MessageFormatter.deserialize("  <gray>• <green>" + allyGuild.getName()));
-                }
-            }
-        } else {
-            player.sendMessage(MessageFormatter.deserialize("<yellow>Allies<reset>: <gray>None"));
-        }
+        // Only show section if there are relationships
+        if (!allies.isEmpty() || !enemies.isEmpty()) {
+            player.sendMessage(MessageFormatter.deserialize("  <yellow>Relationships"));
 
-        // Display enemies
-        if (!enemies.isEmpty()) {
-            player.sendMessage(MessageFormatter.deserialize("<yellow>Enemies<reset>: <red>" + enemies.size()));
-            for (String enemyGuildId : enemies) {
-                Guild enemyGuild = guildService.getGuildById(enemyGuildId);
-                if (enemyGuild != null) {
-                    player.sendMessage(MessageFormatter.deserialize("  <gray>• <red>" + enemyGuild.getName()));
+            // Display allies
+            if (!allies.isEmpty()) {
+                player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Allies <green>(" + allies.size() + ")<gray>:"));
+                for (String allyGuildId : allies) {
+                    Guild allyGuild = guildService.getGuildById(allyGuildId);
+                    if (allyGuild != null) {
+                        player.sendMessage(MessageFormatter.deserialize("    <green>• " + allyGuild.getName()));
+                    }
                 }
             }
-        } else {
-            player.sendMessage(MessageFormatter.deserialize("<yellow>Enemies<reset>: <gray>None"));
+
+            // Display enemies
+            if (!enemies.isEmpty()) {
+                player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Enemies <red>(" + enemies.size() + ")<gray>:"));
+                for (String enemyGuildId : enemies) {
+                    Guild enemyGuild = guildService.getGuildById(enemyGuildId);
+                    if (enemyGuild != null) {
+                        player.sendMessage(MessageFormatter.deserialize("    <red>• " + enemyGuild.getName()));
+                    }
+                }
+            }
+
+            player.sendMessage(Component.empty());
         }
     }
 
@@ -220,7 +250,7 @@ public class InfoComponent implements GuildCommand {
             return;
         }
 
-        player.sendMessage(MessageFormatter.deserialize("<yellow>Region Limits<reset>:"));
+        player.sendMessage(MessageFormatter.deserialize("  <yellow>Region Limits"));
         for (RegionTypeLimit limit : limits) {
             long usage = subregionService.getTypeUsage(guild.getId(), limit.typeId());
             long max = limit.maxTotalVolume();
@@ -232,10 +262,11 @@ public class InfoComponent implements GuildCommand {
 
             String color = percent >= 90 ? "<red>" : percent >= 70 ? "<yellow>" : "<green>";
             player.sendMessage(MessageFormatter.deserialize(
-                    "  <gray>• <gold>" + displayName + "<reset>: " + color +
-                    formatNumber(usage) + "<gray>/<white>" + formatNumber(max) +
-                    " <gray>(" + String.format("%.0f", percent) + "%)"));
+                    "  <dark_gray>• <gray>" + displayName + ": " + color +
+                    formatNumber(usage) + "<dark_gray>/<white>" + formatNumber(max) +
+                    " <dark_gray>(" + String.format("%.0f", percent) + "%)"));
         }
+        player.sendMessage(Component.empty());
     }
 
     private String formatNumber(long number) {
@@ -245,5 +276,56 @@ public class InfoComponent implements GuildCommand {
             return String.format("%.1fK", number / 1_000.0);
         }
         return String.valueOf(number);
+    }
+
+    /**
+     * Displays guild level and XP progress bar.
+     *
+     * @param player the player to send the info to
+     * @param guild the guild to display level progress for
+     */
+    private void displayLevelProgress(Player player, Guild guild) {
+        GuildProgression progression = progressionService.getOrCreateProgression(guild.getId());
+
+        int level = progression.getLevel();
+        long currentXp = progression.getCurrentXp();
+        long xpRequired = progressionService.calculateXpRequired(level + 1);
+        int maxLevel = progressionConfig.getMaxLevel();
+
+        // Build level line
+        String levelText = level >= maxLevel
+            ? String.format("  <dark_gray>• <gray>Level: <gold>%d <dark_gray>(MAX)", level)
+            : String.format("  <dark_gray>• <gray>Level: <gold>%d <dark_gray>/ <gold>%d", level, maxLevel);
+        player.sendMessage(MessageFormatter.deserialize(levelText));
+
+        // Build XP progress bar only if not at max level
+        if (level < maxLevel) {
+            double progress = (double) currentXp / xpRequired;
+            int barLength = 24;
+            int filledBars = (int) (progress * barLength);
+
+            StringBuilder progressBar = new StringBuilder();
+            progressBar.append("  <dark_gray>• <gray>XP: <gray>[");
+
+            // Add filled portion in green
+            for (int i = 0; i < filledBars; i++) {
+                progressBar.append("<green>|");
+            }
+
+            // Add empty portion in dark gray
+            for (int i = filledBars; i < barLength; i++) {
+                progressBar.append("<dark_gray>|");
+            }
+
+            progressBar.append("<gray>] ");
+            progressBar.append(String.format("<yellow>%.0f%%", progress * 100));
+            progressBar.append(" <dark_gray>(<white>");
+            progressBar.append(String.format("%,d", currentXp));
+            progressBar.append("<dark_gray>/<white>");
+            progressBar.append(String.format("%,d", xpRequired));
+            progressBar.append("<dark_gray>)");
+
+            player.sendMessage(MessageFormatter.deserialize(progressBar.toString()));
+        }
     }
 }

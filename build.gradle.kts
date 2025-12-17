@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
 
     // Guice DI
     implementation("com.google.inject:guice:7.0.0")
@@ -29,7 +29,7 @@ dependencies {
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
     // Testing
-    testCompileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    testCompileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testImplementation("org.junit.platform:junit-platform-commons:1.10.2")
@@ -78,8 +78,8 @@ tasks {
     }
 
     runServer {
-        // Use Paper 1.21.4
-        minecraftVersion("1.21.4")
+        // Use Paper 1.21.11
+        minecraftVersion("1.21.11")
 
         // Automatically download and run the server
         downloadPlugins {

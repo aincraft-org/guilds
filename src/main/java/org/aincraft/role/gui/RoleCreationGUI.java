@@ -259,6 +259,8 @@ public class RoleCreationGUI implements InventoryHolder {
             case ADMIN -> Material.NETHER_STAR;
             case VIEW_LOGS -> Material.PAPER;
             case EDIT_GUILD_INFO -> Material.OAK_SIGN;
+            case CHAT_GUILD -> Material.BOOK;
+            case LEVEL_UP -> Material.EXPERIENCE_BOTTLE;
         };
     }
 
@@ -294,6 +296,8 @@ public class RoleCreationGUI implements InventoryHolder {
             case ADMIN -> "Full admin rights";
             case VIEW_LOGS -> "View guild logs";
             case EDIT_GUILD_INFO -> "Change guild name/description";
+            case CHAT_GUILD -> "Use guild and ally chat";
+            case LEVEL_UP -> "Level up the guild";
         };
     }
 }

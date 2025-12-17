@@ -18,6 +18,7 @@ import org.aincraft.claim.ClaimEntryNotifier;
 import org.aincraft.claim.ClaimMovementTracker;
 import org.aincraft.claim.SQLiteChunkClaimLogRepository;
 import org.aincraft.commands.components.AcceptComponent;
+import org.aincraft.commands.components.AdminComponent;
 import org.aincraft.commands.components.AllyComponent;
 import org.aincraft.commands.components.AutoComponent;
 import org.aincraft.commands.components.ClaimComponent;
@@ -43,6 +44,10 @@ import org.aincraft.commands.components.SetspawnComponent;
 import org.aincraft.commands.components.SpawnComponent;
 import org.aincraft.commands.components.ToggleComponent;
 import org.aincraft.commands.components.UnclaimComponent;
+import org.aincraft.chat.ChatModeService;
+import org.aincraft.chat.GuildChatListener;
+import org.aincraft.commands.components.GuildChatComponent;
+import org.aincraft.commands.components.AllyChatComponent;
 import org.aincraft.config.GuildsConfig;
 import org.aincraft.listeners.GuildProtectionListener;
 import org.aincraft.multiblock.MultiblockListener;
@@ -96,6 +101,14 @@ import org.aincraft.vault.VaultRepository;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransactionRepository;
 import org.aincraft.vault.gui.VaultGUIListener;
+import org.aincraft.progression.ProgressionConfig;
+import org.aincraft.progression.ProgressionService;
+import org.aincraft.progression.storage.GuildProgressionRepository;
+import org.aincraft.progression.storage.SQLiteGuildProgressionRepository;
+import org.aincraft.progression.listeners.ProgressionXpListener;
+import org.aincraft.progression.listeners.ProgressionPlaytimeTask;
+import org.aincraft.commands.components.LevelComponent;
+import org.aincraft.commands.components.LevelUpComponent;
 
 public class GuildsModule extends AbstractModule {
     private final GuildsPlugin plugin;
@@ -159,6 +172,10 @@ public class GuildsModule extends AbstractModule {
         bind(GuildRoleService.class).in(Singleton.class);
         bind(GuildPermissionService.class).in(Singleton.class);
 
+        // Chat system
+        bind(ChatModeService.class).in(Singleton.class);
+        bind(GuildChatListener.class).in(Singleton.class);
+
         // Listeners
         bind(GuildProtectionListener.class).in(Singleton.class);
 
@@ -179,6 +196,13 @@ public class GuildsModule extends AbstractModule {
 
         // Configuration
         bind(GuildsConfig.class).in(Singleton.class);
+
+        // Progression system
+        bind(GuildProgressionRepository.class).to(SQLiteGuildProgressionRepository.class).in(Singleton.class);
+        bind(ProgressionService.class).in(Singleton.class);
+        bind(ProgressionConfig.class).in(Singleton.class);
+        bind(ProgressionXpListener.class).in(Singleton.class);
+        bind(ProgressionPlaytimeTask.class).in(Singleton.class);
 
         // Command components
         bind(CreateComponent.class).in(Singleton.class);
@@ -207,6 +231,11 @@ public class GuildsModule extends AbstractModule {
         bind(AllyComponent.class).in(Singleton.class);
         bind(EnemyComponent.class).in(Singleton.class);
         bind(NeutralComponent.class).in(Singleton.class);
+        bind(GuildChatComponent.class).in(Singleton.class);
+        bind(AllyChatComponent.class).in(Singleton.class);
+        bind(AdminComponent.class).in(Singleton.class);
+        bind(LevelComponent.class).in(Singleton.class);
+        bind(LevelUpComponent.class).in(Singleton.class);
     }
 
     @Provides

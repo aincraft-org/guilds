@@ -15,7 +15,8 @@
       "Bash(./gradlew compileJava:*)",
       "Bash(unzip:*)",
       "Bash(./gradlew compileTestJava:*)",
-      "mcp__claude-context__index_codebase"
+      "mcp__claude-context__index_codebase",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []

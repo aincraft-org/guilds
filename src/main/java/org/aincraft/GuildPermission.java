@@ -5,7 +5,7 @@ package org.aincraft;
  * Each permission is a power of 2, enabling bitwise operations.
  */
 public enum GuildPermission {
-    BUILD(1 << 0),          // 1
+    BUILD(1),          // 1
     DESTROY(1 << 1),        // 2
     INTERACT(1 << 2),       // 4
     CLAIM(1 << 3),          // 8
@@ -22,7 +22,9 @@ public enum GuildPermission {
     EDIT_ROLE(1 << 14),      // 16384
     ADMIN(1 << 15),          // 32768
     VIEW_LOGS(1 << 16),      // 65536
-    EDIT_GUILD_INFO(1 << 17); // 131072
+    EDIT_GUILD_INFO(1 << 17), // 131072
+    CHAT_GUILD(1 << 18),     // 262144
+    LEVEL_UP(1 << 19);       // 524288
 
     private final int bit;
 

@@ -19,6 +19,7 @@ import org.aincraft.claim.AutoUnclaimListener;
 import org.aincraft.claim.ClaimEntryNotifier;
 import org.aincraft.claim.ClaimMovementTracker;
 import org.aincraft.commands.components.AcceptComponent;
+import org.aincraft.commands.components.AdminComponent;
 import org.aincraft.commands.components.AllyComponent;
 import org.aincraft.commands.components.AutoComponent;
 import org.aincraft.commands.components.ClaimComponent;
@@ -46,7 +47,15 @@ import org.aincraft.commands.components.SetspawnComponent;
 import org.aincraft.commands.components.SpawnComponent;
 import org.aincraft.commands.components.ToggleComponent;
 import org.aincraft.commands.components.UnclaimComponent;
+import org.aincraft.commands.components.GuildChatComponent;
+import org.aincraft.commands.components.AllyChatComponent;
+import org.aincraft.commands.components.LevelComponent;
+import org.aincraft.commands.components.LevelUpComponent;
+import org.aincraft.chat.GuildChatListener;
 import org.aincraft.inject.GuildsModule;
+import org.aincraft.progression.ProgressionConfig;
+import org.aincraft.progression.listeners.ProgressionXpListener;
+import org.aincraft.progression.listeners.ProgressionPlaytimeTask;
 import org.aincraft.listeners.GuildProtectionListener;
 import org.aincraft.map.GuildColorMapper;
 import org.aincraft.map.GuildMapRenderer;
@@ -115,6 +124,11 @@ public class GuildsPlugin extends JavaPlugin {
     private AllyComponent allyComponent;
     private EnemyComponent enemyComponent;
     private NeutralComponent neutralComponent;
+    private GuildChatComponent guildChatComponent;
+    private AllyChatComponent allyChatComponent;
+    private AdminComponent adminComponent;
+    private LevelComponent levelComponent;
+    private LevelUpComponent levelUpComponent;
 
     @Override
     public void onEnable() {
@@ -147,11 +161,15 @@ public class GuildsPlugin extends JavaPlugin {
         // Register multiblock system
         registerMultiblockSystem();
 
+        // Register progression system
+        registerProgressionSystem();
+
         // Register commands
         LifecycleEventManager<Plugin> manager = this.getLifecycleManager();
         manager.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             Commands commands = event.registrar();
             registerGuildCommands(commands);
+            registerChatCommands(commands);
         });
 
         getLogger().info("Guilds plugin enabled!");
@@ -203,6 +221,11 @@ public class GuildsPlugin extends JavaPlugin {
         allyComponent = injector.getInstance(AllyComponent.class);
         enemyComponent = injector.getInstance(EnemyComponent.class);
         neutralComponent = injector.getInstance(NeutralComponent.class);
+        guildChatComponent = injector.getInstance(GuildChatComponent.class);
+        allyChatComponent = injector.getInstance(AllyChatComponent.class);
+        adminComponent = injector.getInstance(AdminComponent.class);
+        levelComponent = injector.getInstance(LevelComponent.class);
+        levelUpComponent = injector.getInstance(LevelUpComponent.class);
     }
 
     private void registerListeners() {
@@ -219,6 +242,9 @@ public class GuildsPlugin extends JavaPlugin {
 
         RoleCreationGUIListener roleGUIListener = injector.getInstance(RoleCreationGUIListener.class);
         getServer().getPluginManager().registerEvents(roleGUIListener, this);
+
+        GuildChatListener chatListener = injector.getInstance(GuildChatListener.class);
+        getServer().getPluginManager().registerEvents(chatListener, this);
     }
 
     private void registerClaimTracking() {
@@ -245,6 +271,20 @@ public class GuildsPlugin extends JavaPlugin {
         MultiblockListener multiblockListener = injector.getInstance(MultiblockListener.class);
         getServer().getPluginManager().registerEvents(multiblockListener, this);
         multiblockRegistry.registerBuiltIn(GuildVaultPattern.create());
+    }
+
+    private void registerProgressionSystem() {
+        // Register XP listener
+        ProgressionXpListener xpListener = injector.getInstance(ProgressionXpListener.class);
+        getServer().getPluginManager().registerEvents(xpListener, this);
+
+        // Schedule playtime task
+        ProgressionConfig progressionConfig = injector.getInstance(ProgressionConfig.class);
+        ProgressionPlaytimeTask playtimeTask = injector.getInstance(ProgressionPlaytimeTask.class);
+        int intervalTicks = progressionConfig.getPlaytimeCheckInterval() * 20; // Convert seconds to ticks
+        playtimeTask.runTaskTimer(this, intervalTicks, intervalTicks);
+
+        getLogger().info("Guild progression system registered");
     }
 
     public SubregionTypeRegistry getTypeRegistry() {
@@ -323,7 +363,7 @@ public class GuildsPlugin extends JavaPlugin {
         commands.register(
             Commands.literal("g")
                 .executes(context -> {
-                    context.getSource().getSender().sendMessage("Usage: /g <create|join|leave|disband|info|list|claim|unclaim|kick|spawn|setspawn|role|member|region|map|vault|ally|enemy|neutral|invite|accept|decline|invites>");
+                    context.getSource().getSender().sendMessage("Usage: /g <create|join|leave|disband|info|list|claim|unclaim|kick|spawn|setspawn|role|member|region|map|vault|ally|enemy|neutral|invite|accept|decline|invites|admin>");
                     return 1;
                 })
                 .then(Commands.literal("create")
@@ -600,9 +640,124 @@ public class GuildsPlugin extends JavaPlugin {
                             neutralComponent.execute(context.getSource().getSender(), new String[]{"neutral", guildName});
                             return 1;
                         })))
+                .then(Commands.literal("level")
+                    .executes(context -> {
+                        levelComponent.execute(context.getSource().getSender(), new String[]{"level", "info"});
+                        return 1;
+                    })
+                    .then(Commands.literal("info")
+                        .executes(context -> {
+                            levelComponent.execute(context.getSource().getSender(), new String[]{"level", "info"});
+                            return 1;
+                        }))
+                    .then(Commands.literal("top")
+                        .executes(context -> {
+                            levelComponent.execute(context.getSource().getSender(), new String[]{"level", "top"});
+                            return 1;
+                        }))
+                    .then(Commands.literal("stats")
+                        .executes(context -> {
+                            levelComponent.execute(context.getSource().getSender(), new String[]{"level", "stats"});
+                            return 1;
+                        })))
+                .then(Commands.literal("levelup")
+                    .executes(context -> {
+                        levelUpComponent.execute(context.getSource().getSender(), new String[]{"levelup"});
+                        return 1;
+                    })
+                    .then(Commands.literal("confirm")
+                        .executes(context -> {
+                            levelUpComponent.execute(context.getSource().getSender(), new String[]{"levelup", "confirm"});
+                            return 1;
+                        })))
+                .then(registerAdminCommands())
                 .build(),
             "Guild management commands",
             List.of("guild")
+        );
+    }
+
+    private com.mojang.brigadier.tree.LiteralCommandNode<CommandSourceStack> registerAdminCommands() {
+        return Commands.literal("admin")
+            .executes(context -> {
+                adminComponent.execute(context.getSource().getSender(), new String[]{"admin"});
+                return 1;
+            })
+            .then(Commands.literal("disband")
+                .then(Commands.argument("guildName", StringArgumentType.word())
+                    .suggests(this::suggestGuildNames)
+                    .executes(context -> {
+                        String guildName = StringArgumentType.getString(context, "guildName");
+                        adminComponent.execute(context.getSource().getSender(), new String[]{"admin", "disband", guildName});
+                        return 1;
+                    })))
+            .then(Commands.literal("addchunk")
+                .then(Commands.argument("guildName", StringArgumentType.word())
+                    .suggests(this::suggestGuildNames)
+                    .executes(context -> {
+                        String guildName = StringArgumentType.getString(context, "guildName");
+                        adminComponent.execute(context.getSource().getSender(), new String[]{"admin", "addchunk", guildName});
+                        return 1;
+                    })))
+            .then(Commands.literal("removechunk")
+                .executes(context -> {
+                    adminComponent.execute(context.getSource().getSender(), new String[]{"admin", "removechunk"});
+                    return 1;
+                }))
+            .then(Commands.literal("setowner")
+                .then(Commands.argument("guildName", StringArgumentType.word())
+                    .suggests(this::suggestGuildNames)
+                    .then(Commands.argument("playerName", StringArgumentType.word())
+                        .suggests(this::suggestPlayerNames)
+                        .executes(context -> {
+                            String guildName = StringArgumentType.getString(context, "guildName");
+                            String playerName = StringArgumentType.getString(context, "playerName");
+                            adminComponent.execute(context.getSource().getSender(), new String[]{"admin", "setowner", guildName, playerName});
+                            return 1;
+                        }))))
+            .then(Commands.literal("bypass")
+                .executes(context -> {
+                    adminComponent.execute(context.getSource().getSender(), new String[]{"admin", "bypass"});
+                    return 1;
+                }))
+            .build();
+    }
+
+    private void registerChatCommands(Commands commands) {
+        // /gc command - Guild chat
+        commands.register(
+            Commands.literal("gc")
+                .executes(context -> {
+                    guildChatComponent.execute(context.getSource().getSender(), new String[]{});
+                    return 1;
+                })
+                .then(Commands.argument("message", StringArgumentType.greedyString())
+                    .executes(context -> {
+                        String message = StringArgumentType.getString(context, "message");
+                        guildChatComponent.execute(context.getSource().getSender(), new String[]{message});
+                        return 1;
+                    }))
+                .build(),
+            "Guild chat",
+            List.of("guildchat")
+        );
+
+        // /ac command - Ally chat
+        commands.register(
+            Commands.literal("ac")
+                .executes(context -> {
+                    allyChatComponent.execute(context.getSource().getSender(), new String[]{});
+                    return 1;
+                })
+                .then(Commands.argument("message", StringArgumentType.greedyString())
+                    .executes(context -> {
+                        String message = StringArgumentType.getString(context, "message");
+                        allyChatComponent.execute(context.getSource().getSender(), new String[]{message});
+                        return 1;
+                    }))
+                .build(),
+            "Ally chat",
+            List.of("allychat")
         );
     }
 
