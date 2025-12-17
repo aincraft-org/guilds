@@ -28,6 +28,8 @@ public final class Guild {
     private String homeblockWorld;
     private Integer homeblockChunkX;
     private Integer homeblockChunkZ;
+    private boolean allowExplosions;
+    private boolean allowFire;
 
     /**
      * Creates a new Guild with the given parameters.
@@ -49,6 +51,8 @@ public final class Guild {
         this.members.add(ownerId);
         this.createdAt = System.currentTimeMillis();
         this.maxMembers = DEFAULT_MAX_MEMBERS;
+        this.allowExplosions = true;
+        this.allowFire = true;
     }
 
     /**
@@ -74,6 +78,8 @@ public final class Guild {
         this.createdAt = createdAt;
         this.maxMembers = maxMembers;
         this.color = color;
+        this.allowExplosions = true;
+        this.allowFire = true;
     }
 
     /**
@@ -603,6 +609,42 @@ public final class Guild {
      */
     public Integer getHomeblockZ() {
         return homeblockChunkZ;
+    }
+
+    /**
+     * Checks if explosions are allowed in this guild's territory.
+     *
+     * @return true if explosions are allowed, false otherwise
+     */
+    public boolean isExplosionsAllowed() {
+        return allowExplosions;
+    }
+
+    /**
+     * Sets whether explosions are allowed in this guild's territory.
+     *
+     * @param allowExplosions true to allow explosions, false to prevent them
+     */
+    public void setExplosionsAllowed(boolean allowExplosions) {
+        this.allowExplosions = allowExplosions;
+    }
+
+    /**
+     * Checks if fire spread is allowed in this guild's territory.
+     *
+     * @return true if fire spread is allowed, false otherwise
+     */
+    public boolean isFireAllowed() {
+        return allowFire;
+    }
+
+    /**
+     * Sets whether fire spread is allowed in this guild's territory.
+     *
+     * @param allowFire true to allow fire spread, false to prevent it
+     */
+    public void setFireAllowed(boolean allowFire) {
+        this.allowFire = allowFire;
     }
 
     /**

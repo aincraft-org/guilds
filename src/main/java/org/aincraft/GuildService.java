@@ -370,18 +370,44 @@ public class GuildService {
             return false;
         }
 
+        // Validate chunk is adjacent to existing claims or is first claim
+        List<ChunkKey> guildChunks = chunkClaimRepository.getGuildChunks(guildId);
+        if (!guildChunks.isEmpty() && !isAdjacentToGuild(chunk, guildChunks)) {
+            return false; // Claim must be adjacent to existing guild territory
+        }
+
         boolean claimed = chunkClaimRepository.claim(chunk, guildId, playerId);
         if (!claimed) {
             return false;
         }
 
-        // Auto-set homeblock if this is first claim
+        // Auto-set homeblock and spawn if this is first claim
         Optional<Guild> guildOpt = guildRepository.findById(guildId);
         if (guildOpt.isPresent()) {
             Guild guild = guildOpt.get();
             if (!guild.hasHomeblock()) {
                 guild.setHomeblock(chunk);
                 guildRepository.save(guild);
+
+                // Auto-set spawn at homeblock center
+                org.bukkit.World world = org.bukkit.Bukkit.getWorld(chunk.world());
+                if (world != null) {
+                    int centerX = chunk.x() * CHUNK_SIZE + CHUNK_CENTER_OFFSET;
+                    int centerZ = chunk.z() * CHUNK_SIZE + CHUNK_CENTER_OFFSET;
+                    int y = world.getHighestBlockYAt(centerX, centerZ);
+
+                    org.bukkit.Location spawnLoc = new org.bukkit.Location(
+                        world,
+                        centerX + BLOCK_CENTER_OFFSET,
+                        y + HEAD_BLOCK_OFFSET,
+                        centerZ + BLOCK_CENTER_OFFSET
+                    );
+
+                    if (isSafeSpawnLocation(spawnLoc)) {
+                        guild.setSpawn(spawnLoc);
+                        guildRepository.save(guild);
+                    }
+                }
             }
         }
 
@@ -916,6 +942,32 @@ public class GuildService {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Guild guild = getGuildById(guildId);
         return guild != null ? guild.getHomeblock() : null;
+    }
+
+    /**
+     * Checks if a chunk is adjacent to any of the guild's existing claims.
+     * Adjacent means sharing an edge (not diagonal).
+     *
+     * @param chunk the chunk to check
+     * @param guildChunks the list of chunks already claimed by the guild
+     * @return true if chunk is adjacent to at least one guild chunk
+     */
+    private boolean isAdjacentToGuild(ChunkKey chunk, List<ChunkKey> guildChunks) {
+        for (ChunkKey existing : guildChunks) {
+            // Only check if in same world
+            if (!chunk.world().equals(existing.world())) {
+                continue;
+            }
+
+            int dx = Math.abs(chunk.x() - existing.x());
+            int dz = Math.abs(chunk.z() - existing.z());
+
+            // Adjacent if sharing an edge: (dx==1 && dz==0) or (dx==0 && dz==1)
+            if ((dx == 1 && dz == 0) || (dx == 0 && dz == 1)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

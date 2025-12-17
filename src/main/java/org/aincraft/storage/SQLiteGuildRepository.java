@@ -47,7 +47,9 @@ public class SQLiteGuildRepository implements GuildRepository {
                 color TEXT,
                 homeblock_world TEXT,
                 homeblock_chunk_x INTEGER,
-                homeblock_chunk_z INTEGER
+                homeblock_chunk_z INTEGER,
+                allow_explosions INTEGER DEFAULT 1,
+                allow_fire INTEGER DEFAULT 1
             );
             CREATE INDEX IF NOT EXISTS idx_guild_name ON guilds(name);
             """;
@@ -71,7 +73,9 @@ public class SQLiteGuildRepository implements GuildRepository {
                 "ALTER TABLE guilds ADD COLUMN color TEXT",
                 "ALTER TABLE guilds ADD COLUMN homeblock_world TEXT",
                 "ALTER TABLE guilds ADD COLUMN homeblock_chunk_x INTEGER",
-                "ALTER TABLE guilds ADD COLUMN homeblock_chunk_z INTEGER"
+                "ALTER TABLE guilds ADD COLUMN homeblock_chunk_z INTEGER",
+                "ALTER TABLE guilds ADD COLUMN allow_explosions INTEGER DEFAULT 1",
+                "ALTER TABLE guilds ADD COLUMN allow_fire INTEGER DEFAULT 1"
             };
 
             for (String migration : migrations) {
@@ -108,7 +112,8 @@ public class SQLiteGuildRepository implements GuildRepository {
                     UPDATE guilds
                     SET name = ?, description = ?, owner_id = ?, max_members = ?, members = ?,
                         spawn_world = ?, spawn_x = ?, spawn_y = ?, spawn_z = ?, spawn_yaw = ?, spawn_pitch = ?, color = ?,
-                        homeblock_world = ?, homeblock_chunk_x = ?, homeblock_chunk_z = ?
+                        homeblock_world = ?, homeblock_chunk_x = ?, homeblock_chunk_z = ?,
+                        allow_explosions = ?, allow_fire = ?
                     WHERE id = ?
                     """;
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -128,7 +133,9 @@ public class SQLiteGuildRepository implements GuildRepository {
                     pstmt.setString(13, homeblock != null ? homeblock.world() : null);
                     pstmt.setObject(14, homeblock != null ? homeblock.x() : null);
                     pstmt.setObject(15, homeblock != null ? homeblock.z() : null);
-                    pstmt.setString(16, guild.getId());
+                    pstmt.setInt(16, guild.isExplosionsAllowed() ? 1 : 0);
+                    pstmt.setInt(17, guild.isFireAllowed() ? 1 : 0);
+                    pstmt.setString(18, guild.getId());
                     pstmt.executeUpdate();
                 }
             } else {
@@ -137,8 +144,9 @@ public class SQLiteGuildRepository implements GuildRepository {
                     INSERT INTO guilds
                     (id, name, description, owner_id, created_at, max_members, members,
                      spawn_world, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, color,
-                     homeblock_world, homeblock_chunk_x, homeblock_chunk_z)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     homeblock_world, homeblock_chunk_x, homeblock_chunk_z,
+                     allow_explosions, allow_fire)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """;
                 try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                     pstmt.setString(1, guild.getId());
@@ -159,6 +167,8 @@ public class SQLiteGuildRepository implements GuildRepository {
                     pstmt.setString(15, homeblock != null ? homeblock.world() : null);
                     pstmt.setObject(16, homeblock != null ? homeblock.x() : null);
                     pstmt.setObject(17, homeblock != null ? homeblock.z() : null);
+                    pstmt.setInt(18, guild.isExplosionsAllowed() ? 1 : 0);
+                    pstmt.setInt(19, guild.isFireAllowed() ? 1 : 0);
                     pstmt.executeUpdate();
                 }
             }
@@ -269,6 +279,16 @@ public class SQLiteGuildRepository implements GuildRepository {
 
         // Restore homeblock if present
         restoreHomeblock(guild, rs);
+
+        // Restore explosion and fire flags
+        try {
+            guild.setExplosionsAllowed(rs.getInt("allow_explosions") != 0);
+            guild.setFireAllowed(rs.getInt("allow_fire") != 0);
+        } catch (SQLException e) {
+            // Columns don't exist (old database), use defaults (true)
+            guild.setExplosionsAllowed(true);
+            guild.setFireAllowed(true);
+        }
 
         return guild;
     }

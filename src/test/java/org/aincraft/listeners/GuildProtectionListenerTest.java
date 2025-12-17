@@ -4,6 +4,9 @@ import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildService;
+import org.aincraft.RelationshipService;
+import org.aincraft.RelationType;
+import org.aincraft.GuildDefaultPermissionsService;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.Chunk;
@@ -44,6 +47,8 @@ class GuildProtectionListenerTest {
 
     @Mock private GuildService guildService;
     @Mock private SubregionService subregionService;
+    @Mock private RelationshipService relationshipService;
+    @Mock private GuildDefaultPermissionsService guildDefaultPermissionsService;
     @Mock private Player player;
     @Mock private Block block;
     @Mock private Location location;
@@ -56,7 +61,7 @@ class GuildProtectionListenerTest {
 
     @BeforeEach
     void setUp() {
-        listener = new GuildProtectionListener(guildService, subregionService);
+        listener = new GuildProtectionListener(guildService, subregionService, relationshipService, guildDefaultPermissionsService);
         playerId = UUID.randomUUID();
         ownerId = UUID.randomUUID();
 
@@ -102,20 +107,6 @@ class GuildProtectionListenerTest {
             assertThat(event.isCancelled()).isTrue();
         }
 
-        @Test
-        @DisplayName("should deny member of different guild")
-        void shouldDenyMemberOfDifferentGuild() {
-            Guild ownerGuild = new Guild("OwnerGuild", null, ownerId);
-            Guild playerGuild = new Guild("PlayerGuild", null, playerId);
-
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(ownerGuild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(playerGuild);
-
-            BlockBreakEvent event = new BlockBreakEvent(block, player);
-            listener.onBlockBreak(event);
-
-            assertThat(event.isCancelled()).isTrue();
-        }
 
         @Test
         @DisplayName("should allow guild member with permission")

@@ -82,52 +82,45 @@ public class ClaimEntryNotifier implements Listener {
 
     /**
      * Builds message for type change only.
-     * Format: "Entering [Type]: GuildName"
+     * Format: "~Guild" (when exiting subregion) or "[Type]" (when entering subregion)
      */
     private Component buildTypeChangeMessage(ClaimState newState) {
         if (newState.subregionType() == null) {
-            return null; // Exiting subregion - less critical
+            // Exiting subregion - show the guild name
+            TextColor guildColor = getGuildColor(newState.guildColor());
+            return Component.text("~" + newState.displayName(), guildColor);
         }
 
-        // Get type display name
+        // Entering subregion - show the type
         String typeName = typeRegistry.getType(newState.subregionType())
                 .map(t -> t.getDisplayName())
                 .orElse(newState.subregionType());
 
-        TextColor guildNameColor = getGuildColor(newState.guildColor());
-        return Component.text("Entering ", NamedTextColor.GRAY)
-                .append(Component.text("[" + typeName + "]", NamedTextColor.AQUA))
-                .append(Component.text(": ", NamedTextColor.GRAY))
-                .append(Component.text(newState.displayName(), guildNameColor));
+        return Component.text("[" + typeName + "]", NamedTextColor.AQUA);
     }
 
     /**
      * Builds message for both ownership and type changes.
-     * Format: "GuildA → GuildB [Type]"
+     * Format: "~Guild [Type]" or just "~Wilderness" when exiting
      */
     private Component buildDualChangeMessage(ClaimState newState, ClaimState previousState) {
-        Component result;
-
-        // Show previous state
-        if (previousState != null && previousState.guildId() != null) {
-            TextColor prevColor = getGuildColor(previousState.guildColor());
-            result = Component.text("~" + previousState.displayName(), prevColor);
-        } else if (previousState != null) {
-            result = Component.text("~Wilderness", NamedTextColor.GREEN);
-        } else {
-            result = Component.empty();
-        }
-
-        // Add arrow
-        result = result.append(Component.text(" → ", NamedTextColor.GRAY));
-
-        // Show new state
+        // If exiting to wilderness, just show wilderness without arrow
         if (newState.guildId() == null) {
-            result = result.append(Component.text("~Wilderness", NamedTextColor.GREEN));
-        } else {
-            TextColor newColor = getGuildColor(newState.guildColor());
-            result = result.append(Component.text("~" + newState.displayName(), newColor));
+            Component result = Component.text("~Wilderness", NamedTextColor.GREEN);
+            if (newState.subregionType() != null) {
+                String typeName = typeRegistry.getType(newState.subregionType())
+                        .map(t -> t.getDisplayName())
+                        .orElse(newState.subregionType());
+                result = result.append(Component.text(" [", NamedTextColor.GRAY));
+                result = result.append(Component.text(typeName, NamedTextColor.AQUA));
+                result = result.append(Component.text("]", NamedTextColor.GRAY));
+            }
+            return result;
         }
+
+        // Entering a guild with type change
+        TextColor newColor = getGuildColor(newState.guildColor());
+        Component result = Component.text("~" + newState.displayName(), newColor);
 
         // Add type if present
         if (newState.subregionType() != null) {

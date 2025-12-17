@@ -5,9 +5,13 @@ import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildService;
+import org.aincraft.GuildDefaultPermissionsService;
+import org.aincraft.RelationshipService;
+import org.aincraft.RelationType;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
+import org.aincraft.subregion.SubjectType;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -16,7 +20,12 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockBurnEvent;
+import org.bukkit.event.block.BlockIgniteEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.Material;
 
 import java.util.Optional;
 
@@ -27,11 +36,18 @@ import java.util.Optional;
 public class GuildProtectionListener implements Listener {
     private final GuildService guildService;
     private final SubregionService subregionService;
+    private final RelationshipService relationshipService;
+    private final GuildDefaultPermissionsService guildDefaultPermissionsService;
 
     @Inject
-    public GuildProtectionListener(GuildService guildService, SubregionService subregionService) {
+    public GuildProtectionListener(GuildService guildService,
+                                   SubregionService subregionService,
+                                   RelationshipService relationshipService,
+                                   GuildDefaultPermissionsService guildDefaultPermissionsService) {
         this.guildService = guildService;
         this.subregionService = subregionService;
+        this.relationshipService = relationshipService;
+        this.guildDefaultPermissionsService = guildDefaultPermissionsService;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -83,7 +99,7 @@ public class GuildProtectionListener implements Listener {
 
     /**
      * Checks if a player can perform an action at a location.
-     * Priority: Subregion permissions > Guild chunk permissions
+     * Priority: Subregion permissions > Guild/relationship chunk permissions
      */
     private boolean canPerformAction(Player player, Location loc, GuildPermission permission) {
         // Check if location is in a claimed chunk
@@ -98,25 +114,135 @@ public class GuildProtectionListener implements Listener {
         // Check if player is in the owning guild
         Guild playerGuild = guildService.getPlayerGuild(player.getUniqueId());
 
-        // Not in any guild - check if they need protection
-        if (playerGuild == null) {
-            return false; // Non-guild members can't modify claimed chunks
-        }
-
-        // Different guild - deny
-        if (!playerGuild.getId().equals(chunkOwner.getId())) {
-            return false;
-        }
-
         // Same guild - check subregion first
+        if (playerGuild != null && playerGuild.getId().equals(chunkOwner.getId())) {
+            // Check subregion permission first
+            Optional<Subregion> subregionOpt = subregionService.getSubregionAt(loc);
+            if (subregionOpt.isPresent()) {
+                return subregionService.hasSubregionPermission(
+                        subregionOpt.get(), player.getUniqueId(), permission);
+            }
+
+            // No subregion - check guild permission
+            return guildService.hasPermission(chunkOwner.getId(), player.getUniqueId(), permission);
+        }
+
+        // Different guild or no guild - check relationship permissions
+        return checkRelationshipPermissions(player, loc, permission, chunkOwner, playerGuild);
+    }
+
+    /**
+     * Checks if a player from a different guild has permission based on guild relationships.
+     */
+    private boolean checkRelationshipPermissions(Player player, Location loc, GuildPermission permission,
+                                                  Guild chunkOwner, Guild playerGuild) {
+        // Check subregion first (allows region-specific permission overrides)
         Optional<Subregion> subregionOpt = subregionService.getSubregionAt(loc);
         if (subregionOpt.isPresent()) {
             return subregionService.hasSubregionPermission(
                     subregionOpt.get(), player.getUniqueId(), permission);
         }
 
-        // No subregion - check guild permission
-        return guildService.hasPermission(chunkOwner.getId(), player.getUniqueId(), permission);
+        // No subregion - check guild default relationship permissions
+        // Determine relationship type
+        SubjectType subjectType = mapRelationToSubjectType(chunkOwner.getId(), playerGuild);
+
+        // Get relationship-based permissions
+        int permissions = guildDefaultPermissionsService.getPermissions(chunkOwner.getId(), subjectType);
+        return (permissions & permission.getBit()) != 0;
+    }
+
+    /**
+     * Maps a guild relationship to a SubjectType for permission checking.
+     */
+    private SubjectType mapRelationToSubjectType(String chunkOwnerId, Guild playerGuild) {
+        if (playerGuild == null) {
+            return SubjectType.GUILD_OUTSIDER;
+        }
+
+        RelationType relationType = relationshipService.getRelationType(chunkOwnerId, playerGuild.getId());
+        return switch (relationType) {
+            case ALLY -> SubjectType.GUILD_ALLY;
+            case ENEMY -> SubjectType.GUILD_ENEMY;
+            case NEUTRAL -> SubjectType.GUILD_OUTSIDER;
+        };
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityExplode(EntityExplodeEvent event) {
+        if (event.blockList().isEmpty()) {
+            return;
+        }
+
+        // Check if any blocks are in protected guild territory
+        event.blockList().removeIf(block -> {
+            ChunkKey chunk = ChunkKey.from(block.getChunk());
+            Guild owner = guildService.getChunkOwner(chunk);
+
+            // Not claimed - allow
+            if (owner == null) {
+                return false;
+            }
+
+            // Check if explosions are disabled for this guild
+            return !owner.isExplosionsAllowed();
+        });
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockIgnite(BlockIgniteEvent event) {
+        Location loc = event.getBlock().getLocation();
+        ChunkKey chunk = ChunkKey.from(loc.getChunk());
+        Guild owner = guildService.getChunkOwner(chunk);
+
+        // Not claimed - allow
+        if (owner == null) {
+            return;
+        }
+
+        // Check if fire is disabled for this guild
+        if (!owner.isFireAllowed()) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockBurn(BlockBurnEvent event) {
+        Location loc = event.getBlock().getLocation();
+        ChunkKey chunk = ChunkKey.from(loc.getChunk());
+        Guild owner = guildService.getChunkOwner(chunk);
+
+        // Not claimed - allow
+        if (owner == null) {
+            return;
+        }
+
+        // Check if fire is disabled for this guild
+        if (!owner.isFireAllowed()) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockSpread(BlockSpreadEvent event) {
+        // Only block fire spread
+        if (event.getSource().getType() != Material.FIRE) {
+            return;
+        }
+
+        Location loc = event.getBlock().getLocation();
+        ChunkKey chunk = ChunkKey.from(loc.getChunk());
+        Guild owner = guildService.getChunkOwner(chunk);
+
+        // Not claimed - allow
+        if (owner == null) {
+            return;
+        }
+
+        // Check if fire is disabled for this guild
+        if (!owner.isFireAllowed()) {
+            event.setCancelled(true);
+        }
     }
 
     /**

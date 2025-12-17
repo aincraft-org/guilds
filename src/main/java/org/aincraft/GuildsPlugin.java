@@ -210,6 +210,12 @@ public class GuildsPlugin extends JavaPlugin {
         return builder.buildFuture();
     }
 
+    private CompletableFuture<Suggestions> suggestToggleSettings(CommandContext<CommandSourceStack> context, SuggestionsBuilder builder) {
+        builder.suggest("explosions");
+        builder.suggest("fire");
+        return builder.buildFuture();
+    }
+
     // ==================== Command Registration ====================
 
     private void registerGuildCommands(Commands commands) {
@@ -293,6 +299,14 @@ public class GuildsPlugin extends JavaPlugin {
                         .executes(context -> handleColorCommand(context, StringArgumentType.getString(context, "color")))
                     )
                     .executes(this::handleColorCommandNoArg)
+                )
+                // Toggle command
+                .then(Commands.literal("toggle")
+                    .then(Commands.argument("setting", StringArgumentType.word())
+                        .suggests(this::suggestToggleSettings)
+                        .executes(context -> handleToggleCommand(context, StringArgumentType.getString(context, "setting")))
+                    )
+                    .executes(this::handleToggleCommandNoArg)
                 )
                 // Role command
                 .then(registerRoleCommands())
@@ -519,6 +533,76 @@ public class GuildsPlugin extends JavaPlugin {
                         StringArgumentType.getString(context, "regionName")}))
                 )
             )
+            .then(Commands.literal("role")
+                .then(Commands.literal("create")
+                    .then(Commands.argument("regionName", StringArgumentType.word())
+                        .suggests(this::suggestRegionNames)
+                        .then(Commands.argument("roleName", StringArgumentType.word())
+                            .then(Commands.argument("permissions", IntegerArgumentType.integer(0))
+                                .executes(context -> handleRegionCommand(context, new String[]{"region", "role", "create",
+                                    StringArgumentType.getString(context, "regionName"),
+                                    StringArgumentType.getString(context, "roleName"),
+                                    String.valueOf(IntegerArgumentType.getInteger(context, "permissions"))}))
+                            )
+                        )
+                    )
+                )
+                .then(Commands.literal("delete")
+                    .then(Commands.argument("regionName", StringArgumentType.word())
+                        .suggests(this::suggestRegionNames)
+                        .then(Commands.argument("roleName", StringArgumentType.word())
+                            .executes(context -> handleRegionCommand(context, new String[]{"region", "role", "delete",
+                                StringArgumentType.getString(context, "regionName"),
+                                StringArgumentType.getString(context, "roleName")}))
+                        )
+                    )
+                )
+                .then(Commands.literal("list")
+                    .then(Commands.argument("regionName", StringArgumentType.word())
+                        .suggests(this::suggestRegionNames)
+                        .executes(context -> handleRegionCommand(context, new String[]{"region", "role", "list",
+                            StringArgumentType.getString(context, "regionName")}))
+                    )
+                )
+                .then(Commands.literal("assign")
+                    .then(Commands.argument("regionName", StringArgumentType.word())
+                        .suggests(this::suggestRegionNames)
+                        .then(Commands.argument("roleName", StringArgumentType.word())
+                            .then(Commands.argument("playerName", StringArgumentType.word())
+                                .suggests(this::suggestPlayerNames)
+                                .executes(context -> handleRegionCommand(context, new String[]{"region", "role", "assign",
+                                    StringArgumentType.getString(context, "regionName"),
+                                    StringArgumentType.getString(context, "roleName"),
+                                    StringArgumentType.getString(context, "playerName")}))
+                            )
+                        )
+                    )
+                )
+                .then(Commands.literal("unassign")
+                    .then(Commands.argument("regionName", StringArgumentType.word())
+                        .suggests(this::suggestRegionNames)
+                        .then(Commands.argument("roleName", StringArgumentType.word())
+                            .then(Commands.argument("playerName", StringArgumentType.word())
+                                .suggests(this::suggestPlayerNames)
+                                .executes(context -> handleRegionCommand(context, new String[]{"region", "role", "unassign",
+                                    StringArgumentType.getString(context, "regionName"),
+                                    StringArgumentType.getString(context, "roleName"),
+                                    StringArgumentType.getString(context, "playerName")}))
+                            )
+                        )
+                    )
+                )
+                .then(Commands.literal("members")
+                    .then(Commands.argument("regionName", StringArgumentType.word())
+                        .suggests(this::suggestRegionNames)
+                        .then(Commands.argument("roleName", StringArgumentType.word())
+                            .executes(context -> handleRegionCommand(context, new String[]{"region", "role", "members",
+                                StringArgumentType.getString(context, "regionName"),
+                                StringArgumentType.getString(context, "roleName")}))
+                        )
+                    )
+                )
+            )
             .build();
     }
 
@@ -610,6 +694,12 @@ public class GuildsPlugin extends JavaPlugin {
         sender.sendMessage("§7Description: §f" + (guild.getDescription() == null || guild.getDescription().isEmpty() ? "No description" : guild.getDescription()));
         sender.sendMessage("§7Members: §f" + guild.getMemberCount() + "/" + guild.getMaxMembers());
         sender.sendMessage("§7Created: §f" + new Date(guild.getCreatedAt()));
+
+        // Display relationships for player if available
+        if (sender instanceof Player) {
+            displayGuildRelationships((Player) sender, guild);
+        }
+
         return 1;
     }
 
@@ -761,6 +851,58 @@ public class GuildsPlugin extends JavaPlugin {
         return ColorConverter.isValidColor(color);
     }
 
+    private int handleToggleCommandNoArg(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g toggle <explosions|fire>"));
+        return 0;
+    }
+
+    private int handleToggleCommand(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String setting) {
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            return 0;
+        }
+
+        Player player = (Player) sender;
+
+        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        if (guild == null) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            return 0;
+        }
+
+        if (!guild.isOwner(player.getUniqueId())) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only the guild owner can toggle guild settings"));
+            return 0;
+        }
+
+        String settingLower = setting.toLowerCase();
+        switch (settingLower) {
+            case "explosions", "explosion" -> {
+                boolean newValue = !guild.isExplosionsAllowed();
+                guild.setExplosionsAllowed(newValue);
+                guildService.save(guild);
+                String status = newValue ? "<green>enabled</green>" : "<red>disabled</red>";
+                player.sendMessage(MessageFormatter.deserialize("<green>Explosions " + status + " in guild territory</green>"));
+                return 1;
+            }
+            case "fire" -> {
+                boolean newValue = !guild.isFireAllowed();
+                guild.setFireAllowed(newValue);
+                guildService.save(guild);
+                String status = newValue ? "<green>enabled</green>" : "<red>disabled</red>";
+                player.sendMessage(MessageFormatter.deserialize("<green>Fire spread " + status + " in guild territory</green>"));
+                return 1;
+            }
+            default -> {
+                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Unknown setting: " + setting));
+                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Available settings: explosions, fire"));
+                return 0;
+            }
+        }
+    }
+
     // ==================== Original Handler Methods ====================
 
     private int handleCreateGuild(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String name, String description) {
@@ -887,7 +1029,44 @@ public class GuildsPlugin extends JavaPlugin {
         player.sendMessage("§7Owner: §f" + (guild.isOwner(player.getUniqueId()) ? "You" : "Not you"));
         player.sendMessage("§7Created: §f" + new Date(guild.getCreatedAt()));
 
+        // Display relationships
+        displayGuildRelationships(player, guild);
+
         return 1;
+    }
+
+    /**
+     * Displays guild relationships (allies and enemies).
+     */
+    private void displayGuildRelationships(Player player, Guild guild) {
+        List<String> allies = relationshipService.getAllies(guild.getId());
+        List<String> enemies = relationshipService.getEnemies(guild.getId());
+
+        // Display allies
+        if (!allies.isEmpty()) {
+            player.sendMessage("§a✓ Allies: §2" + allies.size());
+            for (String allyGuildId : allies) {
+                Guild allyGuild = guildService.getGuildById(allyGuildId);
+                if (allyGuild != null) {
+                    player.sendMessage("  §2• " + allyGuild.getName());
+                }
+            }
+        } else {
+            player.sendMessage("§aAllies: §8None");
+        }
+
+        // Display enemies
+        if (!enemies.isEmpty()) {
+            player.sendMessage("§c✗ Enemies: §4" + enemies.size());
+            for (String enemyGuildId : enemies) {
+                Guild enemyGuild = guildService.getGuildById(enemyGuildId);
+                if (enemyGuild != null) {
+                    player.sendMessage("  §c• " + enemyGuild.getName());
+                }
+            }
+        } else {
+            player.sendMessage("§cEnemies: §8None");
+        }
     }
 
     private int handleGuildList(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
@@ -990,14 +1169,15 @@ public class GuildsPlugin extends JavaPlugin {
             return 0;
         }
 
-        Player player = (Player) sender;
         // Reconstruct arguments for component
         String[] fullArgs = new String[args.length + 1];
         fullArgs[0] = "role";
         System.arraycopy(args, 0, fullArgs, 1, args.length);
 
-        // TODO: Delegate to role component when available
-        // For now, just acknowledge the command
+        // Delegate to role component
+        org.aincraft.commands.components.RoleComponent roleComponent =
+            new org.aincraft.commands.components.RoleComponent(guildService);
+        roleComponent.execute(sender, fullArgs);
         return 1;
     }
 

@@ -2,6 +2,10 @@ package org.aincraft.commands.components;
 
 import org.aincraft.Guild;
 import org.aincraft.GuildService;
+import org.aincraft.RelationshipService;
+import org.aincraft.RelationType;
+import org.aincraft.RelationStatus;
+import org.aincraft.GuildRelationship;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.bukkit.command.CommandSender;
@@ -9,15 +13,18 @@ import org.bukkit.entity.Player;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Component for viewing guild information.
  */
 public class InfoComponent implements GuildCommand {
     private final GuildService guildService;
+    private final RelationshipService relationshipService;
 
-    public InfoComponent(GuildService guildService) {
+    public InfoComponent(GuildService guildService, RelationshipService relationshipService) {
         this.guildService = guildService;
+        this.relationshipService = relationshipService;
     }
 
     @Override
@@ -93,5 +100,45 @@ public class InfoComponent implements GuildCommand {
 
         String dateCreated = new SimpleDateFormat("yyyy-MM-dd").format(new Date(guild.getCreatedAt()));
         player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Created", dateCreated));
+
+        // Display relationships
+        displayRelationships(player, guild);
+    }
+
+    /**
+     * Displays guild relationships (allies and enemies).
+     *
+     * @param player the player to send the info to
+     * @param guild the guild to display relationships for
+     */
+    private void displayRelationships(Player player, Guild guild) {
+        List<String> allies = relationshipService.getAllies(guild.getId());
+        List<String> enemies = relationshipService.getEnemies(guild.getId());
+
+        // Display allies
+        if (!allies.isEmpty()) {
+            player.sendMessage(MessageFormatter.deserialize("<yellow>Allies<reset>: <green>" + allies.size()));
+            for (String allyGuildId : allies) {
+                Guild allyGuild = guildService.getGuildById(allyGuildId);
+                if (allyGuild != null) {
+                    player.sendMessage(MessageFormatter.deserialize("  <gray>• <green>" + allyGuild.getName()));
+                }
+            }
+        } else {
+            player.sendMessage(MessageFormatter.deserialize("<yellow>Allies<reset>: <gray>None"));
+        }
+
+        // Display enemies
+        if (!enemies.isEmpty()) {
+            player.sendMessage(MessageFormatter.deserialize("<yellow>Enemies<reset>: <red>" + enemies.size()));
+            for (String enemyGuildId : enemies) {
+                Guild enemyGuild = guildService.getGuildById(enemyGuildId);
+                if (enemyGuild != null) {
+                    player.sendMessage(MessageFormatter.deserialize("  <gray>• <red>" + enemyGuild.getName()));
+                }
+            }
+        } else {
+            player.sendMessage(MessageFormatter.deserialize("<yellow>Enemies<reset>: <gray>None"));
+        }
     }
 }

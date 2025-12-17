@@ -361,12 +361,16 @@ class GuildServiceTest {
         @DisplayName("should claim chunk when player has permission")
         void shouldClaimChunkWhenPlayerHasPermission() {
             when(guildRepository.findById(guild.getId())).thenReturn(Optional.of(guild));
-            when(chunkClaimRepository.claim(chunk, guild.getId(), ownerId)).thenReturn(true);
+            // Set homeblock so it's not the first claim (avoids spawn setup)
+            guild.setHomeblock(chunk);
+            ChunkKey newChunk = new ChunkKey("world", 1, 0);
+            when(chunkClaimRepository.getGuildChunks(guild.getId())).thenReturn(List.of(chunk));
+            when(chunkClaimRepository.claim(newChunk, guild.getId(), ownerId)).thenReturn(true);
 
-            boolean result = guildService.claimChunk(guild.getId(), ownerId, chunk);
+            boolean result = guildService.claimChunk(guild.getId(), ownerId, newChunk);
 
             assertThat(result).isTrue();
-            verify(chunkClaimRepository).claim(chunk, guild.getId(), ownerId);
+            verify(chunkClaimRepository).claim(newChunk, guild.getId(), ownerId);
         }
 
         @Test
@@ -380,6 +384,38 @@ class GuildServiceTest {
             assertThat(result).isFalse();
             verify(chunkClaimRepository, never()).claim(any(), anyString(), any());
         }
+
+        @Test
+        @DisplayName("should prevent claiming non-adjacent chunks")
+        void shouldPreventClaimingNonAdjacentChunks() {
+            when(guildRepository.findById(guild.getId())).thenReturn(Optional.of(guild));
+            ChunkKey existingChunk = new ChunkKey("world", 0, 0);
+            ChunkKey nonAdjacentChunk = new ChunkKey("world", 5, 5); // Far away
+            when(chunkClaimRepository.getGuildChunks(guild.getId())).thenReturn(List.of(existingChunk));
+
+            boolean result = guildService.claimChunk(guild.getId(), ownerId, nonAdjacentChunk);
+
+            assertThat(result).isFalse();
+            verify(chunkClaimRepository, never()).claim(any(), anyString(), any());
+        }
+
+        @Test
+        @DisplayName("should allow claiming adjacent chunks")
+        void shouldAllowClaimingAdjacentChunks() {
+            when(guildRepository.findById(guild.getId())).thenReturn(Optional.of(guild));
+            // Set homeblock so it's not the first claim (avoids spawn setup)
+            guild.setHomeblock(chunk);
+            ChunkKey existingChunk = new ChunkKey("world", 0, 0);
+            ChunkKey adjacentChunk = new ChunkKey("world", 1, 0); // Adjacent to the right
+            when(chunkClaimRepository.getGuildChunks(guild.getId())).thenReturn(List.of(existingChunk));
+            when(chunkClaimRepository.claim(adjacentChunk, guild.getId(), ownerId)).thenReturn(true);
+
+            boolean result = guildService.claimChunk(guild.getId(), ownerId, adjacentChunk);
+
+            assertThat(result).isTrue();
+            verify(chunkClaimRepository).claim(adjacentChunk, guild.getId(), ownerId);
+        }
+
     }
 
     @Nested
