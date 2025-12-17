@@ -258,6 +258,13 @@ public class GuildsPlugin extends JavaPlugin {
                 .then(Commands.literal("setspawn")
                     .executes(this::handleSetspawnCommand)
                 )
+                // Color command
+                .then(Commands.literal("color")
+                    .then(Commands.argument("color", StringArgumentType.word())
+                        .executes(context -> handleColorCommand(context, StringArgumentType.getString(context, "color")))
+                    )
+                    .executes(this::handleColorCommandNoArg)
+                )
                 // Role command
                 .then(registerRoleCommands())
                 // Map command
@@ -421,15 +428,26 @@ public class GuildsPlugin extends JavaPlugin {
     private com.mojang.brigadier.tree.LiteralCommandNode<CommandSourceStack> registerVaultCommands() {
         return Commands.literal("vault")
             .executes(context -> handleVaultCommand(context, new String[]{"vault"}))
-            .then(Commands.argument("args", StringArgumentType.greedyString())
-                .executes(context -> {
-                    String input = StringArgumentType.getString(context, "args");
-                    String[] parts = input.split(" ");
-                    String[] fullArgs = new String[parts.length + 1];
-                    fullArgs[0] = "vault";
-                    System.arraycopy(parts, 0, fullArgs, 1, parts.length);
-                    return handleVaultCommand(context, fullArgs);
-                })
+            .then(Commands.literal("open")
+                .executes(context -> handleVaultCommand(context, new String[]{"vault", "open"}))
+            )
+            .then(Commands.literal("info")
+                .executes(context -> handleVaultCommand(context, new String[]{"vault", "info"}))
+            )
+            .then(Commands.literal("log")
+                .executes(context -> handleVaultCommand(context, new String[]{"vault", "log"}))
+                .then(Commands.argument("page", IntegerArgumentType.integer(1))
+                    .executes(context -> {
+                        int page = IntegerArgumentType.getInteger(context, "page");
+                        handleVaultCommand(context, new String[]{"vault", "log", String.valueOf(page)});
+                        return 1;
+                    })
+                )
+            )
+            .then(Commands.literal("destroy")
+                .then(Commands.literal("confirm")
+                    .executes(context -> handleVaultCommand(context, new String[]{"vault", "destroy", "confirm"}))
+                )
             )
             .build();
     }
@@ -546,6 +564,72 @@ public class GuildsPlugin extends JavaPlugin {
 
         player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to set spawn. You must be in claimed guild territory"));
         return 0;
+    }
+
+    private int handleColorCommandNoArg(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g color <color> or /g color clear"));
+        return 0;
+    }
+
+    private int handleColorCommand(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String color) {
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            return 0;
+        }
+
+        Player player = (Player) sender;
+
+        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        if (guild == null) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            return 0;
+        }
+
+        if (!guild.isOwner(player.getUniqueId())) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only the guild owner can change guild color"));
+            return 0;
+        }
+
+        String colorInput = color.toLowerCase();
+
+        // Handle clear command
+        if (colorInput.equals("clear")) {
+            guild.setColor(null);
+            guildService.save(guild);
+            player.sendMessage(MessageFormatter.deserialize("<green>Guild color cleared</green>"));
+            return 1;
+        }
+
+        // Validate color
+        if (!isValidColor(colorInput)) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Invalid color format. Use hex (#RRGGBB) or a named color"));
+            return 0;
+        }
+
+        guild.setColor(colorInput);
+        guildService.save(guild);
+        player.sendMessage(MessageFormatter.deserialize("<green>Guild color set to <gold>" + colorInput + "</gold></green>"));
+        return 1;
+    }
+
+    private boolean isValidColor(String color) {
+        // Check if hex format
+        if (color.startsWith("#")) {
+            if (color.length() != 7) {
+                return false;
+            }
+            try {
+                Integer.parseInt(color.substring(1), 16);
+                return true;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+
+        // Check if named color
+        return net.kyori.adventure.text.format.NamedTextColor.NAMES.value(color) != null;
     }
 
     // ==================== Original Handler Methods ====================

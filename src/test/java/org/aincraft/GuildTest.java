@@ -285,7 +285,8 @@ class GuildTest {
                     "Different desc",
                     UUID.randomUUID(),
                     System.currentTimeMillis(),
-                    50
+                    50,
+                    null
             );
 
             assertThat(guild).isEqualTo(restored);

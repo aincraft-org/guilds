@@ -23,6 +23,10 @@ public final class Guild {
     private Double spawnZ;
     private Float spawnYaw;
     private Float spawnPitch;
+    private String color;
+    private String homeblockWorld;
+    private Integer homeblockChunkX;
+    private Integer homeblockChunkZ;
 
     /**
      * Creates a new Guild with the given parameters.
@@ -55,8 +59,9 @@ public final class Guild {
      * @param ownerId the guild owner UUID
      * @param createdAt the creation timestamp
      * @param maxMembers the max members limit
+     * @param color the guild color (can be null)
      */
-    public Guild(String id, String name, String description, UUID ownerId, long createdAt, int maxMembers) {
+    public Guild(String id, String name, String description, UUID ownerId, long createdAt, int maxMembers, String color) {
         this.id = Objects.requireNonNull(id, "Guild ID cannot be null");
         this.name = Objects.requireNonNull(name, "Guild name cannot be null");
         if (name.trim().isEmpty()) {
@@ -67,6 +72,7 @@ public final class Guild {
         this.members = new ArrayList<>();
         this.createdAt = createdAt;
         this.maxMembers = maxMembers;
+        this.color = color;
     }
 
     /**
@@ -484,6 +490,118 @@ public final class Guild {
      */
     public void setSpawnPitch(Float spawnPitch) {
         this.spawnPitch = spawnPitch;
+    }
+
+    /**
+     * Gets the guild color.
+     *
+     * @return the guild color (hex string or named color), or null if not set
+     */
+    public String getColor() {
+        return color;
+    }
+
+    /**
+     * Sets the guild color.
+     *
+     * @param color the guild color (hex string like #FF0000 or named color like 'red')
+     */
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    /**
+     * Checks if this guild has a homeblock set.
+     *
+     * @return true if homeblock is set, false otherwise
+     */
+    public boolean hasHomeblock() {
+        return homeblockWorld != null;
+    }
+
+    /**
+     * Gets the homeblock as a ChunkKey.
+     *
+     * @return the homeblock ChunkKey, or null if not set
+     */
+    public ChunkKey getHomeblock() {
+        if (!hasHomeblock()) {
+            return null;
+        }
+        return new ChunkKey(homeblockWorld, homeblockChunkX, homeblockChunkZ);
+    }
+
+    /**
+     * Sets the homeblock for this guild.
+     *
+     * @param chunk the chunk to set as homeblock (cannot be null)
+     * @throws IllegalArgumentException if chunk is null
+     */
+    public void setHomeblock(ChunkKey chunk) {
+        Objects.requireNonNull(chunk, "Chunk cannot be null");
+        this.homeblockWorld = chunk.world();
+        this.homeblockChunkX = chunk.x();
+        this.homeblockChunkZ = chunk.z();
+    }
+
+    /**
+     * Clears the homeblock for this guild.
+     */
+    public void clearHomeblock() {
+        this.homeblockWorld = null;
+        this.homeblockChunkX = null;
+        this.homeblockChunkZ = null;
+    }
+
+    /**
+     * Checks if a location is within the homeblock chunk.
+     *
+     * @param loc the location to check (cannot be null)
+     * @return true if location is within homeblock, false otherwise
+     * @throws IllegalArgumentException if loc is null
+     */
+    public boolean isInHomeblock(org.bukkit.Location loc) {
+        Objects.requireNonNull(loc, "Location cannot be null");
+
+        if (!hasHomeblock()) {
+            return false;
+        }
+
+        if (!loc.getWorld().getName().equals(homeblockWorld)) {
+            return false;
+        }
+
+        int chunkX = loc.getBlockX() >> 4;
+        int chunkZ = loc.getBlockZ() >> 4;
+
+        return chunkX == homeblockChunkX && chunkZ == homeblockChunkZ;
+    }
+
+    /**
+     * Gets the homeblock world name.
+     *
+     * @return the world name, or null if no homeblock set
+     */
+    public String getHomeblockWorld() {
+        return homeblockWorld;
+    }
+
+    /**
+     * Gets the homeblock chunk X coordinate.
+     *
+     * @return the chunk X coordinate, or null if no homeblock set
+     */
+    public Integer getHomeblockX() {
+        return homeblockChunkX;
+    }
+
+    /**
+     * Gets the homeblock chunk Z coordinate.
+     *
+     * @return the chunk Z coordinate, or null if no homeblock set
+     */
+    public Integer getHomeblockZ() {
+        return homeblockChunkZ;
     }
 
     /**

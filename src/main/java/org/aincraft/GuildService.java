@@ -360,7 +360,22 @@ public class GuildService {
             return false;
         }
 
-        return chunkClaimRepository.claim(chunk, guildId, playerId);
+        boolean claimed = chunkClaimRepository.claim(chunk, guildId, playerId);
+        if (!claimed) {
+            return false;
+        }
+
+        // Auto-set homeblock if this is first claim
+        Optional<Guild> guildOpt = guildRepository.findById(guildId);
+        if (guildOpt.isPresent()) {
+            Guild guild = guildOpt.get();
+            if (!guild.hasHomeblock()) {
+                guild.setHomeblock(chunk);
+                guildRepository.save(guild);
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -379,6 +394,15 @@ public class GuildService {
 
         if (!hasPermission(guildId, playerId, GuildPermission.UNCLAIM)) {
             return false;
+        }
+
+        // Prevent unclaiming homeblock
+        Optional<Guild> guildOpt = guildRepository.findById(guildId);
+        if (guildOpt.isPresent()) {
+            Guild guild = guildOpt.get();
+            if (guild.hasHomeblock() && chunk.equals(guild.getHomeblock())) {
+                return false; // Cannot unclaim homeblock
+            }
         }
 
         return chunkClaimRepository.unclaim(chunk, guildId);
@@ -701,7 +725,8 @@ public class GuildService {
 
     /**
      * Sets the guild spawn location.
-     * Requires MANAGE_SPAWN permission and the location must be in claimed guild territory.
+     * Requires MANAGE_SPAWN permission and guild must have a homeblock.
+     * If location is outside homeblock, it will be automatically relocated to a safe spot within homeblock.
      *
      * @param guildId the guild ID
      * @param playerId the player setting the spawn
@@ -717,21 +742,28 @@ public class GuildService {
             return false;
         }
 
-        // Verify chunk is claimed by this guild
-        org.bukkit.Chunk chunk = location.getChunk();
-        ChunkKey chunkKey = new ChunkKey(location.getWorld().getName(), chunk.getX(), chunk.getZ());
-        Guild owner = getChunkOwner(chunkKey);
-        if (owner == null || !owner.getId().equals(guildId)) {
-            return false;
-        }
-
         Optional<Guild> guildOpt = guildRepository.findById(guildId);
         if (guildOpt.isEmpty()) {
             return false;
         }
 
         Guild guild = guildOpt.get();
-        guild.setSpawn(location);
+
+        // Guild must have homeblock
+        if (!guild.hasHomeblock()) {
+            return false;
+        }
+
+        // Adjust location to homeblock if needed
+        org.bukkit.Location finalLocation = location;
+        if (!guild.isInHomeblock(location)) {
+            finalLocation = findSafeLocationInHomeblock(guild, location);
+            if (finalLocation == null) {
+                return false; // Could not find safe location
+            }
+        }
+
+        guild.setSpawn(finalLocation);
         guildRepository.save(guild);
         return true;
     }
@@ -791,5 +823,54 @@ public class GuildService {
             guild.getSpawnPitch()
         );
         return location;
+    }
+
+    /**
+     * Finds a safe location within a guild's homeblock for spawn.
+     * Returns a location above the ground with air blocks above.
+     *
+     * @param guild the guild
+     * @param preferredLocation the preferred location (ignored if outside homeblock)
+     * @return a safe location in the homeblock, or null if none found
+     */
+    private org.bukkit.Location findSafeLocationInHomeblock(Guild guild, org.bukkit.Location preferredLocation) {
+        if (!guild.hasHomeblock()) {
+            return null;
+        }
+
+        ChunkKey homeblock = guild.getHomeblock();
+        org.bukkit.World world = org.bukkit.Bukkit.getWorld(homeblock.world());
+        if (world == null) {
+            return null;
+        }
+
+        // Try the center of the homeblock first
+        int centerX = homeblock.x() * 16 + 8;
+        int centerZ = homeblock.z() * 16 + 8;
+
+        // Find safe Y coordinate (top of block with 2 air blocks above)
+        for (int y = 255; y >= 0; y--) {
+            org.bukkit.block.Block block = world.getBlockAt(centerX, y, centerZ);
+            if (!block.getType().isAir() && !block.isLiquid()) {
+                org.bukkit.Location safe = new org.bukkit.Location(world, centerX + 0.5, y + 2, centerZ + 0.5);
+                org.bukkit.block.Block above1 = world.getBlockAt(centerX, y + 1, centerZ);
+                org.bukkit.block.Block above2 = world.getBlockAt(centerX, y + 2, centerZ);
+                if (above1.getType().isAir() && above2.getType().isAir()) {
+                    return safe;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Saves a guild to persistent storage.
+     *
+     * @param guild the guild to save
+     */
+    public void save(Guild guild) {
+        Objects.requireNonNull(guild, "Guild cannot be null");
+        guildRepository.save(guild);
     }
 }

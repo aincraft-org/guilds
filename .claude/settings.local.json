@@ -11,7 +11,8 @@
       "mcp__claude-context__search_code",
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
-      "Bash(./gradlew test:*)"
+      "Bash(./gradlew test:*)",
+      "Bash(./gradlew compileJava:*)"
     ],
     "deny": [],
     "ask": []
