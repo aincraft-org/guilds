@@ -8,6 +8,7 @@ import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.commands.components.RegionComponent;
+import org.aincraft.commands.components.UnclaimToggleComponent;
 import org.aincraft.inject.GuildsModule;
 import org.aincraft.util.ColorConverter;
 import org.aincraft.listeners.GuildProtectionListener;
@@ -26,6 +27,8 @@ import org.aincraft.claim.ClaimEntryNotifier;
 import org.aincraft.claim.AutoClaimManager;
 import org.aincraft.claim.AutoClaimListener;
 import org.aincraft.claim.AutoClaimState;
+import org.aincraft.claim.AutoUnclaimManager;
+import org.aincraft.claim.AutoUnclaimListener;
 import org.aincraft.multiblock.MultiblockListener;
 import org.aincraft.multiblock.MultiblockRegistry;
 import org.aincraft.multiblock.patterns.GuildVaultPattern;
@@ -65,6 +68,7 @@ public class GuildsPlugin extends JavaPlugin {
     private MultiblockRegistry multiblockRegistry;
     private GuildMapRenderer mapRenderer;
     private AutoClaimManager autoClaimManager;
+    private AutoUnclaimManager autoUnclaimManager;
 
     @Override
     public void onEnable() {
@@ -107,6 +111,11 @@ public class GuildsPlugin extends JavaPlugin {
         AutoClaimListener autoClaimListener = injector.getInstance(AutoClaimListener.class);
         getServer().getPluginManager().registerEvents(autoClaimListener, this);
 
+        // Register auto-unclaim system
+        this.autoUnclaimManager = injector.getInstance(AutoUnclaimManager.class);
+        AutoUnclaimListener autoUnclaimListener = injector.getInstance(AutoUnclaimListener.class);
+        getServer().getPluginManager().registerEvents(autoUnclaimListener, this);
+
         // Register multiblock system
         this.multiblockRegistry = injector.getInstance(MultiblockRegistry.class);
         MultiblockListener multiblockListener = injector.getInstance(MultiblockListener.class);
@@ -144,6 +153,10 @@ public class GuildsPlugin extends JavaPlugin {
         // Clear auto-claim state
         if (autoClaimManager != null) {
             autoClaimManager.clearAll();
+        }
+        // Clear auto-unclaim state
+        if (autoUnclaimManager != null) {
+            autoUnclaimManager.clearAll();
         }
         getLogger().info("Guilds plugin disabled!");
     }
@@ -250,7 +263,7 @@ public class GuildsPlugin extends JavaPlugin {
         commands.register(
             Commands.literal("g")
                 .executes(context -> {
-                    context.getSource().getSender().sendMessage("Usage: /g <create|join|leave|disband|info|list|claim|unclaim|kick|spawn|setspawn|role|perms|region|map|vault|ally|enemy|neutral>");
+                    context.getSource().getSender().sendMessage("Usage: /g <create|join|leave|disband|info|list|claim|unclaim|kick|spawn|setspawn|role|member|region|map|vault|ally|enemy|neutral>");
                     return 1;
                 })
                 // Create command
@@ -307,6 +320,12 @@ public class GuildsPlugin extends JavaPlugin {
                 // Unclaim command
                 .then(Commands.literal("unclaim")
                     .executes(this::handleUnclaimChunk)
+                    .then(Commands.literal("toggle")
+                        .executes(this::handleAutoUnclaimToggle)
+                        .then(Commands.literal("silent")
+                            .executes(this::handleAutoUnclaimToggleSilent)
+                        )
+                    )
                     .then(Commands.literal("all")
                         .executes(context -> handleUnclaimAll(context))
                     )
@@ -366,6 +385,13 @@ public class GuildsPlugin extends JavaPlugin {
                     )
                     .executes(this::handleDescriptionCommandNoArg)
                 )
+                // Name command
+                .then(Commands.literal("name")
+                    .then(Commands.argument("name", StringArgumentType.greedyString())
+                        .executes(context -> handleNameCommand(context, StringArgumentType.getString(context, "name")))
+                    )
+                    .executes(this::handleNameCommandNoArg)
+                )
                 // Toggle command
                 .then(Commands.literal("toggle")
                     .then(Commands.argument("setting", StringArgumentType.word())
@@ -376,12 +402,12 @@ public class GuildsPlugin extends JavaPlugin {
                 )
                 // Role command
                 .then(registerRoleCommands())
-                // Perms command
-                .then(Commands.literal("perms")
-                    .executes(context -> handlePermsCommand(context))
+                // Member command
+                .then(Commands.literal("member")
+                    .executes(context -> handleMemberCommand(context))
                     .then(Commands.argument("playerName", StringArgumentType.word())
                         .suggests(this::suggestPlayerNames)
-                        .executes(context -> handlePermsCommand(context, StringArgumentType.getString(context, "playerName")))
+                        .executes(context -> handleMemberCommand(context, StringArgumentType.getString(context, "playerName")))
                     )
                 )
                 // Map command
@@ -1001,6 +1027,57 @@ public class GuildsPlugin extends JavaPlugin {
         return 1;
     }
 
+    private int handleNameCommandNoArg(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g name <name>"));
+        return 0;
+    }
+
+    private int handleNameCommand(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String name) {
+        CommandSender sender = context.getSource().getSender();
+        if (!(sender instanceof Player)) {
+            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            return 0;
+        }
+
+        Player player = (Player) sender;
+
+        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        if (guild == null) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            return 0;
+        }
+
+        if (!guild.isOwner(player.getUniqueId())) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only the guild owner can change guild name"));
+            return 0;
+        }
+
+        String newName = name.trim();
+
+        // Validate name
+        if (newName.isEmpty()) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild name cannot be empty"));
+            return 0;
+        }
+
+        if (newName.length() > 32) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild name cannot be longer than 32 characters"));
+            return 0;
+        }
+
+        // Check if name already exists
+        if (guildService.getGuildByName(newName) != null) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "A guild with that name already exists"));
+            return 0;
+        }
+
+        guild.setName(newName);
+        guildService.save(guild);
+        player.sendMessage(MessageFormatter.deserialize("<green>Guild name changed to: <gold>" + newName + "</gold></green>"));
+        return 1;
+    }
+
     private int handleToggleCommandNoArg(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
         CommandSender sender = context.getSource().getSender();
         sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g toggle <explosions|fire>"));
@@ -1346,6 +1423,18 @@ public class GuildsPlugin extends JavaPlugin {
         return 1;
     }
 
+    private int handleAutoUnclaimToggle(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
+        UnclaimToggleComponent component = new UnclaimToggleComponent(guildService, autoUnclaimManager);
+        component.execute(context.getSource().getSender(), new String[]{"unclaim", "toggle"});
+        return 1;
+    }
+
+    private int handleAutoUnclaimToggleSilent(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
+        UnclaimToggleComponent component = new UnclaimToggleComponent(guildService, autoUnclaimManager);
+        component.execute(context.getSource().getSender(), new String[]{"unclaim", "toggle", "silent"});
+        return 1;
+    }
+
     private int handleUnclaimChunk(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context) {
         CommandSender sender = context.getSource().getSender();
         if (!(sender instanceof Player)) {
@@ -1440,22 +1529,22 @@ public class GuildsPlugin extends JavaPlugin {
         return 1;
     }
 
-    private int handlePermsCommand(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String... args) {
+    private int handleMemberCommand(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context, String... args) {
         CommandSender sender = context.getSource().getSender();
         if (!(sender instanceof Player)) {
-            sender.sendMessage("Only players can check permissions!");
+            sender.sendMessage("Only players can check member info!");
             return 0;
         }
 
         // Reconstruct arguments for component
         String[] fullArgs = new String[args.length + 1];
-        fullArgs[0] = "perms";
+        fullArgs[0] = "member";
         System.arraycopy(args, 0, fullArgs, 1, args.length);
 
-        // Delegate to perms component
-        org.aincraft.commands.components.PermsComponent permsComponent =
-            new org.aincraft.commands.components.PermsComponent(guildService, injector.getInstance(org.aincraft.storage.MemberRoleRepository.class));
-        permsComponent.execute(sender, fullArgs);
+        // Delegate to member component
+        org.aincraft.commands.components.MemberComponent memberComponent =
+            new org.aincraft.commands.components.MemberComponent(guildService, injector.getInstance(org.aincraft.storage.MemberRoleRepository.class));
+        memberComponent.execute(sender, fullArgs);
         return 1;
     }
 

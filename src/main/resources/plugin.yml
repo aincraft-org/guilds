@@ -58,6 +58,12 @@ permissions:
   guilds.neutral:
     description: Allow declaring neutral status
     default: true
+  guilds.description:
+    description: Allow changing guild description
+    default: true
+  guilds.name:
+    description: Allow changing guild name
+    default: true
   guilds.admin:
     description: All guild permissions
     children:
@@ -78,4 +84,6 @@ permissions:
       - guilds.ally
       - guilds.enemy
       - guilds.neutral
+      - guilds.description
+      - guilds.name
     default: op

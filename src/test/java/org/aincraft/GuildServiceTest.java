@@ -1,5 +1,6 @@
 package org.aincraft;
 
+import org.aincraft.config.GuildsConfig;
 import org.aincraft.storage.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +33,7 @@ class GuildServiceTest {
     @Mock private GuildRelationshipRepository relationshipRepository;
     @Mock private org.aincraft.claim.ChunkClaimLogRepository chunkClaimLogRepository;
     @Mock private InviteRepository inviteRepository;
+    @Mock private GuildsConfig config;
 
     private GuildService guildService;
     private UUID ownerId;
@@ -48,7 +50,8 @@ class GuildServiceTest {
                 chunkClaimRepository,
                 relationshipRepository,
                 chunkClaimLogRepository,
-                inviteRepository
+                inviteRepository,
+                config
         );
         ownerId = UUID.randomUUID();
         memberId = UUID.randomUUID();
@@ -358,6 +361,12 @@ class GuildServiceTest {
 
         @BeforeEach
         void setUp() {
+            // Mock config to return default buffer distance of 4 for claim tests
+            // Use lenient() since some tests exit before checking buffer
+            lenient().when(config.getClaimBufferDistance()).thenReturn(4);
+            // Mock empty guild list so buffer check passes (no other guilds)
+            lenient().when(guildRepository.findAll()).thenReturn(Collections.emptyList());
+
             guild = new Guild("TestGuild", "Description", ownerId);
             chunk = new ChunkKey("world", 0, 0);
         }

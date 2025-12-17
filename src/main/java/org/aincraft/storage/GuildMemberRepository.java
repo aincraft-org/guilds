@@ -41,4 +41,13 @@ public interface GuildMemberRepository {
      * Gets all member UUIDs in a guild that have a specific permission.
      */
     List<UUID> getMembersWithPermission(String guildId, GuildPermission permission);
+
+    /**
+     * Gets the join date timestamp for a member in a guild.
+     *
+     * @param guildId the guild ID
+     * @param playerId the player UUID
+     * @return Optional containing the join timestamp, or empty if member not found or timestamp not set
+     */
+    Optional<Long> getMemberJoinDate(String guildId, UUID playerId);
 }

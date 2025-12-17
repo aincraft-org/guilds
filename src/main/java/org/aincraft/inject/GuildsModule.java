@@ -50,6 +50,8 @@ import org.aincraft.claim.ChunkClaimLogRepository;
 import org.aincraft.claim.SQLiteChunkClaimLogRepository;
 import org.aincraft.claim.AutoClaimManager;
 import org.aincraft.claim.AutoClaimListener;
+import org.aincraft.claim.AutoUnclaimManager;
+import org.aincraft.claim.AutoUnclaimListener;
 import org.aincraft.InviteService;
 import org.aincraft.storage.InviteRepository;
 import org.aincraft.storage.SQLiteInviteRepository;
@@ -110,6 +112,10 @@ public class GuildsModule extends AbstractModule {
         // Auto-claim system
         bind(AutoClaimManager.class).in(Singleton.class);
         bind(AutoClaimListener.class).in(Singleton.class);
+
+        // Auto-unclaim system
+        bind(AutoUnclaimManager.class).in(Singleton.class);
+        bind(AutoUnclaimListener.class).in(Singleton.class);
 
         // Claim logging system
         bind(ChunkClaimLogRepository.class).to(SQLiteChunkClaimLogRepository.class).in(Singleton.class);

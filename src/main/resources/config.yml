@@ -1,0 +1,7 @@
+# Guild chunk claim settings
+claim:
+  # Minimum buffer distance between different guild territories (in chunks)
+  # Uses Manhattan distance: |dx| + |dz| must be >= buffer-distance
+  # Set to 0 to disable buffer (allows adjacent claims)
+  # Default: 4 chunks
+  buffer-distance: 4

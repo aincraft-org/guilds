@@ -65,8 +65,7 @@ public class CreateComponent implements GuildCommand {
         org.aincraft.ChunkKey chunk = org.aincraft.ChunkKey.from(player.getLocation().getChunk());
         org.aincraft.ClaimResult claimResult = guildService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
         if (claimResult.isSuccess()) {
-            player.sendMessage(MessageFormatter.deserialize(
-                "<green>✓ Automatically claimed chunk at <gold>" + chunk.x() + ", " + chunk.z() + "</gold></green>"));
+            player.sendMessage(MessageFormatter.format("<green>✓ Automatically claimed chunk at <gold>%d, %d</gold></green>", chunk.x(), chunk.z()));
         } else {
             player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Could not auto-claim chunk: " + claimResult.getReason()));
         }

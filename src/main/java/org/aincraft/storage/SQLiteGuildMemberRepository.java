@@ -27,6 +27,7 @@ public class SQLiteGuildMemberRepository implements GuildMemberRepository {
                 guild_id TEXT NOT NULL,
                 player_id TEXT NOT NULL,
                 permissions INTEGER NOT NULL DEFAULT 7,
+                joined_at INTEGER,
                 PRIMARY KEY (guild_id, player_id)
             );
             CREATE INDEX IF NOT EXISTS idx_guild_members_guild ON guild_members(guild_id);
@@ -37,6 +38,19 @@ public class SQLiteGuildMemberRepository implements GuildMemberRepository {
             for (String sql : createTableSQL.split(";")) {
                 if (!sql.trim().isEmpty()) {
                     stmt.execute(sql.trim());
+                }
+            }
+
+            // Migration: Add joined_at column to existing tables
+            String[] migrations = {
+                "ALTER TABLE guild_members ADD COLUMN joined_at INTEGER"
+            };
+
+            for (String migration : migrations) {
+                try {
+                    stmt.execute(migration);
+                } catch (SQLException e) {
+                    // Column likely already exists, ignore
                 }
             }
         } catch (SQLException e) {
@@ -51,8 +65,8 @@ public class SQLiteGuildMemberRepository implements GuildMemberRepository {
         Objects.requireNonNull(permissions, "Permissions cannot be null");
 
         String insertSQL = """
-            INSERT OR REPLACE INTO guild_members (guild_id, player_id, permissions)
-            VALUES (?, ?, ?)
+            INSERT OR REPLACE INTO guild_members (guild_id, player_id, permissions, joined_at)
+            VALUES (?, ?, ?, ?)
             """;
 
         try (Connection conn = DriverManager.getConnection(connectionString);
@@ -60,6 +74,7 @@ public class SQLiteGuildMemberRepository implements GuildMemberRepository {
             pstmt.setString(1, guildId);
             pstmt.setString(2, playerId.toString());
             pstmt.setInt(3, permissions.getBitfield());
+            pstmt.setLong(4, System.currentTimeMillis());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to add guild member", e);
@@ -162,5 +177,29 @@ public class SQLiteGuildMemberRepository implements GuildMemberRepository {
         }
 
         return result;
+    }
+
+    @Override
+    public Optional<Long> getMemberJoinDate(String guildId, UUID playerId) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(playerId, "Player ID cannot be null");
+
+        String selectSQL = "SELECT joined_at FROM guild_members WHERE guild_id = ? AND player_id = ?";
+
+        try (Connection conn = DriverManager.getConnection(connectionString);
+             PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, guildId);
+            pstmt.setString(2, playerId.toString());
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                long joinedAt = rs.getLong("joined_at");
+                return rs.wasNull() ? Optional.empty() : Optional.of(joinedAt);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get member join date", e);
+        }
+
+        return Optional.empty();
     }
 }

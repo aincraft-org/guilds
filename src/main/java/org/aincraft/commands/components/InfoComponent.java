@@ -11,6 +11,10 @@ import org.aincraft.RelationStatus;
 import org.aincraft.GuildRelationship;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.subregion.RegionTypeLimit;
+import org.aincraft.subregion.RegionTypeLimitRepository;
+import org.aincraft.subregion.SubregionService;
+import org.aincraft.subregion.SubregionType;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -25,10 +29,13 @@ import java.util.UUID;
 public class InfoComponent implements GuildCommand {
     private final GuildService guildService;
     private final RelationshipService relationshipService;
+    private final SubregionService subregionService;
 
-    public InfoComponent(GuildService guildService, RelationshipService relationshipService) {
+    public InfoComponent(GuildService guildService, RelationshipService relationshipService,
+                         SubregionService subregionService) {
         this.guildService = guildService;
         this.relationshipService = relationshipService;
+        this.subregionService = subregionService;
     }
 
     @Override
@@ -95,11 +102,25 @@ public class InfoComponent implements GuildCommand {
             player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Description", guild.getDescription()));
         }
 
-        // Owner with hover
+        // Owner with hover - display actual player name instead of "you"
+        var ownerPlayer = org.bukkit.Bukkit.getOfflinePlayer(guild.getOwnerId());
+        String ownerName = ownerPlayer.getName() != null ? ownerPlayer.getName() : "Unknown";
+
         Component ownerLine = Component.text()
             .append(Component.text("Owner", NamedTextColor.YELLOW))
             .append(Component.text(": ", NamedTextColor.WHITE))
-            .append(createHoverablePlayerName(guild.getOwnerId()))
+            .append(Component.text(ownerName, NamedTextColor.WHITE)
+                .hoverEvent(HoverEvent.showText(Component.text()
+                    .append(Component.text("Player: ", NamedTextColor.YELLOW))
+                    .append(Component.text(ownerName, NamedTextColor.WHITE))
+                    .append(Component.newline())
+                    .append(Component.text("UUID: ", NamedTextColor.YELLOW))
+                    .append(Component.text(guild.getOwnerId().toString(), NamedTextColor.GRAY))
+                    .append(Component.newline())
+                    .append(Component.text("Status: ", NamedTextColor.YELLOW))
+                    .append(Component.text(ownerPlayer.isOnline() ? "Online" : "Offline",
+                        ownerPlayer.isOnline() ? NamedTextColor.GREEN : NamedTextColor.RED))
+                    .build())))
             .build();
         player.sendMessage(ownerLine);
 
@@ -107,10 +128,21 @@ public class InfoComponent implements GuildCommand {
             guild.getMemberCount() + "<gray>/<white>" + guild.getMaxMembers()));
 
         // Created date with hover
+        String dateOnly = new SimpleDateFormat("yyyy-MM-dd").format(new Date(guild.getCreatedAt()));
+        String fullDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").format(new Date(guild.getCreatedAt()));
+        long daysAgo = (System.currentTimeMillis() - guild.getCreatedAt()) / (1000 * 60 * 60 * 24);
+
         Component createdLine = Component.text()
             .append(Component.text("Created", NamedTextColor.YELLOW))
             .append(Component.text(": ", NamedTextColor.WHITE))
-            .append(createHoverableCreatedDate(guild.getCreatedAt()))
+            .append(Component.text(dateOnly, NamedTextColor.WHITE)
+                .hoverEvent(HoverEvent.showText(Component.text()
+                    .append(Component.text("Created: ", NamedTextColor.YELLOW))
+                    .append(Component.text(fullDateTime, NamedTextColor.WHITE))
+                    .append(Component.newline())
+                    .append(Component.text("Days ago: ", NamedTextColor.YELLOW))
+                    .append(Component.text(String.valueOf(daysAgo), NamedTextColor.GRAY))
+                    .build())))
             .build();
         player.sendMessage(createdLine);
 
@@ -119,58 +151,11 @@ public class InfoComponent implements GuildCommand {
 
         // Display relationships
         displayRelationships(player, guild);
+
+        // Display region type limits usage
+        displayRegionLimits(player, guild);
     }
 
-    /**
-     * Creates a hoverable player name component.
-     *
-     * @param playerId the UUID of the player
-     * @return Component with hover showing player info
-     */
-    private Component createHoverablePlayerName(UUID playerId) {
-        var offlinePlayer = org.bukkit.Bukkit.getOfflinePlayer(playerId);
-        String playerName = offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown";
-
-        // Build hover tooltip
-        Component tooltip = Component.text()
-            .append(Component.text("Player: ", NamedTextColor.YELLOW))
-            .append(Component.text(playerName, NamedTextColor.WHITE))
-            .append(Component.newline())
-            .append(Component.text("UUID: ", NamedTextColor.YELLOW))
-            .append(Component.text(playerId.toString(), NamedTextColor.GRAY))
-            .append(Component.newline())
-            .append(Component.text("Status: ", NamedTextColor.YELLOW))
-            .append(Component.text(offlinePlayer.isOnline() ? "Online" : "Offline",
-                offlinePlayer.isOnline() ? NamedTextColor.GREEN : NamedTextColor.RED))
-            .build();
-
-        return Component.text(playerName, NamedTextColor.WHITE)
-            .hoverEvent(tooltip);
-    }
-
-    /**
-     * Creates a hoverable created date component.
-     *
-     * @param timestamp the creation timestamp
-     * @return Component with hover showing detailed date/time
-     */
-    private Component createHoverableCreatedDate(long timestamp) {
-        String dateOnly = new SimpleDateFormat("yyyy-MM-dd").format(new Date(timestamp));
-        String fullDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z").format(new Date(timestamp));
-        long daysAgo = (System.currentTimeMillis() - timestamp) / (1000 * 60 * 60 * 24);
-
-        // Build hover tooltip
-        Component tooltip = Component.text()
-            .append(Component.text("Created: ", NamedTextColor.YELLOW))
-            .append(Component.text(fullDateTime, NamedTextColor.WHITE))
-            .append(Component.newline())
-            .append(Component.text("Days ago: ", NamedTextColor.YELLOW))
-            .append(Component.text(String.valueOf(daysAgo), NamedTextColor.GRAY))
-            .build();
-
-        return Component.text(dateOnly, NamedTextColor.WHITE)
-            .hoverEvent(tooltip);
-    }
 
     /**
      * Displays guild toggle settings and chunk information.
@@ -228,5 +213,41 @@ public class InfoComponent implements GuildCommand {
         } else {
             player.sendMessage(MessageFormatter.deserialize("<yellow>Enemies<reset>: <gray>None"));
         }
+    }
+
+    /**
+     * Displays region type limits and usage for the guild.
+     */
+    private void displayRegionLimits(Player player, Guild guild) {
+        List<RegionTypeLimit> limits = subregionService.getLimitRepository().findAll();
+        if (limits.isEmpty()) {
+            return;
+        }
+
+        player.sendMessage(MessageFormatter.deserialize("<yellow>Region Limits<reset>:"));
+        for (RegionTypeLimit limit : limits) {
+            long usage = subregionService.getTypeUsage(guild.getId(), limit.typeId());
+            long max = limit.maxTotalVolume();
+            double percent = max > 0 ? (usage * 100.0) / max : 0;
+
+            String displayName = subregionService.getTypeRegistry().getType(limit.typeId())
+                    .map(SubregionType::getDisplayName)
+                    .orElse(limit.typeId());
+
+            String color = percent >= 90 ? "<red>" : percent >= 70 ? "<yellow>" : "<green>";
+            player.sendMessage(MessageFormatter.deserialize(
+                    "  <gray>• <gold>" + displayName + "<reset>: " + color +
+                    formatNumber(usage) + "<gray>/<white>" + formatNumber(max) +
+                    " <gray>(" + String.format("%.0f", percent) + "%)"));
+        }
+    }
+
+    private String formatNumber(long number) {
+        if (number >= 1_000_000) {
+            return String.format("%.1fM", number / 1_000_000.0);
+        } else if (number >= 1_000) {
+            return String.format("%.1fK", number / 1_000.0);
+        }
+        return String.valueOf(number);
     }
 }

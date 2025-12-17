@@ -437,6 +437,20 @@ public class GuildService {
     }
 
     /**
+     * Gets the join date for a member in a guild.
+     *
+     * @param guildId the guild ID
+     * @param playerId the player UUID
+     * @return Optional containing the join timestamp, or empty if not available
+     */
+    public Optional<Long> getMemberJoinDate(String guildId, UUID playerId) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(playerId, "Player ID cannot be null");
+
+        return memberRepository.getMemberJoinDate(guildId, playerId);
+    }
+
+    /**
      * Sets the permissions for a member in a guild.
      * Only the guild owner can modify permissions.
      *
@@ -500,6 +514,12 @@ public class GuildService {
         // Check if already claimed by another guild
         if (chunkOwner != null) {
             return ClaimResult.alreadyClaimed(chunkOwner.getName());
+        }
+
+        // Check buffer distance to other guilds
+        ClaimResult bufferCheck = checkBufferDistance(chunk, guildId);
+        if (!bufferCheck.isSuccess()) {
+            return bufferCheck;
         }
 
         // Validate chunk is adjacent to existing claims or is first claim
