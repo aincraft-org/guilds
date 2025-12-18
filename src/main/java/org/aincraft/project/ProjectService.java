@@ -426,9 +426,6 @@ public class ProjectService {
         project.setCompletedAt(now);
         projectRepository.updateStatus(project.getId(), ProjectStatus.COMPLETED, now);
 
-        // Refresh project pool for next selection
-        poolService.refreshPool(guildId);
-
         return ProjectCompletionResult.success(buff);
     }
 
@@ -451,9 +448,6 @@ public class ProjectService {
 
         // Mark as abandoned and delete (progress wipes on abandon)
         projectRepository.delete(project.getId());
-
-        // Refresh project pool
-        poolService.refreshPool(guildId);
 
         return true;
     }

@@ -35,6 +35,7 @@ import org.aincraft.database.repository.JdbcProgressionLogRepository;
 import org.aincraft.database.repository.JdbcGuildProjectRepository;
 import org.aincraft.database.repository.JdbcActiveBuffRepository;
 import org.aincraft.database.repository.JdbcChunkClaimLogRepository;
+import org.aincraft.database.repository.JdbcGuildProjectPoolRepository;
 import org.aincraft.GuildService;
 import org.aincraft.GuildsPlugin;
 import org.aincraft.InviteService;
@@ -188,7 +189,15 @@ public class GuildsModule extends AbstractModule {
         bind(RelationshipService.class).in(Singleton.class);
         bind(GuildDefaultPermissionsService.class).in(Singleton.class);
 
-        // New extracted services
+        // New extracted services from Phase 1 refactoring
+        bind(org.aincraft.service.PermissionService.class).in(Singleton.class);
+        bind(org.aincraft.service.GuildRoleService.class).in(Singleton.class);
+        bind(org.aincraft.service.TerritoryService.class).in(Singleton.class);
+        bind(org.aincraft.service.SpawnService.class).in(Singleton.class);
+        bind(org.aincraft.service.GuildMemberService.class).in(Singleton.class);
+        bind(org.aincraft.service.GuildLifecycleService.class).in(Singleton.class);
+
+        // Old extracted services (may need review)
         bind(ChunkClaimService.class).in(Singleton.class);
         bind(GuildSpawnService.class).in(Singleton.class);
         bind(GuildRoleService.class).in(Singleton.class);
@@ -262,6 +271,7 @@ public class GuildsModule extends AbstractModule {
 
         // Project system - using JDBC implementations
         bind(GuildProjectRepository.class).to(JdbcGuildProjectRepository.class).in(Singleton.class);
+        bind(GuildProjectPoolRepository.class).to(JdbcGuildProjectPoolRepository.class).in(Singleton.class);
         bind(ActiveBuffRepository.class).to(JdbcActiveBuffRepository.class).in(Singleton.class);
         bind(ProjectRegistry.class).in(Singleton.class);
         bind(ProjectGenerator.class).in(Singleton.class);

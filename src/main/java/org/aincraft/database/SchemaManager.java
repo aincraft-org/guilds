@@ -72,6 +72,7 @@ public class SchemaManager {
             executeStatement(stmt, Sql.createProjectQuestProgressTable(dbType));
             executeStatement(stmt, Sql.createProjectMaterialContributionsTable(dbType));
             executeStatement(stmt, Sql.createProjectPoolSeedTable(dbType));
+            executeStatement(stmt, Sql.createGuildProjectPoolTable(dbType));
             executeStatement(stmt, Sql.createActiveBuffsTable(dbType));
 
             // LLM Project Text Cache
@@ -82,6 +83,7 @@ public class SchemaManager {
 
             // Migrations
             migrateGuildRolesTable(stmt);
+            migrateAddGuildCreatedAt(stmt);
 
             logger.info("Database schema initialized successfully");
         }
@@ -136,6 +138,9 @@ public class SchemaManager {
         // LLM Project Text indexes
         executeStatement(stmt, Sql.createIndex(dbType, "idx_llm_texts_buff_type", "generated_project_texts", "buff_type"));
 
+        // Project pool indexes
+        executeStatement(stmt, Sql.createGuildProjectPoolIndex(dbType));
+
         // Claim log indexes
         executeStatement(stmt, Sql.createIndex(dbType, "idx_claim_log_guild", "chunk_claim_logs", "guild_id"));
         executeStatement(stmt, Sql.createIndex(dbType, "idx_claim_log_player", "chunk_claim_logs", "player_id"));
@@ -179,6 +184,21 @@ public class SchemaManager {
         } catch (SQLException e) {
             // Column already exists, ignore
             logger.log(Level.FINE, "created_at column already exists or error adding: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Migrates guild_project_pool_seed table to add guild_created_at column.
+     * Safe to run multiple times - ignores errors if column already exists.
+     */
+    private void migrateAddGuildCreatedAt(Statement stmt) throws SQLException {
+        try {
+            String addGuildCreatedAt = Sql.addGuildCreatedAtColumn(dbType);
+            stmt.execute(addGuildCreatedAt);
+            logger.info("Added guild_created_at column to guild_project_pool_seed table");
+        } catch (SQLException e) {
+            // Column already exists, ignore
+            logger.log(Level.FINE, "guild_created_at column already exists or error adding: " + e.getMessage());
         }
     }
 }

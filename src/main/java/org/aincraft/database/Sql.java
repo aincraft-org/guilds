@@ -1492,6 +1492,159 @@ public final class Sql {
         };
     }
 
+    // ==================== GUILD PROJECT POOL ====================
+
+    public static String createGuildProjectPoolTable(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                CREATE TABLE IF NOT EXISTS guild_project_pool (
+                    id TEXT PRIMARY KEY,
+                    guild_id TEXT NOT NULL,
+                    project_definition_id TEXT NOT NULL,
+                    project_name TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    buff_type TEXT NOT NULL,
+                    buff_category TEXT NOT NULL,
+                    buff_value REAL NOT NULL,
+                    buff_display_name TEXT NOT NULL,
+                    buff_duration_millis INTEGER NOT NULL,
+                    materials TEXT NOT NULL,
+                    required_level INTEGER NOT NULL DEFAULT 1,
+                    created_at INTEGER NOT NULL,
+                    pool_generation_time INTEGER NOT NULL
+                )
+                """;
+            case MYSQL, MARIADB -> """
+                CREATE TABLE IF NOT EXISTS guild_project_pool (
+                    id VARCHAR(36) PRIMARY KEY,
+                    guild_id VARCHAR(36) NOT NULL,
+                    project_definition_id VARCHAR(255) NOT NULL,
+                    project_name VARCHAR(255) NOT NULL,
+                    description TEXT NOT NULL,
+                    buff_type VARCHAR(32) NOT NULL,
+                    buff_category VARCHAR(64) NOT NULL,
+                    buff_value DOUBLE NOT NULL,
+                    buff_display_name VARCHAR(255) NOT NULL,
+                    buff_duration_millis BIGINT NOT NULL,
+                    materials LONGTEXT NOT NULL,
+                    required_level INT NOT NULL DEFAULT 1,
+                    created_at BIGINT NOT NULL,
+                    pool_generation_time BIGINT NOT NULL,
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+            case POSTGRESQL -> """
+                CREATE TABLE IF NOT EXISTS guild_project_pool (
+                    id VARCHAR(36) PRIMARY KEY,
+                    guild_id VARCHAR(36) NOT NULL,
+                    project_definition_id VARCHAR(255) NOT NULL,
+                    project_name VARCHAR(255) NOT NULL,
+                    description TEXT NOT NULL,
+                    buff_type VARCHAR(32) NOT NULL,
+                    buff_category VARCHAR(64) NOT NULL,
+                    buff_value DOUBLE PRECISION NOT NULL,
+                    buff_display_name VARCHAR(255) NOT NULL,
+                    buff_duration_millis BIGINT NOT NULL,
+                    materials TEXT NOT NULL,
+                    required_level INT NOT NULL DEFAULT 1,
+                    created_at BIGINT NOT NULL,
+                    pool_generation_time BIGINT NOT NULL,
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+            case H2 -> """
+                CREATE TABLE IF NOT EXISTS guild_project_pool (
+                    id VARCHAR(36) PRIMARY KEY,
+                    guild_id VARCHAR(36) NOT NULL,
+                    project_definition_id VARCHAR(255) NOT NULL,
+                    project_name VARCHAR(255) NOT NULL,
+                    description TEXT NOT NULL,
+                    buff_type VARCHAR(32) NOT NULL,
+                    buff_category VARCHAR(64) NOT NULL,
+                    buff_value DOUBLE NOT NULL,
+                    buff_display_name VARCHAR(255) NOT NULL,
+                    buff_duration_millis BIGINT NOT NULL,
+                    materials TEXT NOT NULL,
+                    required_level INT NOT NULL DEFAULT 1,
+                    created_at BIGINT NOT NULL,
+                    pool_generation_time BIGINT NOT NULL,
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+        };
+    }
+
+    public static String createGuildProjectPoolIndex(DatabaseType type) {
+        return "CREATE INDEX IF NOT EXISTS idx_guild_pool ON guild_project_pool(guild_id, pool_generation_time)";
+    }
+
+    public static String addGuildCreatedAtColumn(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> "ALTER TABLE guild_project_pool_seed ADD COLUMN guild_created_at INTEGER";
+            case MYSQL, MARIADB -> "ALTER TABLE guild_project_pool_seed ADD COLUMN guild_created_at BIGINT";
+            case POSTGRESQL, H2 -> "ALTER TABLE guild_project_pool_seed ADD COLUMN guild_created_at BIGINT";
+        };
+    }
+
+    public static String insertGuildProjectPool(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                INSERT INTO guild_project_pool
+                (id, guild_id, project_definition_id, project_name, description, buff_type, buff_category,
+                 buff_value, buff_display_name, buff_duration_millis, materials, required_level, created_at, pool_generation_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+            case MYSQL, MARIADB, POSTGRESQL, H2 -> """
+                INSERT INTO guild_project_pool
+                (id, guild_id, project_definition_id, project_name, description, buff_type, buff_category,
+                 buff_value, buff_display_name, buff_duration_millis, materials, required_level, created_at, pool_generation_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
+        };
+    }
+
+    public static String selectGuildProjectPool(DatabaseType type) {
+        return """
+            SELECT id, guild_id, project_definition_id, project_name, description, buff_type, buff_category,
+                   buff_value, buff_display_name, buff_duration_millis, materials, required_level, created_at, pool_generation_time
+            FROM guild_project_pool
+            WHERE guild_id = ?
+            ORDER BY pool_generation_time DESC
+            """;
+    }
+
+    public static String deleteGuildProjectPool(DatabaseType type) {
+        return "DELETE FROM guild_project_pool WHERE guild_id = ?";
+    }
+
+    public static String selectLastPoolGenerationTime(DatabaseType type) {
+        return """
+            SELECT MAX(pool_generation_time) as last_pool_time
+            FROM guild_project_pool
+            WHERE guild_id = ?
+            """;
+    }
+
+    public static String updateGuildCreatedAt(DatabaseType type) {
+        return """
+            INSERT INTO guild_project_pool_seed (guild_id, guild_created_at, seed)
+            VALUES (?, ?, 0)
+            """ + switch (type) {
+            case SQLITE -> "ON CONFLICT(guild_id) DO UPDATE SET guild_created_at = excluded.guild_created_at";
+            case MYSQL, MARIADB -> "ON DUPLICATE KEY UPDATE guild_created_at = VALUES(guild_created_at)";
+            case POSTGRESQL -> "ON CONFLICT (guild_id) DO UPDATE SET guild_created_at = EXCLUDED.guild_created_at";
+            case H2 -> ""; // H2 uses different syntax handled in repository
+        };
+    }
+
+    public static String selectGuildCreatedAt(DatabaseType type) {
+        return """
+            SELECT guild_created_at
+            FROM guild_project_pool_seed
+            WHERE guild_id = ?
+            """;
+    }
+
     // ==================== INDEX CREATION ====================
 
     public static String createIndex(DatabaseType type, String indexName, String tableName, String... columns) {

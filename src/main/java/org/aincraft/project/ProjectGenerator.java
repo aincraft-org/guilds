@@ -74,29 +74,30 @@ public class ProjectGenerator {
 
     /**
      * Generates a list of random projects for a guild.
-     * The same guild will receive the same projects for 24 hours.
+     * The same guild will receive the same projects for the pool period.
      *
      * @param guildId the guild ID
      * @param guildLevel the guild's current level (used for filtering by required level)
      * @param count the number of projects to generate (typically 3-5)
+     * @param poolTimestamp timestamp of when this pool should be generated (for seeding)
      * @return a list of generated project definitions
      */
-    public List<ProjectDefinition> generateProjects(String guildId, int guildLevel, int count) {
+    public List<ProjectDefinition> generateProjects(String guildId, int guildLevel, int count, long poolTimestamp) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         if (count <= 0) {
             throw new IllegalArgumentException("Count must be positive");
         }
 
-        // Seed generation: guildId + current day ensures same projects for 24 hours
-        long daySeed = System.currentTimeMillis() / 86400000L;
-        long seed = guildId.hashCode() + daySeed;
+        // Seed generation: guildId + pool day ensures same projects for pool period
+        long poolDaySeed = poolTimestamp / 86400000L;
+        long seed = guildId.hashCode() + poolDaySeed;
         Random random = new Random(seed);
 
         List<ProjectDefinition> projects = new ArrayList<>();
         Set<String> usedBuffs = new HashSet<>();
 
         for (int i = 0; i < count; i++) {
-            ProjectDefinition project = generateSingleProject(random, guildLevel, i, daySeed, usedBuffs);
+            ProjectDefinition project = generateSingleProject(random, guildLevel, i, poolDaySeed, usedBuffs);
             projects.add(project);
         }
 

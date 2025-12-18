@@ -10,6 +10,7 @@ import java.util.UUID;
 import org.aincraft.claim.ChunkClaimLog;
 import org.aincraft.claim.ChunkClaimLogRepository;
 import org.aincraft.config.GuildsConfig;
+import org.aincraft.project.storage.GuildProjectPoolRepository;
 import org.aincraft.storage.ChunkClaimRepository;
 import org.aincraft.storage.GuildMemberRepository;
 import org.aincraft.storage.GuildRelationshipRepository;
@@ -40,6 +41,7 @@ public class GuildService {
     private final GuildRelationshipRepository relationshipRepository;
     private final ChunkClaimLogRepository claimLogRepository;
     private final InviteRepository inviteRepository;
+    private final GuildProjectPoolRepository poolRepository;
     private final GuildsConfig config;
 
     @Inject
@@ -47,7 +49,7 @@ public class GuildService {
                         GuildMemberRepository memberRepository, GuildRoleRepository roleRepository,
                         MemberRoleRepository memberRoleRepository, ChunkClaimRepository chunkClaimRepository,
                         GuildRelationshipRepository relationshipRepository, ChunkClaimLogRepository claimLogRepository,
-                        InviteRepository inviteRepository, GuildsConfig config) {
+                        InviteRepository inviteRepository, GuildProjectPoolRepository poolRepository, GuildsConfig config) {
         this.guildRepository = Objects.requireNonNull(guildRepository, "Guild repository cannot be null");
         this.playerGuildMapping = Objects.requireNonNull(playerGuildMapping, "Player guild mapping cannot be null");
         this.memberRepository = Objects.requireNonNull(memberRepository, "Member repository cannot be null");
@@ -57,6 +59,7 @@ public class GuildService {
         this.relationshipRepository = Objects.requireNonNull(relationshipRepository, "Relationship repository cannot be null");
         this.claimLogRepository = Objects.requireNonNull(claimLogRepository, "Claim log repository cannot be null");
         this.inviteRepository = Objects.requireNonNull(inviteRepository, "Invite repository cannot be null");
+        this.poolRepository = Objects.requireNonNull(poolRepository, "Pool repository cannot be null");
         this.config = Objects.requireNonNull(config, "Config cannot be null");
     }
 
@@ -91,6 +94,9 @@ public class GuildService {
                                               GuildPermission.defaultPermissions(), 0, ownerId);
         roleRepository.save(defaultRole);
         memberRoleRepository.assignRole(guild.getId(), ownerId, defaultRole.getId());
+
+        // Initialize guild creation timestamp for project pool 24h refresh cycle
+        poolRepository.setGuildCreatedAt(guild.getId(), System.currentTimeMillis());
 
         return guild;
     }
