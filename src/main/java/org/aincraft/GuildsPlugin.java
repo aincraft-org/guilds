@@ -14,9 +14,9 @@ import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.aincraft.database.SchemaManager;
 import org.aincraft.claim.AutoClaimListener;
 import org.aincraft.claim.AutoClaimManager;
-import org.aincraft.claim.AutoUnclaimListener;
 import org.aincraft.claim.ClaimEntryNotifier;
 import org.aincraft.claim.ClaimMovementTracker;
 import org.aincraft.commands.components.AcceptComponent;
@@ -51,7 +51,13 @@ import org.aincraft.commands.components.UnclaimComponent;
 import org.aincraft.commands.components.GuildChatComponent;
 import org.aincraft.commands.components.AllyChatComponent;
 import org.aincraft.commands.components.LevelUpComponent;
+import org.aincraft.commands.components.ProjectComponent;
 import org.aincraft.chat.GuildChatListener;
+import org.aincraft.project.BuffApplicationService;
+import org.aincraft.project.ProjectRegistry;
+import org.aincraft.project.listeners.QuestProgressListener;
+import org.aincraft.project.listeners.TerritoryBuffListener;
+import org.aincraft.project.gui.ProjectGUIListener;
 import org.aincraft.inject.GuildsModule;
 import org.aincraft.progression.ProgressionConfig;
 import org.aincraft.progression.listeners.ProgressionXpListener;
@@ -62,7 +68,6 @@ import org.aincraft.map.GuildMapRenderer;
 import org.aincraft.multiblock.MultiblockListener;
 import org.aincraft.multiblock.MultiblockRegistry;
 import org.aincraft.multiblock.patterns.GuildVaultPattern;
-import org.aincraft.role.gui.RoleCreationGUIListener;
 import org.aincraft.storage.ChunkClaimRepository;
 import org.aincraft.subregion.RegionEntryNotifier;
 import org.aincraft.subregion.RegionMovementTracker;
@@ -128,10 +133,14 @@ public class GuildsPlugin extends JavaPlugin {
     private AllyChatComponent allyChatComponent;
     private AdminComponent adminComponent;
     private LevelUpComponent levelUpComponent;
+    private ProjectComponent projectComponent;
 
     @Override
     public void onEnable() {
         this.injector = Guice.createInjector(new GuildsModule(this));
+
+        // Initialize database schema (must be first)
+        injector.getInstance(SchemaManager.class);
 
         // Initialize core services
         this.guildService = injector.getInstance(GuildService.class);
@@ -163,6 +172,9 @@ public class GuildsPlugin extends JavaPlugin {
         // Register progression system
         registerProgressionSystem();
 
+        // Register project system
+        registerProjectSystem();
+
         // Register commands
         LifecycleEventManager<Plugin> manager = this.getLifecycleManager();
         manager.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
@@ -178,6 +190,13 @@ public class GuildsPlugin extends JavaPlugin {
     public void onDisable() {
         if (autoClaimManager != null) {
             autoClaimManager.clearAll();
+        }
+        // Save all open vault inventories before shutdown
+        if (injector != null) {
+            var vaultManager = injector.getInstance(org.aincraft.vault.gui.SharedVaultInventoryManager.class);
+            if (vaultManager != null) {
+                vaultManager.saveAllAndClear();
+            }
         }
         getLogger().info("Guilds plugin disabled!");
     }
@@ -215,8 +234,9 @@ public class GuildsPlugin extends JavaPlugin {
         regionComponent = new RegionComponent(guildService, subregionService, selectionManager, typeRegistry, regionPermissionService, limitRepository, regionVisualizer);
 
         VaultService vaultService = injector.getInstance(VaultService.class);
+        org.aincraft.vault.gui.SharedVaultInventoryManager sharedVaultInventoryManager = injector.getInstance(org.aincraft.vault.gui.SharedVaultInventoryManager.class);
         org.aincraft.progression.storage.ProgressionLogRepository progressionLogRepository = injector.getInstance(org.aincraft.progression.storage.ProgressionLogRepository.class);
-        vaultComponent = new VaultComponent(vaultService);
+        vaultComponent = new VaultComponent(vaultService, sharedVaultInventoryManager);
         logComponent = new LogComponent(guildService, vaultService, progressionLogRepository);
 
         allyComponent = injector.getInstance(AllyComponent.class);
@@ -226,6 +246,7 @@ public class GuildsPlugin extends JavaPlugin {
         allyChatComponent = injector.getInstance(AllyChatComponent.class);
         adminComponent = injector.getInstance(AdminComponent.class);
         levelUpComponent = injector.getInstance(LevelUpComponent.class);
+        projectComponent = injector.getInstance(ProjectComponent.class);
     }
 
     private void registerListeners() {
@@ -240,8 +261,6 @@ public class GuildsPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(vaultHandler, this);
         getServer().getPluginManager().registerEvents(vaultGUIListener, this);
 
-        RoleCreationGUIListener roleGUIListener = injector.getInstance(RoleCreationGUIListener.class);
-        getServer().getPluginManager().registerEvents(roleGUIListener, this);
 
         GuildChatListener chatListener = injector.getInstance(GuildChatListener.class);
         getServer().getPluginManager().registerEvents(chatListener, this);
@@ -262,9 +281,7 @@ public class GuildsPlugin extends JavaPlugin {
     private void registerAutoClaimSystem() {
         this.autoClaimManager = injector.getInstance(AutoClaimManager.class);
         AutoClaimListener autoClaimListener = injector.getInstance(AutoClaimListener.class);
-        AutoUnclaimListener autoUnclaimListener = injector.getInstance(AutoUnclaimListener.class);
         getServer().getPluginManager().registerEvents(autoClaimListener, this);
-        getServer().getPluginManager().registerEvents(autoUnclaimListener, this);
     }
 
     private void registerMultiblockSystem() {
@@ -285,6 +302,28 @@ public class GuildsPlugin extends JavaPlugin {
         playtimeTask.runTaskTimer(this, intervalTicks, intervalTicks);
 
         getLogger().info("Guild progression system registered");
+    }
+
+    private void registerProjectSystem() {
+        // Register quest progress listener
+        QuestProgressListener questListener = injector.getInstance(QuestProgressListener.class);
+        getServer().getPluginManager().registerEvents(questListener, this);
+
+        // Register territory buff listener
+        TerritoryBuffListener territoryBuffListener = injector.getInstance(TerritoryBuffListener.class);
+        getServer().getPluginManager().registerEvents(territoryBuffListener, this);
+
+        // Register project GUI listener
+        ProjectGUIListener projectGUIListener = injector.getInstance(ProjectGUIListener.class);
+        getServer().getPluginManager().registerEvents(projectGUIListener, this);
+
+        // Schedule buff expiration cleanup
+        ProjectRegistry registry = injector.getInstance(ProjectRegistry.class);
+        BuffApplicationService buffService = injector.getInstance(BuffApplicationService.class);
+        int intervalTicks = registry.getExpirationCheckInterval() * 20;
+        getServer().getScheduler().runTaskTimerAsynchronously(this, buffService::cleanupExpiredBuffs, intervalTicks, intervalTicks);
+
+        getLogger().info("Guild project system registered");
     }
 
     public SubregionTypeRegistry getTypeRegistry() {
@@ -554,7 +593,92 @@ public class GuildsPlugin extends JavaPlugin {
                     .executes(context -> {
                         roleComponent.execute(context.getSource().getSender(), new String[]{"role"});
                         return 1;
-                    }))
+                    })
+                    .then(Commands.literal("editor")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                            .suggests(this::suggestRoleNames)
+                            .executes(context -> {
+                                String name = StringArgumentType.getString(context, "name");
+                                roleComponent.execute(context.getSource().getSender(), new String[]{"role", "editor", name});
+                                return 1;
+                            })))
+                    .then(Commands.literal("create")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                            .then(Commands.argument("perms", StringArgumentType.word())
+                                .then(Commands.argument("priority", IntegerArgumentType.integer())
+                                    .executes(context -> {
+                                        String name = StringArgumentType.getString(context, "name");
+                                        String perms = StringArgumentType.getString(context, "perms");
+                                        int priority = IntegerArgumentType.getInteger(context, "priority");
+                                        roleComponent.execute(context.getSource().getSender(), new String[]{"role", "create", name, perms, String.valueOf(priority)});
+                                        return 1;
+                                    })))))
+                    .then(Commands.literal("delete")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                            .suggests(this::suggestRoleNames)
+                            .executes(context -> {
+                                String name = StringArgumentType.getString(context, "name");
+                                roleComponent.execute(context.getSource().getSender(), new String[]{"role", "delete", name});
+                                return 1;
+                            })))
+                    .then(Commands.literal("perm")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                            .suggests(this::suggestRoleNames)
+                            .then(Commands.argument("perm", StringArgumentType.word())
+                                .suggests(this::suggestPermissions)
+                                .then(Commands.argument("value", StringArgumentType.word())
+                                    .executes(context -> {
+                                        String name = StringArgumentType.getString(context, "name");
+                                        String perm = StringArgumentType.getString(context, "perm");
+                                        String value = StringArgumentType.getString(context, "value");
+                                        roleComponent.execute(context.getSource().getSender(), new String[]{"role", "perm", name, perm, value});
+                                        return 1;
+                                    })))))
+                    .then(Commands.literal("priority")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                            .suggests(this::suggestRoleNames)
+                            .then(Commands.argument("priority", IntegerArgumentType.integer())
+                                .executes(context -> {
+                                    String name = StringArgumentType.getString(context, "name");
+                                    int priority = IntegerArgumentType.getInteger(context, "priority");
+                                    roleComponent.execute(context.getSource().getSender(), new String[]{"role", "priority", name, String.valueOf(priority)});
+                                    return 1;
+                                }))))
+                    .then(Commands.literal("list")
+                        .executes(context -> {
+                            roleComponent.execute(context.getSource().getSender(), new String[]{"role", "list"});
+                            return 1;
+                        }))
+                    .then(Commands.literal("info")
+                        .then(Commands.argument("name", StringArgumentType.word())
+                            .suggests(this::suggestRoleNames)
+                            .executes(context -> {
+                                String name = StringArgumentType.getString(context, "name");
+                                roleComponent.execute(context.getSource().getSender(), new String[]{"role", "info", name});
+                                return 1;
+                            })))
+                    .then(Commands.literal("assign")
+                        .then(Commands.argument("player", StringArgumentType.word())
+                            .suggests(this::suggestPlayerNames)
+                            .then(Commands.argument("role", StringArgumentType.word())
+                                .suggests(this::suggestRoleNames)
+                                .executes(context -> {
+                                    String player = StringArgumentType.getString(context, "player");
+                                    String role = StringArgumentType.getString(context, "role");
+                                    roleComponent.execute(context.getSource().getSender(), new String[]{"role", "assign", player, role});
+                                    return 1;
+                                }))))
+                    .then(Commands.literal("unassign")
+                        .then(Commands.argument("player", StringArgumentType.word())
+                            .suggests(this::suggestPlayerNames)
+                            .then(Commands.argument("role", StringArgumentType.word())
+                                .suggests(this::suggestRoleNames)
+                                .executes(context -> {
+                                    String player = StringArgumentType.getString(context, "player");
+                                    String role = StringArgumentType.getString(context, "role");
+                                    roleComponent.execute(context.getSource().getSender(), new String[]{"role", "unassign", player, role});
+                                    return 1;
+                                })))))
                 .then(Commands.literal("member")
                     .executes(context -> {
                         memberComponent.execute(context.getSource().getSender(), new String[]{"member"});
@@ -650,6 +774,7 @@ public class GuildsPlugin extends JavaPlugin {
                             levelUpComponent.execute(context.getSource().getSender(), new String[]{"upgrade", "confirm"});
                             return 1;
                         })))
+                .then(registerProjectCommands())
                 .then(registerAdminCommands())
                 .build(),
             "Guild management commands",
@@ -1020,6 +1145,52 @@ public class GuildsPlugin extends JavaPlugin {
                         vaultComponent.execute(context.getSource().getSender(), new String[]{"vault", "destroy", "confirm"});
                         return 1;
                     })))
+            .build();
+    }
+
+    private com.mojang.brigadier.tree.LiteralCommandNode<CommandSourceStack> registerProjectCommands() {
+        return Commands.literal("project")
+            .executes(context -> {
+                projectComponent.execute(context.getSource().getSender(), new String[]{"project"});
+                return 1;
+            })
+            .then(Commands.literal("list")
+                .executes(context -> {
+                    projectComponent.execute(context.getSource().getSender(), new String[]{"project", "list"});
+                    return 1;
+                }))
+            .then(Commands.literal("start")
+                .then(Commands.argument("projectId", StringArgumentType.word())
+                    .executes(context -> {
+                        String projectId = StringArgumentType.getString(context, "projectId");
+                        projectComponent.execute(context.getSource().getSender(), new String[]{"project", "start", projectId});
+                        return 1;
+                    })))
+            .then(Commands.literal("progress")
+                .executes(context -> {
+                    projectComponent.execute(context.getSource().getSender(), new String[]{"project", "progress"});
+                    return 1;
+                }))
+            .then(Commands.literal("contribute")
+                .executes(context -> {
+                    projectComponent.execute(context.getSource().getSender(), new String[]{"project", "contribute"});
+                    return 1;
+                }))
+            .then(Commands.literal("complete")
+                .executes(context -> {
+                    projectComponent.execute(context.getSource().getSender(), new String[]{"project", "complete"});
+                    return 1;
+                }))
+            .then(Commands.literal("abandon")
+                .executes(context -> {
+                    projectComponent.execute(context.getSource().getSender(), new String[]{"project", "abandon"});
+                    return 1;
+                }))
+            .then(Commands.literal("buffs")
+                .executes(context -> {
+                    projectComponent.execute(context.getSource().getSender(), new String[]{"project", "buffs"});
+                    return 1;
+                }))
             .build();
     }
 

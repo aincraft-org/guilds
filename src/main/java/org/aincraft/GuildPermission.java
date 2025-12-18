@@ -24,7 +24,8 @@ public enum GuildPermission {
     VIEW_LOGS(1 << 16),      // 65536
     EDIT_GUILD_INFO(1 << 17), // 131072
     CHAT_GUILD(1 << 18),     // 262144
-    LEVEL_UP(1 << 19);       // 524288
+    LEVEL_UP(1 << 19),       // 524288
+    MANAGE_PROJECTS(1 << 20); // 1048576
 
     private final int bit;
 

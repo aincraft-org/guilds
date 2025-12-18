@@ -6,6 +6,8 @@ Provide concise feedback, sacrifice grammar for the sake of concision.
 
 The codebase is indexed, do not ask to index it.
 
+Whenever implementing, use the agent paper-plugin-engineer.
+
 Always use claude-context when you need to locate anything in the codebase.
 This means you should automatically use claude-context to search the code base using semantic search without having me ask.
 

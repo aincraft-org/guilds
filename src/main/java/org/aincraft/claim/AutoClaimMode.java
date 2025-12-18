@@ -18,5 +18,5 @@ public enum AutoClaimMode {
     /**
      * Automatically unclaim owned chunks when entering them.
      */
-    AUTO_UNCLAIM
+    AUTO_UNCLAIM;
 }

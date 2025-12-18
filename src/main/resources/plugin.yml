@@ -1,7 +1,7 @@
 name: Guilds
 version: '1.0.0'
 main: org.aincraft.GuildsPlugin
-api-version: 1.21.11
+api-version: 1.21.7
 description: A comprehensive guild system for Minecraft servers
 author: Ainecraft
 website: https://github.com/aincraft

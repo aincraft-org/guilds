@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
  * API-accessible for custom material registration with level ranges and probabilities.
  */
 @Singleton
-public class MaterialRegistry {
+public class  MaterialRegistry {
     private final Map<Material, MaterialDefinition> materials;
 
     @Inject

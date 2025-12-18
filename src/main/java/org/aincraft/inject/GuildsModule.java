@@ -5,18 +5,45 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import java.io.File;
+import java.sql.SQLException;
+import java.util.logging.Logger;
 import org.aincraft.GuildDefaultPermissionsService;
+import org.aincraft.database.ConnectionProvider;
+import org.aincraft.database.DatabaseConfig;
+import org.aincraft.database.DatabaseType;
+import org.aincraft.database.DirectConnectionProvider;
+import org.aincraft.database.HikariConnectionProvider;
+import org.aincraft.database.SchemaManager;
+import org.aincraft.database.repository.JdbcChunkClaimRepository;
+import org.aincraft.database.repository.JdbcGuildDefaultPermissionsRepository;
+import org.aincraft.database.repository.JdbcGuildMemberRepository;
+import org.aincraft.database.repository.JdbcGuildRelationshipRepository;
+import org.aincraft.database.repository.JdbcGuildRepository;
+import org.aincraft.database.repository.JdbcGuildRoleRepository;
+import org.aincraft.database.repository.JdbcInviteRepository;
+import org.aincraft.database.repository.JdbcMemberRegionRoleRepository;
+import org.aincraft.database.repository.JdbcMemberRoleRepository;
+import org.aincraft.database.repository.JdbcPlayerGuildMapping;
+import org.aincraft.database.repository.JdbcRegionPermissionRepository;
+import org.aincraft.database.repository.JdbcRegionRoleRepository;
+import org.aincraft.database.repository.JdbcRegionTypeLimitRepository;
+import org.aincraft.database.repository.JdbcSubregionRepository;
+import org.aincraft.database.repository.JdbcVaultRepository;
+import org.aincraft.database.repository.JdbcVaultTransactionRepository;
+import org.aincraft.database.repository.JdbcGuildProgressionRepository;
+import org.aincraft.database.repository.JdbcProgressionLogRepository;
+import org.aincraft.database.repository.JdbcGuildProjectRepository;
+import org.aincraft.database.repository.JdbcActiveBuffRepository;
+import org.aincraft.database.repository.JdbcChunkClaimLogRepository;
 import org.aincraft.GuildService;
 import org.aincraft.GuildsPlugin;
 import org.aincraft.InviteService;
 import org.aincraft.RelationshipService;
 import org.aincraft.claim.AutoClaimListener;
 import org.aincraft.claim.AutoClaimManager;
-import org.aincraft.claim.AutoUnclaimListener;
 import org.aincraft.claim.ChunkClaimLogRepository;
 import org.aincraft.claim.ClaimEntryNotifier;
 import org.aincraft.claim.ClaimMovementTracker;
-import org.aincraft.claim.SQLiteChunkClaimLogRepository;
 import org.aincraft.commands.components.AcceptComponent;
 import org.aincraft.commands.components.AdminComponent;
 import org.aincraft.commands.components.AllyComponent;
@@ -53,7 +80,6 @@ import org.aincraft.listeners.GuildProtectionListener;
 import org.aincraft.multiblock.MultiblockListener;
 import org.aincraft.multiblock.MultiblockRegistry;
 import org.aincraft.multiblock.MultiblockService;
-import org.aincraft.role.gui.RoleCreationGUIListener;
 import org.aincraft.service.ChunkClaimService;
 import org.aincraft.service.GuildPermissionService;
 import org.aincraft.service.GuildRoleService;
@@ -67,15 +93,6 @@ import org.aincraft.storage.GuildRoleRepository;
 import org.aincraft.storage.InviteRepository;
 import org.aincraft.storage.MemberRoleRepository;
 import org.aincraft.storage.PlayerGuildMapping;
-import org.aincraft.storage.SQLiteChunkClaimRepository;
-import org.aincraft.storage.SQLiteGuildDefaultPermissionsRepository;
-import org.aincraft.storage.SQLiteGuildMemberRepository;
-import org.aincraft.storage.SQLiteGuildRelationshipRepository;
-import org.aincraft.storage.SQLiteGuildRepository;
-import org.aincraft.storage.SQLiteGuildRoleRepository;
-import org.aincraft.storage.SQLiteInviteRepository;
-import org.aincraft.storage.SQLiteMemberRoleRepository;
-import org.aincraft.storage.SQLitePlayerGuildMapping;
 import org.aincraft.subregion.MemberRegionRoleRepository;
 import org.aincraft.subregion.RegionEntryNotifier;
 import org.aincraft.subregion.RegionMovementTracker;
@@ -83,11 +100,6 @@ import org.aincraft.subregion.RegionPermissionRepository;
 import org.aincraft.subregion.RegionPermissionService;
 import org.aincraft.subregion.RegionRoleRepository;
 import org.aincraft.subregion.RegionTypeLimitRepository;
-import org.aincraft.subregion.SQLiteMemberRegionRoleRepository;
-import org.aincraft.subregion.SQLiteRegionPermissionRepository;
-import org.aincraft.subregion.SQLiteRegionRoleRepository;
-import org.aincraft.subregion.SQLiteRegionTypeLimitRepository;
-import org.aincraft.subregion.SQLiteSubregionRepository;
 import org.aincraft.subregion.SelectionManager;
 import org.aincraft.subregion.SelectionVisualizer;
 import org.aincraft.subregion.SelectionVisualizerListener;
@@ -95,24 +107,26 @@ import org.aincraft.subregion.RegionVisualizer;
 import org.aincraft.subregion.SubregionRepository;
 import org.aincraft.subregion.SubregionService;
 import org.aincraft.subregion.SubregionTypeRegistry;
-import org.aincraft.vault.SQLiteVaultRepository;
-import org.aincraft.vault.SQLiteVaultTransactionRepository;
 import org.aincraft.vault.VaultHandler;
 import org.aincraft.vault.VaultRepository;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransactionRepository;
+import org.aincraft.vault.gui.SharedVaultInventoryManager;
 import org.aincraft.vault.gui.VaultGUIListener;
 import org.aincraft.progression.ProgressionConfig;
 import org.aincraft.progression.ProgressionService;
 import org.aincraft.progression.storage.GuildProgressionRepository;
-import org.aincraft.progression.storage.SQLiteGuildProgressionRepository;
 import org.aincraft.progression.storage.ProgressionLogRepository;
-import org.aincraft.progression.storage.SQLiteProgressionLogRepository;
 import org.aincraft.progression.listeners.ProgressionXpListener;
 import org.aincraft.progression.listeners.ProgressionPlaytimeTask;
 import org.aincraft.progression.MaterialRegistry;
 import org.aincraft.progression.ProceduralCostGenerator;
 import org.aincraft.commands.components.LevelUpComponent;
+import org.aincraft.commands.components.ProjectComponent;
+import org.aincraft.project.*;
+import org.aincraft.project.storage.*;
+import org.aincraft.project.listeners.*;
+import org.aincraft.project.gui.*;
 
 public class GuildsModule extends AbstractModule {
     private final GuildsPlugin plugin;
@@ -124,18 +138,20 @@ public class GuildsModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(GuildsPlugin.class).toInstance(plugin);
+        bind(Logger.class).annotatedWith(com.google.inject.name.Names.named("guilds")).toInstance(plugin.getLogger());
 
-        bind(GuildRepository.class).to(SQLiteGuildRepository.class).in(Singleton.class);
-        bind(PlayerGuildMapping.class).to(SQLitePlayerGuildMapping.class).in(Singleton.class);
-        bind(GuildMemberRepository.class).to(SQLiteGuildMemberRepository.class).in(Singleton.class);
-        bind(GuildRoleRepository.class).to(SQLiteGuildRoleRepository.class).in(Singleton.class);
-        bind(MemberRoleRepository.class).to(SQLiteMemberRoleRepository.class).in(Singleton.class);
-        bind(ChunkClaimRepository.class).to(SQLiteChunkClaimRepository.class).in(Singleton.class);
-        bind(GuildRelationshipRepository.class).to(SQLiteGuildRelationshipRepository.class).in(Singleton.class);
-        bind(GuildDefaultPermissionsRepository.class).to(SQLiteGuildDefaultPermissionsRepository.class).in(Singleton.class);
+        // Database abstraction layer - repositories using JDBC
+        bind(GuildRepository.class).to(JdbcGuildRepository.class).in(Singleton.class);
+        bind(PlayerGuildMapping.class).to(JdbcPlayerGuildMapping.class).in(Singleton.class);
+        bind(GuildMemberRepository.class).to(JdbcGuildMemberRepository.class).in(Singleton.class);
+        bind(GuildRoleRepository.class).to(JdbcGuildRoleRepository.class).in(Singleton.class);
+        bind(MemberRoleRepository.class).to(JdbcMemberRoleRepository.class).in(Singleton.class);
+        bind(ChunkClaimRepository.class).to(JdbcChunkClaimRepository.class).in(Singleton.class);
+        bind(GuildRelationshipRepository.class).to(JdbcGuildRelationshipRepository.class).in(Singleton.class);
+        bind(GuildDefaultPermissionsRepository.class).to(JdbcGuildDefaultPermissionsRepository.class).in(Singleton.class);
 
-        // Subregion bindings
-        bind(SubregionRepository.class).to(SQLiteSubregionRepository.class).in(Singleton.class);
+        // Subregion bindings - using JDBC implementations
+        bind(SubregionRepository.class).to(JdbcSubregionRepository.class).in(Singleton.class);
         bind(SubregionTypeRegistry.class).in(Singleton.class);
         bind(SubregionService.class).in(Singleton.class);
         bind(SelectionVisualizer.class).in(Singleton.class);
@@ -144,11 +160,11 @@ public class GuildsModule extends AbstractModule {
         bind(SelectionVisualizerListener.class).in(Singleton.class);
         bind(RegionMovementTracker.class).in(Singleton.class);
         bind(RegionEntryNotifier.class).in(Singleton.class);
-        bind(RegionPermissionRepository.class).to(SQLiteRegionPermissionRepository.class).in(Singleton.class);
+        bind(RegionPermissionRepository.class).to(JdbcRegionPermissionRepository.class).in(Singleton.class);
         bind(RegionPermissionService.class).in(Singleton.class);
-        bind(RegionRoleRepository.class).to(SQLiteRegionRoleRepository.class).in(Singleton.class);
-        bind(MemberRegionRoleRepository.class).to(SQLiteMemberRegionRoleRepository.class).in(Singleton.class);
-        bind(RegionTypeLimitRepository.class).to(SQLiteRegionTypeLimitRepository.class).in(Singleton.class);
+        bind(RegionRoleRepository.class).to(JdbcRegionRoleRepository.class).in(Singleton.class);
+        bind(MemberRegionRoleRepository.class).to(JdbcMemberRegionRoleRepository.class).in(Singleton.class);
+        bind(RegionTypeLimitRepository.class).to(JdbcRegionTypeLimitRepository.class).in(Singleton.class);
 
         // Claim tracking bindings
         bind(ClaimMovementTracker.class).in(Singleton.class);
@@ -157,13 +173,12 @@ public class GuildsModule extends AbstractModule {
         // Auto-claim/unclaim system
         bind(AutoClaimManager.class).in(Singleton.class);
         bind(AutoClaimListener.class).in(Singleton.class);
-        bind(AutoUnclaimListener.class).in(Singleton.class);
 
-        // Claim logging system
-        bind(ChunkClaimLogRepository.class).to(SQLiteChunkClaimLogRepository.class).in(Singleton.class);
+        // Claim logging system - using JDBC implementation
+        bind(ChunkClaimLogRepository.class).to(JdbcChunkClaimLogRepository.class).in(Singleton.class);
 
         // Invite system
-        bind(InviteRepository.class).to(SQLiteInviteRepository.class).in(Singleton.class);
+        bind(InviteRepository.class).to(JdbcInviteRepository.class).in(Singleton.class);
         bind(InviteService.class).in(Singleton.class);
 
         // Services
@@ -189,22 +204,20 @@ public class GuildsModule extends AbstractModule {
         bind(MultiblockService.class).in(Singleton.class);
         bind(MultiblockListener.class).in(Singleton.class);
 
-        // Vault system
-        bind(VaultRepository.class).to(SQLiteVaultRepository.class).in(Singleton.class);
-        bind(VaultTransactionRepository.class).to(SQLiteVaultTransactionRepository.class).in(Singleton.class);
+        // Vault system - using JDBC implementations
+        bind(VaultRepository.class).to(JdbcVaultRepository.class).in(Singleton.class);
+        bind(VaultTransactionRepository.class).to(JdbcVaultTransactionRepository.class).in(Singleton.class);
         bind(VaultService.class).in(Singleton.class);
         bind(VaultHandler.class).in(Singleton.class);
+        bind(SharedVaultInventoryManager.class).in(Singleton.class);
         bind(VaultGUIListener.class).in(Singleton.class);
-
-        // Role creation wizard
-        bind(RoleCreationGUIListener.class).in(Singleton.class);
 
         // Configuration
         bind(GuildsConfig.class).in(Singleton.class);
 
-        // Progression system
-        bind(GuildProgressionRepository.class).to(SQLiteGuildProgressionRepository.class).in(Singleton.class);
-        bind(ProgressionLogRepository.class).to(SQLiteProgressionLogRepository.class).in(Singleton.class);
+        // Progression system - using JDBC implementations
+        bind(GuildProgressionRepository.class).to(JdbcGuildProgressionRepository.class).in(Singleton.class);
+        bind(ProgressionLogRepository.class).to(JdbcProgressionLogRepository.class).in(Singleton.class);
         bind(ProgressionService.class).in(Singleton.class);
         bind(ProgressionConfig.class).in(Singleton.class);
         bind(ProgressionXpListener.class).in(Singleton.class);
@@ -243,12 +256,23 @@ public class GuildsModule extends AbstractModule {
         bind(AllyChatComponent.class).in(Singleton.class);
         bind(AdminComponent.class).in(Singleton.class);
         bind(LevelUpComponent.class).in(Singleton.class);
+        bind(ProjectComponent.class).in(Singleton.class);
+
+        // Project system - using JDBC implementations
+        bind(GuildProjectRepository.class).to(JdbcGuildProjectRepository.class).in(Singleton.class);
+        bind(ActiveBuffRepository.class).to(JdbcActiveBuffRepository.class).in(Singleton.class);
+        bind(ProjectRegistry.class).in(Singleton.class);
+        bind(ProjectPoolService.class).in(Singleton.class);
+        bind(ProjectService.class).in(Singleton.class);
+        bind(BuffApplicationService.class).in(Singleton.class);
+        bind(QuestProgressListener.class).in(Singleton.class);
+        bind(TerritoryBuffListener.class).in(Singleton.class);
+        bind(ProjectGUIListener.class).in(Singleton.class);
     }
 
     @Provides
     @Singleton
-    @Named("databasePath")
-    String provideDatabasePath() {
+    DatabaseConfig provideDatabaseConfig() {
         File dataFolder = plugin.getDataFolder();
         if (!dataFolder.exists()) {
             boolean created = dataFolder.mkdirs();
@@ -256,10 +280,79 @@ public class GuildsModule extends AbstractModule {
                 plugin.getLogger().warning("Failed to create plugin data folder: " + dataFolder.getAbsolutePath());
             }
         }
-        File dbFile = new File(dataFolder, "guilds.db");
+
+        var config = plugin.getConfig();
+        var dbSection = config.getConfigurationSection("database");
+
+        // Get file path from config or default
+        String filePath = dbSection != null ? dbSection.getString("file-path", "guilds.db") : "guilds.db";
+        File dbFile = new File(dataFolder, filePath);
         // Use forward slashes for SQLite compatibility across platforms
-        String dbPath = dbFile.getAbsolutePath().replace("\\", "/");
-        plugin.getLogger().info("Database path: " + dbPath);
-        return dbPath;
+        String absolutePath = dbFile.getAbsolutePath().replace("\\", "/");
+
+        if (dbSection == null) {
+            // Default to SQLite if no database section exists
+            plugin.getLogger().info("No database config found, using SQLite at: " + absolutePath);
+            return new DatabaseConfig.Builder(DatabaseType.SQLITE)
+                .filePath(absolutePath)
+                .build();
+        }
+
+        // Parse config
+        var dbConfig = DatabaseConfig.fromConfig(dbSection);
+
+        // For file-based databases, use resolved absolute path
+        if (dbConfig.getType().isFileBased()) {
+            plugin.getLogger().info("Using " + dbConfig.getType() + " database at: " + absolutePath);
+            return new DatabaseConfig.Builder(dbConfig.getType())
+                .filePath(absolutePath)
+                .maxPoolSize(dbConfig.getMaxPoolSize())
+                .minIdle(dbConfig.getMinIdle())
+                .connectionTimeout(dbConfig.getConnectionTimeout())
+                .idleTimeout(dbConfig.getIdleTimeout())
+                .maxLifetime(dbConfig.getMaxLifetime())
+                .build();
+        }
+
+        plugin.getLogger().info("Using " + dbConfig.getType() + " database at: " +
+            dbConfig.getHost() + ":" + dbConfig.getPort() + "/" + dbConfig.getDatabase());
+        return dbConfig;
+    }
+
+    @Provides
+    @Singleton
+    @Named("databasePath")
+    String provideDatabasePath(DatabaseConfig config) {
+        return config.getFilePath();
+    }
+
+    @Provides
+    @Singleton
+    ConnectionProvider provideConnectionProvider(DatabaseConfig config) {
+        ConnectionProvider provider;
+        if (config.getType() == DatabaseType.SQLITE) {
+            provider = new DirectConnectionProvider(config);
+        } else {
+            provider = new HikariConnectionProvider(config);
+        }
+        try {
+            provider.initialize();
+            plugin.getLogger().info("Database connection initialized for " + config.getType());
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to initialize database connection", e);
+        }
+        return provider;
+    }
+
+    @Provides
+    @Singleton
+    SchemaManager provideSchemaManager(ConnectionProvider connectionProvider, @com.google.inject.name.Named("guilds") Logger logger) {
+        SchemaManager schemaManager = new SchemaManager(connectionProvider, logger);
+        try {
+            schemaManager.initializeSchema();
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to initialize database schema", e);
+        }
+        return schemaManager;
     }
 }

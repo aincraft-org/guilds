@@ -1,5 +1,6 @@
 package org.aincraft;
 
+import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +87,8 @@ public class GuildService {
         memberRepository.addMember(guild.getId(), ownerId, MemberPermissions.all());
 
         // Create default "Member" role and assign to owner
-        GuildRole defaultRole = GuildRole.createDefault(guild.getId());
+        GuildRole defaultRole = new GuildRole(guild.getId(), GuildRole.DEFAULT_ROLE_NAME,
+                                              GuildPermission.defaultPermissions(), 0, ownerId);
         roleRepository.save(defaultRole);
         memberRoleRepository.assignRole(guild.getId(), ownerId, defaultRole.getId());
 
@@ -758,7 +760,7 @@ public class GuildService {
             return null; // Role with this name already exists
         }
 
-        GuildRole role = new GuildRole(guildId, name, permissions, priority);
+        GuildRole role = new GuildRole(guildId, name, permissions, priority, requesterId);
         roleRepository.save(role);
         return role;
     }

@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
 
     // Guice DI
     implementation("com.google.inject:guice:7.0.0")
@@ -23,10 +23,14 @@ dependencies {
 
     // Database
     implementation("com.zaxxer:HikariCP:5.1.0")
-    implementation("org.xerial:sqlite-jdbc:3.45.3.0")
+    runtimeOnly("org.mariadb.jdbc:mariadb-java-client:3.3.1")
+    runtimeOnly("org.postgresql:postgresql:42.7.1")
 
     // Caffeine caching
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+
+    // Triumph GUI
+    implementation("dev.triumphteam:triumph-gui:3.1.13")
 
     // Testing
     testCompileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")

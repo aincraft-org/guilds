@@ -15,6 +15,8 @@ public final class GuildRole implements Permissible {
     private String name;
     private int permissions;
     private int priority;
+    private final UUID createdBy;  // nullable for existing roles
+    private final Long createdAt;  // nullable for existing roles
 
     /**
      * Creates a new GuildRole.
@@ -25,11 +27,21 @@ public final class GuildRole implements Permissible {
      * @param priority the role priority (higher = more authority)
      */
     public GuildRole(String guildId, String name, int permissions, int priority) {
-        this.id = UUID.randomUUID().toString();
-        this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        this.name = Objects.requireNonNull(name, "Name cannot be null");
-        this.permissions = permissions;
-        this.priority = priority;
+        this(guildId, name, permissions, priority, null);
+    }
+
+    /**
+     * Creates a new GuildRole with creation metadata.
+     *
+     * @param guildId the guild this role belongs to
+     * @param name the role name
+     * @param permissions the permission bitfield
+     * @param priority the role priority (higher = more authority)
+     * @param createdBy the UUID of the player who created this role
+     */
+    public GuildRole(String guildId, String name, int permissions, int priority, UUID createdBy) {
+        this(UUID.randomUUID().toString(), guildId, name, permissions, priority,
+             createdBy, createdBy != null ? System.currentTimeMillis() : null);
     }
 
     /**
@@ -47,11 +59,29 @@ public final class GuildRole implements Permissible {
      * Creates a GuildRole with an existing ID (for database restoration).
      */
     public GuildRole(String id, String guildId, String name, int permissions, int priority) {
+        this(id, guildId, name, permissions, priority, null, null);
+    }
+
+    /**
+     * Full constructor for database restoration with creation metadata.
+     *
+     * @param id the role ID
+     * @param guildId the guild this role belongs to
+     * @param name the role name
+     * @param permissions the permission bitfield
+     * @param priority the role priority
+     * @param createdBy the UUID of the creator (nullable for legacy roles)
+     * @param createdAt the creation timestamp (nullable for legacy roles)
+     */
+    public GuildRole(String id, String guildId, String name, int permissions, int priority,
+                     UUID createdBy, Long createdAt) {
         this.id = Objects.requireNonNull(id, "ID cannot be null");
         this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
         this.name = Objects.requireNonNull(name, "Name cannot be null");
         this.permissions = permissions;
         this.priority = priority;
+        this.createdBy = createdBy;  // nullable for legacy roles
+        this.createdAt = createdAt;  // nullable for legacy roles
     }
 
     /**
@@ -99,6 +129,14 @@ public final class GuildRole implements Permissible {
 
     public void setPriority(int priority) {
         this.priority = priority;
+    }
+
+    public UUID getCreatedBy() {
+        return createdBy;
+    }
+
+    public Long getCreatedAt() {
+        return createdAt;
     }
 
     /**

@@ -43,4 +43,11 @@ public final class MessageFormatter {
     public static Component deserialize(String message) {
         return MINI_MESSAGE.deserialize(message);
     }
+
+    /**
+     * Deserializes a MiniMessage string with tag resolvers.
+     */
+    public static Component deserialize(String message, TagResolver... resolvers) {
+        return MINI_MESSAGE.deserialize(message, resolvers);
+    }
 }

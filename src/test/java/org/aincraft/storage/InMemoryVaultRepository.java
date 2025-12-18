@@ -62,35 +62,6 @@ public class InMemoryVaultRepository implements VaultRepository {
     }
 
     @Override
-    public ItemStack getSlot(String vaultId, int slot) {
-        Vault vault = vaultsById.get(vaultId);
-        if (vault == null || slot < 0 || slot >= Vault.STORAGE_SIZE) {
-            return null;
-        }
-        ItemStack[] contents = vault.getContents();
-        return contents != null ? contents[slot] : null;
-    }
-
-    @Override
-    public synchronized boolean compareAndSetSlot(String vaultId, int slot, ItemStack expected, ItemStack newItem) {
-        Vault vault = vaultsById.get(vaultId);
-        if (vault == null || slot < 0 || slot >= Vault.STORAGE_SIZE) {
-            return false;
-        }
-
-        ItemStack[] contents = vault.getContents();
-        ItemStack current = contents[slot];
-
-        if (!itemStacksEqual(current, expected)) {
-            return false;
-        }
-
-        contents[slot] = newItem;
-        vault.setContents(contents);
-        return true;
-    }
-
-    @Override
     public ItemStack[] getFreshContents(String vaultId) {
         Vault vault = vaultsById.get(vaultId);
         if (vault == null) {
@@ -106,13 +77,6 @@ public class InMemoryVaultRepository implements VaultRepository {
             copy[i] = original[i] != null ? original[i].clone() : null;
         }
         return copy;
-    }
-
-    private boolean itemStacksEqual(ItemStack a, ItemStack b) {
-        if (a == null && b == null) return true;
-        if (a == null || b == null) return false;
-        if (a.getType().isAir() && b.getType().isAir()) return true;
-        return a.isSimilar(b) && a.getAmount() == b.getAmount();
     }
 
     private String locationKey(Vault vault) {

@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Optional;
 import org.aincraft.commands.MessageFormatter;
-import org.aincraft.vault.gui.VaultGUI;
+import org.aincraft.vault.gui.SharedVaultInventoryManager;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -19,9 +19,11 @@ public class VaultComponent {
     private static final int UUID_DISPLAY_LENGTH = 8;
 
     private final VaultService vaultService;
+    private final SharedVaultInventoryManager inventoryManager;
 
-    public VaultComponent(VaultService vaultService) {
+    public VaultComponent(VaultService vaultService, SharedVaultInventoryManager inventoryManager) {
         this.vaultService = vaultService;
+        this.inventoryManager = inventoryManager;
     }
 
     public boolean execute(CommandSender sender, String[] args) {
@@ -64,8 +66,10 @@ public class VaultComponent {
             return true;
         }
 
-        VaultGUI gui = new VaultGUI(result.vault(), result.canDeposit(), result.canWithdraw());
-        player.openInventory(gui.getInventory());
+        // Use shared inventory manager to prevent duplication exploits
+        SharedVaultInventoryManager.SharedVaultInventory shared = inventoryManager.getOrCreateInventory(
+                result.vault(), result.canDeposit(), result.canWithdraw());
+        player.openInventory(shared.getInventory());
 
         // Show permission info
         StringBuilder perms = new StringBuilder();

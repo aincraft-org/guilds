@@ -1,3 +1,26 @@
+# Database configuration
+database:
+  # Database type: sqlite, mysql, mariadb, postgresql, h2
+  type: sqlite
+
+  # File path for SQLite/H2 (relative to plugin folder)
+  file-path: "guilds.db"
+
+  # Server connection settings (for MySQL, MariaDB, PostgreSQL)
+  host: "localhost"
+  port: 3306  # 3306 for MySQL/MariaDB, 5432 for PostgreSQL
+  database: "guilds"
+  username: "minecraft"
+  password: "secure_password"
+
+  # Connection pool settings (used for MySQL, MariaDB, PostgreSQL, H2)
+  pool:
+    maximum-pool-size: 10
+    minimum-idle: 2
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+
 # Guild chunk claim settings
 claim:
   # Minimum buffer distance between different guild territories (in chunks)
@@ -73,3 +96,131 @@ progression:
   #   - maxLevel: Maximum guild level for material to appear
   #   - baseAmount: Base quantity before exponential scaling
   #   - probability: Selection weight (higher = more likely)
+
+# Guild Projects system
+# Projects are collaborative guild goals that grant temporary buffs
+projects:
+  # Number of projects in the random pool per guild
+  pool-size: 3
+
+  # Interval in seconds to check for expired buffs
+  expiration-check-interval: 60
+
+  # Project definitions
+  # Each project has: name, description, required-level, buff, quests, materials
+  definitions:
+    xp_boost_i:
+      name: "Experience Boost I"
+      description: "Increases guild XP gain by 25%"
+      required-level: 1
+      buff:
+        type: ECONOMY
+        category: XP_MULTIPLIER
+        value: 1.25
+        display-name: "25% XP Boost"
+        duration: 7d
+      quests:
+        - type: KILL_MOB
+          target: ZOMBIE
+          count: 500
+          description: "Kill 500 Zombies"
+        - type: MINE_BLOCK
+          target: COAL_ORE
+          count: 1000
+          description: "Mine 1000 Coal Ore"
+      materials:
+        IRON_INGOT: 256
+        COAL: 512
+
+    xp_boost_ii:
+      name: "Experience Boost II"
+      description: "Increases guild XP gain by 50%"
+      required-level: 25
+      buff:
+        type: ECONOMY
+        category: XP_MULTIPLIER
+        value: 1.5
+        display-name: "50% XP Boost"
+        duration: 5d
+      quests:
+        - type: KILL_MOB
+          target: SKELETON
+          count: 750
+          description: "Kill 750 Skeletons"
+        - type: CRAFT_ITEM
+          target: GOLDEN_APPLE
+          count: 64
+          description: "Craft 64 Golden Apples"
+      materials:
+        GOLD_INGOT: 256
+        DIAMOND: 64
+
+    fertile_lands:
+      name: "Fertile Lands"
+      description: "Crops grow 50% faster in territory"
+      required-level: 15
+      buff:
+        type: TERRITORY
+        category: CROP_GROWTH_SPEED
+        value: 1.5
+        display-name: "50% Faster Crops"
+        duration: 3d
+      quests:
+        - type: COLLECT_ITEM
+          target: WHEAT
+          count: 2000
+          description: "Collect 2000 Wheat"
+        - type: BREED_MOB
+          target: COW
+          count: 100
+          description: "Breed 100 Cows"
+      materials:
+        BONE_MEAL: 512
+        WHEAT_SEEDS: 256
+
+    guardian_shield:
+      name: "Guardian's Shield"
+      description: "Members take 15% less damage in territory"
+      required-level: 40
+      buff:
+        type: TERRITORY
+        category: PROTECTION_BOOST
+        value: 0.85
+        display-name: "15% Damage Reduction"
+        duration: 5d
+      quests:
+        - type: KILL_MOB
+          target: WITHER_SKELETON
+          count: 200
+          description: "Kill 200 Wither Skeletons"
+        - type: PLAYTIME_HOURS
+          target: HOURS
+          count: 50
+          description: "50 hours of guild playtime"
+      materials:
+        DIAMOND: 128
+        OBSIDIAN: 256
+        BLAZE_ROD: 64
+
+    lucky_harvest:
+      name: "Lucky Harvest"
+      description: "Increased luck on drops"
+      required-level: 30
+      buff:
+        type: ECONOMY
+        category: LUCK_BONUS
+        value: 1.2
+        display-name: "20% Luck Bonus"
+        duration: 4d
+      quests:
+        - type: FISH_ITEM
+          target: COD
+          count: 500
+          description: "Catch 500 Cod"
+        - type: MINE_BLOCK
+          target: DIAMOND_ORE
+          count: 100
+          description: "Mine 100 Diamond Ore"
+      materials:
+        EMERALD: 128
+        RABBIT_FOOT: 32

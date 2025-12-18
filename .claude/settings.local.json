@@ -16,7 +16,10 @@
       "Bash(unzip:*)",
       "Bash(./gradlew compileTestJava:*)",
       "mcp__claude-context__index_codebase",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "WebFetch(domain:triumphteam.dev)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:search.maven.org)"
     ],
     "deny": [],
     "ask": []

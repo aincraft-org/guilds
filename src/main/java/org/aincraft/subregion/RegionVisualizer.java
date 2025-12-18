@@ -2,12 +2,12 @@ package org.aincraft.subregion;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import org.aincraft.GuildsPlugin;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.plugin.Plugin;
 
 import java.util.Map;
 import java.util.UUID;
@@ -22,11 +22,11 @@ public class RegionVisualizer {
     private static final int VISUALIZATION_DURATION_SECONDS = 10;
     private static final int PARTICLE_DENSITY = 2; // Particles per block
 
-    private final Plugin plugin;
+    private final GuildsPlugin plugin;
     private final Map<UUID, ActiveVisualization> activeVisualizations = new ConcurrentHashMap<>();
 
     @Inject
-    public RegionVisualizer(Plugin plugin) {
+    public RegionVisualizer(GuildsPlugin plugin) {
         this.plugin = plugin;
     }
 
@@ -153,7 +153,7 @@ public class RegionVisualizer {
         double centerZ = (min.getZ() + max.getZ()) / 2.0;
 
         Location center = new Location(min.getWorld(), centerX, centerY, centerZ);
-        player.spawnParticle(Particle.VILLAGER_HAPPY, center, 5, 0.3, 0.3, 0.3, 0);
+        player.spawnParticle(Particle.HAPPY_VILLAGER, center, 5, 0.3, 0.3, 0.3, 0);
     }
 
     /**

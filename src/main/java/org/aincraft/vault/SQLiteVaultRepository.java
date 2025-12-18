@@ -235,71 +235,6 @@ public class SQLiteVaultRepository implements VaultRepository {
     }
 
     @Override
-    public ItemStack getSlot(String vaultId, int slot) {
-        Objects.requireNonNull(vaultId, "Vault ID cannot be null");
-        if (slot < 0 || slot >= Vault.STORAGE_SIZE) {
-            throw new IllegalArgumentException("Invalid slot: " + slot);
-        }
-
-        ItemStack[] contents = getFreshContents(vaultId);
-        return contents != null ? contents[slot] : null;
-    }
-
-    @Override
-    public boolean compareAndSetSlot(String vaultId, int slot, ItemStack expected, ItemStack newItem) {
-        Objects.requireNonNull(vaultId, "Vault ID cannot be null");
-        if (slot < 0 || slot >= Vault.STORAGE_SIZE) {
-            throw new IllegalArgumentException("Invalid slot: " + slot);
-        }
-
-        // Use a transaction to ensure atomicity
-        String selectSQL = "SELECT storage_data FROM guild_vaults WHERE id = ?";
-        String updateSQL = "UPDATE guild_vaults SET storage_data = ? WHERE id = ?";
-
-        try (Connection conn = DriverManager.getConnection(connectionString)) {
-            conn.setAutoCommit(false);
-            try {
-                // Read current contents
-                ItemStack[] contents;
-                try (PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
-                    pstmt.setString(1, vaultId);
-                    ResultSet rs = pstmt.executeQuery();
-                    if (!rs.next()) {
-                        conn.rollback();
-                        return false;
-                    }
-                    contents = deserializeContents(rs.getString("storage_data"));
-                }
-
-                // Check if slot matches expected state
-                ItemStack current = contents[slot];
-                if (!itemStacksEqual(current, expected)) {
-                    conn.rollback();
-                    return false;
-                }
-
-                // Update slot
-                contents[slot] = newItem;
-
-                // Write back
-                try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
-                    pstmt.setString(1, serializeContents(contents));
-                    pstmt.setString(2, vaultId);
-                    pstmt.executeUpdate();
-                }
-
-                conn.commit();
-                return true;
-            } catch (SQLException e) {
-                conn.rollback();
-                throw e;
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to compare and set slot", e);
-        }
-    }
-
-    @Override
     public ItemStack[] getFreshContents(String vaultId) {
         Objects.requireNonNull(vaultId, "Vault ID cannot be null");
 
@@ -318,12 +253,5 @@ public class SQLiteVaultRepository implements VaultRepository {
         }
 
         return null;
-    }
-
-    private boolean itemStacksEqual(ItemStack a, ItemStack b) {
-        if (a == null && b == null) return true;
-        if (a == null || b == null) return false;
-        if (a.getType().isAir() && b.getType().isAir()) return true;
-        return a.isSimilar(b) && a.getAmount() == b.getAmount();
     }
 }

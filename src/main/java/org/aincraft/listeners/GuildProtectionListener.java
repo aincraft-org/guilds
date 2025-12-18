@@ -28,6 +28,7 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 
 /**
@@ -193,6 +194,40 @@ public class GuildProtectionListener implements Listener {
             // Check if explosions are disabled for this guild
             return !owner.isExplosionsAllowed();
         });
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        // Only check for explosive entity damage (TNT, Creeper, Wither, etc.)
+        if (!isExplosiveDamage(event.getDamager())) {
+            return;
+        }
+
+        // Check if damaged entity is in a guild-claimed chunk
+        ChunkKey chunk = ChunkKey.from(event.getEntity().getLocation().getChunk());
+        Guild owner = guildService.getChunkOwner(chunk);
+
+        // Not claimed - allow
+        if (owner == null) {
+            return;
+        }
+
+        // Cancel damage if explosions are disabled for this guild
+        if (!owner.isExplosionsAllowed()) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Checks if the damaging entity is an explosive type.
+     */
+    private boolean isExplosiveDamage(org.bukkit.entity.Entity damager) {
+        return damager instanceof org.bukkit.entity.TNTPrimed
+                || damager instanceof org.bukkit.entity.Creeper
+                || damager instanceof org.bukkit.entity.WitherSkull
+                || damager instanceof org.bukkit.entity.Fireball
+                || damager instanceof org.bukkit.entity.SmallFireball
+                || damager instanceof org.bukkit.entity.LargeFireball;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

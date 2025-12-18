@@ -338,8 +338,8 @@ public class RegionComponent implements GuildCommand {
                     .append(Component.text(region.getVolume() + " blocks", NamedTextColor.YELLOW))
                     .append(Component.text("\nPosition: ", NamedTextColor.GRAY))
                     .append(Component.text(String.format("(%d, %d, %d) to (%d, %d, %d)",
-                            region.getMin().getBlockX(), region.getMin().getBlockY(), region.getMin().getBlockZ(),
-                            region.getMax().getBlockX(), region.getMax().getBlockY(), region.getMax().getBlockZ()),
+                            region.getMinX(), region.getMinY(), region.getMinZ(),
+                            region.getMaxX(), region.getMaxY(), region.getMaxZ()),
                             NamedTextColor.YELLOW))
                     .build();
 

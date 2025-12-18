@@ -195,8 +195,6 @@ public class InfoComponent implements GuildCommand {
         // Region limits
         displayRegionLimits(player, guild);
 
-        // Footer
-        player.sendMessage(MessageFormatter.deserialize("<dark_gray>o<gold>0<yellow>o<gold>._____________________________.<yellow>o<gold>0<dark_gray>o"));
     }
 
 

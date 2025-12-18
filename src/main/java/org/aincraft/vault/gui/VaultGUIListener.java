@@ -3,7 +3,6 @@ package org.aincraft.vault.gui;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.aincraft.commands.MessageFormatter;
-import org.aincraft.vault.VaultRepository;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransaction;
 import org.bukkit.Material;
@@ -20,23 +19,22 @@ import org.bukkit.inventory.ItemStack;
 
 /**
  * Handles vault GUI interactions with permission checks.
- * Uses transactional slot operations to prevent duplication exploits
- * when multiple players view the vault simultaneously.
+ * Uses shared inventory instances to prevent duplication exploits.
  */
 @Singleton
 public class VaultGUIListener implements Listener {
     private final VaultService vaultService;
-    private final VaultRepository vaultRepository;
+    private final SharedVaultInventoryManager inventoryManager;
 
     @Inject
-    public VaultGUIListener(VaultService vaultService, VaultRepository vaultRepository) {
+    public VaultGUIListener(VaultService vaultService, SharedVaultInventoryManager inventoryManager) {
         this.vaultService = vaultService;
-        this.vaultRepository = vaultRepository;
+        this.inventoryManager = inventoryManager;
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof VaultGUI vaultGUI)) {
+        if (!(event.getInventory().getHolder() instanceof SharedVaultInventoryManager.SharedVaultInventory shared)) {
             return;
         }
 
@@ -45,187 +43,87 @@ public class VaultGUIListener implements Listener {
         }
 
         Inventory clickedInventory = event.getClickedInventory();
-
-        // Determine if this is a deposit or withdraw action
-        boolean isVaultInventory = clickedInventory != null && clickedInventory.getHolder() instanceof VaultGUI;
+        boolean isVaultInventory = clickedInventory != null
+                && clickedInventory.getHolder() instanceof SharedVaultInventoryManager.SharedVaultInventory;
         boolean isPlayerInventory = clickedInventory == player.getInventory();
-
-        String vaultId = vaultGUI.getVault().getId();
-        int slot = event.getSlot();
 
         switch (event.getAction()) {
             case PICKUP_ALL, PICKUP_HALF, PICKUP_ONE, PICKUP_SOME -> {
                 // Taking from vault = withdraw
-                if (isVaultInventory && !vaultGUI.canWithdraw()) {
+                if (isVaultInventory && !shared.canWithdraw()) {
                     event.setCancelled(true);
                     player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                             "You don't have permission to withdraw from the vault"));
                     return;
                 }
                 if (isVaultInventory) {
-                    // Validate against DB state before allowing
-                    ItemStack currentItem = event.getCurrentItem();
-                    ItemStack dbItem = vaultRepository.getSlot(vaultId, slot);
-
-                    if (!itemStacksEqual(currentItem, dbItem)) {
-                        // Slot state changed - refresh and cancel
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
-                    // Calculate what will remain after pickup
-                    ItemStack remaining = calculateRemainingAfterPickup(event, currentItem);
-
-                    // Atomically update DB
-                    if (!vaultRepository.compareAndSetSlot(vaultId, slot, dbItem, remaining)) {
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
-                    logWithdraw(vaultGUI, player, currentItem, event);
+                    logWithdraw(shared, player, event.getCurrentItem(), event);
                 }
             }
             case PLACE_ALL, PLACE_ONE, PLACE_SOME -> {
                 // Placing in vault = deposit
-                // Deposits don't need strict CAS - they don't cause duplication
-                // Only withdrawals can dupe items, so we just permission check here
-                if (isVaultInventory && !vaultGUI.canDeposit()) {
+                if (isVaultInventory && !shared.canDeposit()) {
                     event.setCancelled(true);
                     player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                             "You don't have permission to deposit into the vault"));
                     return;
                 }
                 if (isVaultInventory) {
-                    logDeposit(vaultGUI, player, event.getCursor());
-                    // Sync to DB after event completes
-                    scheduleSync(player, vaultGUI);
+                    logDeposit(shared, player, event.getCursor());
                 }
             }
             case MOVE_TO_OTHER_INVENTORY -> {
                 // Shift-click: direction depends on which inventory was clicked
                 if (isPlayerInventory) {
                     // Shift-click from player inventory = deposit
-                    // Deposits don't need strict CAS - they don't cause duplication
-                    if (!vaultGUI.canDeposit()) {
+                    if (!shared.canDeposit()) {
                         event.setCancelled(true);
                         player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                                 "You don't have permission to deposit into the vault"));
                         return;
                     }
-                    ItemStack movingItem = event.getCurrentItem();
-                    if (movingItem != null && !movingItem.getType().isAir()) {
-                        logDeposit(vaultGUI, player, movingItem);
-                        scheduleSync(player, vaultGUI);
-                    }
+                    logDeposit(shared, player, event.getCurrentItem());
                 } else if (isVaultInventory) {
                     // Shift-click from vault = withdraw
-                    if (!vaultGUI.canWithdraw()) {
+                    if (!shared.canWithdraw()) {
                         event.setCancelled(true);
                         player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                                 "You don't have permission to withdraw from the vault"));
                         return;
                     }
-
-                    ItemStack currentItem = event.getCurrentItem();
-                    ItemStack dbItem = vaultRepository.getSlot(vaultId, slot);
-
-                    if (!itemStacksEqual(currentItem, dbItem)) {
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
-                    // Shift-click removes entire stack
-                    if (!vaultRepository.compareAndSetSlot(vaultId, slot, dbItem, null)) {
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
-                    logWithdraw(vaultGUI, player, currentItem, event);
+                    logWithdraw(shared, player, event.getCurrentItem(), event);
                 }
             }
             case SWAP_WITH_CURSOR -> {
                 if (isVaultInventory) {
                     // Swapping requires both permissions
-                    if (!vaultGUI.canDeposit() || !vaultGUI.canWithdraw()) {
+                    if (!shared.canDeposit() || !shared.canWithdraw()) {
                         event.setCancelled(true);
                         player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                                 "You need both deposit and withdraw permissions to swap items"));
                         return;
                     }
-
-                    // Need CAS for withdraw portion to prevent duping
-                    ItemStack currentItem = event.getCurrentItem();
-                    ItemStack dbItem = vaultRepository.getSlot(vaultId, slot);
-
-                    if (!itemStacksEqual(currentItem, dbItem)) {
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
-                    ItemStack cursorItem = event.getCursor();
-                    if (!vaultRepository.compareAndSetSlot(vaultId, slot, dbItem, cloneItem(cursorItem))) {
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
-                    logDeposit(vaultGUI, player, cursorItem);
-                    logWithdraw(vaultGUI, player, currentItem, event);
+                    logDeposit(shared, player, event.getCursor());
+                    logWithdraw(shared, player, event.getCurrentItem(), event);
                 }
             }
             case HOTBAR_SWAP -> {
                 if (isVaultInventory) {
                     // Hotbar swap also requires both permissions
-                    if (!vaultGUI.canDeposit() || !vaultGUI.canWithdraw()) {
+                    if (!shared.canDeposit() || !shared.canWithdraw()) {
                         event.setCancelled(true);
                         player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                                 "You need both deposit and withdraw permissions to swap items"));
                         return;
                     }
-
-                    ItemStack currentItem = event.getCurrentItem();
-                    ItemStack dbItem = vaultRepository.getSlot(vaultId, slot);
-
-                    if (!itemStacksEqual(currentItem, dbItem)) {
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
-                    ItemStack hotbarItem = player.getInventory().getItem(event.getHotbarButton());
-                    if (!vaultRepository.compareAndSetSlot(vaultId, slot, dbItem, cloneItem(hotbarItem))) {
-                        event.setCancelled(true);
-                        refreshInventory(player, vaultGUI);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                                "Vault contents changed, refreshing..."));
-                        return;
-                    }
-
                     // Log both transactions
+                    ItemStack currentItem = event.getCurrentItem();
+                    ItemStack hotbarItem = player.getInventory().getItem(event.getHotbarButton());
                     if (currentItem != null && !currentItem.getType().isAir()) {
-                        logWithdraw(vaultGUI, player, currentItem, event);
+                        logWithdraw(shared, player, currentItem, event);
                     }
                     if (hotbarItem != null && !hotbarItem.getType().isAir()) {
-                        logDeposit(vaultGUI, player, hotbarItem);
+                        logDeposit(shared, player, hotbarItem);
                     }
                 }
             }
@@ -237,7 +135,7 @@ public class VaultGUIListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (!(event.getInventory().getHolder() instanceof VaultGUI vaultGUI)) {
+        if (!(event.getInventory().getHolder() instanceof SharedVaultInventoryManager.SharedVaultInventory shared)) {
             return;
         }
 
@@ -247,32 +145,31 @@ public class VaultGUIListener implements Listener {
 
         // Check if any slots are in the vault inventory
         boolean affectsVault = event.getRawSlots().stream()
-                .anyMatch(slot -> slot < vaultGUI.getInventory().getSize());
+                .anyMatch(slot -> slot < shared.getInventory().getSize());
 
-        if (affectsVault && !vaultGUI.canDeposit()) {
+        if (affectsVault && !shared.canDeposit()) {
             event.setCancelled(true);
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                     "You don't have permission to deposit into the vault"));
         } else if (affectsVault) {
-            // Drag deposits don't need CAS - they don't cause duplication
+            // Log deposit for dragged items
             ItemStack newItems = event.getOldCursor().clone();
             int remaining = event.getCursor() != null ? event.getCursor().getAmount() : 0;
             newItems.setAmount(newItems.getAmount() - remaining);
             if (newItems.getAmount() > 0) {
-                logDeposit(vaultGUI, player, newItems);
+                logDeposit(shared, player, newItems);
             }
-            scheduleSync(player, vaultGUI);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent event) {
-        if (!(event.getInventory().getHolder() instanceof VaultGUI vaultGUI)) {
+        if (!(event.getInventory().getHolder() instanceof SharedVaultInventoryManager.SharedVaultInventory shared)) {
             return;
         }
 
-        // Final sync on close to catch any edge cases
-        syncInventoryToDb(vaultGUI);
+        // Notify manager that a player closed - it will save if no viewers remain
+        inventoryManager.onPlayerClose(shared.getVault().getId());
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -305,147 +202,19 @@ public class VaultGUIListener implements Listener {
             return;
         }
 
-        // Open the vault GUI with fresh DB contents
-        VaultGUI gui = new VaultGUI(result.vault(), result.canDeposit(), result.canWithdraw());
-        // Ensure we have latest DB state
-        ItemStack[] freshContents = vaultRepository.getFreshContents(result.vault().getId());
-        if (freshContents != null) {
-            gui.getInventory().setContents(freshContents);
-        }
-        event.getPlayer().openInventory(gui.getInventory());
+        // Get or create shared inventory for this vault
+        SharedVaultInventoryManager.SharedVaultInventory shared = inventoryManager.getOrCreateInventory(
+                result.vault(), result.canDeposit(), result.canWithdraw());
+
+        event.getPlayer().openInventory(shared.getInventory());
     }
 
-    /**
-     * Refreshes player's view with current DB state.
-     */
-    private void refreshInventory(Player player, VaultGUI gui) {
-        ItemStack[] freshContents = vaultRepository.getFreshContents(gui.getVault().getId());
-        if (freshContents != null) {
-            gui.getInventory().setContents(freshContents);
-            player.updateInventory();
-        }
-    }
-
-    /**
-     * Syncs current inventory state to DB.
-     */
-    private void syncInventoryToDb(VaultGUI gui) {
-        vaultService.updateVaultContents(
-                gui.getVault().getId(),
-                gui.getInventory().getContents()
-        );
-    }
-
-    /**
-     * Schedules a sync to DB after the current tick completes.
-     */
-    private void scheduleSync(Player player, VaultGUI gui) {
-        player.getServer().getScheduler().runTask(
-                player.getServer().getPluginManager().getPlugin("Guilds"),
-                () -> syncInventoryToDb(gui)
-        );
-    }
-
-    /**
-     * Calculates what remains in slot after a pickup action.
-     */
-    private ItemStack calculateRemainingAfterPickup(InventoryClickEvent event, ItemStack current) {
-        if (current == null || current.getType().isAir()) {
-            return null;
-        }
-
-        return switch (event.getAction()) {
-            case PICKUP_ALL -> null;
-            case PICKUP_HALF -> {
-                int remaining = current.getAmount() / 2;
-                if (remaining <= 0) yield null;
-                ItemStack result = current.clone();
-                result.setAmount(remaining);
-                yield result;
-            }
-            case PICKUP_ONE -> {
-                int remaining = current.getAmount() - 1;
-                if (remaining <= 0) yield null;
-                ItemStack result = current.clone();
-                result.setAmount(remaining);
-                yield result;
-            }
-            case PICKUP_SOME -> {
-                // PICKUP_SOME happens when cursor has items and can't pick all
-                // The amount picked is limited by max stack size
-                int maxStack = current.getMaxStackSize();
-                int cursorAmount = event.getCursor() != null ? event.getCursor().getAmount() : 0;
-                int canPick = maxStack - cursorAmount;
-                int remaining = current.getAmount() - canPick;
-                if (remaining <= 0) yield null;
-                ItemStack result = current.clone();
-                result.setAmount(remaining);
-                yield result;
-            }
-            default -> current;
-        };
-    }
-
-    /**
-     * Calculates slot contents after a place action.
-     */
-    private ItemStack calculateAfterPlace(InventoryClickEvent event, ItemStack current) {
-        ItemStack cursor = event.getCursor();
-        if (cursor == null || cursor.getType().isAir()) {
-            return current;
-        }
-
-        return switch (event.getAction()) {
-            case PLACE_ALL -> {
-                if (current == null || current.getType().isAir()) {
-                    yield cursor.clone();
-                }
-                ItemStack result = current.clone();
-                result.setAmount(current.getAmount() + cursor.getAmount());
-                yield result;
-            }
-            case PLACE_ONE -> {
-                if (current == null || current.getType().isAir()) {
-                    ItemStack result = cursor.clone();
-                    result.setAmount(1);
-                    yield result;
-                }
-                ItemStack result = current.clone();
-                result.setAmount(current.getAmount() + 1);
-                yield result;
-            }
-            case PLACE_SOME -> {
-                // PLACE_SOME happens when placing would exceed max stack
-                int maxStack = cursor.getMaxStackSize();
-                int currentAmount = current != null ? current.getAmount() : 0;
-                ItemStack result = cursor.clone();
-                result.setAmount(maxStack);
-                yield result;
-            }
-            default -> current;
-        };
-    }
-
-    private ItemStack cloneItem(ItemStack item) {
-        if (item == null || item.getType().isAir()) {
-            return null;
-        }
-        return item.clone();
-    }
-
-    private boolean itemStacksEqual(ItemStack a, ItemStack b) {
-        if (a == null && b == null) return true;
-        if (a == null || b == null) return false;
-        if (a.getType().isAir() && b.getType().isAir()) return true;
-        return a.isSimilar(b) && a.getAmount() == b.getAmount();
-    }
-
-    private void logDeposit(VaultGUI gui, Player player, ItemStack item) {
+    private void logDeposit(SharedVaultInventoryManager.SharedVaultInventory shared, Player player, ItemStack item) {
         if (item == null || item.getType().isAir()) {
             return;
         }
         VaultTransaction transaction = new VaultTransaction(
-                gui.getVault().getId(),
+                shared.getVault().getId(),
                 player.getUniqueId(),
                 VaultTransaction.TransactionType.DEPOSIT,
                 item.getType(),
@@ -454,7 +223,7 @@ public class VaultGUIListener implements Listener {
         vaultService.logTransaction(transaction);
     }
 
-    private void logWithdraw(VaultGUI gui, Player player, ItemStack item, InventoryClickEvent event) {
+    private void logWithdraw(SharedVaultInventoryManager.SharedVaultInventory shared, Player player, ItemStack item, InventoryClickEvent event) {
         if (item == null || item.getType().isAir()) {
             return;
         }
@@ -473,7 +242,7 @@ public class VaultGUIListener implements Listener {
         };
 
         VaultTransaction transaction = new VaultTransaction(
-                gui.getVault().getId(),
+                shared.getVault().getId(),
                 player.getUniqueId(),
                 VaultTransaction.TransactionType.WITHDRAW,
                 item.getType(),
