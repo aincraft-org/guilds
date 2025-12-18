@@ -2,9 +2,10 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -13,11 +14,13 @@ import org.bukkit.entity.Player;
  * Component for kicking a member from a guild.
  */
 public class KickComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
 
     @Inject
-    public KickComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public KickComponent(GuildMemberService memberService, PermissionService permissionService) {
+        this.memberService = memberService;
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -52,7 +55,7 @@ public class KickComponent implements GuildCommand {
             return false;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
@@ -85,12 +88,12 @@ public class KickComponent implements GuildCommand {
 
         // Check if target has ADMIN permission (only owner can kick admins)
         if (!guild.isOwner(player.getUniqueId()) &&
-            guildService.hasPermission(guild.getId(), target.getUniqueId(), org.aincraft.GuildPermission.ADMIN)) {
+            permissionService.hasPermission(guild.getId(), target.getUniqueId(), org.aincraft.GuildPermission.ADMIN)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Only the guild owner can kick administrators"));
             return true;
         }
 
-        if (guildService.kickMember(guild.getId(), player.getUniqueId(), target.getUniqueId())) {
+        if (memberService.kickMember(guild.getId(), player.getUniqueId(), target.getUniqueId())) {
             player.sendMessage(MessageFormatter.deserialize("<green>✓ <gold>" + target.getName() + "</gold> was kicked from the guild</green>"));
             return true;
         }

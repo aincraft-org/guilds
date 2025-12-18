@@ -2,10 +2,10 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.LeaveResult;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -13,11 +13,11 @@ import org.bukkit.entity.Player;
  * Component for leaving a guild.
  */
 public class LeaveComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
 
     @Inject
-    public LeaveComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public LeaveComponent(GuildMemberService memberService) {
+        this.memberService = memberService;
     }
 
     @Override
@@ -47,14 +47,14 @@ public class LeaveComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
             return true;
         }
 
-        LeaveResult result = guildService.leaveGuild(guild.getId(), player.getUniqueId());
+        LeaveResult result = memberService.leaveGuild(guild.getId(), player.getUniqueId());
 
         if (result.isSuccess()) {
             player.sendMessage(MessageFormatter.deserialize("<green>✓ You left '<gold>" + guild.getName() + "</gold>'</green>"));

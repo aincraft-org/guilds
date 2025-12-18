@@ -2,9 +2,9 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -12,11 +12,11 @@ import org.bukkit.entity.Player;
  * Component for creating a new guild.
  */
 public class CreateComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
 
     @Inject
-    public CreateComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public CreateComponent(GuildLifecycleService lifecycleService) {
+        this.lifecycleService = lifecycleService;
     }
 
     @Override
@@ -54,7 +54,7 @@ public class CreateComponent implements GuildCommand {
         String name = args[1];
         String description = args.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)) : null;
 
-        Guild guild = guildService.createGuild(name, description, player.getUniqueId());
+        Guild guild = lifecycleService.createGuild(name, description, player.getUniqueId());
 
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Failed to create guild. Name may already exist or you're already in a guild"));

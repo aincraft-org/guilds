@@ -2,9 +2,10 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -12,11 +13,13 @@ import org.bukkit.entity.Player;
  * Component for joining a guild.
  */
 public class JoinComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final GuildMemberService memberService;
 
     @Inject
-    public JoinComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public JoinComponent(GuildLifecycleService lifecycleService, GuildMemberService memberService) {
+        this.lifecycleService = lifecycleService;
+        this.memberService = memberService;
     }
 
     @Override
@@ -52,7 +55,7 @@ public class JoinComponent implements GuildCommand {
         }
 
         String guildName = args[1];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + guildName + "' not found"));
@@ -68,7 +71,7 @@ public class JoinComponent implements GuildCommand {
             return true;
         }
 
-        if (guildService.joinGuild(guild.getId(), player.getUniqueId())) {
+        if (memberService.joinGuild(guild.getId(), player.getUniqueId())) {
             player.sendMessage(MessageFormatter.deserialize("<green>✓ You joined '<gold>" + guild.getName() + "</gold>'!</green>"));
             return true;
         }

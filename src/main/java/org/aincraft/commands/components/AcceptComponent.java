@@ -38,9 +38,16 @@ public class AcceptComponent implements GuildCommand {
             return true;
         }
 
+        // Check for usage subcommand
+        if (args.length >= 2 && args[1].equalsIgnoreCase("usage")) {
+            showUsage(player);
+            return true;
+        }
+
         // Validate args
         if (args.length < 2) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            player.sendMessage(MessageFormatter.format("<gray>Use <gold>/g accept usage</gold> for detailed help</gray>"));
             return true;
         }
 
@@ -83,6 +90,28 @@ public class AcceptComponent implements GuildCommand {
         return true;
     }
 
+    private void showUsage(Player player) {
+        player.sendMessage(MessageFormatter.format("<green><bold>Accept Command Usage</bold></green>"));
+        player.sendMessage(MessageFormatter.format("<gray>─────────────────────────</gray>"));
+        player.sendMessage(MessageFormatter.format("<gold>/g accept <guild></gold> <gray>- Accept an invite to join a guild</gray>"));
+        player.sendMessage(MessageFormatter.format("<gold>/g accept usage</gold> <gray>- Show this help message</gray>"));
+        player.sendMessage(MessageFormatter.format(""));
+        player.sendMessage(MessageFormatter.format("<green><bold>Examples:</bold></green>"));
+        player.sendMessage(MessageFormatter.format("<gray>• /g accept Warriors</gray>"));
+        player.sendMessage(MessageFormatter.format("<gray>• /g accept \"Guild Name\"</gray>"));
+        player.sendMessage(MessageFormatter.format(""));
+        player.sendMessage(MessageFormatter.format("<green><bold>Requirements:</bold></green>"));
+        player.sendMessage(MessageFormatter.format("<gray>• You must have a pending invite to the guild</gray>"));
+        player.sendMessage(MessageFormatter.format("<gray>• You cannot already be in a guild</gray>"));
+        player.sendMessage(MessageFormatter.format("<gray>• The guild must not be full</gray>"));
+        player.sendMessage(MessageFormatter.format("<gray>• The invite must not have expired</gray>"));
+        player.sendMessage(MessageFormatter.format(""));
+        player.sendMessage(MessageFormatter.format("<green><bold>Related Commands:</bold></green>"));
+        player.sendMessage(MessageFormatter.format("<gray>• /g invites - View your pending invites</gray>"));
+        player.sendMessage(MessageFormatter.format("<gray>• /g decline <guild> - Decline a guild invite</gray>"));
+        player.sendMessage(MessageFormatter.format("<gray>• /g leave - Leave your current guild</gray>"));
+    }
+
     @Override
     public String getName() {
         return "accept";
@@ -95,6 +124,6 @@ public class AcceptComponent implements GuildCommand {
 
     @Override
     public String getUsage() {
-        return "/g accept <guild>";
+        return "/g accept <guild|usage>";
     }
 }
