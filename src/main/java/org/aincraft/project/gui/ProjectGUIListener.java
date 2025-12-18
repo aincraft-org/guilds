@@ -135,7 +135,7 @@ public class ProjectGUIListener implements Listener {
 
                 if (result.success()) {
                     player.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
-                            "Project completed! Buff activated: " + result.buff().category().name()));
+                            "Project completed! Buff activated: " + result.buff().categoryId()));
                     player.closeInventory();
                 } else {
                     player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));

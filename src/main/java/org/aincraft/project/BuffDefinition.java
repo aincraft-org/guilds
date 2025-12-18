@@ -1,7 +1,7 @@
 package org.aincraft.project;
 
 public record BuffDefinition(
-        BuffCategory category,
+        String categoryId,
         double value,
         String displayName
 ) {

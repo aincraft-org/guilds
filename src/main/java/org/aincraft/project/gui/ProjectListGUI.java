@@ -114,7 +114,7 @@ public class ProjectListGUI implements InventoryHolder {
         if (activeBuff != null && !activeBuff.isExpired()) {
             lore.add(Component.empty());
             lore.add(Component.text("Active Buff: ").color(NamedTextColor.LIGHT_PURPLE)
-                    .append(Component.text(activeBuff.category().name()).color(NamedTextColor.WHITE)));
+                    .append(Component.text(activeBuff.categoryId()).color(NamedTextColor.WHITE)));
             lore.add(Component.text("Time Left: " + formatDuration(activeBuff.getRemainingMillis())).color(NamedTextColor.GRAY));
         }
 
@@ -175,7 +175,7 @@ public class ProjectListGUI implements InventoryHolder {
         meta.displayName(Component.text("Active Buff").color(NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.BOLD, true));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(buff.category().name()).color(NamedTextColor.WHITE));
+        lore.add(Component.text(buff.categoryId()).color(NamedTextColor.WHITE));
         lore.add(Component.text("Value: " + buff.value()).color(NamedTextColor.AQUA));
         lore.add(Component.text("Time Left: " + formatDuration(buff.getRemainingMillis())).color(NamedTextColor.GRAY));
 

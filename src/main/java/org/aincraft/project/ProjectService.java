@@ -319,7 +319,7 @@ public class ProjectService {
                 UUID.randomUUID().toString(),
                 guildId,
                 project.getProjectDefinitionId(),
-                definition.buff().category(),
+                definition.buff().categoryId(),
                 definition.buff().value(),
                 now,
                 now + definition.buffDurationMillis()

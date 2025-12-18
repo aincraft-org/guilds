@@ -145,7 +145,7 @@ public class ProjectDetailsGUI implements InventoryHolder {
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.text(definition.buff().displayName()).color(NamedTextColor.WHITE));
-        lore.add(Component.text("Category: " + definition.buff().category().name()).color(NamedTextColor.GRAY));
+        lore.add(Component.text("Category: " + definition.buff().categoryId()).color(NamedTextColor.GRAY));
         lore.add(Component.text("Value: " + definition.buff().value()).color(NamedTextColor.AQUA));
         lore.add(Component.text("Duration: " + formatDuration(definition.buffDurationMillis())).color(NamedTextColor.YELLOW));
 

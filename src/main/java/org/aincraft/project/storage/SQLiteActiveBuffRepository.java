@@ -3,7 +3,6 @@ package org.aincraft.project.storage;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.aincraft.project.ActiveBuff;
-import org.aincraft.project.BuffCategory;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -71,7 +70,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
             pstmt.setString(1, buff.id());
             pstmt.setString(2, buff.guildId());
             pstmt.setString(3, buff.projectDefinitionId());
-            pstmt.setString(4, buff.category().name());
+            pstmt.setString(4, buff.categoryId());
             pstmt.setDouble(5, buff.value());
             pstmt.setLong(6, buff.activatedAt());
             pstmt.setLong(7, buff.expiresAt());
@@ -201,7 +200,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
                 rs.getString("id"),
                 rs.getString("guild_id"),
                 rs.getString("project_definition_id"),
-                BuffCategory.valueOf(rs.getString("buff_category")),
+                rs.getString("buff_category"),
                 rs.getDouble("buff_value"),
                 rs.getLong("activated_at"),
                 rs.getLong("expires_at")

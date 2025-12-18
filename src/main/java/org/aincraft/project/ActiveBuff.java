@@ -4,7 +4,7 @@ public record ActiveBuff(
         String id,
         String guildId,
         String projectDefinitionId,
-        BuffCategory category,
+        String categoryId,
         double value,
         long activatedAt,
         long expiresAt

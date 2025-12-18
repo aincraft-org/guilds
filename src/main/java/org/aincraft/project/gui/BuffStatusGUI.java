@@ -87,7 +87,7 @@ public class BuffStatusGUI implements InventoryHolder {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
 
-        meta.displayName(Component.text(activeBuff.category().name())
+        meta.displayName(Component.text(activeBuff.categoryId())
                 .color(NamedTextColor.LIGHT_PURPLE)
                 .decoration(TextDecoration.BOLD, true));
 
@@ -101,7 +101,7 @@ public class BuffStatusGUI implements InventoryHolder {
         lore.add(Component.empty());
 
         // Buff value
-        String valueDisplay = formatBuffValue(activeBuff.category().name(), activeBuff.value());
+        String valueDisplay = formatBuffValue(activeBuff.categoryId(), activeBuff.value());
         lore.add(Component.text("Effect: " + valueDisplay).color(NamedTextColor.AQUA));
 
         // Time remaining
@@ -120,12 +120,13 @@ public class BuffStatusGUI implements InventoryHolder {
     }
 
     private Material getBuffMaterial() {
-        return switch (activeBuff.category()) {
-            case XP_MULTIPLIER -> Material.EXPERIENCE_BOTTLE;
-            case LUCK_BONUS -> Material.RABBIT_FOOT;
-            case CROP_GROWTH_SPEED -> Material.WHEAT;
-            case MOB_SPAWN_RATE -> Material.SPAWNER;
-            case PROTECTION_BOOST -> Material.SHIELD;
+        return switch (activeBuff.categoryId()) {
+            case "XP_MULTIPLIER" -> Material.EXPERIENCE_BOTTLE;
+            case "LUCK_BONUS" -> Material.RABBIT_FOOT;
+            case "CROP_GROWTH_SPEED" -> Material.WHEAT;
+            case "MOB_SPAWN_RATE" -> Material.SPAWNER;
+            case "PROTECTION_BOOST" -> Material.SHIELD;
+            default -> Material.NETHER_STAR;
         };
     }
 

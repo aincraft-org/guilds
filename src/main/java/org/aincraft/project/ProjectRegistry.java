@@ -112,14 +112,14 @@ public class ProjectRegistry {
 
     private BuffDefinition parseBuffDefinition(ConfigurationSection section) {
         if (section == null) {
-            return new BuffDefinition(BuffCategory.XP_MULTIPLIER, 1.0, "Unknown Buff");
+            return new BuffDefinition("XP_MULTIPLIER", 1.0, "Unknown Buff");
         }
 
-        BuffCategory category = BuffCategory.valueOf(section.getString("category", "XP_MULTIPLIER").toUpperCase());
+        String categoryId = section.getString("category", "XP_MULTIPLIER").toUpperCase();
         double value = section.getDouble("value", 1.0);
-        String displayName = section.getString("display-name", category.name());
+        String displayName = section.getString("display-name", categoryId);
 
-        return new BuffDefinition(category, value, displayName);
+        return new BuffDefinition(categoryId, value, displayName);
     }
 
     private QuestRequirement parseQuestRequirement(String id, Map<String, Object> map) {
@@ -170,7 +170,7 @@ public class ProjectRegistry {
                 "Increases guild XP gain by 25%",
                 1,
                 BuffType.GLOBAL,
-                new BuffDefinition(BuffCategory.XP_MULTIPLIER, 1.25, "25% XP Boost"),
+                new BuffDefinition("XP_MULTIPLIER", 1.25, "25% XP Boost"),
                 List.of(
                         new QuestRequirement("xp1_kill_zombies", QuestType.KILL_MOB, "ZOMBIE", 500, "Kill 500 Zombies"),
                         new QuestRequirement("xp1_mine_coal", QuestType.MINE_BLOCK, "COAL_ORE", 1000, "Mine 1000 Coal Ore")
@@ -186,7 +186,7 @@ public class ProjectRegistry {
                 "Crops grow 50% faster in territory",
                 15,
                 BuffType.TERRITORY,
-                new BuffDefinition(BuffCategory.CROP_GROWTH_SPEED, 1.5, "50% Faster Crops"),
+                new BuffDefinition("CROP_GROWTH_SPEED", 1.5, "50% Faster Crops"),
                 List.of(
                         new QuestRequirement("fertile_collect_wheat", QuestType.COLLECT_ITEM, "WHEAT", 2000, "Collect 2000 Wheat"),
                         new QuestRequirement("fertile_breed_cows", QuestType.BREED_MOB, "COW", 100, "Breed 100 Cows")
@@ -202,7 +202,7 @@ public class ProjectRegistry {
                 "Members take 15% less damage in territory",
                 40,
                 BuffType.TERRITORY,
-                new BuffDefinition(BuffCategory.PROTECTION_BOOST, 0.85, "15% Damage Reduction"),
+                new BuffDefinition("PROTECTION_BOOST", 0.85, "15% Damage Reduction"),
                 List.of(
                         new QuestRequirement("shield_kill_skeletons", QuestType.KILL_MOB, "WITHER_SKELETON", 200, "Kill 200 Wither Skeletons"),
                         new QuestRequirement("shield_playtime", QuestType.PLAYTIME_HOURS, "HOURS", 50, "50 hours of guild playtime")

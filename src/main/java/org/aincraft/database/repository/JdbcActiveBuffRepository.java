@@ -13,7 +13,6 @@ import java.util.Optional;
 import org.aincraft.database.ConnectionProvider;
 import org.aincraft.database.DatabaseType;
 import org.aincraft.project.ActiveBuff;
-import org.aincraft.project.BuffCategory;
 import org.aincraft.project.storage.ActiveBuffRepository;
 
 /**
@@ -42,7 +41,7 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
             ps.setString(1, buff.id());
             ps.setString(2, buff.guildId());
             ps.setString(3, buff.projectDefinitionId());
-            ps.setString(4, buff.category().name());
+            ps.setString(4, buff.categoryId());
             ps.setDouble(5, buff.value());
             ps.setLong(6, buff.activatedAt());
             ps.setLong(7, buff.expiresAt());
@@ -186,7 +185,7 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
             rs.getString("id"),
             rs.getString("guild_id"),
             rs.getString("project_definition_id"),
-            BuffCategory.valueOf(rs.getString("buff_category")),
+            rs.getString("buff_category"),
             rs.getDouble("buff_value"),
             rs.getLong("activated_at"),
             rs.getLong("expires_at")

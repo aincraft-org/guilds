@@ -139,7 +139,7 @@ public class ProjectComponent implements GuildCommand {
 
         if (result.success()) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
-                    "Project completed! Buff activated: " + result.buff().category().name() +
+                    "Project completed! Buff activated: " + result.buff().categoryId() +
                             " for " + formatDuration(result.buff().getRemainingMillis())));
         } else {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
