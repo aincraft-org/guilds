@@ -3,10 +3,11 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import java.util.List;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -14,12 +15,15 @@ import org.bukkit.entity.Player;
  * Component for managing guild enemies.
  */
 public class EnemyComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildLifecycleService lifecycleService;
     private final RelationshipService relationshipService;
 
     @Inject
-    public EnemyComponent(GuildService guildService, RelationshipService relationshipService) {
-        this.guildService = guildService;
+    public EnemyComponent(GuildMemberService memberService, GuildLifecycleService lifecycleService,
+                         RelationshipService relationshipService) {
+        this.memberService = memberService;
+        this.lifecycleService = lifecycleService;
         this.relationshipService = relationshipService;
     }
 
@@ -50,7 +54,7 @@ public class EnemyComponent implements GuildCommand {
             return true;
         }
 
-        Guild playerGuild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
         if (playerGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You must be in a guild to manage enemies"));
             return true;
@@ -85,7 +89,7 @@ public class EnemyComponent implements GuildCommand {
         }
 
         String targetGuildName = args[2];
-        Guild targetGuild = guildService.getGuildByName(targetGuildName);
+        Guild targetGuild = lifecycleService.getGuildByName(targetGuildName);
 
         if (targetGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + targetGuildName + "' not found"));
@@ -121,7 +125,7 @@ public class EnemyComponent implements GuildCommand {
         } else {
             player.sendMessage(MessageFormatter.deserialize("<yellow>Enemies<reset>:"));
             for (String enemyId : enemies) {
-                Guild enemy = guildService.getGuildById(enemyId);
+                Guild enemy = lifecycleService.getGuildById(enemyId);
                 if (enemy != null) {
                     player.sendMessage(MessageFormatter.deserialize("  <red>⚔</red> <white>" + enemy.getName()));
                 }

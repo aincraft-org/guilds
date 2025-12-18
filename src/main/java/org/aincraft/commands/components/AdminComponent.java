@@ -3,11 +3,12 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.progression.GuildProgression;
 import org.aincraft.progression.ProgressionService;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.TerritoryService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
@@ -20,12 +21,15 @@ import java.util.UUID;
  * Requires guilds.admin permission.
  */
 public class AdminComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final TerritoryService territoryService;
     private final ProgressionService progressionService;
 
     @Inject
-    public AdminComponent(GuildService guildService, ProgressionService progressionService) {
-        this.guildService = guildService;
+    public AdminComponent(GuildLifecycleService lifecycleService, TerritoryService territoryService,
+                         ProgressionService progressionService) {
+        this.lifecycleService = lifecycleService;
+        this.territoryService = territoryService;
         this.progressionService = progressionService;
     }
 
@@ -83,14 +87,14 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[2];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
             return true;
         }
 
-        boolean deleted = guildService.deleteGuild(guild.getId(), guild.getOwnerId());
+        boolean deleted = lifecycleService.deleteGuild(guild.getId(), guild.getOwnerId());
         if (deleted) {
             sender.sendMessage(MessageFormatter.format("<green>✓ Guild '<gold>%s</gold>' has been disbanded</green>", guild.getName()));
         } else {
@@ -112,7 +116,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[2];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -122,7 +126,7 @@ public class AdminComponent implements GuildCommand {
         ChunkKey chunk = ChunkKey.from(player.getLocation().getChunk());
 
         // Admin claim - bypass all checks
-        guildService.adminClaimChunk(guild.getId(), chunk);
+        territoryService.adminClaimChunk(guild.getId(), chunk);
 
         player.sendMessage(MessageFormatter.format("<green>✓ Claimed chunk <gold>%d, %d</gold> for guild '<gold>%s</gold>'</green>",
             chunk.x(), chunk.z(), guild.getName()));
@@ -137,14 +141,14 @@ public class AdminComponent implements GuildCommand {
         }
 
         ChunkKey chunk = ChunkKey.from(player.getLocation().getChunk());
-        Guild owner = guildService.getChunkOwner(chunk);
+        Guild owner = territoryService.getChunkOwner(chunk);
 
         if (owner == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "This chunk is not claimed"));
             return true;
         }
 
-        guildService.unclaimChunk(owner.getId(), player.getUniqueId(), chunk);
+        territoryService.unclaimChunk(owner.getId(), player.getUniqueId(), chunk);
 
         player.sendMessage(MessageFormatter.format("<green>✓ Removed chunk <gold>%d, %d</gold> from guild '<gold>%s</gold>'</green>",
             chunk.x(), chunk.z(), owner.getName()));
@@ -161,7 +165,7 @@ public class AdminComponent implements GuildCommand {
         String guildName = args[2];
         String playerName = args[3];
 
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
             return true;
@@ -176,7 +180,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         guild.transferOwnership(targetId);
-        guildService.save(guild);
+        lifecycleService.save(guild);
 
         sender.sendMessage(MessageFormatter.format("<green>✓ Transferred ownership of '<gold>%s</gold>' to <gold>%s</gold></green>",
             guild.getName(), playerName));
@@ -287,7 +291,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -328,7 +332,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -369,7 +373,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -411,7 +415,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -452,7 +456,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -494,7 +498,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -536,7 +540,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
@@ -565,7 +569,7 @@ public class AdminComponent implements GuildCommand {
         }
 
         String guildName = args[3];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));

@@ -8,9 +8,11 @@ import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.GuildDefaultPermissionsService;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.RelationType;
 import org.aincraft.RelationshipService;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.storage.MemberRoleRepository;
 
 /**
@@ -22,7 +24,9 @@ import org.aincraft.storage.MemberRoleRepository;
 public class RegionPermissionService {
     private final RegionPermissionRepository permissionRepository;
     private final SubregionRepository subregionRepository;
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final GuildMemberService memberService;
+    private final PermissionService guildPermissionService;
     private final MemberRoleRepository memberRoleRepository;
     private final RegionRoleRepository regionRoleRepository;
     private final MemberRegionRoleRepository memberRegionRoleRepository;
@@ -32,7 +36,9 @@ public class RegionPermissionService {
     @Inject
     public RegionPermissionService(RegionPermissionRepository permissionRepository,
                                  SubregionRepository subregionRepository,
-                                 GuildService guildService,
+                                 GuildLifecycleService lifecycleService,
+                                 GuildMemberService memberService,
+                                 PermissionService guildPermissionService,
                                  MemberRoleRepository memberRoleRepository,
                                  RegionRoleRepository regionRoleRepository,
                                  MemberRegionRoleRepository memberRegionRoleRepository,
@@ -40,7 +46,9 @@ public class RegionPermissionService {
                                  GuildDefaultPermissionsService guildDefaultPermissionsService) {
         this.permissionRepository = Objects.requireNonNull(permissionRepository);
         this.subregionRepository = Objects.requireNonNull(subregionRepository);
-        this.guildService = Objects.requireNonNull(guildService);
+        this.lifecycleService = Objects.requireNonNull(lifecycleService);
+        this.memberService = Objects.requireNonNull(memberService);
+        this.guildPermissionService = Objects.requireNonNull(guildPermissionService);
         this.memberRoleRepository = Objects.requireNonNull(memberRoleRepository);
         this.regionRoleRepository = Objects.requireNonNull(regionRoleRepository);
         this.memberRegionRoleRepository = Objects.requireNonNull(memberRegionRoleRepository);
@@ -212,8 +220,8 @@ public class RegionPermissionService {
         Objects.requireNonNull(permission, "Permission cannot be null");
 
         // 1. Guild owner always has permission
-        if (guildService.getGuildById(region.getGuildId()) != null &&
-            guildService.getGuildById(region.getGuildId()).isOwner(playerId)) {
+        if (lifecycleService.getGuildById(region.getGuildId()) != null &&
+            lifecycleService.getGuildById(region.getGuildId()).isOwner(playerId)) {
             return true;
         }
 
@@ -223,7 +231,7 @@ public class RegionPermissionService {
         }
 
         // 3. ADMIN permission grants all permissions
-        if (guildService.hasPermission(region.getGuildId(), playerId, GuildPermission.ADMIN)) {
+        if (guildPermissionService.hasPermission(region.getGuildId(), playerId, GuildPermission.ADMIN)) {
             return true;
         }
 
@@ -236,7 +244,7 @@ public class RegionPermissionService {
         }
 
         // Check if player is in the guild
-        var playerGuild = guildService.getPlayerGuild(playerId);
+        var playerGuild = memberService.getPlayerGuild(playerId);
         boolean isMember = playerGuild != null && playerGuild.getId().equals(region.getGuildId());
 
         // 4. Check relationship-specific permissions (for non-members)
@@ -275,7 +283,7 @@ public class RegionPermissionService {
             }
 
             // 8. Fall back to guild permissions
-            return guildService.hasPermission(region.getGuildId(), playerId, permission);
+            return guildPermissionService.hasPermission(region.getGuildId(), playerId, permission);
         }
 
         return false;
@@ -465,8 +473,8 @@ public class RegionPermissionService {
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
         // Guild owner can modify
-        if (guildService.getGuildById(region.getGuildId()) != null &&
-            guildService.getGuildById(region.getGuildId()).isOwner(playerId)) {
+        if (lifecycleService.getGuildById(region.getGuildId()) != null &&
+            lifecycleService.getGuildById(region.getGuildId()).isOwner(playerId)) {
             return true;
         }
 
@@ -476,7 +484,7 @@ public class RegionPermissionService {
         }
 
         // Check if player has MANAGE_REGIONS permission
-        return guildService.hasPermission(region.getGuildId(), playerId, GuildPermission.MANAGE_REGIONS);
+        return guildPermissionService.hasPermission(region.getGuildId(), playerId, GuildPermission.MANAGE_REGIONS);
     }
 
     // ==================== Relationship Permission Helpers ====================

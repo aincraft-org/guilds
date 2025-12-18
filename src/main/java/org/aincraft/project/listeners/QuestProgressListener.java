@@ -3,7 +3,7 @@ package org.aincraft.project.listeners;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildMemberService;
 import org.aincraft.project.ProjectService;
 import org.aincraft.project.QuestType;
 import org.bukkit.Material;
@@ -27,12 +27,12 @@ import java.util.Objects;
 public class QuestProgressListener implements Listener {
 
     private final ProjectService projectService;
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
 
     @Inject
-    public QuestProgressListener(ProjectService projectService, GuildService guildService) {
+    public QuestProgressListener(ProjectService projectService, GuildMemberService memberService) {
         this.projectService = Objects.requireNonNull(projectService);
-        this.guildService = Objects.requireNonNull(guildService);
+        this.memberService = Objects.requireNonNull(memberService);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -41,7 +41,7 @@ public class QuestProgressListener implements Listener {
         Player killer = entity.getKiller();
         if (killer == null) return;
 
-        Guild guild = guildService.getPlayerGuild(killer.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(killer.getUniqueId());
         if (guild == null) return;
 
         String entityType = entity.getType().name();
@@ -51,7 +51,7 @@ public class QuestProgressListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) return;
 
         String blockType = event.getBlock().getType().name();
@@ -62,7 +62,7 @@ public class QuestProgressListener implements Listener {
     public void onCraftItem(CraftItemEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) return;
 
         ItemStack result = event.getRecipe().getResult();
@@ -98,7 +98,7 @@ public class QuestProgressListener implements Listener {
     public void onItemPickup(EntityPickupItemEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) return;
 
         ItemStack item = event.getItem().getItemStack();
@@ -113,7 +113,7 @@ public class QuestProgressListener implements Listener {
         if (event.getState() != PlayerFishEvent.State.CAUGHT_FISH) return;
 
         Player player = event.getPlayer();
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) return;
 
         Entity caught = event.getCaught();
@@ -131,7 +131,7 @@ public class QuestProgressListener implements Listener {
     public void onBreed(EntityBreedEvent event) {
         if (!(event.getBreeder() instanceof Player player)) return;
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) return;
 
         String entityType = event.getEntity().getType().name();

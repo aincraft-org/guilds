@@ -130,6 +130,13 @@ import org.aincraft.project.listeners.*;
 import org.aincraft.project.gui.*;
 import org.aincraft.project.llm.*;
 import org.aincraft.database.repository.JdbcLLMProjectTextRepository;
+import org.aincraft.database.repository.JdbcGuildSkillTreeRepository;
+import org.aincraft.skilltree.storage.GuildSkillTreeRepository;
+import org.aincraft.skilltree.SkillTreeRegistry;
+import org.aincraft.skilltree.SkillTreeService;
+import org.aincraft.skilltree.SkillBuffProvider;
+import org.aincraft.skilltree.gui.SkillTreeGUIListener;
+import org.aincraft.commands.components.SkillsComponent;
 
 public class GuildsModule extends AbstractModule {
     private final GuildsPlugin plugin;
@@ -189,12 +196,7 @@ public class GuildsModule extends AbstractModule {
         bind(RelationshipService.class).in(Singleton.class);
         bind(GuildDefaultPermissionsService.class).in(Singleton.class);
 
-        // New extracted services from Phase 1 refactoring
-        bind(org.aincraft.service.PermissionService.class).in(Singleton.class);
-        bind(org.aincraft.service.GuildRoleService.class).in(Singleton.class);
-        bind(org.aincraft.service.TerritoryService.class).in(Singleton.class);
-        bind(org.aincraft.service.SpawnService.class).in(Singleton.class);
-        bind(org.aincraft.service.GuildMemberService.class).in(Singleton.class);
+        // Guild lifecycle service (used by progression system)
         bind(org.aincraft.service.GuildLifecycleService.class).in(Singleton.class);
 
         // Old extracted services (may need review)
@@ -284,6 +286,14 @@ public class GuildsModule extends AbstractModule {
         // LLM Project Text system
         bind(LLMProjectTextRepository.class).to(JdbcLLMProjectTextRepository.class).in(Singleton.class);
         bind(LLMProjectTextService.class).in(Singleton.class);
+
+        // Skill Tree system
+        bind(GuildSkillTreeRepository.class).to(JdbcGuildSkillTreeRepository.class).in(Singleton.class);
+        bind(SkillTreeRegistry.class).in(Singleton.class);
+        bind(SkillTreeService.class).in(Singleton.class);
+        bind(SkillBuffProvider.class).in(Singleton.class);
+        bind(SkillTreeGUIListener.class).in(Singleton.class);
+        bind(SkillsComponent.class).in(Singleton.class);
     }
 
     @Provides

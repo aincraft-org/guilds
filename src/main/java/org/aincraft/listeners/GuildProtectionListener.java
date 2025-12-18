@@ -6,10 +6,12 @@ import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildDefaultPermissionsService;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.RelationType;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
+import org.aincraft.service.TerritoryService;
 import org.aincraft.subregion.SubjectType;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
@@ -36,17 +38,23 @@ import org.bukkit.event.player.PlayerInteractEvent;
  * Checks permissions before allowing block modifications.
  */
 public class GuildProtectionListener implements Listener {
-    private final GuildService guildService;
+    private final TerritoryService territoryService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final SubregionService subregionService;
     private final RelationshipService relationshipService;
     private final GuildDefaultPermissionsService guildDefaultPermissionsService;
 
     @Inject
-    public GuildProtectionListener(GuildService guildService,
+    public GuildProtectionListener(TerritoryService territoryService,
+                                   GuildMemberService memberService,
+                                   PermissionService permissionService,
                                    SubregionService subregionService,
                                    RelationshipService relationshipService,
                                    GuildDefaultPermissionsService guildDefaultPermissionsService) {
-        this.guildService = guildService;
+        this.territoryService = territoryService;
+        this.memberService = memberService;
+        this.permissionService = permissionService;
         this.subregionService = subregionService;
         this.relationshipService = relationshipService;
         this.guildDefaultPermissionsService = guildDefaultPermissionsService;
@@ -111,7 +119,7 @@ public class GuildProtectionListener implements Listener {
 
         // Check if location is in a claimed chunk
         ChunkKey chunk = ChunkKey.from(loc.getChunk());
-        Guild chunkOwner = guildService.getChunkOwner(chunk);
+        Guild chunkOwner = territoryService.getChunkOwner(chunk);
 
         // Not claimed - allow action
         if (chunkOwner == null) {
@@ -119,7 +127,7 @@ public class GuildProtectionListener implements Listener {
         }
 
         // Check if player is in the owning guild
-        Guild playerGuild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
 
         // Same guild - check subregion first
         if (playerGuild != null && playerGuild.getId().equals(chunkOwner.getId())) {
@@ -131,7 +139,7 @@ public class GuildProtectionListener implements Listener {
             }
 
             // No subregion - check guild permission
-            return guildService.hasPermission(chunkOwner.getId(), player.getUniqueId(), permission);
+            return permissionService.hasPermission(chunkOwner.getId(), player.getUniqueId(), permission);
         }
 
         // Different guild or no guild - check relationship permissions
@@ -184,7 +192,7 @@ public class GuildProtectionListener implements Listener {
         // Check if any blocks are in protected guild territory
         event.blockList().removeIf(block -> {
             ChunkKey chunk = ChunkKey.from(block.getChunk());
-            Guild owner = guildService.getChunkOwner(chunk);
+            Guild owner = territoryService.getChunkOwner(chunk);
 
             // Not claimed - allow
             if (owner == null) {
@@ -205,7 +213,7 @@ public class GuildProtectionListener implements Listener {
 
         // Check if damaged entity is in a guild-claimed chunk
         ChunkKey chunk = ChunkKey.from(event.getEntity().getLocation().getChunk());
-        Guild owner = guildService.getChunkOwner(chunk);
+        Guild owner = territoryService.getChunkOwner(chunk);
 
         // Not claimed - allow
         if (owner == null) {
@@ -234,7 +242,7 @@ public class GuildProtectionListener implements Listener {
     public void onBlockIgnite(BlockIgniteEvent event) {
         Location loc = event.getBlock().getLocation();
         ChunkKey chunk = ChunkKey.from(loc.getChunk());
-        Guild owner = guildService.getChunkOwner(chunk);
+        Guild owner = territoryService.getChunkOwner(chunk);
 
         // Not claimed - allow
         if (owner == null) {
@@ -251,7 +259,7 @@ public class GuildProtectionListener implements Listener {
     public void onBlockBurn(BlockBurnEvent event) {
         Location loc = event.getBlock().getLocation();
         ChunkKey chunk = ChunkKey.from(loc.getChunk());
-        Guild owner = guildService.getChunkOwner(chunk);
+        Guild owner = territoryService.getChunkOwner(chunk);
 
         // Not claimed - allow
         if (owner == null) {
@@ -273,7 +281,7 @@ public class GuildProtectionListener implements Listener {
 
         Location loc = event.getBlock().getLocation();
         ChunkKey chunk = ChunkKey.from(loc.getChunk());
-        Guild owner = guildService.getChunkOwner(chunk);
+        Guild owner = territoryService.getChunkOwner(chunk);
 
         // Not claimed - allow
         if (owner == null) {
@@ -289,13 +297,13 @@ public class GuildProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent event) {
         ChunkKey pistonChunk = ChunkKey.from(event.getBlock().getChunk());
-        Guild pistonOwner = guildService.getChunkOwner(pistonChunk);
+        Guild pistonOwner = territoryService.getChunkOwner(pistonChunk);
 
         for (Block block : event.getBlocks()) {
             // Check the destination where block will be pushed to
             Block destination = block.getRelative(event.getDirection());
             ChunkKey destChunk = ChunkKey.from(destination.getChunk());
-            Guild destOwner = guildService.getChunkOwner(destChunk);
+            Guild destOwner = territoryService.getChunkOwner(destChunk);
 
             // Cancel if pushing into a different claim (or into claimed from unclaimed)
             if (!isSameOwner(pistonOwner, destOwner)) {
@@ -307,7 +315,7 @@ public class GuildProtectionListener implements Listener {
         // Also check if piston head extends into different claim
         Block pistonHead = event.getBlock().getRelative(event.getDirection());
         ChunkKey headChunk = ChunkKey.from(pistonHead.getChunk());
-        Guild headOwner = guildService.getChunkOwner(headChunk);
+        Guild headOwner = territoryService.getChunkOwner(headChunk);
 
         if (!isSameOwner(pistonOwner, headOwner)) {
             event.setCancelled(true);
@@ -321,11 +329,11 @@ public class GuildProtectionListener implements Listener {
         }
 
         ChunkKey pistonChunk = ChunkKey.from(event.getBlock().getChunk());
-        Guild pistonOwner = guildService.getChunkOwner(pistonChunk);
+        Guild pistonOwner = territoryService.getChunkOwner(pistonChunk);
 
         for (Block block : event.getBlocks()) {
             ChunkKey blockChunk = ChunkKey.from(block.getChunk());
-            Guild blockOwner = guildService.getChunkOwner(blockChunk);
+            Guild blockOwner = territoryService.getChunkOwner(blockChunk);
 
             // Cancel if pulling from a different claim
             if (!isSameOwner(pistonOwner, blockOwner)) {

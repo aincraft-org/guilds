@@ -13,9 +13,10 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.RelationType;
 import org.aincraft.RelationshipService;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
 import org.aincraft.storage.ChunkClaimRepository;
 import org.bukkit.entity.Player;
 
@@ -34,16 +35,19 @@ public class GuildMapRenderer {
     private static final float COMPASS_WEST_THRESHOLD = 292.5f;
     private static final float COMPASS_NORTHWEST_THRESHOLD = 337.5f;
 
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final GuildMemberService memberService;
     private final ChunkClaimRepository chunkClaimRepository;
     private final GuildColorMapper colorMapper;
     private final RelationshipService relationshipService;
     private final SimpleDateFormat dateFormat;
 
     @Inject
-    public GuildMapRenderer(GuildService guildService, ChunkClaimRepository chunkClaimRepository,
-                           GuildColorMapper colorMapper, RelationshipService relationshipService) {
-        this.guildService = guildService;
+    public GuildMapRenderer(GuildLifecycleService lifecycleService, GuildMemberService memberService,
+                           ChunkClaimRepository chunkClaimRepository, GuildColorMapper colorMapper,
+                           RelationshipService relationshipService) {
+        this.lifecycleService = lifecycleService;
+        this.memberService = memberService;
         this.chunkClaimRepository = chunkClaimRepository;
         this.colorMapper = colorMapper;
         this.relationshipService = relationshipService;
@@ -57,7 +61,7 @@ public class GuildMapRenderer {
      * @param size the map size (1-5, where N = 6+N grid)
      */
     public void renderMap(Player player, int size) {
-        Guild playerGuild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
 
         // Calculate grid dimensions and boundaries
         int gridSize = BASE_GRID_SIZE + size;
@@ -233,7 +237,7 @@ public class GuildMapRenderer {
                 .color(NamedTextColor.DARK_GRAY);
         }
 
-        Guild owner = guildService.getGuildById(data.guildId());
+        Guild owner = lifecycleService.getGuildById(data.guildId());
         if (owner == null) {
             return Component.text(MapSymbols.UNKNOWN + " ").color(NamedTextColor.DARK_GRAY);
         }

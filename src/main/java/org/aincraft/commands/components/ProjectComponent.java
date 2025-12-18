@@ -3,7 +3,8 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.project.*;
@@ -27,14 +28,17 @@ public class ProjectComponent implements GuildCommand {
 
     private final ProjectService projectService;
     private final ProjectRegistry registry;
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final VaultRepository vaultRepository;
 
     @Inject
-    public ProjectComponent(ProjectService projectService, ProjectRegistry registry, GuildService guildService, VaultRepository vaultRepository) {
+    public ProjectComponent(ProjectService projectService, ProjectRegistry registry, GuildMemberService memberService,
+                           PermissionService permissionService, VaultRepository vaultRepository) {
         this.projectService = Objects.requireNonNull(projectService);
         this.registry = Objects.requireNonNull(registry);
-        this.guildService = Objects.requireNonNull(guildService);
+        this.memberService = Objects.requireNonNull(memberService);
+        this.permissionService = Objects.requireNonNull(permissionService);
         this.vaultRepository = Objects.requireNonNull(vaultRepository);
     }
 
@@ -45,7 +49,7 @@ public class ProjectComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -147,7 +151,7 @@ public class ProjectComponent implements GuildCommand {
 
     private boolean handleAbandon(Player player, Guild guild) {
         // Check permission
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_PROJECTS)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_PROJECTS)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to abandon projects"));
             return true;
         }

@@ -8,9 +8,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.claim.events.PlayerEnterClaimEvent;
 import org.aincraft.claim.events.PlayerExitClaimEvent;
+import org.aincraft.service.TerritoryService;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.Bukkit;
@@ -30,15 +30,15 @@ import org.bukkit.event.player.PlayerTeleportEvent;
  * Uses block-level movement checks for performance optimization.
  */
 public class ClaimMovementTracker implements Listener {
-    private final GuildService guildService;
+    private final TerritoryService territoryService;
     private final SubregionService subregionService;
 
     // Track: player UUID -> current claim state
     private final Map<UUID, ClaimState> playerCurrentClaim = new ConcurrentHashMap<>();
 
     @Inject
-    public ClaimMovementTracker(GuildService guildService, SubregionService subregionService) {
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+    public ClaimMovementTracker(TerritoryService territoryService, SubregionService subregionService) {
+        this.territoryService = Objects.requireNonNull(territoryService, "Territory service cannot be null");
         this.subregionService = Objects.requireNonNull(subregionService, "Subregion service cannot be null");
     }
 
@@ -104,7 +104,7 @@ public class ClaimMovementTracker implements Listener {
     private ClaimState calculateClaimState(Location location) {
         // Get chunk owner
         ChunkKey chunkKey = ChunkKey.from(location.getChunk());
-        Guild owner = guildService.getChunkOwner(chunkKey);
+        Guild owner = territoryService.getChunkOwner(chunkKey);
 
         // If no owner, it's wilderness
         if (owner == null) {

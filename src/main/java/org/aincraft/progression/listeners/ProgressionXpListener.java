@@ -3,10 +3,11 @@ package org.aincraft.progression.listeners;
 import com.google.inject.Inject;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.progression.ProgressionConfig;
 import org.aincraft.progression.ProgressionService;
 import org.aincraft.progression.XpSource;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.TerritoryService;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -22,15 +23,18 @@ import java.util.Objects;
  */
 public class ProgressionXpListener implements Listener {
     private final ProgressionService progressionService;
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final TerritoryService territoryService;
     private final ProgressionConfig config;
 
     @Inject
     public ProgressionXpListener(ProgressionService progressionService,
-                                  GuildService guildService,
+                                  GuildMemberService memberService,
+                                  TerritoryService territoryService,
                                   ProgressionConfig config) {
         this.progressionService = Objects.requireNonNull(progressionService, "Progression service cannot be null");
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
+        this.territoryService = Objects.requireNonNull(territoryService, "Territory service cannot be null");
         this.config = Objects.requireNonNull(config, "Config cannot be null");
     }
 
@@ -50,14 +54,14 @@ public class ProgressionXpListener implements Listener {
         }
 
         // Check if player is in a guild
-        Guild guild = guildService.getPlayerGuild(killer.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(killer.getUniqueId());
         if (guild == null) {
             return;
         }
 
         // Check if kill location is in guild's territory
         ChunkKey chunkKey = ChunkKey.from(event.getEntity().getLocation().getChunk());
-        Guild chunkOwner = guildService.getChunkOwner(chunkKey);
+        Guild chunkOwner = territoryService.getChunkOwner(chunkKey);
 
         if (chunkOwner == null || !chunkOwner.getId().equals(guild.getId())) {
             return; // Not in guild territory
@@ -86,14 +90,14 @@ public class ProgressionXpListener implements Listener {
         Player player = event.getPlayer();
 
         // Check if player is in a guild
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             return;
         }
 
         // Check if mining location is in guild's territory
         ChunkKey chunkKey = ChunkKey.from(event.getBlock().getChunk());
-        Guild chunkOwner = guildService.getChunkOwner(chunkKey);
+        Guild chunkOwner = territoryService.getChunkOwner(chunkKey);
 
         if (chunkOwner == null || !chunkOwner.getId().equals(guild.getId())) {
             return; // Not in guild territory

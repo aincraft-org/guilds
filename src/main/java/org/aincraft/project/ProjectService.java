@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.project.storage.ActiveBuffRepository;
 import org.aincraft.project.storage.GuildProjectRepository;
 import org.aincraft.vault.Vault;
@@ -23,7 +24,8 @@ public class ProjectService {
     private final ActiveBuffRepository buffRepository;
     private final ProjectRegistry registry;
     private final ProjectPoolService poolService;
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final PermissionService permissionService;
     private final VaultRepository vaultRepository;
     private final VaultTransactionRepository vaultTransactionRepository;
 
@@ -33,7 +35,8 @@ public class ProjectService {
             ActiveBuffRepository buffRepository,
             ProjectRegistry registry,
             ProjectPoolService poolService,
-            GuildService guildService,
+            GuildLifecycleService lifecycleService,
+            PermissionService permissionService,
             VaultRepository vaultRepository,
             VaultTransactionRepository vaultTransactionRepository
     ) {
@@ -41,7 +44,8 @@ public class ProjectService {
         this.buffRepository = Objects.requireNonNull(buffRepository);
         this.registry = Objects.requireNonNull(registry);
         this.poolService = Objects.requireNonNull(poolService);
-        this.guildService = Objects.requireNonNull(guildService);
+        this.lifecycleService = Objects.requireNonNull(lifecycleService);
+        this.permissionService = Objects.requireNonNull(permissionService);
         this.vaultRepository = Objects.requireNonNull(vaultRepository);
         this.vaultTransactionRepository = Objects.requireNonNull(vaultTransactionRepository);
     }
@@ -52,7 +56,7 @@ public class ProjectService {
         Objects.requireNonNull(projectDefId, "Project definition ID cannot be null");
 
         // Check permission
-        if (!guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_PROJECTS)) {
+        if (!permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_PROJECTS)) {
             return ProjectStartResult.noPermission();
         }
 
@@ -63,7 +67,7 @@ public class ProjectService {
         }
 
         // Get guild level for project availability check
-        Guild guild = guildService.getGuildById(guildId);
+        Guild guild = lifecycleService.getGuildById(guildId);
         if (guild == null) {
             return ProjectStartResult.failure("Guild not found");
         }
@@ -326,7 +330,7 @@ public class ProjectService {
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
 
         // Check permission
-        if (!guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_PROJECTS)) {
+        if (!permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_PROJECTS)) {
             return ProjectCompletionResult.noPermission();
         }
 
@@ -434,7 +438,7 @@ public class ProjectService {
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
 
         // Check permission
-        if (!guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_PROJECTS)) {
+        if (!permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_PROJECTS)) {
             return false;
         }
 

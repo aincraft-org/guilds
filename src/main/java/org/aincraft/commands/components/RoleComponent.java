@@ -13,10 +13,12 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.role.gui.RoleCreationGUI;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.GuildRoleService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.storage.MemberRoleRepository;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -36,12 +38,17 @@ import org.bukkit.entity.Player;
  * - `/g role unassign <player> <role>` - Unassign role from player
  */
 public final class RoleComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildRoleService roleService;
+    private final PermissionService permissionService;
     private final MemberRoleRepository memberRoleRepository;
 
     @Inject
-    public RoleComponent(GuildService guildService, MemberRoleRepository memberRoleRepository) {
-        this.guildService = guildService;
+    public RoleComponent(GuildMemberService memberService, GuildRoleService roleService,
+                        PermissionService permissionService, MemberRoleRepository memberRoleRepository) {
+        this.memberService = memberService;
+        this.roleService = roleService;
+        this.permissionService = permissionService;
         this.memberRoleRepository = memberRoleRepository;
     }
 
@@ -72,7 +79,7 @@ public final class RoleComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -127,13 +134,13 @@ public final class RoleComponent implements GuildCommand {
         String name = args[2];
 
         // Check MANAGE_ROLES permission
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You lack MANAGE_ROLES permission."));
             return true;
         }
 
         // Open editor GUI (will create if doesn't exist, edit if exists)
-        RoleCreationGUI gui = new RoleCreationGUI(guild, player, name, guildService);
+        RoleCreationGUI gui = new RoleCreationGUI(guild, player, name, roleService, permissionService);
         gui.open();
         return true;
     }
@@ -150,13 +157,13 @@ public final class RoleComponent implements GuildCommand {
         String name = args[2];
 
         // Check if role name already exists
-        if (guildService.getRoleByName(guild.getId(), name) != null) {
+        if (roleService.getRoleByName(guild.getId(), name) != null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "A role with that name already exists."));
             return true;
         }
 
         // Check MANAGE_ROLES permission
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You lack MANAGE_ROLES permission."));
             return true;
         }
@@ -175,7 +182,7 @@ public final class RoleComponent implements GuildCommand {
             return true;
         }
 
-        GuildRole role = guildService.createRole(guild.getId(), player.getUniqueId(), name, permissions, priority);
+        GuildRole role = roleService.createRole(guild.getId(), player.getUniqueId(), name, permissions, priority);
         if (role == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to create role. You may lack MANAGE_ROLES permission."));
             return true;
@@ -187,7 +194,7 @@ public final class RoleComponent implements GuildCommand {
     }
 
     private boolean handleList(Player player, Guild guild) {
-        List<GuildRole> roles = guildService.getGuildRoles(guild.getId());
+        List<GuildRole> roles = roleService.getGuildRoles(guild.getId());
 
         player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Guild Roles", " (sorted by priority)"));
         if (roles.isEmpty()) {
@@ -208,7 +215,7 @@ public final class RoleComponent implements GuildCommand {
         }
 
         String name = args[2];
-        GuildRole role = guildService.getRoleByName(guild.getId(), name);
+        GuildRole role = roleService.getRoleByName(guild.getId(), name);
         if (role == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + name));
             return true;
@@ -225,13 +232,13 @@ public final class RoleComponent implements GuildCommand {
         }
 
         String name = args[2];
-        GuildRole role = guildService.getRoleByName(guild.getId(), name);
+        GuildRole role = roleService.getRoleByName(guild.getId(), name);
         if (role == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + name));
             return true;
         }
 
-        if (guildService.deleteRole(guild.getId(), player.getUniqueId(), role.getId())) {
+        if (roleService.deleteRole(guild.getId(), player.getUniqueId(), role.getId())) {
             player.sendMessage(MessageFormatter.deserialize("<green>Deleted role '<gold>" + name + "</gold>'</green>"));
         } else {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to delete role. You may lack MANAGE_ROLES permission."));
@@ -250,7 +257,7 @@ public final class RoleComponent implements GuildCommand {
         String permName = args[3].toUpperCase();
         boolean grant = args[4].equalsIgnoreCase("true");
 
-        GuildRole role = guildService.getRoleByName(guild.getId(), roleName);
+        GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
             return true;
@@ -271,7 +278,7 @@ public final class RoleComponent implements GuildCommand {
             newPermissions &= ~perm.getBit();
         }
 
-        if (guildService.updateRolePermissions(guild.getId(), player.getUniqueId(), role.getId(), newPermissions)) {
+        if (roleService.updateRolePermissions(guild.getId(), player.getUniqueId(), role.getId(), newPermissions)) {
             String action = grant ? "granted" : "revoked";
             player.sendMessage(MessageFormatter.deserialize("<green>" + action.substring(0, 1).toUpperCase() + action.substring(1) + " " +
                     "<gold>" + permName + "</gold> for role <gold>" + roleName + "</gold></green>"));
@@ -298,20 +305,20 @@ public final class RoleComponent implements GuildCommand {
             return true;
         }
 
-        GuildRole role = guildService.getRoleByName(guild.getId(), roleName);
+        GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
             return true;
         }
 
         // Check permission
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You lack MANAGE_ROLES permission."));
             return true;
         }
 
         role.setPriority(priority);
-        guildService.saveRole(role);
+        roleService.saveRole(role);
 
         player.sendMessage(MessageFormatter.deserialize("<green>Set priority of <gold>" + roleName + "</gold> to <yellow>" + priority + "</yellow></green>"));
         return true;
@@ -332,13 +339,13 @@ public final class RoleComponent implements GuildCommand {
             return true;
         }
 
-        GuildRole role = guildService.getRoleByName(guild.getId(), roleName);
+        GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
             return true;
         }
 
-        if (guildService.assignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
+        if (roleService.assignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
             player.sendMessage(MessageFormatter.deserialize("<green>Assigned <gold>" + roleName +
                     "</gold> to <gold>" + target.getName() + "</gold></green>"));
         } else {
@@ -362,13 +369,13 @@ public final class RoleComponent implements GuildCommand {
             return true;
         }
 
-        GuildRole role = guildService.getRoleByName(guild.getId(), roleName);
+        GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
             return true;
         }
 
-        if (guildService.unassignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
+        if (roleService.unassignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
             player.sendMessage(MessageFormatter.deserialize("<green>Unassigned <gold>" + roleName +
                     "</gold> from <gold>" + target.getName() + "</gold></green>"));
         } else {

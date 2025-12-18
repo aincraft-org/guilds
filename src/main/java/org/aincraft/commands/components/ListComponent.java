@@ -3,7 +3,7 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import java.util.List;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.bukkit.command.CommandSender;
@@ -13,12 +13,12 @@ import org.bukkit.entity.Player;
  * Component for listing all guilds.
  */
 public class ListComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
     private static final int GUILDS_PER_PAGE = 5;
 
     @Inject
-    public ListComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public ListComponent(GuildLifecycleService lifecycleService) {
+        this.lifecycleService = lifecycleService;
     }
 
     @Override
@@ -48,7 +48,7 @@ public class ListComponent implements GuildCommand {
             return true;
         }
 
-        List<Guild> allGuilds = guildService.listAllGuilds();
+        List<Guild> allGuilds = lifecycleService.listAllGuilds();
 
         if (allGuilds.isEmpty()) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "No guilds exist yet"));

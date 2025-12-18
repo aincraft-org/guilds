@@ -2,9 +2,10 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.SpawnService;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -14,11 +15,13 @@ import org.bukkit.entity.Player;
  * Usage: /g spawn
  */
 public class SpawnComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final SpawnService spawnService;
 
     @Inject
-    public SpawnComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public SpawnComponent(GuildMemberService memberService, SpawnService spawnService) {
+        this.memberService = memberService;
+        this.spawnService = spawnService;
     }
 
     @Override
@@ -49,14 +52,14 @@ public class SpawnComponent implements GuildCommand {
         }
 
         // Get player's guild
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
             return true;
         }
 
         // Get spawn location
-        Location spawnLocation = guildService.getGuildSpawnLocation(guild.getId());
+        Location spawnLocation = spawnService.getGuildSpawnLocation(guild.getId());
         if (spawnLocation == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Your guild does not have a spawn point set"));
             return true;

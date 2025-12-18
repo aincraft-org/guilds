@@ -78,6 +78,10 @@ public class SchemaManager {
             // LLM Project Text Cache
             executeStatement(stmt, Sql.createGeneratedProjectTextsTable(dbType));
 
+            // Skill Tree
+            executeStatement(stmt, Sql.createGuildSkillTreesTable(dbType));
+            executeStatement(stmt, Sql.createGuildUnlockedSkillsTable(dbType));
+
             // Indexes
             createIndexes(stmt);
 
@@ -140,6 +144,9 @@ public class SchemaManager {
 
         // Project pool indexes
         executeStatement(stmt, Sql.createGuildProjectPoolIndex(dbType));
+
+        // Skill tree indexes
+        executeStatement(stmt, Sql.createIndex(dbType, "idx_unlocked_skills_guild", "guild_unlocked_skills", "guild_id"));
 
         // Claim log indexes
         executeStatement(stmt, Sql.createIndex(dbType, "idx_claim_log_guild", "chunk_claim_logs", "guild_id"));

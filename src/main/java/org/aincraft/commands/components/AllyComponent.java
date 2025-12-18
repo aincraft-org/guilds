@@ -4,10 +4,11 @@ import com.google.inject.Inject;
 import java.util.List;
 import org.aincraft.Guild;
 import org.aincraft.GuildRelationship;
-import org.aincraft.GuildService;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -15,12 +16,15 @@ import org.bukkit.entity.Player;
  * Component for managing guild alliances.
  */
 public class AllyComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildLifecycleService lifecycleService;
     private final RelationshipService relationshipService;
 
     @Inject
-    public AllyComponent(GuildService guildService, RelationshipService relationshipService) {
-        this.guildService = guildService;
+    public AllyComponent(GuildMemberService memberService, GuildLifecycleService lifecycleService,
+                        RelationshipService relationshipService) {
+        this.memberService = memberService;
+        this.lifecycleService = lifecycleService;
         this.relationshipService = relationshipService;
     }
 
@@ -51,7 +55,7 @@ public class AllyComponent implements GuildCommand {
             return true;
         }
 
-        Guild playerGuild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
         if (playerGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You must be in a guild to manage alliances"));
             return true;
@@ -89,7 +93,7 @@ public class AllyComponent implements GuildCommand {
         }
 
         String targetGuildName = args[1];
-        Guild targetGuild = guildService.getGuildByName(targetGuildName);
+        Guild targetGuild = lifecycleService.getGuildByName(targetGuildName);
 
         if (targetGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + targetGuildName + "' not found"));
@@ -122,7 +126,7 @@ public class AllyComponent implements GuildCommand {
         }
 
         String sourceGuildName = args[2];
-        Guild sourceGuild = guildService.getGuildByName(sourceGuildName);
+        Guild sourceGuild = lifecycleService.getGuildByName(sourceGuildName);
 
         if (sourceGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + sourceGuildName + "' not found"));
@@ -150,7 +154,7 @@ public class AllyComponent implements GuildCommand {
         }
 
         String sourceGuildName = args[2];
-        Guild sourceGuild = guildService.getGuildByName(sourceGuildName);
+        Guild sourceGuild = lifecycleService.getGuildByName(sourceGuildName);
 
         if (sourceGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + sourceGuildName + "' not found"));
@@ -178,7 +182,7 @@ public class AllyComponent implements GuildCommand {
         }
 
         String allyGuildName = args[2];
-        Guild allyGuild = guildService.getGuildByName(allyGuildName);
+        Guild allyGuild = lifecycleService.getGuildByName(allyGuildName);
 
         if (allyGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + allyGuildName + "' not found"));
@@ -211,7 +215,7 @@ public class AllyComponent implements GuildCommand {
         } else {
             player.sendMessage(MessageFormatter.deserialize("<yellow>Active Allies<reset>:"));
             for (String allyId : allies) {
-                Guild ally = guildService.getGuildById(allyId);
+                Guild ally = lifecycleService.getGuildById(allyId);
                 if (ally != null) {
                     player.sendMessage(MessageFormatter.deserialize("  <green>•</green> <white>" + ally.getName()));
                 }
@@ -221,7 +225,7 @@ public class AllyComponent implements GuildCommand {
         if (!pendingRequests.isEmpty()) {
             player.sendMessage(MessageFormatter.deserialize("<yellow>Incoming Requests<reset>:"));
             for (GuildRelationship request : pendingRequests) {
-                Guild source = guildService.getGuildById(request.getSourceGuildId());
+                Guild source = lifecycleService.getGuildById(request.getSourceGuildId());
                 if (source != null) {
                     player.sendMessage(MessageFormatter.deserialize("  <aqua>↓</aqua> <white>" + source.getName()));
                 }
@@ -231,7 +235,7 @@ public class AllyComponent implements GuildCommand {
         if (!sentRequests.isEmpty()) {
             player.sendMessage(MessageFormatter.deserialize("<yellow>Sent Requests<reset>:"));
             for (GuildRelationship request : sentRequests) {
-                Guild target = guildService.getGuildById(request.getTargetGuildId());
+                Guild target = lifecycleService.getGuildById(request.getTargetGuildId());
                 if (target != null) {
                     player.sendMessage(MessageFormatter.deserialize("  <gray>↑</gray> <white>" + target.getName()));
                 }

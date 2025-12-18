@@ -1645,6 +1645,151 @@ public final class Sql {
             """;
     }
 
+    // ==================== SKILL TREE ====================
+
+    public static String createGuildSkillTreesTable(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                CREATE TABLE IF NOT EXISTS guild_skill_trees (
+                    guild_id TEXT PRIMARY KEY,
+                    available_sp INTEGER NOT NULL DEFAULT 0,
+                    total_sp_earned INTEGER NOT NULL DEFAULT 0
+                )
+                """;
+            case MYSQL, MARIADB -> """
+                CREATE TABLE IF NOT EXISTS guild_skill_trees (
+                    guild_id VARCHAR(36) PRIMARY KEY,
+                    available_sp INT NOT NULL DEFAULT 0,
+                    total_sp_earned INT NOT NULL DEFAULT 0,
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+            case POSTGRESQL -> """
+                CREATE TABLE IF NOT EXISTS guild_skill_trees (
+                    guild_id VARCHAR(36) PRIMARY KEY,
+                    available_sp INT NOT NULL DEFAULT 0,
+                    total_sp_earned INT NOT NULL DEFAULT 0,
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+            case H2 -> """
+                CREATE TABLE IF NOT EXISTS guild_skill_trees (
+                    guild_id VARCHAR(36) PRIMARY KEY,
+                    available_sp INT NOT NULL DEFAULT 0,
+                    total_sp_earned INT NOT NULL DEFAULT 0,
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+        };
+    }
+
+    public static String createGuildUnlockedSkillsTable(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                CREATE TABLE IF NOT EXISTS guild_unlocked_skills (
+                    guild_id TEXT NOT NULL,
+                    skill_id TEXT NOT NULL,
+                    unlocked_at INTEGER NOT NULL,
+                    PRIMARY KEY (guild_id, skill_id)
+                )
+                """;
+            case MYSQL, MARIADB -> """
+                CREATE TABLE IF NOT EXISTS guild_unlocked_skills (
+                    guild_id VARCHAR(36) NOT NULL,
+                    skill_id VARCHAR(64) NOT NULL,
+                    unlocked_at BIGINT NOT NULL,
+                    PRIMARY KEY (guild_id, skill_id),
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+            case POSTGRESQL -> """
+                CREATE TABLE IF NOT EXISTS guild_unlocked_skills (
+                    guild_id VARCHAR(36) NOT NULL,
+                    skill_id VARCHAR(64) NOT NULL,
+                    unlocked_at BIGINT NOT NULL,
+                    PRIMARY KEY (guild_id, skill_id),
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+            case H2 -> """
+                CREATE TABLE IF NOT EXISTS guild_unlocked_skills (
+                    guild_id VARCHAR(36) NOT NULL,
+                    skill_id VARCHAR(64) NOT NULL,
+                    unlocked_at BIGINT NOT NULL,
+                    PRIMARY KEY (guild_id, skill_id),
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
+                )
+                """;
+        };
+    }
+
+    public static String upsertGuildSkillTree(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                INSERT OR REPLACE INTO guild_skill_trees (guild_id, available_sp, total_sp_earned)
+                VALUES (?, ?, ?)
+                """;
+            case MYSQL, MARIADB -> """
+                INSERT INTO guild_skill_trees (guild_id, available_sp, total_sp_earned)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                available_sp = VALUES(available_sp), total_sp_earned = VALUES(total_sp_earned)
+                """;
+            case POSTGRESQL -> """
+                INSERT INTO guild_skill_trees (guild_id, available_sp, total_sp_earned)
+                VALUES (?, ?, ?)
+                ON CONFLICT (guild_id) DO UPDATE SET
+                available_sp = EXCLUDED.available_sp, total_sp_earned = EXCLUDED.total_sp_earned
+                """;
+            case H2 -> """
+                MERGE INTO guild_skill_trees (guild_id, available_sp, total_sp_earned)
+                KEY (guild_id) VALUES (?, ?, ?)
+                """;
+        };
+    }
+
+    public static String selectGuildSkillTree(DatabaseType type) {
+        return "SELECT guild_id, available_sp, total_sp_earned FROM guild_skill_trees WHERE guild_id = ?";
+    }
+
+    public static String deleteGuildSkillTree(DatabaseType type) {
+        return "DELETE FROM guild_skill_trees WHERE guild_id = ?";
+    }
+
+    public static String insertUnlockedSkill(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                INSERT OR IGNORE INTO guild_unlocked_skills (guild_id, skill_id, unlocked_at)
+                VALUES (?, ?, ?)
+                """;
+            case MYSQL, MARIADB -> """
+                INSERT IGNORE INTO guild_unlocked_skills (guild_id, skill_id, unlocked_at)
+                VALUES (?, ?, ?)
+                """;
+            case POSTGRESQL -> """
+                INSERT INTO guild_unlocked_skills (guild_id, skill_id, unlocked_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT (guild_id, skill_id) DO NOTHING
+                """;
+            case H2 -> """
+                MERGE INTO guild_unlocked_skills (guild_id, skill_id, unlocked_at)
+                KEY (guild_id, skill_id) VALUES (?, ?, ?)
+                """;
+        };
+    }
+
+    public static String selectUnlockedSkills(DatabaseType type) {
+        return "SELECT skill_id, unlocked_at FROM guild_unlocked_skills WHERE guild_id = ?";
+    }
+
+    public static String deleteUnlockedSkills(DatabaseType type) {
+        return "DELETE FROM guild_unlocked_skills WHERE guild_id = ?";
+    }
+
+    public static String deleteUnlockedSkill(DatabaseType type) {
+        return "DELETE FROM guild_unlocked_skills WHERE guild_id = ? AND skill_id = ?";
+    }
+
     // ==================== INDEX CREATION ====================
 
     public static String createIndex(DatabaseType type, String indexName, String tableName, String... columns) {

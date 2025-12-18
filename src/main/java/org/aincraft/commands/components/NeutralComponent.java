@@ -2,10 +2,11 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -13,12 +14,15 @@ import org.bukkit.entity.Player;
  * Component for declaring neutral status with guilds.
  */
 public class NeutralComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildLifecycleService lifecycleService;
     private final RelationshipService relationshipService;
 
     @Inject
-    public NeutralComponent(GuildService guildService, RelationshipService relationshipService) {
-        this.guildService = guildService;
+    public NeutralComponent(GuildMemberService memberService, GuildLifecycleService lifecycleService,
+                           RelationshipService relationshipService) {
+        this.memberService = memberService;
+        this.lifecycleService = lifecycleService;
         this.relationshipService = relationshipService;
     }
 
@@ -49,7 +53,7 @@ public class NeutralComponent implements GuildCommand {
             return true;
         }
 
-        Guild playerGuild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
         if (playerGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You must be in a guild to declare neutral"));
             return true;
@@ -66,7 +70,7 @@ public class NeutralComponent implements GuildCommand {
         }
 
         String targetGuildName = args[1];
-        Guild targetGuild = guildService.getGuildByName(targetGuildName);
+        Guild targetGuild = lifecycleService.getGuildByName(targetGuildName);
 
         if (targetGuild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + targetGuildName + "' not found"));

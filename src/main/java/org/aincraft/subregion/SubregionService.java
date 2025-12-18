@@ -12,7 +12,8 @@ import java.util.UUID;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
+import org.aincraft.service.PermissionService;
+import org.aincraft.service.TerritoryService;
 import org.bukkit.Location;
 
 /**
@@ -22,18 +23,20 @@ public class SubregionService {
     private static final long DEFAULT_MAX_VOLUME = 100_000;
 
     private final SubregionRepository subregionRepository;
-    private final GuildService guildService;
+    private final TerritoryService territoryService;
+    private final PermissionService permissionService;
     private final SubregionTypeRegistry typeRegistry;
     private final RegionPermissionService regionPermissionService;
     private final RegionTypeLimitRepository limitRepository;
     private long maxVolume = DEFAULT_MAX_VOLUME;
 
     @Inject
-    public SubregionService(SubregionRepository subregionRepository, GuildService guildService,
-                            SubregionTypeRegistry typeRegistry, RegionPermissionService regionPermissionService,
-                            RegionTypeLimitRepository limitRepository) {
+    public SubregionService(SubregionRepository subregionRepository, TerritoryService territoryService,
+                            PermissionService permissionService, SubregionTypeRegistry typeRegistry,
+                            RegionPermissionService regionPermissionService, RegionTypeLimitRepository limitRepository) {
         this.subregionRepository = Objects.requireNonNull(subregionRepository);
-        this.guildService = Objects.requireNonNull(guildService);
+        this.territoryService = Objects.requireNonNull(territoryService);
+        this.permissionService = Objects.requireNonNull(permissionService);
         this.typeRegistry = Objects.requireNonNull(typeRegistry);
         this.regionPermissionService = Objects.requireNonNull(regionPermissionService);
         this.limitRepository = Objects.requireNonNull(limitRepository);
@@ -87,7 +90,7 @@ public class SubregionService {
         Objects.requireNonNull(pos2, "Position 2 cannot be null");
 
         // Check permission
-        if (!guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS)) {
+        if (!permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS)) {
             return SubregionCreationResult.failure("You don't have permission to manage regions");
         }
 
@@ -138,7 +141,7 @@ public class SubregionService {
 
         // Check all chunks are claimed by this guild
         for (ChunkKey chunk : intersectingChunks) {
-            Guild owner = guildService.getChunkOwner(chunk);
+            Guild owner = territoryService.getChunkOwner(chunk);
             if (owner == null || !owner.getId().equals(guildId)) {
                 return SubregionCreationResult.failure(
                         "All chunks in the region must be claimed by your guild. " +
@@ -177,7 +180,7 @@ public class SubregionService {
         Subregion region = regionOpt.get();
 
         // Check permission: must have MANAGE_REGIONS or be a region owner
-        boolean hasPermission = guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS);
+        boolean hasPermission = permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS);
         boolean isOwner = region.isOwner(playerId);
 
         if (!hasPermission && !isOwner) {
@@ -236,7 +239,7 @@ public class SubregionService {
         Subregion region = regionOpt.get();
 
         // Check permission
-        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
+        boolean hasPermission = permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
         boolean isOwner = region.isOwner(requesterId);
 
         if (!hasPermission && !isOwner) {
@@ -260,7 +263,7 @@ public class SubregionService {
         Subregion region = regionOpt.get();
 
         // Check permission
-        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
+        boolean hasPermission = permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
         boolean isOwner = region.isOwner(requesterId);
 
         if (!hasPermission && !isOwner) {
@@ -287,7 +290,7 @@ public class SubregionService {
         Subregion region = regionOpt.get();
 
         // Check permission
-        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
+        boolean hasPermission = permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
         boolean isOwner = region.isOwner(requesterId);
 
         if (!hasPermission && !isOwner) {
@@ -340,7 +343,7 @@ public class SubregionService {
         Subregion region = regionOpt.get();
 
         // Check permission: must have MANAGE_REGIONS or be a region owner
-        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
+        boolean hasPermission = permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
         boolean isOwner = region.isOwner(requesterId);
 
         if (!hasPermission && !isOwner) {

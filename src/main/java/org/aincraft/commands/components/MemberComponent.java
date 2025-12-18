@@ -11,9 +11,10 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.GuildRoleService;
 import org.aincraft.storage.MemberRoleRepository;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
@@ -23,12 +24,15 @@ import org.bukkit.entity.Player;
  * Component for checking member information including roles, permissions, and join date.
  */
 public class MemberComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildRoleService roleService;
     private final MemberRoleRepository memberRoleRepository;
 
     @Inject
-    public MemberComponent(GuildService guildService, MemberRoleRepository memberRoleRepository) {
-        this.guildService = guildService;
+    public MemberComponent(GuildMemberService memberService, GuildRoleService roleService,
+                          MemberRoleRepository memberRoleRepository) {
+        this.memberService = memberService;
+        this.roleService = roleService;
         this.memberRoleRepository = memberRoleRepository;
     }
 
@@ -59,7 +63,7 @@ public class MemberComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -78,7 +82,7 @@ public class MemberComponent implements GuildCommand {
             targetId = target.getUniqueId();
 
             // Check if target is in the same guild
-            Guild targetGuild = guildService.getPlayerGuild(targetId);
+            Guild targetGuild = memberService.getPlayerGuild(targetId);
             if (targetGuild == null || !targetGuild.getId().equals(guild.getId())) {
                 player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "That player is not in your guild"));
                 return true;
@@ -111,7 +115,7 @@ public class MemberComponent implements GuildCommand {
         sender.sendMessage(MessageFormatter.deserialize("<yellow>Status<reset>: " + statusColor + statusText));
 
         // Show join date
-        Optional<Long> joinDateOpt = guildService.getMemberJoinDate(guild.getId(), targetId);
+        Optional<Long> joinDateOpt = memberService.getMemberJoinDate(guild.getId(), targetId);
         if (joinDateOpt.isPresent()) {
             Component joinDateLine = Component.text()
                 .append(Component.text("Joined", NamedTextColor.YELLOW))
@@ -133,7 +137,7 @@ public class MemberComponent implements GuildCommand {
         } else {
             sender.sendMessage(MessageFormatter.deserialize("<yellow>Roles:"));
             for (String roleId : roleIds) {
-                GuildRole role = guildService.getRoleById(roleId);
+                GuildRole role = roleService.getRoleById(roleId);
                 if (role != null) {
                     String priorityBadge = role.getPriority() > 0 ? "<dark_gray>[<gold>" + role.getPriority() + "</gold>]</dark_gray> " : "";
                     sender.sendMessage(MessageFormatter.deserialize(priorityBadge + "  <gray>• <yellow>" + role.getName()));
@@ -144,7 +148,7 @@ public class MemberComponent implements GuildCommand {
         // Show effective permissions (from highest priority role)
         int effectivePermissions = 0;
         for (String roleId : roleIds) {
-            GuildRole role = guildService.getRoleById(roleId);
+            GuildRole role = roleService.getRoleById(roleId);
             if (role != null) {
                 effectivePermissions |= role.getPermissions();
             }

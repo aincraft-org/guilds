@@ -2,11 +2,11 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.claim.AutoClaimManager;
 import org.aincraft.claim.AutoClaimMode;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -15,12 +15,12 @@ import org.bukkit.entity.Player;
  * Provides explicit state selection via /g auto [claim|unclaim|off].
  */
 public class AutoComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
     private final AutoClaimManager autoClaimManager;
 
     @Inject
-    public AutoComponent(GuildService guildService, AutoClaimManager autoClaimManager) {
-        this.guildService = guildService;
+    public AutoComponent(GuildMemberService memberService, AutoClaimManager autoClaimManager) {
+        this.memberService = memberService;
         this.autoClaimManager = autoClaimManager;
     }
 
@@ -51,7 +51,7 @@ public class AutoComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;

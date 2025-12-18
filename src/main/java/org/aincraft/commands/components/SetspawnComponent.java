@@ -3,9 +3,11 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
+import org.aincraft.service.SpawnService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -14,11 +16,15 @@ import org.bukkit.entity.Player;
  * Usage: /g setspawn
  */
 public class SetspawnComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final SpawnService spawnService;
+    private final PermissionService permissionService;
 
     @Inject
-    public SetspawnComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public SetspawnComponent(GuildMemberService memberService, SpawnService spawnService, PermissionService permissionService) {
+        this.memberService = memberService;
+        this.spawnService = spawnService;
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -49,14 +55,14 @@ public class SetspawnComponent implements GuildCommand {
         }
 
         // Get player's guild
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
             return true;
         }
 
         // Check if player has MANAGE_SPAWN permission
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_SPAWN)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_SPAWN)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You don't have permission to set guild spawn"));
             return true;
         }
@@ -70,9 +76,9 @@ public class SetspawnComponent implements GuildCommand {
 
         // Attempt to set spawn
         org.bukkit.Location originalLoc = player.getLocation();
-        if (guildService.setGuildSpawn(guild.getId(), player.getUniqueId(), originalLoc)) {
+        if (spawnService.setGuildSpawn(guild.getId(), player.getUniqueId(), originalLoc)) {
             // Check if location was adjusted
-            org.bukkit.Location actual = guildService.getGuildSpawnLocation(guild.getId());
+            org.bukkit.Location actual = spawnService.getGuildSpawnLocation(guild.getId());
             if (actual != null && !isSameLocation(originalLoc, actual)) {
                 player.sendMessage(MessageFormatter.deserialize(
                     "<yellow>⚠ Spawn was moved to homeblock at <gold>" +

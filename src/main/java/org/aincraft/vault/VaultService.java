@@ -8,9 +8,11 @@ import java.util.Optional;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.multiblock.MultiblockInstance;
 import org.aincraft.multiblock.patterns.GuildVaultPattern;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.Location;
@@ -26,17 +28,23 @@ public class VaultService {
 
     private final VaultRepository vaultRepository;
     private final VaultTransactionRepository transactionRepository;
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final SubregionService subregionService;
 
     @Inject
     public VaultService(VaultRepository vaultRepository,
                         VaultTransactionRepository transactionRepository,
-                        GuildService guildService,
+                        GuildLifecycleService lifecycleService,
+                        GuildMemberService memberService,
+                        PermissionService permissionService,
                         SubregionService subregionService) {
         this.vaultRepository = Objects.requireNonNull(vaultRepository);
         this.transactionRepository = Objects.requireNonNull(transactionRepository);
-        this.guildService = Objects.requireNonNull(guildService);
+        this.lifecycleService = Objects.requireNonNull(lifecycleService);
+        this.memberService = Objects.requireNonNull(memberService);
+        this.permissionService = Objects.requireNonNull(permissionService);
         this.subregionService = Objects.requireNonNull(subregionService);
     }
 
@@ -60,7 +68,7 @@ public class VaultService {
         Location origin = instance.origin();
 
         // Check player is in a guild
-        Guild guild = guildService.getPlayerGuild(playerId);
+        Guild guild = memberService.getPlayerGuild(playerId);
         if (guild == null) {
             return VaultCreationResult.failure("You must be in a guild to create a vault");
         }
@@ -111,7 +119,7 @@ public class VaultService {
         Location loc = player.getLocation();
 
         // Check player is in a guild
-        Guild guild = guildService.getPlayerGuild(playerId);
+        Guild guild = memberService.getPlayerGuild(playerId);
         if (guild == null) {
             return VaultAccessResult.failure("You are not in a guild");
         }
@@ -136,8 +144,8 @@ public class VaultService {
         }
 
         // Check permissions
-        boolean canDeposit = guildService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_DEPOSIT);
-        boolean canWithdraw = guildService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_WITHDRAW);
+        boolean canDeposit = permissionService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_DEPOSIT);
+        boolean canWithdraw = permissionService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_WITHDRAW);
 
         // Guild owner always has access
         if (guild.isOwner(playerId)) {
@@ -180,14 +188,14 @@ public class VaultService {
         Vault vault = vaultOpt.get();
 
         // Check player is in the same guild
-        Guild guild = guildService.getPlayerGuild(playerId);
+        Guild guild = memberService.getPlayerGuild(playerId);
         if (guild == null || !guild.getId().equals(vault.getGuildId())) {
             return VaultAccessResult.failure("This vault belongs to another guild");
         }
 
         // Check permissions
-        boolean canDeposit = guildService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_DEPOSIT);
-        boolean canWithdraw = guildService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_WITHDRAW);
+        boolean canDeposit = permissionService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_DEPOSIT);
+        boolean canWithdraw = permissionService.hasPermission(guild.getId(), playerId, GuildPermission.VAULT_WITHDRAW);
 
         // Guild owner always has access
         if (guild.isOwner(playerId)) {
@@ -206,7 +214,7 @@ public class VaultService {
      * Gets vault info for a player's guild.
      */
     public Optional<Vault> getGuildVault(UUID playerId) {
-        Guild guild = guildService.getPlayerGuild(playerId);
+        Guild guild = memberService.getPlayerGuild(playerId);
         if (guild == null) {
             return Optional.empty();
         }
@@ -256,7 +264,7 @@ public class VaultService {
      * Checks if a player can destroy the vault (owner only).
      */
     public boolean canDestroyVault(UUID playerId, Vault vault) {
-        Guild guild = guildService.getGuildById(vault.getGuildId());
+        Guild guild = lifecycleService.getGuildById(vault.getGuildId());
         return guild != null && guild.isOwner(playerId);
     }
 

@@ -1,7 +1,6 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.map.GuildMapRenderer;
@@ -13,15 +12,13 @@ import org.bukkit.entity.Player;
  * Handles `/g map [size]` with optional size parameter (1-5).
  */
 public class MapComponent implements GuildCommand {
-    private final GuildService guildService;
     private final GuildMapRenderer mapRenderer;
     private static final int MAX_SIZE = 5;
     private static final int MIN_SIZE = 1;
     private static final int DEFAULT_SIZE = 1;
 
     @Inject
-    public MapComponent(GuildService guildService, GuildMapRenderer mapRenderer) {
-        this.guildService = guildService;
+    public MapComponent(GuildMapRenderer mapRenderer) {
         this.mapRenderer = mapRenderer;
     }
 

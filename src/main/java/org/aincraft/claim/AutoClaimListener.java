@@ -6,9 +6,10 @@ import java.util.Objects;
 import org.aincraft.ChunkKey;
 import org.aincraft.ClaimResult;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.claim.events.PlayerEnterClaimEvent;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.TerritoryService;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.entity.Player;
@@ -21,13 +22,15 @@ import org.bukkit.event.Listener;
  * Automatically disables auto modes on any failure and notifies the player.
  */
 public class AutoClaimListener implements Listener {
-    private final GuildService guildService;
+    private final TerritoryService territoryService;
+    private final GuildMemberService memberService;
     private final AutoClaimManager autoClaimManager;
     private final SubregionService subregionService;
 
     @Inject
-    public AutoClaimListener(GuildService guildService, AutoClaimManager autoClaimManager, SubregionService subregionService) {
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+    public AutoClaimListener(TerritoryService territoryService, GuildMemberService memberService, AutoClaimManager autoClaimManager, SubregionService subregionService) {
+        this.territoryService = Objects.requireNonNull(territoryService, "Territory service cannot be null");
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
         this.autoClaimManager = Objects.requireNonNull(autoClaimManager, "Auto claim manager cannot be null");
         this.subregionService = Objects.requireNonNull(subregionService, "Subregion service cannot be null");
     }
@@ -42,7 +45,7 @@ public class AutoClaimListener implements Listener {
         ClaimState oldState = event.getPreviousState();
         if (oldState == null) return;
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             autoClaimManager.disable(player.getUniqueId());
             player.sendMessage(MessageFormatter.deserialize("<red>Auto-" + (mode == AutoClaimMode.AUTO_CLAIM ? "claim" : "unclaim") + " disabled: you are not in a guild</red>"));
@@ -59,7 +62,7 @@ public class AutoClaimListener implements Listener {
         if (event.getNewState().guildId() != null) return; // Not entering wilderness
 
         ChunkKey chunk = ChunkKey.from(event.getTo().getChunk());
-        ClaimResult result = guildService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
+        ClaimResult result = territoryService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
 
         switch (result.getStatus()) {
             case SUCCESS -> player.sendMessage(MessageFormatter.deserialize(
@@ -78,7 +81,7 @@ public class AutoClaimListener implements Listener {
         if (newState.guildId() == null || !newState.guildId().equals(guild.getId())) return;
 
         ChunkKey chunk = ChunkKey.from(event.getTo().getChunk());
-        
+
         List<Subregion> subregions = subregionService.getSubregionsInChunk(chunk);
         if (!subregions.isEmpty()) {
             autoClaimManager.disable(player.getUniqueId());
@@ -87,7 +90,7 @@ public class AutoClaimListener implements Listener {
             return;
         }
 
-        if (guildService.unclaimChunk(guild.getId(), player.getUniqueId(), chunk)) {
+        if (territoryService.unclaimChunk(guild.getId(), player.getUniqueId(), chunk)) {
             player.sendMessage(MessageFormatter.deserialize(
                     "<green>Unclaimed chunk at <gold>" + chunk.x() + ", " + chunk.z() + "</gold></green>"));
         } else {

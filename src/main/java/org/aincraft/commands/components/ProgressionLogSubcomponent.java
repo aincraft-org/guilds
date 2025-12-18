@@ -1,9 +1,9 @@
 package org.aincraft.commands.components;
 
-import org.aincraft.GuildService;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.progression.ProgressionLog;
 import org.aincraft.progression.storage.ProgressionLogRepository;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -21,16 +21,16 @@ public class ProgressionLogSubcomponent {
     private static final int LOG_PAGE_SIZE = 10;
     private static final int UUID_DISPLAY_LENGTH = 8;
 
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
     private final ProgressionLogRepository logRepository;
 
-    public ProgressionLogSubcomponent(GuildService guildService, ProgressionLogRepository logRepository) {
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+    public ProgressionLogSubcomponent(GuildMemberService memberService, ProgressionLogRepository logRepository) {
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
         this.logRepository = Objects.requireNonNull(logRepository, "Log repository cannot be null");
     }
 
     public boolean execute(Player player, String[] args) {
-        org.aincraft.Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));

@@ -8,8 +8,11 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.RelationshipService;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.TerritoryService;
+import org.aincraft.service.SpawnService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.progression.GuildProgression;
@@ -25,17 +28,22 @@ import org.bukkit.entity.Player;
  * Component for viewing guild information.
  */
 public class InfoComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final GuildMemberService memberService;
+    private final TerritoryService territoryService;
     private final RelationshipService relationshipService;
     private final SubregionService subregionService;
     private final ProgressionService progressionService;
     private final ProgressionConfig progressionConfig;
 
     @Inject
-    public InfoComponent(GuildService guildService, RelationshipService relationshipService,
+    public InfoComponent(GuildLifecycleService lifecycleService, GuildMemberService memberService,
+                         TerritoryService territoryService, RelationshipService relationshipService,
                          SubregionService subregionService, ProgressionService progressionService,
                          ProgressionConfig progressionConfig) {
-        this.guildService = guildService;
+        this.lifecycleService = lifecycleService;
+        this.memberService = memberService;
+        this.territoryService = territoryService;
         this.relationshipService = relationshipService;
         this.subregionService = subregionService;
         this.progressionService = progressionService;
@@ -73,10 +81,10 @@ public class InfoComponent implements GuildCommand {
 
         if (args.length >= 2) {
             // Look up guild by name
-            guild = guildService.getGuildByName(args[1]);
+            guild = lifecycleService.getGuildByName(args[1]);
         } else {
             // Use player's current guild
-            guild = guildService.getPlayerGuild(player.getUniqueId());
+            guild = memberService.getPlayerGuild(player.getUniqueId());
         }
 
         if (guild == null) {
@@ -175,7 +183,7 @@ public class InfoComponent implements GuildCommand {
         player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Members: <white>" +
             guild.getMemberCount() + "<dark_gray>/<white>" + guild.getMaxMembers()));
 
-        int claimedChunks = guildService.getGuildChunkCount(guild.getId());
+        int claimedChunks = territoryService.getGuildChunks(guild.getId()).size();
         int maxChunks = guild.getMaxChunks();
         player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Chunks: <white>" +
             claimedChunks + "<dark_gray>/<white>" + maxChunks));
@@ -217,7 +225,7 @@ public class InfoComponent implements GuildCommand {
             if (!allies.isEmpty()) {
                 player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Allies <green>(" + allies.size() + ")<gray>:"));
                 for (String allyGuildId : allies) {
-                    Guild allyGuild = guildService.getGuildById(allyGuildId);
+                    Guild allyGuild = lifecycleService.getGuildById(allyGuildId);
                     if (allyGuild != null) {
                         player.sendMessage(MessageFormatter.deserialize("    <green>• " + allyGuild.getName()));
                     }
@@ -228,7 +236,7 @@ public class InfoComponent implements GuildCommand {
             if (!enemies.isEmpty()) {
                 player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Enemies <red>(" + enemies.size() + ")<gray>:"));
                 for (String enemyGuildId : enemies) {
-                    Guild enemyGuild = guildService.getGuildById(enemyGuildId);
+                    Guild enemyGuild = lifecycleService.getGuildById(enemyGuildId);
                     if (enemyGuild != null) {
                         player.sendMessage(MessageFormatter.deserialize("    <red>• " + enemyGuild.getName()));
                     }

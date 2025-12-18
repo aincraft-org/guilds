@@ -10,7 +10,8 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.subregion.RegionPermission;
@@ -34,7 +35,8 @@ import org.bukkit.entity.Player;
  * Handles: pos1, pos2, create, delete, list, info, addowner, removeowner, types, settype, setperm, removeperm, listperms, role, limit
  */
 public class RegionComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final SubregionService subregionService;
     private final SelectionManager selectionManager;
     private final SubregionTypeRegistry typeRegistry;
@@ -42,11 +44,13 @@ public class RegionComponent implements GuildCommand {
     private final RegionTypeLimitRepository limitRepository;
     private final RegionVisualizer regionVisualizer;
 
-    public RegionComponent(GuildService guildService, SubregionService subregionService,
+    public RegionComponent(GuildMemberService memberService, PermissionService permissionService,
+                           SubregionService subregionService,
                            SelectionManager selectionManager, SubregionTypeRegistry typeRegistry,
                            RegionPermissionService regionPermissionService, RegionTypeLimitRepository limitRepository,
                            RegionVisualizer regionVisualizer) {
-        this.guildService = guildService;
+        this.memberService = memberService;
+        this.permissionService = permissionService;
         this.subregionService = subregionService;
         this.selectionManager = selectionManager;
         this.typeRegistry = typeRegistry;
@@ -240,7 +244,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -256,7 +260,7 @@ public class RegionComponent implements GuildCommand {
         }
 
         // Validate permissions upfront
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_REGIONS)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_REGIONS)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to manage regions"));
             return true;
         }
@@ -285,7 +289,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -303,7 +307,7 @@ public class RegionComponent implements GuildCommand {
     }
 
     private boolean handleList(Player player) {
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -365,7 +369,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -393,7 +397,7 @@ public class RegionComponent implements GuildCommand {
     }
 
     private boolean handleInfo(Player player, String[] args) {
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -469,7 +473,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -514,7 +518,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -545,7 +549,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -577,7 +581,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -643,7 +647,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -708,7 +712,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -763,7 +767,7 @@ public class RegionComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -1065,7 +1069,7 @@ public class RegionComponent implements GuildCommand {
             }
 
             // Show usage for current player's guild
-            Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+            Guild guild = memberService.getPlayerGuild(player.getUniqueId());
             if (guild != null) {
                 long usage = subregionService.getTypeUsage(guild.getId(), typeId);
                 if (limitOpt.isPresent()) {

@@ -3,10 +3,10 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import java.util.Objects;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -16,12 +16,12 @@ import org.bukkit.entity.Player;
 public class DeclineComponent implements GuildCommand {
 
     private final InviteService inviteService;
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
 
     @Inject
-    public DeclineComponent(InviteService inviteService, GuildService guildService) {
+    public DeclineComponent(InviteService inviteService, GuildLifecycleService lifecycleService) {
         this.inviteService = Objects.requireNonNull(inviteService, "Invite service cannot be null");
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+        this.lifecycleService = Objects.requireNonNull(lifecycleService, "Lifecycle service cannot be null");
     }
 
     @Override
@@ -45,7 +45,7 @@ public class DeclineComponent implements GuildCommand {
 
         // Get guild by name
         String guildName = args[1];
-        Guild guild = guildService.getGuildByName(guildName);
+        Guild guild = lifecycleService.getGuildByName(guildName);
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
             return true;

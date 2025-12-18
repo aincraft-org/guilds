@@ -2,7 +2,9 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.bukkit.command.CommandSender;
@@ -13,11 +15,13 @@ import org.bukkit.entity.Player;
  * Usage: /g toggle <explosions|fire>
  */
 public class ToggleComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildLifecycleService lifecycleService;
 
     @Inject
-    public ToggleComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public ToggleComponent(GuildMemberService memberService, GuildLifecycleService lifecycleService) {
+        this.memberService = memberService;
+        this.lifecycleService = lifecycleService;
     }
 
     @Override
@@ -52,7 +56,7 @@ public class ToggleComponent implements GuildCommand {
             return false;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -79,7 +83,7 @@ public class ToggleComponent implements GuildCommand {
     private boolean toggleExplosions(Player player, Guild guild) {
         boolean newValue = !guild.isExplosionsAllowed();
         guild.setExplosionsAllowed(newValue);
-        guildService.save(guild);
+        lifecycleService.save(guild);
 
         String status = newValue ? "<green>enabled</green>" : "<red>disabled</red>";
         player.sendMessage(MessageFormatter.deserialize(
@@ -90,7 +94,7 @@ public class ToggleComponent implements GuildCommand {
     private boolean toggleFire(Player player, Guild guild) {
         boolean newValue = !guild.isFireAllowed();
         guild.setFireAllowed(newValue);
-        guildService.save(guild);
+        lifecycleService.save(guild);
 
         String status = newValue ? "<green>enabled</green>" : "<red>disabled</red>";
         player.sendMessage(MessageFormatter.deserialize(
@@ -101,7 +105,7 @@ public class ToggleComponent implements GuildCommand {
     private boolean togglePublic(Player player, Guild guild) {
         boolean newValue = !guild.isPublic();
         guild.setPublic(newValue);
-        guildService.save(guild);
+        lifecycleService.save(guild);
 
         String status = newValue ? "<green>public</green>" : "<gold>private</gold>";
         player.sendMessage(MessageFormatter.deserialize(

@@ -3,9 +3,10 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.TerritoryService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -13,11 +14,13 @@ import org.bukkit.entity.Player;
  * Component for claiming the chunk the player is standing in.
  */
 public class ClaimComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final TerritoryService territoryService;
 
     @Inject
-    public ClaimComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public ClaimComponent(GuildMemberService memberService, TerritoryService territoryService) {
+        this.memberService = memberService;
+        this.territoryService = territoryService;
     }
 
     @Override
@@ -47,7 +50,7 @@ public class ClaimComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -55,7 +58,7 @@ public class ClaimComponent implements GuildCommand {
 
         ChunkKey chunk = ChunkKey.from(player.getLocation().getChunk());
 
-        Guild existingOwner = guildService.getChunkOwner(chunk);
+        Guild existingOwner = territoryService.getChunkOwner(chunk);
         if (existingOwner != null) {
             if (existingOwner.getId().equals(guild.getId())) {
                 player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Your guild already owns this chunk"));
@@ -65,7 +68,7 @@ public class ClaimComponent implements GuildCommand {
             return true;
         }
 
-        org.aincraft.ClaimResult result = guildService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
+        org.aincraft.ClaimResult result = territoryService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
         if (result.isSuccess()) {
             player.sendMessage(MessageFormatter.deserialize("<green>Claimed chunk at <gold>" + chunk.x() + ", " + chunk.z() +
                     "</gold> for <gold>" + guild.getName() + "</gold></green>"));

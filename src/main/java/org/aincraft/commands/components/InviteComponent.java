@@ -3,11 +3,11 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import java.util.Objects;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.InviteResult;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
@@ -19,12 +19,12 @@ import org.bukkit.entity.Player;
 public class InviteComponent implements GuildCommand {
 
     private final InviteService inviteService;
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
 
     @Inject
-    public InviteComponent(InviteService inviteService, GuildService guildService) {
+    public InviteComponent(InviteService inviteService, GuildMemberService memberService) {
         this.inviteService = Objects.requireNonNull(inviteService, "Invite service cannot be null");
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
     }
 
     @Override
@@ -47,7 +47,7 @@ public class InviteComponent implements GuildCommand {
         }
 
         // Get player's guild
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;

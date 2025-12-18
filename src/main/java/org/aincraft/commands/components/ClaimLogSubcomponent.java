@@ -4,9 +4,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import org.aincraft.GuildService;
 import org.aincraft.claim.ChunkClaimLog;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.TerritoryService;
 import org.bukkit.entity.Player;
 
 /**
@@ -17,14 +18,16 @@ public class ClaimLogSubcomponent {
     private static final int LOG_PAGE_SIZE = 10;
     private static final int UUID_DISPLAY_LENGTH = 8;
 
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final TerritoryService territoryService;
 
-    public ClaimLogSubcomponent(GuildService guildService) {
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+    public ClaimLogSubcomponent(GuildMemberService memberService, TerritoryService territoryService) {
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
+        this.territoryService = Objects.requireNonNull(territoryService, "Territory service cannot be null");
     }
 
     public boolean execute(Player player, String[] args) {
-        org.aincraft.Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -42,7 +45,7 @@ public class ClaimLogSubcomponent {
 
         int offset = (page - 1) * LOG_PAGE_SIZE;
 
-        List<ChunkClaimLog> logs = guildService.getGuildClaimLogs(guildId, LOG_PAGE_SIZE * page);
+        List<ChunkClaimLog> logs = territoryService.getGuildClaimLogs(guildId, LOG_PAGE_SIZE * page);
 
         if (logs.isEmpty()) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "No claim history recorded"));

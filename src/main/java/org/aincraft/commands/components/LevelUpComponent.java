@@ -6,10 +6,11 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.progression.*;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -24,15 +25,18 @@ import java.util.UUID;
  */
 public class LevelUpComponent implements GuildCommand {
     private final ProgressionService progressionService;
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final ProgressionConfig config;
 
     @Inject
     public LevelUpComponent(ProgressionService progressionService,
-                            GuildService guildService,
+                            GuildMemberService memberService,
+                            PermissionService permissionService,
                             ProgressionConfig config) {
         this.progressionService = Objects.requireNonNull(progressionService, "Progression service cannot be null");
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
+        this.permissionService = Objects.requireNonNull(permissionService, "Permission service cannot be null");
         this.config = Objects.requireNonNull(config, "Config cannot be null");
     }
 
@@ -43,7 +47,7 @@ public class LevelUpComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -51,7 +55,7 @@ public class LevelUpComponent implements GuildCommand {
 
         // Check permission
         if (!guild.isOwner(player.getUniqueId()) &&
-            !guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.LEVEL_UP)) {
+            !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.LEVEL_UP)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to level up the guild"));
             return true;
         }

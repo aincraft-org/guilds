@@ -4,9 +4,10 @@ import com.google.inject.Inject;
 import java.util.List;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.TerritoryService;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.command.CommandSender;
@@ -17,12 +18,14 @@ import org.bukkit.entity.Player;
  * Blocks unclaim if subregions exist in the chunk.
  */
 public class UnclaimComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final TerritoryService territoryService;
     private final SubregionService subregionService;
 
     @Inject
-    public UnclaimComponent(GuildService guildService, SubregionService subregionService) {
-        this.guildService = guildService;
+    public UnclaimComponent(GuildMemberService memberService, TerritoryService territoryService, SubregionService subregionService) {
+        this.memberService = memberService;
+        this.territoryService = territoryService;
         this.subregionService = subregionService;
     }
 
@@ -53,7 +56,7 @@ public class UnclaimComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
@@ -61,17 +64,13 @@ public class UnclaimComponent implements GuildCommand {
 
         // Check if "all" argument is provided
         if (args.length > 1 && "all".equalsIgnoreCase(args[1])) {
-            if (guildService.unclaimAllChunks(guild.getId(), player.getUniqueId())) {
-                int chunkCount = guildService.getGuildChunkCount(guild.getId());
-                player.sendMessage(MessageFormatter.deserialize("<green>Unclaimed all chunks for <gold>" + guild.getName() + "</gold></green>"));
-            } else {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to unclaim all chunks. You may lack UNCLAIM permission."));
-            }
+            territoryService.unclaimAll(guild.getId());
+            player.sendMessage(MessageFormatter.deserialize("<green>Unclaimed all chunks for <gold>" + guild.getName() + "</gold></green>"));
         } else {
             // Unclaim single chunk at player's location
             ChunkKey chunk = ChunkKey.from(player.getLocation().getChunk());
 
-            Guild chunkOwner = guildService.getChunkOwner(chunk);
+            Guild chunkOwner = territoryService.getChunkOwner(chunk);
             if (chunkOwner == null) {
                 player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "This chunk is not claimed"));
                 return true;
@@ -97,7 +96,7 @@ public class UnclaimComponent implements GuildCommand {
                 return true;
             }
 
-            if (guildService.unclaimChunk(guild.getId(), player.getUniqueId(), chunk)) {
+            if (territoryService.unclaimChunk(guild.getId(), player.getUniqueId(), chunk)) {
                 player.sendMessage(MessageFormatter.deserialize("<green>Unclaimed chunk at <gold>" + chunk.x() + ", " + chunk.z() + "</gold></green>"));
             } else {
                 player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to unclaim chunk. You may lack UNCLAIM permission."));

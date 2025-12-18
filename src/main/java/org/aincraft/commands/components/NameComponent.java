@@ -3,9 +3,11 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -14,11 +16,16 @@ import org.bukkit.entity.Player;
  * Usage: /g name <name>
  */
 public class NameComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildLifecycleService lifecycleService;
+    private final PermissionService permissionService;
 
     @Inject
-    public NameComponent(GuildService guildService) {
-        this.guildService = guildService;
+    public NameComponent(GuildMemberService memberService, GuildLifecycleService lifecycleService,
+                        PermissionService permissionService) {
+        this.memberService = memberService;
+        this.lifecycleService = lifecycleService;
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -54,14 +61,14 @@ public class NameComponent implements GuildCommand {
         }
 
         // Get player's guild
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
         }
 
         // Check if player has EDIT_GUILD_INFO permission
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.EDIT_GUILD_INFO)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.EDIT_GUILD_INFO)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to change guild name"));
             return true;
         }
@@ -89,13 +96,13 @@ public class NameComponent implements GuildCommand {
         }
 
         // Check if name already exists
-        if (guildService.getGuildByName(newName) != null) {
+        if (lifecycleService.getGuildByName(newName) != null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "A guild with that name already exists"));
             return true;
         }
 
         guild.setName(newName);
-        guildService.save(guild);
+        lifecycleService.save(guild);
         player.sendMessage(MessageFormatter.deserialize("<green>Guild name changed to: <gold>" + newName + "</gold></green>"));
         return true;
     }

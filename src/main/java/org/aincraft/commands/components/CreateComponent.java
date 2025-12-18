@@ -5,6 +5,7 @@ import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.TerritoryService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -13,10 +14,12 @@ import org.bukkit.entity.Player;
  */
 public class CreateComponent implements GuildCommand {
     private final GuildLifecycleService lifecycleService;
+    private final TerritoryService territoryService;
 
     @Inject
-    public CreateComponent(GuildLifecycleService lifecycleService) {
+    public CreateComponent(GuildLifecycleService lifecycleService, TerritoryService territoryService) {
         this.lifecycleService = lifecycleService;
+        this.territoryService = territoryService;
     }
 
     @Override
@@ -65,7 +68,7 @@ public class CreateComponent implements GuildCommand {
 
         // Auto-claim the chunk where guild was created
         org.aincraft.ChunkKey chunk = org.aincraft.ChunkKey.from(player.getLocation().getChunk());
-        org.aincraft.ClaimResult claimResult = guildService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
+        org.aincraft.ClaimResult claimResult = territoryService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
         if (claimResult.isSuccess()) {
             player.sendMessage(MessageFormatter.format("<green>✓ Automatically claimed chunk at <gold>%d, %d</gold></green>", chunk.x(), chunk.z()));
         } else {

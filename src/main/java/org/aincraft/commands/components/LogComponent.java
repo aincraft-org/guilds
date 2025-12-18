@@ -2,9 +2,11 @@ package org.aincraft.commands.components;
 
 import java.util.Objects;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.progression.storage.ProgressionLogRepository;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
+import org.aincraft.service.TerritoryService;
 import org.aincraft.vault.VaultService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -14,16 +16,19 @@ import org.bukkit.entity.Player;
  * Routes to claim, vault, or progression subcomponents and enforces VIEW_LOGS permission.
  */
 public class LogComponent {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final ClaimLogSubcomponent claimLogSubcomponent;
     private final VaultLogSubcomponent vaultLogSubcomponent;
     private final ProgressionLogSubcomponent progressionLogSubcomponent;
 
-    public LogComponent(GuildService guildService, VaultService vaultService, ProgressionLogRepository progressionLogRepository) {
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
-        this.claimLogSubcomponent = new ClaimLogSubcomponent(guildService);
+    public LogComponent(GuildMemberService memberService, PermissionService permissionService,
+                       TerritoryService territoryService, VaultService vaultService, ProgressionLogRepository progressionLogRepository) {
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
+        this.permissionService = Objects.requireNonNull(permissionService, "Permission service cannot be null");
+        this.claimLogSubcomponent = new ClaimLogSubcomponent(memberService, territoryService);
         this.vaultLogSubcomponent = new VaultLogSubcomponent(vaultService);
-        this.progressionLogSubcomponent = new ProgressionLogSubcomponent(guildService, progressionLogRepository);
+        this.progressionLogSubcomponent = new ProgressionLogSubcomponent(memberService, progressionLogRepository);
     }
 
     public boolean execute(CommandSender sender, String[] args) {
@@ -38,14 +43,14 @@ public class LogComponent {
         }
 
         // Check if player is in a guild
-        org.aincraft.Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
         }
 
         // Check VIEW_LOGS permission
-        if (!guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.VIEW_LOGS)) {
+        if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.VIEW_LOGS)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to view logs"));
             return true;
         }

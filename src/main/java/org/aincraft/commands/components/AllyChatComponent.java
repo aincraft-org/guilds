@@ -3,11 +3,12 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.chat.ChatModeService;
 import org.aincraft.chat.ChatModeService.ChatMode;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -17,12 +18,15 @@ import org.bukkit.entity.Player;
  * With args: Send one-time message to ally chat.
  */
 public class AllyChatComponent implements GuildCommand {
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final ChatModeService chatModeService;
 
     @Inject
-    public AllyChatComponent(GuildService guildService, ChatModeService chatModeService) {
-        this.guildService = guildService;
+    public AllyChatComponent(GuildMemberService memberService, PermissionService permissionService,
+                            ChatModeService chatModeService) {
+        this.memberService = memberService;
+        this.permissionService = permissionService;
         this.chatModeService = chatModeService;
     }
 
@@ -55,7 +59,7 @@ public class AllyChatComponent implements GuildCommand {
             return true;
         }
 
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                 "You are not in a guild"));
@@ -64,7 +68,7 @@ public class AllyChatComponent implements GuildCommand {
 
         // Check CHAT_GUILD permission (owners bypass)
         if (!guild.isOwner(player.getUniqueId()) &&
-            !guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.CHAT_GUILD)) {
+            !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.CHAT_GUILD)) {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                 "You don't have permission to use ally chat"));
             return true;

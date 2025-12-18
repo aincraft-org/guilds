@@ -7,6 +7,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.storage.InviteRepository;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -20,15 +23,21 @@ public class InviteService {
     private static final int MAX_PENDING_INVITES = 10;
 
     private final InviteRepository inviteRepository;
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final GuildsPlugin plugin;
 
     @Inject
     public InviteService(InviteRepository inviteRepository,
-                         GuildService guildService,
+                         GuildLifecycleService lifecycleService,
+                         GuildMemberService memberService,
+                         PermissionService permissionService,
                          GuildsPlugin plugin) {
         this.inviteRepository = Objects.requireNonNull(inviteRepository, "Invite repository cannot be null");
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+        this.lifecycleService = Objects.requireNonNull(lifecycleService, "Lifecycle service cannot be null");
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
+        this.permissionService = Objects.requireNonNull(permissionService, "Permission service cannot be null");
         this.plugin = Objects.requireNonNull(plugin, "Plugin cannot be null");
         startCleanupTask();
     }
@@ -47,7 +56,7 @@ public class InviteService {
         Objects.requireNonNull(inviteeId, "Invitee ID cannot be null");
 
         // 1. Check inviter has INVITE permission
-        if (!guildService.hasPermission(guildId, inviterId, GuildPermission.INVITE)) {
+        if (!permissionService.hasPermission(guildId, inviterId, GuildPermission.INVITE)) {
             return InviteResult.noPermission();
         }
 
@@ -58,13 +67,13 @@ public class InviteService {
         }
 
         // 3. Check inviter in guild
-        Guild guild = guildService.getPlayerGuild(inviterId);
+        Guild guild = memberService.getPlayerGuild(inviterId);
         if (guild == null || !guild.getId().equals(guildId)) {
             return InviteResult.alreadyInGuild();
         }
 
         // 4. Check invitee not in ANY guild
-        Guild inviteeGuild = guildService.getPlayerGuild(inviteeId);
+        Guild inviteeGuild = memberService.getPlayerGuild(inviteeId);
         if (inviteeGuild != null) {
             return InviteResult.inviteeInGuild();
         }
@@ -124,14 +133,14 @@ public class InviteService {
         }
 
         // 3. Check player not in guild
-        Guild currentGuild = guildService.getPlayerGuild(playerId);
+        Guild currentGuild = memberService.getPlayerGuild(playerId);
         if (currentGuild != null) {
             inviteRepository.delete(invite.id());
             return AcceptInviteResult.alreadyInGuild();
         }
 
         // 4. Check guild exists and not full
-        Guild guild = guildService.getGuildById(guildId);
+        Guild guild = lifecycleService.getGuildById(guildId);
         if (guild == null) {
             inviteRepository.delete(invite.id());
             return AcceptInviteResult.guildNotFound();
@@ -145,7 +154,7 @@ public class InviteService {
         inviteRepository.delete(invite.id());
 
         // 6. Join guild
-        boolean joined = guildService.joinGuild(guildId, playerId);
+        boolean joined = memberService.joinGuild(guildId, playerId);
         if (!joined) {
             return AcceptInviteResult.failure("Failed to join guild");
         }

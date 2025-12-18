@@ -13,10 +13,11 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.RelationshipService;
 import org.aincraft.chat.ChatModeService.ChatMode;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -30,15 +31,18 @@ import org.bukkit.event.player.PlayerQuitEvent;
  */
 public class GuildChatListener implements Listener {
     private final ChatModeService chatModeService;
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final PermissionService permissionService;
     private final RelationshipService relationshipService;
 
     @Inject
     public GuildChatListener(ChatModeService chatModeService,
-                            GuildService guildService,
+                            GuildMemberService memberService,
+                            PermissionService permissionService,
                             RelationshipService relationshipService) {
         this.chatModeService = Objects.requireNonNull(chatModeService);
-        this.guildService = Objects.requireNonNull(guildService);
+        this.memberService = Objects.requireNonNull(memberService);
+        this.permissionService = Objects.requireNonNull(permissionService);
         this.relationshipService = Objects.requireNonNull(relationshipService);
     }
 
@@ -53,7 +57,7 @@ public class GuildChatListener implements Listener {
         }
 
         // Get sender's guild
-        Guild guild = guildService.getPlayerGuild(sender.getUniqueId());
+        Guild guild = memberService.getPlayerGuild(sender.getUniqueId());
         if (guild == null) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                 "You are not in a guild. Chat mode reset to public."));
@@ -63,7 +67,7 @@ public class GuildChatListener implements Listener {
 
         // Check permission (owners bypass)
         if (!guild.isOwner(sender.getUniqueId()) &&
-            !guildService.hasPermission(guild.getId(), sender.getUniqueId(), GuildPermission.CHAT_GUILD)) {
+            !permissionService.hasPermission(guild.getId(), sender.getUniqueId(), GuildPermission.CHAT_GUILD)) {
             sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
                 "You don't have permission to use guild chat."));
             event.setCancelled(true);
@@ -98,7 +102,7 @@ public class GuildChatListener implements Listener {
         // Send to all online guild members
         Bukkit.getOnlinePlayers().stream()
             .filter(p -> {
-                Guild playerGuild = guildService.getPlayerGuild(p.getUniqueId());
+                Guild playerGuild = memberService.getPlayerGuild(p.getUniqueId());
                 return playerGuild != null && playerGuild.getId().equals(guild.getId());
             })
             .forEach(p -> p.sendMessage(chatMessage));
@@ -117,7 +121,7 @@ public class GuildChatListener implements Listener {
         // Send to all members of allied guilds
         Bukkit.getOnlinePlayers().stream()
             .filter(p -> {
-                Guild playerGuild = guildService.getPlayerGuild(p.getUniqueId());
+                Guild playerGuild = memberService.getPlayerGuild(p.getUniqueId());
                 return playerGuild != null && allyGuildIds.contains(playerGuild.getId());
             })
             .forEach(p -> p.sendMessage(chatMessage));

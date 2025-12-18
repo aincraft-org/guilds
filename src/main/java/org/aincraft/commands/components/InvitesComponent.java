@@ -6,10 +6,12 @@ import java.util.Objects;
 import org.aincraft.Guild;
 import org.aincraft.GuildInvite;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
@@ -21,12 +23,17 @@ import org.bukkit.entity.Player;
 public class InvitesComponent implements GuildCommand {
 
     private final InviteService inviteService;
-    private final GuildService guildService;
+    private final GuildMemberService memberService;
+    private final GuildLifecycleService lifecycleService;
+    private final PermissionService permissionService;
 
     @Inject
-    public InvitesComponent(InviteService inviteService, GuildService guildService) {
+    public InvitesComponent(InviteService inviteService, GuildMemberService memberService,
+                           GuildLifecycleService lifecycleService, PermissionService permissionService) {
         this.inviteService = Objects.requireNonNull(inviteService, "Invite service cannot be null");
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+        this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");
+        this.lifecycleService = Objects.requireNonNull(lifecycleService, "Lifecycle service cannot be null");
+        this.permissionService = Objects.requireNonNull(permissionService, "Permission service cannot be null");
     }
 
     @Override
@@ -52,7 +59,7 @@ public class InvitesComponent implements GuildCommand {
         } else {
             player.sendMessage(MessageFormatter.format("<gold>Received Invites:</gold>"));
             for (GuildInvite invite : receivedInvites) {
-                Guild guild = guildService.getGuildById(invite.guildId());
+                Guild guild = lifecycleService.getGuildById(invite.guildId());
                 if (guild != null) {
                     OfflinePlayer inviter = Bukkit.getOfflinePlayer(invite.inviterId());
                     String timeLeft = formatTimeLeft(invite.remainingMillis());
@@ -66,8 +73,8 @@ public class InvitesComponent implements GuildCommand {
         }
 
         // Show sent invites if in guild with INVITE permission
-        Guild guild = guildService.getPlayerGuild(player.getUniqueId());
-        if (guild != null && guildService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.INVITE)) {
+        Guild guild = memberService.getPlayerGuild(player.getUniqueId());
+        if (guild != null && permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.INVITE)) {
             List<GuildInvite> sentInvites = inviteService.getSentInvites(guild.getId());
 
             if (!sentInvites.isEmpty()) {

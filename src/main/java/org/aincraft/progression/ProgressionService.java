@@ -3,9 +3,11 @@ package org.aincraft.progression;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.progression.storage.GuildProgressionRepository;
 import org.aincraft.progression.storage.ProgressionLogRepository;
+import org.aincraft.skilltree.SkillTreeRegistry;
+import org.aincraft.skilltree.SkillTreeService;
 import org.aincraft.vault.Vault;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransaction;
@@ -23,25 +25,31 @@ import java.util.*;
 public class ProgressionService {
     private final GuildProgressionRepository progressionRepository;
     private final ProgressionLogRepository logRepository;
-    private final GuildService guildService;
+    private final GuildLifecycleService lifecycleService;
     private final VaultService vaultService;
     private final ProgressionConfig config;
     private final ProceduralCostGenerator costGenerator;
+    private final SkillTreeService skillTreeService;
+    private final SkillTreeRegistry skillTreeRegistry;
     private final Map<String, LevelUpCost> costCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Inject
     public ProgressionService(GuildProgressionRepository progressionRepository,
                               ProgressionLogRepository logRepository,
-                              GuildService guildService,
+                              GuildLifecycleService lifecycleService,
                               VaultService vaultService,
                               ProgressionConfig config,
-                              ProceduralCostGenerator costGenerator) {
+                              ProceduralCostGenerator costGenerator,
+                              SkillTreeService skillTreeService,
+                              SkillTreeRegistry skillTreeRegistry) {
         this.progressionRepository = Objects.requireNonNull(progressionRepository, "Progression repository cannot be null");
         this.logRepository = Objects.requireNonNull(logRepository, "Log repository cannot be null");
-        this.guildService = Objects.requireNonNull(guildService, "Guild service cannot be null");
+        this.lifecycleService = Objects.requireNonNull(lifecycleService, "Lifecycle service cannot be null");
         this.vaultService = Objects.requireNonNull(vaultService, "Vault service cannot be null");
         this.config = Objects.requireNonNull(config, "Config cannot be null");
         this.costGenerator = Objects.requireNonNull(costGenerator, "Cost generator cannot be null");
+        this.skillTreeService = Objects.requireNonNull(skillTreeService, "Skill tree service cannot be null");
+        this.skillTreeRegistry = Objects.requireNonNull(skillTreeRegistry, "Skill tree registry cannot be null");
     }
 
     /**
@@ -119,7 +127,7 @@ public class ProgressionService {
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
 
         // Get guild
-        Guild guild = guildService.getGuildById(guildId);
+        Guild guild = lifecycleService.getGuildById(guildId);
         if (guild == null) {
             return LevelUpResult.failure("Guild not found");
         }
@@ -193,7 +201,7 @@ public class ProgressionService {
         // Update guild capacities
         int newMaxMembers = calculateMaxMembers(progression.getLevel());
         int newMaxChunks = calculateMaxChunks(progression.getLevel());
-        guildService.updateGuildCapacities(guildId, newMaxMembers, newMaxChunks);
+        lifecycleService.updateGuildCapacities(guildId, newMaxMembers, newMaxChunks);
 
         // Log level up
         logRepository.log(new ProgressionLog(
@@ -205,6 +213,12 @@ public class ProgressionService {
                 newMaxMembers - calculateMaxMembers(progression.getLevel() - 1),
                 newMaxChunks - calculateMaxChunks(progression.getLevel() - 1))
         ));
+
+        // Award skill points for level up
+        int spToAward = skillTreeRegistry.getSpPerLevel();
+        if (spToAward > 0) {
+            skillTreeService.awardSkillPoints(guildId, spToAward);
+        }
 
         // Clear cost cache for this level (no longer needed)
         clearCostCache(guildId, progression.getLevel() - 1);
@@ -352,7 +366,7 @@ public class ProgressionService {
         // Update guild capacities
         int newMaxMembers = calculateMaxMembers(level);
         int newMaxChunks = calculateMaxChunks(level);
-        guildService.updateGuildCapacities(guildId, newMaxMembers, newMaxChunks);
+        lifecycleService.updateGuildCapacities(guildId, newMaxMembers, newMaxChunks);
 
         // Log admin action
         logRepository.log(new ProgressionLog(
@@ -452,7 +466,7 @@ public class ProgressionService {
                 // Update guild capacities
                 int newMaxMembers = calculateMaxMembers(progression.getLevel());
                 int newMaxChunks = calculateMaxChunks(progression.getLevel());
-                guildService.updateGuildCapacities(guildId, newMaxMembers, newMaxChunks);
+                lifecycleService.updateGuildCapacities(guildId, newMaxMembers, newMaxChunks);
             } else {
                 break;
             }

@@ -11,8 +11,9 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
-import org.aincraft.GuildService;
 import org.aincraft.commands.MessageFormatter;
+import org.aincraft.service.GuildRoleService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -25,7 +26,8 @@ public class RoleCreationGUI {
     private final Guild guild;
     private final Player creator;
     private final String roleName;
-    private final GuildService guildService;
+    private final GuildRoleService roleService;
+    private final PermissionService permissionService;
     private final List<GuildPermission> grantablePermissions;
     private final List<GuildPermission> disabledPermissions;
     private final List<GuildPermission> enabledPermissions;
@@ -35,17 +37,18 @@ public class RoleCreationGUI {
     private int disabledScrollOffset;
     private int enabledScrollOffset;
 
-    public RoleCreationGUI(Guild guild, Player creator, String roleName, GuildService guildService) {
+    public RoleCreationGUI(Guild guild, Player creator, String roleName, GuildRoleService roleService, PermissionService permissionService) {
         this.guild = guild;
         this.creator = creator;
         this.roleName = roleName;
-        this.guildService = guildService;
+        this.roleService = roleService;
+        this.permissionService = permissionService;
         this.currentStep = WizardStep.PERMISSION_SELECTION;
         this.disabledScrollOffset = 0;
         this.enabledScrollOffset = 0;
 
         // Check if role already exists - if so, load its values
-        GuildRole existingRole = guildService.getRoleByName(guild.getId(), roleName);
+        GuildRole existingRole = roleService.getRoleByName(guild.getId(), roleName);
         if (existingRole != null) {
             this.selectedPermissions = existingRole.getPermissions();
             this.priority = existingRole.getPriority();
@@ -57,7 +60,7 @@ public class RoleCreationGUI {
         // Calculate grantable permissions once at creation
         this.grantablePermissions = new ArrayList<>();
         for (GuildPermission perm : GuildPermission.values()) {
-            if (guildService.hasPermission(guild.getId(), creator.getUniqueId(), perm)) {
+            if (permissionService.hasPermission(guild.getId(), creator.getUniqueId(), perm)) {
                 this.grantablePermissions.add(perm);
             }
         }
@@ -84,7 +87,7 @@ public class RoleCreationGUI {
     }
 
     private void openPermissionStep() {
-        GuildRole existingRole = guildService.getRoleByName(guild.getId(), roleName);
+        GuildRole existingRole = roleService.getRoleByName(guild.getId(), roleName);
         String titlePrefix = existingRole != null ? "Edit Role: " : "Create Role: ";
 
         Gui gui = Gui.gui()
@@ -360,21 +363,22 @@ public class RoleCreationGUI {
                 }));
 
         // Check if editing existing role
-        GuildRole existingRole = guildService.getRoleByName(guild.getId(), roleName);
+        GuildRole existingRole = roleService.getRoleByName(guild.getId(), roleName);
         boolean isEdit = existingRole != null;
 
         gui.setItem(6, 9, ItemBuilder.from(Material.EMERALD)
                 .name(Component.text(isEdit ? "Save Changes!" : "Create Role!").color(NamedTextColor.GREEN))
                 .asGuiItem(event -> {
                     GuildRole role;
+                    boolean hasManageRoles = permissionService.hasPermission(guild.getId(), creator.getUniqueId(), GuildPermission.MANAGE_ROLES);
                     if (isEdit) {
                         // Update existing role - update permissions and priority
-                        if (guildService.updateRolePermissions(guild.getId(), creator.getUniqueId(), existingRole.getId(), selectedPermissions)) {
+                        if (roleService.updateRolePermissions(guild.getId(), existingRole.getId(), selectedPermissions, hasManageRoles)) {
                             // Reload the role to get updated permissions
-                            GuildRole updated = guildService.getRoleById(existingRole.getId());
+                            GuildRole updated = roleService.getRoleById(existingRole.getId());
                             if (updated != null) {
                                 updated.setPriority(priority);
-                                guildService.saveRole(updated);
+                                roleService.saveRole(updated);
                                 role = updated;
                             } else {
                                 role = null;
@@ -384,12 +388,12 @@ public class RoleCreationGUI {
                         }
                     } else {
                         // Create new role
-                        role = guildService.createRole(
+                        role = roleService.createRole(
                                 guild.getId(),
-                                creator.getUniqueId(),
                                 roleName,
                                 selectedPermissions,
-                                priority
+                                priority,
+                                hasManageRoles
                         );
                     }
 
