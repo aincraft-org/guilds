@@ -57,7 +57,6 @@ import org.aincraft.project.BuffApplicationService;
 import org.aincraft.project.BuffCategoryRegistry;
 import org.aincraft.project.ProjectRegistry;
 import org.aincraft.project.listeners.QuestProgressListener;
-import org.aincraft.project.gui.ProjectGUIListener;
 import org.aincraft.inject.GuildsModule;
 import org.aincraft.progression.ProgressionConfig;
 import org.aincraft.progression.listeners.ProgressionXpListener;
@@ -310,10 +309,6 @@ public class GuildsPlugin extends JavaPlugin {
         // Register quest progress listener
         QuestProgressListener questListener = injector.getInstance(QuestProgressListener.class);
         getServer().getPluginManager().registerEvents(questListener, this);
-
-        // Register project GUI listener
-        ProjectGUIListener projectGUIListener = injector.getInstance(ProjectGUIListener.class);
-        getServer().getPluginManager().registerEvents(projectGUIListener, this);
 
         // Schedule buff expiration cleanup
         ProjectRegistry registry = injector.getInstance(ProjectRegistry.class);

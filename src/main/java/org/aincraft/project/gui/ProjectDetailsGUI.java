@@ -1,89 +1,78 @@
 package org.aincraft.project.gui;
 
+import dev.triumphteam.gui.builder.item.ItemBuilder;
+import dev.triumphteam.gui.guis.Gui;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
+import org.aincraft.commands.MessageFormatter;
 import org.aincraft.project.*;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-public class ProjectDetailsGUI implements InventoryHolder {
-
-    private static final int INVENTORY_SIZE = 54;
+/**
+ * GUI for displaying detailed project information including quests, materials, and progress.
+ * Uses Triumph GUI library for inventory management with inline click handlers.
+ */
+public class ProjectDetailsGUI {
 
     private final Guild guild;
     private final Player viewer;
     private final ProjectService projectService;
+    private final ProjectRegistry registry;
     private final ProjectDefinition definition;
     private final GuildProject project;
     private final boolean isActive;
-    private final Inventory inventory;
+    private final int guildLevel;
+    private final Gui gui;
+    private final Map<Material, Integer> vaultAvailability;
 
-    public ProjectDetailsGUI(Guild guild, Player viewer, ProjectService projectService,
-                             ProjectDefinition definition, GuildProject project) {
+    public ProjectDetailsGUI(Guild guild, Player viewer, ProjectService projectService, ProjectRegistry registry,
+                             ProjectDefinition definition, GuildProject project, int guildLevel) {
         this.guild = guild;
         this.viewer = viewer;
         this.projectService = projectService;
+        this.registry = registry;
         this.definition = definition;
         this.project = project;
         this.isActive = project != null && project.getStatus() == ProjectStatus.IN_PROGRESS;
+        this.guildLevel = guildLevel;
+        this.vaultAvailability = isActive ? projectService.calculateAvailableMaterials(guild.getId()) : Map.of();
 
-        this.inventory = Bukkit.createInventory(this, INVENTORY_SIZE,
-                Component.text(definition.name()).color(NamedTextColor.DARK_PURPLE));
+        this.gui = Gui.gui()
+                .title(Component.text(definition.name()).color(NamedTextColor.DARK_PURPLE))
+                .rows(6)
+                .create();
+
+        this.gui.setDefaultClickAction(event -> event.setCancelled(true));
+
         renderInventory();
     }
 
-    @Override
-    public Inventory getInventory() {
-        return inventory;
+    public void open() {
+        gui.open(viewer);
     }
 
-    public Guild getGuild() {
-        return guild;
-    }
-
-    public Player getViewer() {
-        return viewer;
-    }
-
-    public ProjectDefinition getDefinition() {
-        return definition;
-    }
-
-    public GuildProject getProject() {
-        return project;
-    }
-
-    public boolean isActive() {
-        return isActive;
-    }
-
-    public void renderInventory() {
-        inventory.clear();
-
+    private void renderInventory() {
         // Project info header (slot 4)
-        inventory.setItem(4, createProjectInfoItem());
+        gui.setItem(4, createProjectInfoItem());
 
         // Buff preview (slot 13)
-        inventory.setItem(13, createBuffPreviewItem());
+        gui.setItem(13, createBuffPreviewItem());
 
         // Quest progress (slots 19-26)
         int questSlot = 19;
         for (QuestRequirement quest : definition.quests()) {
             if (questSlot > 26) break;
             long current = isActive ? project.getQuestProgress(quest.id()) : 0;
-            inventory.setItem(questSlot, createQuestItem(quest, current));
+            gui.setItem(questSlot, createQuestItem(quest, current));
             questSlot++;
         }
 
@@ -91,149 +80,190 @@ public class ProjectDetailsGUI implements InventoryHolder {
         int materialSlot = 28;
         for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
             if (materialSlot > 35) break;
-            int contributed = isActive ? project.getMaterialContributed(entry.getKey()) : 0;
-            inventory.setItem(materialSlot, createMaterialItem(entry.getKey(), entry.getValue(), contributed));
+            int inVault = vaultAvailability.getOrDefault(entry.getKey(), 0);
+            gui.setItem(materialSlot, createMaterialItem(entry.getKey(), entry.getValue(), inVault));
             materialSlot++;
         }
 
         // Overall progress bar (slot 40)
         if (isActive) {
             double progress = projectService.calculateProgress(project);
-            inventory.setItem(40, createProgressBarItem(progress));
+            gui.setItem(40, createProgressBarItem(progress));
         }
 
         // Action buttons (bottom row)
-        inventory.setItem(45, createButton(Material.ARROW, "Back", NamedTextColor.YELLOW));
+        setupActionButtons();
+    }
+
+    private void setupActionButtons() {
+        // Back button
+        gui.setItem(45, ItemBuilder.from(Material.ARROW)
+                .name(Component.text("Back").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false))
+                .asGuiItem(event -> {
+                    ProjectListGUI listGUI = new ProjectListGUI(guild, viewer, projectService, registry, guildLevel);
+                    listGUI.open();
+                }));
 
         if (isActive) {
-            inventory.setItem(47, createButton(Material.CHEST, "Contribute Materials", NamedTextColor.AQUA));
-
+            // Complete or incomplete project button
             boolean isComplete = projectService.isProjectComplete(project);
             if (isComplete) {
-                inventory.setItem(49, createButton(Material.EMERALD_BLOCK, "Complete Project!", NamedTextColor.GREEN));
+                gui.setItem(49, ItemBuilder.from(Material.EMERALD_BLOCK)
+                        .name(Component.text("Complete Project!").color(NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false))
+                        .asGuiItem(event -> {
+                            ProjectService.ProjectCompletionResult result =
+                                    projectService.completeProject(guild.getId(), viewer.getUniqueId());
+
+                            if (result.success()) {
+                                viewer.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
+                                        "Project completed! Buff activated: " + result.buff().categoryId()));
+                                viewer.closeInventory();
+                            } else {
+                                viewer.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
+                            }
+                        }));
             } else {
-                ItemStack incomplete = createButton(Material.GRAY_WOOL, "Not Complete Yet", NamedTextColor.GRAY);
-                inventory.setItem(49, incomplete);
+                gui.setItem(49, ItemBuilder.from(Material.GRAY_WOOL)
+                        .name(Component.text("Not Complete Yet").color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false))
+                        .asGuiItem());
             }
 
-            inventory.setItem(51, createButton(Material.RED_WOOL, "Abandon Project", NamedTextColor.RED));
+            // Abandon project button
+            gui.setItem(51, ItemBuilder.from(Material.RED_WOOL)
+                    .name(Component.text("Abandon Project").color(NamedTextColor.RED).decoration(TextDecoration.ITALIC, false))
+                    .asGuiItem(event -> {
+                        boolean abandoned = projectService.abandonProject(guild.getId(), viewer.getUniqueId());
+
+                        if (abandoned) {
+                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.INFO,
+                                    "Project abandoned. All progress has been reset."));
+                            viewer.closeInventory();
+                        } else {
+                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
+                                    "Failed to abandon project."));
+                        }
+                    }));
         } else {
-            inventory.setItem(49, createButton(Material.LIME_WOOL, "Start Project", NamedTextColor.GREEN));
+            // Start project button
+            gui.setItem(49, ItemBuilder.from(Material.LIME_WOOL)
+                    .name(Component.text("Start Project").color(NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false))
+                    .asGuiItem(event -> {
+                        ProjectService.ProjectStartResult result =
+                                projectService.startProject(guild.getId(), viewer.getUniqueId(), definition.id());
+
+                        if (result.success()) {
+                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
+                                    "Started project: " + definition.name()));
+
+                            // Open updated details GUI
+                            ProjectDetailsGUI newGUI = new ProjectDetailsGUI(
+                                    guild, viewer, projectService, registry, definition, result.project(), guildLevel);
+                            newGUI.open();
+                        } else {
+                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
+                        }
+                    }));
         }
     }
 
-    private ItemStack createProjectInfoItem() {
-        ItemStack item = new ItemStack(Material.BOOK);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(definition.name()).color(NamedTextColor.GOLD).decoration(TextDecoration.BOLD, true));
-
+    private dev.triumphteam.gui.guis.GuiItem createProjectInfoItem() {
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(definition.description()).color(NamedTextColor.GRAY));
+        lore.add(Component.text(definition.description()).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
-        lore.add(Component.text("Required Level: " + definition.requiredLevel()).color(NamedTextColor.AQUA));
-        lore.add(Component.text("Buff Type: " + definition.buffType().name()).color(NamedTextColor.LIGHT_PURPLE));
+        lore.add(Component.text("Required Level: " + definition.requiredLevel()).color(NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Buff Type: " + definition.buffType().name()).color(NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false));
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(Material.BOOK)
+                .name(Component.text(definition.name()).color(NamedTextColor.GOLD).decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
-    private ItemStack createBuffPreviewItem() {
-        ItemStack item = new ItemStack(Material.BEACON);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Buff Reward").color(NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.BOLD, true));
-
+    private dev.triumphteam.gui.guis.GuiItem createBuffPreviewItem() {
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(definition.buff().displayName()).color(NamedTextColor.WHITE));
-        lore.add(Component.text("Category: " + definition.buff().categoryId()).color(NamedTextColor.GRAY));
-        lore.add(Component.text("Value: " + definition.buff().value()).color(NamedTextColor.AQUA));
-        lore.add(Component.text("Duration: " + formatDuration(definition.buffDurationMillis())).color(NamedTextColor.YELLOW));
+        lore.add(Component.text(definition.buff().displayName()).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Category: " + definition.buff().categoryId()).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Value: " + definition.buff().value()).color(NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Duration: " + formatDuration(definition.buffDurationMillis())).color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(Material.BEACON)
+                .name(Component.text("Buff Reward").color(NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
-    private ItemStack createQuestItem(QuestRequirement quest, long current) {
+    private dev.triumphteam.gui.guis.GuiItem createQuestItem(QuestRequirement quest, long current) {
         boolean complete = current >= quest.targetCount();
         Material material = complete ? Material.LIME_CONCRETE : Material.YELLOW_CONCRETE;
-
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-
         NamedTextColor color = complete ? NamedTextColor.GREEN : NamedTextColor.YELLOW;
-        meta.displayName(Component.text(quest.description()).color(color));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("Progress: " + current + " / " + quest.targetCount()).color(NamedTextColor.GRAY));
+        lore.add(Component.text("Progress: " + current + " / " + quest.targetCount()).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
 
         // Progress bar
         String progressBar = createTextProgressBar(current, quest.targetCount());
-        lore.add(Component.text(progressBar).color(complete ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+        lore.add(Component.text(progressBar).color(complete ? NamedTextColor.GREEN : NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
 
         if (complete) {
-            lore.add(Component.text("COMPLETE").color(NamedTextColor.GREEN).decoration(TextDecoration.BOLD, true));
+            lore.add(Component.text("COMPLETE").color(NamedTextColor.GREEN).decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false));
         }
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(material)
+                .name(Component.text(quest.description()).color(color).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
-    private ItemStack createMaterialItem(Material material, int required, int contributed) {
-        boolean complete = contributed >= required;
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-
-        NamedTextColor color = complete ? NamedTextColor.GREEN : NamedTextColor.AQUA;
-        meta.displayName(Component.text(formatMaterialName(material)).color(color));
+    private dev.triumphteam.gui.guis.GuiItem createMaterialItem(Material material, int required, int inVault) {
+        boolean hasEnough = inVault >= required;
+        NamedTextColor nameColor = hasEnough ? NamedTextColor.GREEN : NamedTextColor.AQUA;
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("Contributed: " + contributed + " / " + required).color(NamedTextColor.GRAY));
 
-        String progressBar = createTextProgressBar(contributed, required);
-        lore.add(Component.text(progressBar).color(complete ? NamedTextColor.GREEN : NamedTextColor.AQUA));
+        // Show vault contents vs required
+        NamedTextColor vaultColor = hasEnough ? NamedTextColor.GREEN : NamedTextColor.RED;
+        lore.add(Component.text("In Vault: " + inVault + " / " + required)
+                .color(vaultColor)
+                .decoration(TextDecoration.ITALIC, false));
 
-        if (complete) {
-            lore.add(Component.text("COMPLETE").color(NamedTextColor.GREEN).decoration(TextDecoration.BOLD, true));
+        // Progress bar based on vault contents
+        String progressBar = createTextProgressBar(Math.min(inVault, required), required);
+        lore.add(Component.text(progressBar)
+                .color(hasEnough ? NamedTextColor.GREEN : NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+
+        if (hasEnough) {
+            lore.add(Component.text("Materials available!").color(NamedTextColor.GREEN).decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false));
         } else {
-            lore.add(Component.text("Need " + (required - contributed) + " more").color(NamedTextColor.RED));
+            int stillNeeded = required - inVault;
+            lore.add(Component.text("Need " + stillNeeded + " more in vault").color(NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
         }
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(material)
+                .name(Component.text(formatMaterialName(material)).color(nameColor).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
-    private ItemStack createProgressBarItem(double progress) {
+    private dev.triumphteam.gui.guis.GuiItem createProgressBarItem(double progress) {
         Material material = progress >= 1.0 ? Material.EMERALD_BLOCK : Material.EXPERIENCE_BOTTLE;
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-
         NamedTextColor color = progress >= 1.0 ? NamedTextColor.GREEN : NamedTextColor.GOLD;
-        meta.displayName(Component.text("Overall Progress").color(color).decoration(TextDecoration.BOLD, true));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(String.format("%.1f%% Complete", progress * 100)).color(NamedTextColor.WHITE));
-        lore.add(Component.text(createTextProgressBar(progress)).color(color));
+        lore.add(Component.text(String.format("%.1f%% Complete", progress * 100)).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text(createTextProgressBar(progress)).color(color).decoration(TextDecoration.ITALIC, false));
 
         if (progress >= 1.0) {
             lore.add(Component.empty());
-            lore.add(Component.text("Ready to complete!").color(NamedTextColor.GREEN));
+            lore.add(Component.text("Ready to complete!").color(NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
         }
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(material)
+                .name(Component.text("Overall Progress").color(color).decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
-    private ItemStack createButton(Material material, String text, NamedTextColor color) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(text).color(color));
-        item.setItemMeta(meta);
-        return item;
-    }
 
     private String createTextProgressBar(long current, long max) {
         return createTextProgressBar((double) current / max);

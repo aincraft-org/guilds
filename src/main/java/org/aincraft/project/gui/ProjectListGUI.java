@@ -1,68 +1,63 @@
 package org.aincraft.project.gui;
 
+import dev.triumphteam.gui.builder.item.ItemBuilder;
+import dev.triumphteam.gui.guis.Gui;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.project.*;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-public class ProjectListGUI implements InventoryHolder {
-
-    private static final int INVENTORY_SIZE = 54;
+/**
+ * GUI for displaying the list of available guild projects.
+ * Uses Triumph GUI library for inventory management with inline click handlers.
+ */
+public class ProjectListGUI {
 
     private final Guild guild;
     private final Player viewer;
     private final ProjectService projectService;
+    private final ProjectRegistry registry;
     private final int guildLevel;
-    private final Inventory inventory;
+    private final Gui gui;
 
-    public ProjectListGUI(Guild guild, Player viewer, ProjectService projectService, int guildLevel) {
+    public ProjectListGUI(Guild guild, Player viewer, ProjectService projectService, ProjectRegistry registry, int guildLevel) {
         this.guild = guild;
         this.viewer = viewer;
         this.projectService = projectService;
+        this.registry = registry;
         this.guildLevel = guildLevel;
 
-        this.inventory = Bukkit.createInventory(this, INVENTORY_SIZE,
-                Component.text("Guild Projects").color(NamedTextColor.DARK_PURPLE));
+        this.gui = Gui.gui()
+                .title(Component.text("Guild Projects").color(NamedTextColor.DARK_PURPLE))
+                .rows(6)
+                .create();
+
+        this.gui.setDefaultClickAction(event -> event.setCancelled(true));
+
         renderInventory();
     }
 
-    @Override
-    public Inventory getInventory() {
-        return inventory;
+    public void open() {
+        gui.open(viewer);
     }
 
-    public Guild getGuild() {
-        return guild;
-    }
-
-    public Player getViewer() {
-        return viewer;
-    }
-
-    public void renderInventory() {
-        inventory.clear();
-
+    private void renderInventory() {
         // Get available projects
         List<ProjectDefinition> availableProjects = projectService.getAvailableProjects(guild.getId());
         Optional<GuildProject> activeProject = projectService.getActiveProject(guild.getId());
         Optional<ActiveBuff> activeBuff = projectService.getActiveBuff(guild.getId());
 
         // Header info
-        ItemStack infoItem = createInfoItem(activeProject.orElse(null), activeBuff.orElse(null));
-        inventory.setItem(4, infoItem);
+        gui.setItem(4, createInfoItem(activeProject.orElse(null), activeBuff.orElse(null)));
 
         // Display available projects (slots 19-25)
         int slot = 19;
@@ -73,123 +68,151 @@ public class ProjectListGUI implements InventoryHolder {
                     activeProject.get().getProjectDefinitionId().equals(project.id());
             boolean isLocked = guildLevel < project.requiredLevel();
 
-            ItemStack projectItem = createProjectItem(project, isActive, isLocked, activeProject.orElse(null));
-            inventory.setItem(slot, projectItem);
+            gui.setItem(slot, createProjectItem(project, isActive, isLocked, activeProject.orElse(null)));
             slot++;
         }
 
         // Active buff display
         if (activeBuff.isPresent()) {
-            inventory.setItem(40, createBuffItem(activeBuff.get()));
+            gui.setItem(40, createBuffItem(activeBuff.get()));
         }
 
-        // Navigation
-        inventory.setItem(45, createButton(Material.BARRIER, "Close", NamedTextColor.RED));
+        // Navigation - Close button
+        gui.setItem(45, ItemBuilder.from(Material.BARRIER)
+                .name(Component.text("Close").color(NamedTextColor.RED).decoration(TextDecoration.ITALIC, false))
+                .asGuiItem(event -> viewer.closeInventory()));
 
+        // View Active Buff button
         if (activeBuff.isPresent()) {
-            inventory.setItem(49, createButton(Material.GLOWSTONE, "View Active Buff", NamedTextColor.GOLD));
+            gui.setItem(49, ItemBuilder.from(Material.GLOWSTONE)
+                    .name(Component.text("View Active Buff").color(NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false))
+                    .asGuiItem(event -> {
+                        BuffStatusGUI buffGUI = new BuffStatusGUI(guild, viewer, activeBuff.orElse(null), registry);
+                        buffGUI.open();
+                    }));
         }
     }
 
-    private ItemStack createInfoItem(GuildProject activeProject, ActiveBuff activeBuff) {
-        ItemStack item = new ItemStack(Material.BOOK);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Guild Projects").color(NamedTextColor.GOLD).decoration(TextDecoration.BOLD, true));
-
+    private dev.triumphteam.gui.guis.GuiItem createInfoItem(GuildProject activeProject, ActiveBuff activeBuff) {
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        lore.add(Component.text("Guild Level: " + guildLevel).color(NamedTextColor.AQUA));
+        lore.add(Component.text("Guild Level: " + guildLevel).color(NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
 
         if (activeProject != null) {
             double progress = projectService.calculateProgress(activeProject);
             lore.add(Component.empty());
-            lore.add(Component.text("Active Project: ").color(NamedTextColor.YELLOW)
-                    .append(Component.text(activeProject.getProjectDefinitionId()).color(NamedTextColor.WHITE)));
-            lore.add(Component.text("Progress: " + String.format("%.1f%%", progress * 100)).color(NamedTextColor.GREEN));
+            lore.add(Component.text("Active Project: ").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)
+                    .append(Component.text(activeProject.getProjectDefinitionId()).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false)));
+            lore.add(Component.text("Progress: " + String.format("%.1f%%", progress * 100)).color(NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
         } else {
             lore.add(Component.empty());
-            lore.add(Component.text("No active project").color(NamedTextColor.GRAY));
+            lore.add(Component.text("No active project").color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         }
 
         if (activeBuff != null && !activeBuff.isExpired()) {
             lore.add(Component.empty());
-            lore.add(Component.text("Active Buff: ").color(NamedTextColor.LIGHT_PURPLE)
-                    .append(Component.text(activeBuff.categoryId()).color(NamedTextColor.WHITE)));
-            lore.add(Component.text("Time Left: " + formatDuration(activeBuff.getRemainingMillis())).color(NamedTextColor.GRAY));
+            lore.add(Component.text("Active Buff: ").color(NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.ITALIC, false)
+                    .append(Component.text(activeBuff.categoryId()).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false)));
+            lore.add(Component.text("Time Left: " + formatDuration(activeBuff.getRemainingMillis())).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         }
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(Material.BOOK)
+                .name(Component.text("Guild Projects").color(NamedTextColor.GOLD).decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
-    private ItemStack createProjectItem(ProjectDefinition project, boolean isActive, boolean isLocked, GuildProject activeProjectState) {
+    private dev.triumphteam.gui.guis.GuiItem createProjectItem(ProjectDefinition project, boolean isActive, boolean isLocked, GuildProject activeProjectState) {
         Material material;
         NamedTextColor color;
 
         if (isActive) {
-            material = Material.GOLD_BLOCK;
+            material = Material.FILLED_MAP;
             color = NamedTextColor.GOLD;
         } else if (isLocked) {
-            material = Material.RED_WOOL;
+            material = Material.MAP;
             color = NamedTextColor.RED;
         } else {
-            material = Material.LIME_WOOL;
+            material = Material.FILLED_MAP;
             color = NamedTextColor.GREEN;
         }
 
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(project.name()).color(color).decoration(TextDecoration.BOLD, true));
-
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(project.description()).color(NamedTextColor.GRAY));
+        lore.add(Component.text(project.description()).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
 
+        // Buff type
+        String buffTypeDisplay = project.buffType() == BuffType.GLOBAL ? "Global" : "Territorial";
+        lore.add(Component.text("Type: ").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(buffTypeDisplay).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false)));
+        lore.add(Component.empty());
+
+        // Material costs
+        if (!project.materials().isEmpty()) {
+            lore.add(Component.text("Materials:").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+            for (Map.Entry<Material, Integer> entry : project.materials().entrySet()) {
+                String materialName = formatMaterialName(entry.getKey());
+                lore.add(Component.text("  " + entry.getValue() + "x " + materialName)
+                        .color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false));
+            }
+            lore.add(Component.empty());
+        }
+
         // Buff info
-        lore.add(Component.text("Buff: ").color(NamedTextColor.YELLOW)
-                .append(Component.text(project.buff().displayName()).color(NamedTextColor.WHITE)));
-        lore.add(Component.text("Duration: " + formatDuration(project.buffDurationMillis())).color(NamedTextColor.GRAY));
+        lore.add(Component.text("Buff: ").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(project.buff().displayName()).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false)));
+        lore.add(Component.text("Duration: " + formatDuration(project.buffDurationMillis())).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
 
         if (isLocked) {
-            lore.add(Component.text("Requires Guild Level " + project.requiredLevel()).color(NamedTextColor.RED));
+            lore.add(Component.text("Requires Guild Level " + project.requiredLevel()).color(NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+            // Locked projects should not be clickable
+            return ItemBuilder.from(material)
+                    .name(Component.text(project.name()).color(color).decoration(TextDecoration.ITALIC, false))
+                    .lore(lore)
+                    .asGuiItem();
         } else if (isActive) {
             if (activeProjectState != null) {
                 double progress = projectService.calculateProgress(activeProjectState);
-                lore.add(Component.text("Progress: " + String.format("%.1f%%", progress * 100)).color(NamedTextColor.GREEN));
+                lore.add(Component.text("Progress: " + String.format("%.1f%%", progress * 100)).color(NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
             }
-            lore.add(Component.text("Click to view details").color(NamedTextColor.YELLOW));
+            lore.add(Component.text("Click to view details").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
         } else {
-            lore.add(Component.text("Click to start this project").color(NamedTextColor.GREEN));
+            lore.add(Component.text("Click to start this project").color(NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
         }
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        // Add click handler for unlocked projects
+        return ItemBuilder.from(material)
+                .name(Component.text(project.name()).color(color).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem(event -> {
+                    Optional<GuildProject> activeProject = projectService.getActiveProject(guild.getId());
+
+                    // Check if this is the active project or a new one
+                    GuildProject projectState = null;
+                    if (activeProject.isPresent() &&
+                            activeProject.get().getProjectDefinitionId().equals(project.id())) {
+                        projectState = activeProject.get();
+                    }
+
+                    // Open details GUI
+                    ProjectDetailsGUI detailsGUI = new ProjectDetailsGUI(
+                            guild, viewer, projectService, registry, project, projectState, guildLevel);
+                    detailsGUI.open();
+                });
     }
 
-    private ItemStack createBuffItem(ActiveBuff buff) {
-        ItemStack item = new ItemStack(Material.GLOWSTONE);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Active Buff").color(NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.BOLD, true));
-
+    private dev.triumphteam.gui.guis.GuiItem createBuffItem(ActiveBuff buff) {
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(buff.categoryId()).color(NamedTextColor.WHITE));
-        lore.add(Component.text("Value: " + buff.value()).color(NamedTextColor.AQUA));
-        lore.add(Component.text("Time Left: " + formatDuration(buff.getRemainingMillis())).color(NamedTextColor.GRAY));
+        lore.add(Component.text(buff.categoryId()).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Value: " + buff.value()).color(NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Time Left: " + formatDuration(buff.getRemainingMillis())).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createButton(Material material, String text, NamedTextColor color) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(text).color(color));
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(Material.GLOWSTONE)
+                .name(Component.text("Active Buff").color(NamedTextColor.LIGHT_PURPLE).decoration(TextDecoration.BOLD, true).decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
     private String formatDuration(long millis) {
@@ -204,5 +227,15 @@ public class ProjectListGUI implements InventoryHolder {
         } else {
             return minutes + "m";
         }
+    }
+
+    private String formatMaterialName(Material material) {
+        String name = material.name().toLowerCase().replace("_", " ");
+        String[] words = name.split(" ");
+        StringBuilder sb = new StringBuilder();
+        for (String word : words) {
+            sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1)).append(" ");
+        }
+        return sb.toString().trim();
     }
 }

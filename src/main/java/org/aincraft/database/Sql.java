@@ -508,7 +508,10 @@ public final class Sql {
                     max_x INTEGER NOT NULL,
                     max_y INTEGER NOT NULL,
                     max_z INTEGER NOT NULL,
+                    created_by TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
                     owners TEXT NOT NULL,
+                    permissions INTEGER NOT NULL DEFAULT 0,
                     type TEXT NOT NULL
                 )
                 """;
@@ -524,7 +527,10 @@ public final class Sql {
                     max_x INT NOT NULL,
                     max_y INT NOT NULL,
                     max_z INT NOT NULL,
+                    created_by VARCHAR(36) NOT NULL,
+                    created_at BIGINT NOT NULL,
                     owners TEXT NOT NULL,
+                    permissions INT NOT NULL DEFAULT 0,
                     type VARCHAR(64) NOT NULL
                 )
                 """;
@@ -535,31 +541,31 @@ public final class Sql {
         return switch (type) {
             case SQLITE -> """
                 INSERT OR REPLACE INTO subregions
-                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, owners, type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, created_by, created_at, owners, permissions, type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
             case MYSQL, MARIADB -> """
                 INSERT INTO subregions
-                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, owners, type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, created_by, created_at, owners, permissions, type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                 name = VALUES(name), min_x = VALUES(min_x), min_y = VALUES(min_y), min_z = VALUES(min_z),
                 max_x = VALUES(max_x), max_y = VALUES(max_y), max_z = VALUES(max_z),
-                owners = VALUES(owners), type = VALUES(type)
+                owners = VALUES(owners), permissions = VALUES(permissions), type = VALUES(type)
                 """;
             case POSTGRESQL -> """
                 INSERT INTO subregions
-                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, owners, type)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, created_by, created_at, owners, permissions, type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                 name = EXCLUDED.name, min_x = EXCLUDED.min_x, min_y = EXCLUDED.min_y, min_z = EXCLUDED.min_z,
                 max_x = EXCLUDED.max_x, max_y = EXCLUDED.max_y, max_z = EXCLUDED.max_z,
-                owners = EXCLUDED.owners, type = EXCLUDED.type
+                owners = EXCLUDED.owners, permissions = EXCLUDED.permissions, type = EXCLUDED.type
                 """;
             case H2 -> """
                 MERGE INTO subregions
-                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, owners, type)
-                KEY (id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (id, guild_id, name, world, min_x, min_y, min_z, max_x, max_y, max_z, created_by, created_at, owners, permissions, type)
+                KEY (id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         };
     }
@@ -1138,13 +1144,29 @@ public final class Sql {
             case SQLITE -> """
                 CREATE TABLE IF NOT EXISTS guild_project_pool_seed (
                     guild_id TEXT PRIMARY KEY,
-                    seed INTEGER NOT NULL DEFAULT 0
+                    seed INTEGER NOT NULL DEFAULT 0,
+                    last_refresh_time INTEGER
                 )
                 """;
-            case MYSQL, MARIADB, POSTGRESQL, H2 -> """
+            case MYSQL, MARIADB -> """
                 CREATE TABLE IF NOT EXISTS guild_project_pool_seed (
                     guild_id VARCHAR(36) PRIMARY KEY,
-                    seed INT NOT NULL DEFAULT 0
+                    seed INT NOT NULL DEFAULT 0,
+                    last_refresh_time BIGINT
+                )
+                """;
+            case POSTGRESQL -> """
+                CREATE TABLE IF NOT EXISTS guild_project_pool_seed (
+                    guild_id VARCHAR(36) PRIMARY KEY,
+                    seed INT NOT NULL DEFAULT 0,
+                    last_refresh_time BIGINT
+                )
+                """;
+            case H2 -> """
+                CREATE TABLE IF NOT EXISTS guild_project_pool_seed (
+                    guild_id VARCHAR(36) PRIMARY KEY,
+                    seed INT NOT NULL DEFAULT 0,
+                    last_refresh_time BIGINT
                 )
                 """;
         };
@@ -1330,6 +1352,142 @@ public final class Sql {
                 MERGE INTO active_buffs
                 (id, guild_id, project_definition_id, buff_category, buff_value, activated_at, expires_at)
                 KEY (id) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """;
+        };
+    }
+
+    // ==================== GENERATED PROJECT TEXTS (LLM CACHE) ====================
+
+    public static String createGeneratedProjectTextsTable(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                CREATE TABLE IF NOT EXISTS generated_project_texts (
+                    id TEXT PRIMARY KEY,
+                    buff_type TEXT NOT NULL,
+                    project_name TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                )
+                """;
+            case MYSQL, MARIADB -> """
+                CREATE TABLE IF NOT EXISTS generated_project_texts (
+                    id VARCHAR(36) PRIMARY KEY,
+                    buff_type VARCHAR(50) NOT NULL,
+                    project_name VARCHAR(100) NOT NULL,
+                    description TEXT NOT NULL,
+                    created_at BIGINT NOT NULL
+                )
+                """;
+            case POSTGRESQL -> """
+                CREATE TABLE IF NOT EXISTS generated_project_texts (
+                    id VARCHAR(36) PRIMARY KEY,
+                    buff_type VARCHAR(50) NOT NULL,
+                    project_name VARCHAR(100) NOT NULL,
+                    description TEXT NOT NULL,
+                    created_at BIGINT NOT NULL
+                )
+                """;
+            case H2 -> """
+                CREATE TABLE IF NOT EXISTS generated_project_texts (
+                    id VARCHAR(36) PRIMARY KEY,
+                    buff_type VARCHAR(50) NOT NULL,
+                    project_name VARCHAR(100) NOT NULL,
+                    description TEXT NOT NULL,
+                    created_at BIGINT NOT NULL
+                )
+                """;
+        };
+    }
+
+    public static String insertGeneratedProjectText(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                INSERT INTO generated_project_texts (id, buff_type, project_name, description, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """;
+            case MYSQL, MARIADB, POSTGRESQL, H2 -> """
+                INSERT INTO generated_project_texts (id, buff_type, project_name, description, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """;
+        };
+    }
+
+    public static String getRandomGeneratedProjectText(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                SELECT id, buff_type, project_name, description, created_at
+                FROM generated_project_texts
+                WHERE buff_type = ?
+                ORDER BY RANDOM()
+                LIMIT 1
+                """;
+            case MYSQL, MARIADB -> """
+                SELECT id, buff_type, project_name, description, created_at
+                FROM generated_project_texts
+                WHERE buff_type = ?
+                ORDER BY RAND()
+                LIMIT 1
+                """;
+            case POSTGRESQL -> """
+                SELECT id, buff_type, project_name, description, created_at
+                FROM generated_project_texts
+                WHERE buff_type = ?
+                ORDER BY RANDOM()
+                LIMIT 1
+                """;
+            case H2 -> """
+                SELECT id, buff_type, project_name, description, created_at
+                FROM generated_project_texts
+                WHERE buff_type = ?
+                ORDER BY RANDOM()
+                LIMIT 1
+                """;
+        };
+    }
+
+    public static String countGeneratedProjectTexts(DatabaseType type) {
+        return "SELECT COUNT(*) FROM generated_project_texts WHERE buff_type = ?";
+    }
+
+    public static String deleteOldGeneratedProjectTexts(DatabaseType type) {
+        return switch (type) {
+            case SQLITE -> """
+                DELETE FROM generated_project_texts
+                WHERE buff_type = ? AND id NOT IN (
+                    SELECT id FROM generated_project_texts
+                    WHERE buff_type = ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                )
+                """;
+            case MYSQL, MARIADB -> """
+                DELETE FROM generated_project_texts
+                WHERE buff_type = ? AND id NOT IN (
+                    SELECT id FROM generated_project_texts
+                    WHERE buff_type = ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                )
+                """;
+            case POSTGRESQL -> """
+                DELETE FROM generated_project_texts
+                WHERE buff_type = ? AND id NOT IN (
+                    SELECT id FROM generated_project_texts
+                    WHERE buff_type = ?
+                    ORDER BY created_at DESC
+                    LIMIT ?
+                )
+                """;
+            case H2 -> """
+                DELETE FROM generated_project_texts
+                WHERE buff_type = ? AND id NOT IN (
+                    SELECT id FROM (
+                        SELECT id FROM generated_project_texts
+                        WHERE buff_type = ?
+                        ORDER BY created_at DESC
+                        LIMIT ?
+                    ) AS tmp
+                )
                 """;
         };
     }

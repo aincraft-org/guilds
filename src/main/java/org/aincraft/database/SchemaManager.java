@@ -74,6 +74,9 @@ public class SchemaManager {
             executeStatement(stmt, Sql.createProjectPoolSeedTable(dbType));
             executeStatement(stmt, Sql.createActiveBuffsTable(dbType));
 
+            // LLM Project Text Cache
+            executeStatement(stmt, Sql.createGeneratedProjectTextsTable(dbType));
+
             // Indexes
             createIndexes(stmt);
 
@@ -129,6 +132,9 @@ public class SchemaManager {
         executeStatement(stmt, Sql.createIndex(dbType, "idx_projects_guild", "guild_projects", "guild_id"));
         executeStatement(stmt, Sql.createIndex(dbType, "idx_buffs_guild", "active_buffs", "guild_id"));
         executeStatement(stmt, Sql.createIndex(dbType, "idx_buffs_expires", "active_buffs", "expires_at"));
+
+        // LLM Project Text indexes
+        executeStatement(stmt, Sql.createIndex(dbType, "idx_llm_texts_buff_type", "generated_project_texts", "buff_type"));
 
         // Claim log indexes
         executeStatement(stmt, Sql.createIndex(dbType, "idx_claim_log_guild", "chunk_claim_logs", "guild_id"));

@@ -29,6 +29,10 @@ dependencies {
     // Caffeine caching
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
+    // HTTP Client and JSON
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+
     // Triumph GUI
     implementation("dev.triumphteam:triumph-gui:3.1.13")
 

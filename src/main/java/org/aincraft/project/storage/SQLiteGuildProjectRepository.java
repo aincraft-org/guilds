@@ -284,27 +284,14 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
         }
     }
 
+    /**
+     * @deprecated Material contributions are no longer tracked. This method is a no-op.
+     */
+    @Deprecated
     @Override
     public void updateMaterialContribution(String projectId, Material material, int newAmount) {
-        Objects.requireNonNull(projectId, "Project ID cannot be null");
-        Objects.requireNonNull(material, "Material cannot be null");
-
-        String sql = """
-            INSERT INTO project_material_contributions (project_id, material, amount)
-            VALUES (?, ?, ?)
-            ON CONFLICT(project_id, material) DO UPDATE SET amount = excluded.amount
-            """;
-
-        try (Connection conn = DriverManager.getConnection(connectionString);
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, projectId);
-            pstmt.setString(2, material.name());
-            pstmt.setInt(3, newAmount);
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to update material contribution", e);
-        }
+        // No-op - material contributions are no longer tracked
+        // Materials are taken from vault atomically when project is completed
     }
 
     @Override
@@ -356,20 +343,45 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
     public void incrementPoolSeed(String guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
+        long currentTime = System.currentTimeMillis();
         String sql = """
-            INSERT INTO guild_project_pool_seed (guild_id, seed)
-            VALUES (?, 1)
-            ON CONFLICT(guild_id) DO UPDATE SET seed = seed + 1
+            INSERT INTO guild_project_pool_seed (guild_id, seed, last_refresh_time)
+            VALUES (?, 1, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET seed = seed + 1, last_refresh_time = excluded.last_refresh_time
             """;
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, guildId);
+            pstmt.setLong(2, currentTime);
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to increment pool seed", e);
         }
+    }
+
+    @Override
+    public Long getLastRefreshTime(String guildId) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+
+        String sql = "SELECT last_refresh_time FROM guild_project_pool_seed WHERE guild_id = ?";
+
+        try (Connection conn = DriverManager.getConnection(connectionString);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, guildId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                long value = rs.getLong("last_refresh_time");
+                return rs.wasNull() ? null : value;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get last refresh time", e);
+        }
+
+        return null;
     }
 
     private GuildProject mapRowToProject(Connection conn, ResultSet rs) throws SQLException {

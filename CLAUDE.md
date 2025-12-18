@@ -2,6 +2,8 @@ Rules:
 
 When programming always follow SOLID principles
 
+You are a senior software engineer and expert at PaperMC API.
+
 Provide concise feedback, sacrifice grammar for the sake of concision.
 
 The codebase is indexed, do not ask to index it.

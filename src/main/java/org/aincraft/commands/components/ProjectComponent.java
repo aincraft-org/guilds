@@ -10,8 +10,12 @@ import org.aincraft.project.*;
 import org.aincraft.project.gui.BuffStatusGUI;
 import org.aincraft.project.gui.ProjectDetailsGUI;
 import org.aincraft.project.gui.ProjectListGUI;
+import org.aincraft.vault.Vault;
+import org.aincraft.vault.VaultRepository;
+import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.Map;
@@ -24,12 +28,14 @@ public class ProjectComponent implements GuildCommand {
     private final ProjectService projectService;
     private final ProjectRegistry registry;
     private final GuildService guildService;
+    private final VaultRepository vaultRepository;
 
     @Inject
-    public ProjectComponent(ProjectService projectService, ProjectRegistry registry, GuildService guildService) {
+    public ProjectComponent(ProjectService projectService, ProjectRegistry registry, GuildService guildService, VaultRepository vaultRepository) {
         this.projectService = Objects.requireNonNull(projectService);
         this.registry = Objects.requireNonNull(registry);
         this.guildService = Objects.requireNonNull(guildService);
+        this.vaultRepository = Objects.requireNonNull(vaultRepository);
     }
 
     @Override
@@ -55,10 +61,10 @@ public class ProjectComponent implements GuildCommand {
             case "list" -> openProjectList(player, guild);
             case "start" -> handleStart(player, guild, args);
             case "progress" -> handleProgress(player, guild);
-            case "contribute" -> handleContribute(player, guild);
             case "complete" -> handleComplete(player, guild);
             case "abandon" -> handleAbandon(player, guild);
             case "buffs", "buff" -> handleBuffs(player, guild);
+            case "debug" -> handleDebug(player, guild);
             default -> {
                 player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Unknown subcommand: " + subcommand));
                 yield true;
@@ -68,8 +74,8 @@ public class ProjectComponent implements GuildCommand {
 
     private boolean openProjectList(Player player, Guild guild) {
         int guildLevel = 1; // TODO: get from ProgressionService
-        ProjectListGUI gui = new ProjectListGUI(guild, player, projectService, guildLevel);
-        player.openInventory(gui.getInventory());
+        ProjectListGUI gui = new ProjectListGUI(guild, player, projectService, registry, guildLevel);
+        gui.open();
         return true;
     }
 
@@ -88,8 +94,9 @@ public class ProjectComponent implements GuildCommand {
             // Open details GUI
             Optional<ProjectDefinition> def = registry.getProject(projectId);
             if (def.isPresent()) {
-                ProjectDetailsGUI gui = new ProjectDetailsGUI(guild, player, projectService, def.get(), result.project());
-                player.openInventory(gui.getInventory());
+                int guildLevel = 1; // TODO: get from ProgressionService
+                ProjectDetailsGUI gui = new ProjectDetailsGUI(guild, player, projectService, registry, def.get(), result.project(), guildLevel);
+                gui.open();
             }
         } else {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
@@ -113,26 +120,12 @@ public class ProjectComponent implements GuildCommand {
         }
 
         // Open details GUI
-        ProjectDetailsGUI gui = new ProjectDetailsGUI(guild, player, projectService, defOpt.get(), project);
-        player.openInventory(gui.getInventory());
+        int guildLevel = 1; // TODO: get from ProgressionService
+        ProjectDetailsGUI gui = new ProjectDetailsGUI(guild, player, projectService, registry, defOpt.get(), project, guildLevel);
+        gui.open();
         return true;
     }
 
-    private boolean handleContribute(Player player, Guild guild) {
-        ProjectService.MaterialContributionResult result = projectService.contributeMaterials(guild.getId(), player.getUniqueId());
-
-        if (result.success()) {
-            StringBuilder msg = new StringBuilder("Contributed materials: ");
-            for (Map.Entry<org.bukkit.Material, Integer> entry : result.contributed().entrySet()) {
-                msg.append(entry.getValue()).append("x ").append(formatMaterialName(entry.getKey())).append(", ");
-            }
-            player.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS, msg.toString()));
-        } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
-        }
-
-        return true;
-    }
 
     private boolean handleComplete(Player player, Guild guild) {
         ProjectService.ProjectCompletionResult result = projectService.completeProject(guild.getId(), player.getUniqueId());
@@ -172,9 +165,98 @@ public class ProjectComponent implements GuildCommand {
 
     private boolean handleBuffs(Player player, Guild guild) {
         Optional<ActiveBuff> buffOpt = projectService.getActiveBuff(guild.getId());
-        BuffStatusGUI gui = new BuffStatusGUI(guild, player, buffOpt.orElse(null), registry);
-        player.openInventory(gui.getInventory());
+        int guildLevel = 1; // TODO: get from ProgressionService
+        BuffStatusGUI gui = new BuffStatusGUI(guild, player, buffOpt.orElse(null), registry, projectService, guildLevel);
+        gui.open();
         return true;
+    }
+
+    private boolean handleDebug(Player player, Guild guild) {
+        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "=== PROJECT DEBUG INFO ==="));
+
+        // Get active project
+        Optional<GuildProject> projectOpt = projectService.getActiveProject(guild.getId());
+        if (projectOpt.isEmpty()) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "No active project"));
+            return true;
+        }
+
+        GuildProject project = projectOpt.get();
+        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Active Project: " + project.getProjectDefinitionId()));
+
+        // Get project definition
+        Optional<ProjectDefinition> defOpt = registry.getProject(project.getProjectDefinitionId());
+        if (defOpt.isEmpty()) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Project definition not found"));
+            return true;
+        }
+
+        ProjectDefinition definition = defOpt.get();
+
+        // Get vault
+        Optional<Vault> vaultOpt = vaultRepository.findByGuildId(guild.getId());
+        if (vaultOpt.isEmpty()) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "No guild vault found"));
+            return true;
+        }
+
+        Vault vault = vaultOpt.get();
+        ItemStack[] contents = vaultRepository.getFreshContents(vault.getId());
+
+        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, ""));
+        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Material Requirements:"));
+
+        // Check each material
+        for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
+            Material material = entry.getKey();
+            int required = entry.getValue();
+            int inVault = countMaterialInVault(contents, material);
+            boolean complete = inVault >= required;
+
+            String status = complete ? "<green>COMPLETE</green>" : "<red>INCOMPLETE</red>";
+            String materialName = material.name();
+
+            player.sendMessage(MessageFormatter.deserialize(
+                String.format("  %s %s: %d/%d %s",
+                    status,
+                    materialName,
+                    inVault,
+                    required,
+                    complete ? "" : "<red>(need " + (required - inVault) + " more)</red>")
+            ));
+        }
+
+        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, ""));
+        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Vault Contents (all items):"));
+
+        // Show all non-null items in vault for debugging
+        int itemCount = 0;
+        for (ItemStack stack : contents) {
+            if (stack != null && !stack.getType().isAir()) {
+                itemCount++;
+                player.sendMessage(MessageFormatter.deserialize(
+                    String.format("  <gray>- %s x%d</gray>",
+                        stack.getType().name(),
+                        stack.getAmount())
+                ));
+            }
+        }
+
+        if (itemCount == 0) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Vault is empty!"));
+        }
+
+        return true;
+    }
+
+    private int countMaterialInVault(ItemStack[] contents, Material material) {
+        int count = 0;
+        for (ItemStack stack : contents) {
+            if (stack != null && stack.getType() == material) {
+                count += stack.getAmount();
+            }
+        }
+        return count;
     }
 
     private String formatMaterialName(org.bukkit.Material material) {
@@ -209,6 +291,6 @@ public class ProjectComponent implements GuildCommand {
 
     @Override
     public String getUsage() {
-        return "/g project [list|start|progress|contribute|complete|abandon|buffs]";
+        return "/g project [list|start|progress|complete|abandon|buffs|debug]";
     }
 }

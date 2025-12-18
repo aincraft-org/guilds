@@ -269,22 +269,14 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
         };
     }
 
+    /**
+     * @deprecated Material contributions are no longer tracked. This method is a no-op.
+     */
+    @Deprecated
     @Override
     public void updateMaterialContribution(String projectId, Material material, int newAmount) {
-        Objects.requireNonNull(projectId, "Project ID cannot be null");
-        Objects.requireNonNull(material, "Material cannot be null");
-
-        String sql = getUpsertMaterialContributionSql();
-
-        try (Connection conn = connectionProvider.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, projectId);
-            ps.setString(2, material.name());
-            ps.setInt(3, newAmount);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to update material contribution", e);
-        }
+        // No-op - material contributions are no longer tracked
+        // Materials are taken from vault atomically when project is completed
     }
 
     private String getUpsertMaterialContributionSql() {
@@ -357,39 +349,64 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = getIncrementPoolSeedSql();
+        long currentTime = System.currentTimeMillis();
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, guildId);
+            ps.setLong(2, currentTime);
+            if (dbType == DatabaseType.H2) {
+                ps.setLong(3, currentTime);
+            }
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to increment pool seed", e);
         }
     }
 
+    @Override
+    public Long getLastRefreshTime(String guildId) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+
+        try (Connection conn = connectionProvider.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT last_refresh_time FROM guild_project_pool_seed WHERE guild_id = ?")) {
+            ps.setString(1, guildId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                long value = rs.getLong("last_refresh_time");
+                return rs.wasNull() ? null : value;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get last refresh time", e);
+        }
+
+        return null;
+    }
+
     private String getIncrementPoolSeedSql() {
         return switch (dbType) {
             case SQLITE -> """
-                INSERT INTO guild_project_pool_seed (guild_id, seed)
-                VALUES (?, 1)
-                ON CONFLICT(guild_id) DO UPDATE SET seed = seed + 1
+                INSERT INTO guild_project_pool_seed (guild_id, seed, last_refresh_time)
+                VALUES (?, 1, ?)
+                ON CONFLICT(guild_id) DO UPDATE SET seed = seed + 1, last_refresh_time = excluded.last_refresh_time
                 """;
             case MYSQL, MARIADB -> """
-                INSERT INTO guild_project_pool_seed (guild_id, seed)
-                VALUES (?, 1)
-                ON DUPLICATE KEY UPDATE seed = seed + 1
+                INSERT INTO guild_project_pool_seed (guild_id, seed, last_refresh_time)
+                VALUES (?, 1, ?)
+                ON DUPLICATE KEY UPDATE seed = seed + 1, last_refresh_time = VALUES(last_refresh_time)
                 """;
             case POSTGRESQL -> """
-                INSERT INTO guild_project_pool_seed (guild_id, seed)
-                VALUES (?, 1)
-                ON CONFLICT (guild_id) DO UPDATE SET seed = guild_project_pool_seed.seed + 1
+                INSERT INTO guild_project_pool_seed (guild_id, seed, last_refresh_time)
+                VALUES (?, 1, ?)
+                ON CONFLICT (guild_id) DO UPDATE SET seed = guild_project_pool_seed.seed + 1, last_refresh_time = EXCLUDED.last_refresh_time
                 """;
             case H2 -> """
                 MERGE INTO guild_project_pool_seed AS t
                 USING (VALUES (?)) AS s(guild_id)
                 ON t.guild_id = s.guild_id
-                WHEN MATCHED THEN UPDATE SET seed = t.seed + 1
-                WHEN NOT MATCHED THEN INSERT (guild_id, seed) VALUES (s.guild_id, 1)
+                WHEN MATCHED THEN UPDATE SET seed = t.seed + 1, last_refresh_time = ?
+                WHEN NOT MATCHED THEN INSERT (guild_id, seed, last_refresh_time) VALUES (s.guild_id, 1, ?)
                 """;
         };
     }

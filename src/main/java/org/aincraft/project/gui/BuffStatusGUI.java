@@ -1,122 +1,123 @@
 package org.aincraft.project.gui;
 
+import dev.triumphteam.gui.builder.item.ItemBuilder;
+import dev.triumphteam.gui.guis.Gui;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.project.ActiveBuff;
 import org.aincraft.project.ProjectRegistry;
-import org.bukkit.Bukkit;
+import org.aincraft.project.ProjectService;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-public class BuffStatusGUI implements InventoryHolder {
-
-    private static final int INVENTORY_SIZE = 27;
+/**
+ * GUI for displaying active buff status.
+ * Uses Triumph GUI library for inventory management with inline click handlers.
+ */
+public class BuffStatusGUI {
 
     private final Guild guild;
     private final Player viewer;
     private final ActiveBuff activeBuff;
     private final ProjectRegistry registry;
-    private final Inventory inventory;
+    private final ProjectService projectService;
+    private final int guildLevel;
+    private final Gui gui;
 
     public BuffStatusGUI(Guild guild, Player viewer, ActiveBuff activeBuff, ProjectRegistry registry) {
+        this(guild, viewer, activeBuff, registry, null, 1);
+    }
+
+    public BuffStatusGUI(Guild guild, Player viewer, ActiveBuff activeBuff, ProjectRegistry registry,
+                         ProjectService projectService, int guildLevel) {
         this.guild = guild;
         this.viewer = viewer;
         this.activeBuff = activeBuff;
         this.registry = registry;
+        this.projectService = projectService;
+        this.guildLevel = guildLevel;
 
-        this.inventory = Bukkit.createInventory(this, INVENTORY_SIZE,
-                Component.text("Active Buff").color(NamedTextColor.LIGHT_PURPLE));
+        this.gui = Gui.gui()
+                .title(Component.text("Active Buff").color(NamedTextColor.LIGHT_PURPLE))
+                .rows(3)
+                .create();
+
+        this.gui.setDefaultClickAction(event -> event.setCancelled(true));
+
         renderInventory();
     }
 
-    @Override
-    public Inventory getInventory() {
-        return inventory;
+    public void open() {
+        gui.open(viewer);
     }
 
-    public Guild getGuild() {
-        return guild;
-    }
-
-    public Player getViewer() {
-        return viewer;
-    }
-
-    public void renderInventory() {
-        inventory.clear();
-
+    private void renderInventory() {
         if (activeBuff == null || activeBuff.isExpired()) {
             // No active buff
-            ItemStack noBuffItem = new ItemStack(Material.BARRIER);
-            ItemMeta meta = noBuffItem.getItemMeta();
-            meta.displayName(Component.text("No Active Buff").color(NamedTextColor.RED));
-
-            List<Component> lore = new ArrayList<>();
-            lore.add(Component.text("Complete a project to").color(NamedTextColor.GRAY));
-            lore.add(Component.text("earn a buff for your guild!").color(NamedTextColor.GRAY));
-            meta.lore(lore);
-
-            noBuffItem.setItemMeta(meta);
-            inventory.setItem(13, noBuffItem);
+            gui.setItem(13, ItemBuilder.from(Material.BARRIER)
+                    .name(Component.text("No Active Buff").color(NamedTextColor.RED).decoration(TextDecoration.ITALIC, false))
+                    .lore(
+                            Component.text("Complete a project to").color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false),
+                            Component.text("earn a buff for your guild!").color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)
+                    )
+                    .asGuiItem());
         } else {
             // Display active buff
-            inventory.setItem(13, createBuffDisplayItem());
+            gui.setItem(13, createBuffDisplayItem());
         }
 
         // Back button
-        ItemStack backButton = new ItemStack(Material.ARROW);
-        ItemMeta backMeta = backButton.getItemMeta();
-        backMeta.displayName(Component.text("Back").color(NamedTextColor.YELLOW));
-        backButton.setItemMeta(backMeta);
-        inventory.setItem(18, backButton);
+        gui.setItem(18, ItemBuilder.from(Material.ARROW)
+                .name(Component.text("Back").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false))
+                .asGuiItem(event -> {
+                    if (projectService != null) {
+                        ProjectListGUI listGUI = new ProjectListGUI(guild, viewer, projectService, registry, guildLevel);
+                        listGUI.open();
+                    } else {
+                        viewer.closeInventory();
+                    }
+                }));
     }
 
-    private ItemStack createBuffDisplayItem() {
+    private dev.triumphteam.gui.guis.GuiItem createBuffDisplayItem() {
         Material material = getBuffMaterial();
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-
-        meta.displayName(Component.text(activeBuff.categoryId())
-                .color(NamedTextColor.LIGHT_PURPLE)
-                .decoration(TextDecoration.BOLD, true));
 
         List<Component> lore = new ArrayList<>();
 
         // Source project name
         registry.getProject(activeBuff.projectDefinitionId()).ifPresent(def -> {
-            lore.add(Component.text("From: " + def.name()).color(NamedTextColor.GRAY));
+            lore.add(Component.text("From: " + def.name()).color(NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         });
 
         lore.add(Component.empty());
 
         // Buff value
         String valueDisplay = formatBuffValue(activeBuff.categoryId(), activeBuff.value());
-        lore.add(Component.text("Effect: " + valueDisplay).color(NamedTextColor.AQUA));
+        lore.add(Component.text("Effect: " + valueDisplay).color(NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
 
         // Time remaining
         lore.add(Component.empty());
-        lore.add(Component.text("Time Remaining:").color(NamedTextColor.YELLOW));
-        lore.add(Component.text(formatDuration(activeBuff.getRemainingMillis())).color(NamedTextColor.WHITE));
+        lore.add(Component.text("Time Remaining:").color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text(formatDuration(activeBuff.getRemainingMillis())).color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
 
         // Progress bar for time
         double timeProgress = 1.0 - ((double) activeBuff.getRemainingMillis() /
                 (activeBuff.expiresAt() - activeBuff.activatedAt()));
-        lore.add(Component.text(createTimeBar(timeProgress)).color(NamedTextColor.GREEN));
+        lore.add(Component.text(createTimeBar(timeProgress)).color(NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false));
 
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return ItemBuilder.from(material)
+                .name(Component.text(activeBuff.categoryId())
+                        .color(NamedTextColor.LIGHT_PURPLE)
+                        .decoration(TextDecoration.BOLD, true)
+                        .decoration(TextDecoration.ITALIC, false))
+                .lore(lore)
+                .asGuiItem();
     }
 
     private Material getBuffMaterial() {

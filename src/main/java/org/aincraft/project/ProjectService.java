@@ -107,6 +107,14 @@ public class ProjectService {
         return projectRepository.findActiveByGuildId(guildId);
     }
 
+    /**
+     * Calculates overall project progress based on:
+     * 1. Quest completion percentage
+     * 2. Material availability in vault (not contribution tracking)
+     *
+     * @param project the project to check
+     * @return progress from 0.0 to 1.0
+     */
     public double calculateProgress(GuildProject project) {
         Optional<ProjectDefinition> defOpt = registry.getProject(project.getProjectDefinitionId());
         if (defOpt.isEmpty()) {
@@ -128,16 +136,32 @@ public class ProjectService {
             completedRequirements += questProgress;
         }
 
-        // Calculate material progress
-        for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
-            int current = project.getMaterialContributed(entry.getKey());
-            double materialProgress = Math.min(1.0, (double) current / entry.getValue());
-            completedRequirements += materialProgress;
+        // Calculate material progress based on vault contents
+        Optional<Vault> vaultOpt = vaultRepository.findByGuildId(project.getGuildId());
+        if (vaultOpt.isPresent()) {
+            Vault vault = vaultOpt.get();
+            ItemStack[] contents = vaultRepository.getFreshContents(vault.getId());
+
+            for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
+                int inVault = countMaterialInVault(contents, entry.getKey());
+                int required = entry.getValue();
+                double materialProgress = Math.min(1.0, (double) inVault / required);
+                completedRequirements += materialProgress;
+            }
         }
+        // If no vault, materials count as 0% complete
 
         return completedRequirements / totalRequirements;
     }
 
+    /**
+     * Checks if a project is complete by verifying:
+     * 1. All quests are complete
+     * 2. All required materials are currently in the vault
+     *
+     * @param project the project to check
+     * @return true if all requirements met and materials in vault
+     */
     public boolean isProjectComplete(GuildProject project) {
         Optional<ProjectDefinition> defOpt = registry.getProject(project.getProjectDefinitionId());
         if (defOpt.isEmpty()) {
@@ -153,10 +177,19 @@ public class ProjectService {
             }
         }
 
-        // Check all materials contributed
+        // Check all materials currently in vault
+        Optional<Vault> vaultOpt = vaultRepository.findByGuildId(project.getGuildId());
+        if (vaultOpt.isEmpty()) {
+            return definition.materials().isEmpty(); // If no vault but materials needed, not complete
+        }
+
+        Vault vault = vaultOpt.get();
+        ItemStack[] contents = vaultRepository.getFreshContents(vault.getId());
+
         for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
-            if (project.getMaterialContributed(entry.getKey()) < entry.getValue()) {
-                return false;
+            int inVault = countMaterialInVault(contents, entry.getKey());
+            if (inVault < entry.getValue()) {
+                return false; // Not enough materials in vault
             }
         }
 
@@ -192,25 +225,37 @@ public class ProjectService {
         }
     }
 
+    /**
+     * @deprecated Material contributions are no longer tracked. Materials are taken from vault
+     *             atomically when project is completed via {@link #completeProject(String, UUID)}.
+     *             This method is kept for backward compatibility but should not be used.
+     */
+    @Deprecated
     public MaterialContributionResult contributeMaterials(String guildId, UUID requesterId) {
-        Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        Objects.requireNonNull(requesterId, "Requester ID cannot be null");
+        return MaterialContributionResult.failure("Material contributions are no longer supported. " +
+                "Materials will be taken from vault when you complete the project.");
+    }
 
-        // Check permission
-        if (!guildService.hasPermission(guildId, requesterId, GuildPermission.VAULT_WITHDRAW)) {
-            return MaterialContributionResult.noPermission();
-        }
+    /**
+     * Calculates how many of each required material are currently available in the guild vault.
+     * Returns total amounts in vault (not "still needed" amounts).
+     *
+     * @param guildId the guild ID
+     * @return map of materials to total vault amounts, or empty map if no active project or vault
+     */
+    public Map<Material, Integer> calculateAvailableMaterials(String guildId) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         // Get active project
         Optional<GuildProject> projectOpt = projectRepository.findActiveByGuildId(guildId);
         if (projectOpt.isEmpty()) {
-            return MaterialContributionResult.noActiveProject();
+            return Map.of();
         }
 
         GuildProject project = projectOpt.get();
         Optional<ProjectDefinition> defOpt = registry.getProject(project.getProjectDefinitionId());
         if (defOpt.isEmpty()) {
-            return MaterialContributionResult.failure("Project definition not found");
+            return Map.of();
         }
 
         ProjectDefinition definition = defOpt.get();
@@ -218,48 +263,34 @@ public class ProjectService {
         // Get guild vault
         Optional<Vault> vaultOpt = vaultRepository.findByGuildId(guildId);
         if (vaultOpt.isEmpty()) {
-            return MaterialContributionResult.noVault();
+            return Map.of();
         }
 
         Vault vault = vaultOpt.get();
         ItemStack[] contents = vaultRepository.getFreshContents(vault.getId());
 
-        // Calculate what can be contributed
-        Map<Material, Integer> contributed = new HashMap<>();
-        boolean anyContribution = false;
-
+        // Count total materials in vault for each required material
+        Map<Material, Integer> available = new HashMap<>();
         for (Map.Entry<Material, Integer> required : definition.materials().entrySet()) {
             Material material = required.getKey();
-            int needed = required.getValue() - project.getMaterialContributed(material);
-            if (needed <= 0) continue;
+            int inVault = countMaterialInVault(contents, material);
+            available.put(material, inVault);
+        }
 
-            int taken = takeMaterialsFromVault(contents, material, needed);
-            if (taken > 0) {
-                contributed.put(material, taken);
-                int newTotal = project.getMaterialContributed(material) + taken;
-                project.setMaterialContributed(material, newTotal);
-                projectRepository.updateMaterialContribution(project.getId(), material, newTotal);
+        return available;
+    }
 
-                // Log transaction
-                VaultTransaction transaction = new VaultTransaction(
-                        vault.getId(),
-                        requesterId,
-                        VaultTransaction.TransactionType.WITHDRAW,
-                        material,
-                        taken
-                );
-                vaultTransactionRepository.log(transaction);
-
-                anyContribution = true;
+    /**
+     * Counts how many of a specific material are in the vault contents.
+     */
+    private int countMaterialInVault(ItemStack[] contents, Material material) {
+        int count = 0;
+        for (ItemStack stack : contents) {
+            if (stack != null && stack.getType() == material) {
+                count += stack.getAmount();
             }
         }
-
-        if (anyContribution) {
-            vaultRepository.updateContents(vault.getId(), contents);
-            return MaterialContributionResult.success(contributed);
-        }
-
-        return MaterialContributionResult.noMaterialsAvailable();
+        return count;
     }
 
     private int takeMaterialsFromVault(ItemStack[] contents, Material material, int maxAmount) {
@@ -279,6 +310,17 @@ public class ProjectService {
         return taken;
     }
 
+    /**
+     * Completes a project by:
+     * 1. Verifying all quests complete and materials in vault
+     * 2. Taking materials from vault atomically
+     * 3. Activating the project buff
+     * 4. Marking project as complete
+     *
+     * @param guildId guild ID
+     * @param requesterId player requesting completion
+     * @return result with buff or error
+     */
     public ProjectCompletionResult completeProject(String guildId, UUID requesterId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
@@ -295,18 +337,71 @@ public class ProjectService {
         }
 
         GuildProject project = projectOpt.get();
-
-        // Check project is complete
-        if (!isProjectComplete(project)) {
-            return ProjectCompletionResult.notComplete(calculateProgress(project));
-        }
-
         Optional<ProjectDefinition> defOpt = registry.getProject(project.getProjectDefinitionId());
         if (defOpt.isEmpty()) {
             return ProjectCompletionResult.failure("Project definition not found");
         }
 
         ProjectDefinition definition = defOpt.get();
+
+        // Verify all quests complete
+        for (QuestRequirement quest : definition.quests()) {
+            if (project.getQuestProgress(quest.id()) < quest.targetCount()) {
+                return ProjectCompletionResult.notComplete(calculateProgress(project));
+            }
+        }
+
+        // Get vault and verify materials available
+        Optional<Vault> vaultOpt = vaultRepository.findByGuildId(guildId);
+        if (vaultOpt.isEmpty() && !definition.materials().isEmpty()) {
+            return ProjectCompletionResult.failure("Guild vault not found");
+        }
+
+        // ATOMIC MATERIAL CONSUMPTION - verify and take materials
+        if (!definition.materials().isEmpty()) {
+            Vault vault = vaultOpt.get();
+            ItemStack[] contents = vaultRepository.getFreshContents(vault.getId());
+
+            // First pass: verify ALL materials available
+            for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
+                int inVault = countMaterialInVault(contents, entry.getKey());
+                if (inVault < entry.getValue()) {
+                    return ProjectCompletionResult.missingMaterials(
+                            entry.getKey(),
+                            inVault,
+                            entry.getValue()
+                    );
+                }
+            }
+
+            // Second pass: take all materials atomically
+            for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
+                Material material = entry.getKey();
+                int required = entry.getValue();
+
+                int taken = takeMaterialsFromVault(contents, material, required);
+                if (taken != required) {
+                    // This should never happen due to first pass verification
+                    return ProjectCompletionResult.failure(
+                            "Failed to take materials from vault (expected " + required +
+                            " but took " + taken + " of " + material.name() + ")"
+                    );
+                }
+
+                // Log transaction for each material type
+                VaultTransaction transaction = new VaultTransaction(
+                        vault.getId(),
+                        requesterId,
+                        VaultTransaction.TransactionType.WITHDRAW,
+                        material,
+                        taken
+                );
+                vaultTransactionRepository.log(transaction);
+            }
+
+            // Save vault contents with materials removed
+            vaultRepository.updateContents(vault.getId(), contents);
+        }
 
         // Delete any existing active buff for this guild (one buff at a time rule)
         buffRepository.findActiveByGuildId(guildId).ifPresent(existingBuff -> {
@@ -410,29 +505,33 @@ public class ProjectService {
         }
     }
 
-    public record MaterialContributionResult(boolean success, Map<Material, Integer> contributed, String errorMessage) {
+    public record MaterialContributionResult(boolean success, Map<Material, Integer> contributed, String errorMessage, Map<Material, Integer> missing) {
         public static MaterialContributionResult success(Map<Material, Integer> contributed) {
-            return new MaterialContributionResult(true, contributed, null);
+            return new MaterialContributionResult(true, contributed, null, null);
         }
 
         public static MaterialContributionResult noPermission() {
-            return new MaterialContributionResult(false, null, "You don't have permission to withdraw from vault");
+            return new MaterialContributionResult(false, null, "You don't have permission to withdraw from vault", null);
         }
 
         public static MaterialContributionResult noActiveProject() {
-            return new MaterialContributionResult(false, null, "No active project");
+            return new MaterialContributionResult(false, null, "No active project", null);
         }
 
         public static MaterialContributionResult noVault() {
-            return new MaterialContributionResult(false, null, "Your guild doesn't have a vault");
+            return new MaterialContributionResult(false, null, "Your guild doesn't have a vault", null);
         }
 
-        public static MaterialContributionResult noMaterialsAvailable() {
-            return new MaterialContributionResult(false, null, "No materials available to contribute");
+        public static MaterialContributionResult insufficientMaterials(Map<Material, Integer> missing) {
+            StringBuilder msg = new StringBuilder("Missing materials from vault: ");
+            for (Map.Entry<Material, Integer> entry : missing.entrySet()) {
+                msg.append(entry.getValue()).append("x ").append(entry.getKey().name()).append(", ");
+            }
+            return new MaterialContributionResult(false, null, msg.toString(), missing);
         }
 
         public static MaterialContributionResult failure(String message) {
-            return new MaterialContributionResult(false, null, message);
+            return new MaterialContributionResult(false, null, message, null);
         }
     }
 
@@ -451,6 +550,12 @@ public class ProjectService {
 
         public static ProjectCompletionResult notComplete(double progress) {
             return new ProjectCompletionResult(false, null, "Project is not complete yet", progress);
+        }
+
+        public static ProjectCompletionResult missingMaterials(Material material, int inVault, int required) {
+            String msg = String.format("Missing materials: Need %d %s but only %d in vault",
+                    required, material.name(), inVault);
+            return new ProjectCompletionResult(false, null, msg, 0);
         }
 
         public static ProjectCompletionResult failure(String message) {

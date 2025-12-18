@@ -106,6 +106,10 @@ projects:
   # Interval in seconds to check for expired buffs
   expiration-check-interval: 60
 
+  # Daily pool refresh interval in hours (default 24 hours)
+  # When a guild accesses their project pool, if this many hours have passed since last refresh, the pool auto-refreshes
+  refresh-interval-hours: 24
+
   # Project definitions
   # Each project has: name, description, required-level, buff, quests, materials
   definitions:
@@ -224,3 +228,45 @@ projects:
       materials:
         EMERALD: 128
         RABBIT_FOOT: 32
+
+# LLM Integration for creative project name/description generation
+# When enabled, projects receive AI-generated thematic names and descriptions instead of generic ones
+llm:
+  # Enable LLM-based project name/description generation
+  # Set to false to disable and use heuristic-based names only
+  enabled: false
+
+  # LLM provider: "groq" or "huggingface"
+  provider: "groq"
+
+  # Groq API configuration
+  groq:
+    # API key for Groq (get from https://console.groq.com)
+    # Set via environment variable GROQ_API_KEY if not specified here
+    api-key: ""
+    # Model name (default: llama-3.1-8b-instant)
+    # Other options: llama-3.1-70b-versatile, llama-3.1-405b-reasoning, mixtral-8x7b-32768
+    model: "llama-3.1-8b-instant"
+
+  # HuggingFace API configuration (alternative to Groq)
+  huggingface:
+    # API key for HuggingFace (get from https://huggingface.co/settings/tokens)
+    # Set via environment variable HUGGINGFACE_API_KEY if not specified here
+    api-key: ""
+    # Model name (default: microsoft/Phi-3-mini-4k-instruct)
+    # Other options: meta-llama/Llama-2-7b, mistralai/Mistral-7B-Instruct-v0.1
+    model: "microsoft/Phi-3-mini-4k-instruct"
+
+  # Cache settings for generated texts
+  # LLM responses are cached to avoid repeated API calls
+  cache:
+    # Minimum cache size threshold before async generation is triggered
+    # If cache falls below this, background generation is queued
+    threshold: 20
+    # Maximum number of texts to keep per buff type
+    # Old entries are automatically pruned to maintain size
+    max-per-buff-type: 100
+
+  # Rate limiting to prevent API flooding
+  # Only one batch generation request runs at a time across the entire server
+  rate-limit-cooldown-seconds: 60

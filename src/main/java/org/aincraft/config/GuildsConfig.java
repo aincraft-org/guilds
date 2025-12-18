@@ -33,6 +33,10 @@ public class GuildsConfig {
         return claimBufferDistance;
     }
 
+    public GuildsPlugin getPlugin() {
+        return plugin;
+    }
+
     public void reload() {
         loadConfig();
     }

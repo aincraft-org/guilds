@@ -18,6 +18,7 @@ public class ProjectRegistry {
     private final Map<String, ProjectDefinition> projects = new ConcurrentHashMap<>();
     private int poolSize = 3;
     private int expirationCheckInterval = 60;
+    private int refreshIntervalHours = 24;
 
     @Inject
     public ProjectRegistry(GuildsPlugin plugin) {
@@ -37,6 +38,7 @@ public class ProjectRegistry {
 
         poolSize = projectsSection.getInt("pool-size", 3);
         expirationCheckInterval = projectsSection.getInt("expiration-check-interval", 60);
+        refreshIntervalHours = projectsSection.getInt("refresh-interval-hours", 24);
 
         ConfigurationSection definitionsSection = projectsSection.getConfigurationSection("definitions");
         if (definitionsSection == null) {
@@ -234,6 +236,10 @@ public class ProjectRegistry {
 
     public int getExpirationCheckInterval() {
         return expirationCheckInterval;
+    }
+
+    public int getRefreshIntervalHours() {
+        return refreshIntervalHours;
     }
 
     public void reload() {

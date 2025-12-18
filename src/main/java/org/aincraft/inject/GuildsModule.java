@@ -127,6 +127,8 @@ import org.aincraft.project.*;
 import org.aincraft.project.storage.*;
 import org.aincraft.project.listeners.*;
 import org.aincraft.project.gui.*;
+import org.aincraft.project.llm.*;
+import org.aincraft.database.repository.JdbcLLMProjectTextRepository;
 
 public class GuildsModule extends AbstractModule {
     private final GuildsPlugin plugin;
@@ -262,12 +264,16 @@ public class GuildsModule extends AbstractModule {
         bind(GuildProjectRepository.class).to(JdbcGuildProjectRepository.class).in(Singleton.class);
         bind(ActiveBuffRepository.class).to(JdbcActiveBuffRepository.class).in(Singleton.class);
         bind(ProjectRegistry.class).in(Singleton.class);
+        bind(ProjectGenerator.class).in(Singleton.class);
         bind(ProjectPoolService.class).in(Singleton.class);
         bind(ProjectService.class).in(Singleton.class);
         bind(BuffCategoryRegistry.class).in(Singleton.class);
         bind(BuffApplicationService.class).in(Singleton.class);
         bind(QuestProgressListener.class).in(Singleton.class);
-        bind(ProjectGUIListener.class).in(Singleton.class);
+
+        // LLM Project Text system
+        bind(LLMProjectTextRepository.class).to(JdbcLLMProjectTextRepository.class).in(Singleton.class);
+        bind(LLMProjectTextService.class).in(Singleton.class);
     }
 
     @Provides
@@ -354,5 +360,68 @@ public class GuildsModule extends AbstractModule {
             throw new RuntimeException("Failed to initialize database schema", e);
         }
         return schemaManager;
+    }
+
+    @Provides
+    @Singleton
+    LLMProvider provideLLMProvider(GuildsConfig config, @com.google.inject.name.Named("guilds") Logger logger) {
+        var llmConfig = config.getPlugin().getConfig().getConfigurationSection("llm");
+
+        // If LLM not configured or disabled, return a no-op provider
+        if (llmConfig == null || !llmConfig.getBoolean("enabled", false)) {
+            logger.info("LLM integration disabled or not configured");
+            return new NoOpLLMProvider(logger);
+        }
+
+        String provider = llmConfig.getString("provider", "groq");
+
+        return switch (provider.toLowerCase()) {
+            case "groq" -> {
+                var groqConfig = llmConfig.getConfigurationSection("groq");
+                if (groqConfig == null) {
+                    logger.warning("Groq config missing, falling back to no-op provider");
+                    yield new NoOpLLMProvider(logger);
+                }
+
+                String apiKey = groqConfig.getString("api-key", "");
+                if (apiKey.isBlank()) {
+                    apiKey = System.getenv("GROQ_API_KEY") != null ? System.getenv("GROQ_API_KEY") : "";
+                }
+
+                if (apiKey.isBlank()) {
+                    logger.warning("Groq API key not configured, falling back to no-op provider");
+                    yield new NoOpLLMProvider(logger);
+                }
+
+                String model = groqConfig.getString("model", "llama-3.1-8b-instant");
+                logger.info("LLM provider initialized: Groq (" + model + ")");
+                yield new GroqProvider(apiKey, model, logger);
+            }
+            case "huggingface" -> {
+                var hfConfig = llmConfig.getConfigurationSection("huggingface");
+                if (hfConfig == null) {
+                    logger.warning("HuggingFace config missing, falling back to no-op provider");
+                    yield new NoOpLLMProvider(logger);
+                }
+
+                String apiKey = hfConfig.getString("api-key", "");
+                if (apiKey.isBlank()) {
+                    apiKey = System.getenv("HUGGINGFACE_API_KEY") != null ? System.getenv("HUGGINGFACE_API_KEY") : "";
+                }
+
+                if (apiKey.isBlank()) {
+                    logger.warning("HuggingFace API key not configured, falling back to no-op provider");
+                    yield new NoOpLLMProvider(logger);
+                }
+
+                String model = hfConfig.getString("model", "microsoft/Phi-3-mini-4k-instruct");
+                logger.info("LLM provider initialized: HuggingFace (" + model + ")");
+                yield new HuggingFaceProvider(apiKey, model, logger);
+            }
+            default -> {
+                logger.warning("Unknown LLM provider: " + provider + ", falling back to no-op provider");
+                yield new NoOpLLMProvider(logger);
+            }
+        };
     }
 }

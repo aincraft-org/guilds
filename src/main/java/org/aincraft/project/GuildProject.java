@@ -5,6 +5,14 @@ import org.bukkit.Material;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Represents a guild's active or completed project.
+ *
+ * NOTE: Material contributions are NO LONGER tracked on the project.
+ * Materials are checked directly from the vault at completion time.
+ * The materialContributed field is kept for backward compatibility with
+ * existing database records but should not be used by new code.
+ */
 public final class GuildProject {
 
     private final String id;
@@ -12,7 +20,10 @@ public final class GuildProject {
     private final String projectDefinitionId;
     private ProjectStatus status;
     private final Map<String, Long> questProgress;
+
+    @Deprecated // Materials are checked from vault, not tracked on project
     private final Map<Material, Integer> materialContributed;
+
     private final long startedAt;
     private Long completedAt;
 
@@ -31,7 +42,7 @@ public final class GuildProject {
         this.projectDefinitionId = projectDefinitionId;
         this.status = status;
         this.questProgress = new HashMap<>(questProgress);
-        this.materialContributed = new HashMap<>(materialContributed);
+        this.materialContributed = new HashMap<>(materialContributed); // Kept for DB compatibility
         this.startedAt = startedAt;
         this.completedAt = completedAt;
     }
@@ -68,14 +79,26 @@ public final class GuildProject {
         questProgress.put(questId, count);
     }
 
+    /**
+     * @deprecated Materials are no longer tracked on projects. Check vault contents directly.
+     */
+    @Deprecated
     public Map<Material, Integer> getMaterialContributed() {
         return materialContributed;
     }
 
+    /**
+     * @deprecated Materials are no longer tracked on projects. Check vault contents directly.
+     */
+    @Deprecated
     public int getMaterialContributed(Material material) {
         return materialContributed.getOrDefault(material, 0);
     }
 
+    /**
+     * @deprecated Materials are no longer tracked on projects. Check vault contents directly.
+     */
+    @Deprecated
     public void setMaterialContributed(Material material, int amount) {
         materialContributed.put(material, amount);
     }
