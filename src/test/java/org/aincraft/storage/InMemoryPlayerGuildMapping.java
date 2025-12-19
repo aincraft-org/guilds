@@ -17,7 +17,7 @@ public class InMemoryPlayerGuildMapping implements PlayerGuildMapping {
     private final Map<UUID, String> playerToGuild = new ConcurrentHashMap<>();
 
     @Override
-    public void addPlayerToGuild(UUID playerId, String guildId) {
+    public void addPlayerToGuild(UUID playerId, UUID guildId) {
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         playerToGuild.put(playerId, guildId);
@@ -55,7 +55,7 @@ public class InMemoryPlayerGuildMapping implements PlayerGuildMapping {
     /**
      * Gets all players in a specific guild.
      */
-    public Set<UUID> getPlayersInGuild(String guildId) {
+    public Set<UUID> getPlayersInGuild(UUID guildId) {
         Set<UUID> players = new HashSet<>();
         for (Map.Entry<UUID, String> entry : playerToGuild.entrySet()) {
             if (entry.getValue().equals(guildId)) {

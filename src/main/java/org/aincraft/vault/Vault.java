@@ -11,7 +11,7 @@ public class Vault {
     public static final int STORAGE_SIZE = 54; // 6 rows
 
     private final String id;
-    private final String guildId;
+    private final UUID guildId;
     private final String world;
     private final int originX;
     private final int originY;
@@ -24,7 +24,7 @@ public class Vault {
     /**
      * Creates a new vault.
      */
-    public Vault(String guildId, String world, int originX, int originY, int originZ,
+    public Vault(UUID guildId, String world, int originX, int originY, int originZ,
                  Rotation rotation, UUID createdBy) {
         this.id = UUID.randomUUID().toString();
         this.guildId = guildId;
@@ -41,7 +41,7 @@ public class Vault {
     /**
      * Creates a vault from database values.
      */
-    public Vault(String id, String guildId, String world, int originX, int originY, int originZ,
+    public Vault(String id, UUID guildId, String world, int originX, int originY, int originZ,
                  Rotation rotation, UUID createdBy, long createdAt, ItemStack[] contents) {
         this.id = id;
         this.guildId = guildId;
@@ -59,7 +59,7 @@ public class Vault {
         return id;
     }
 
-    public String getGuildId() {
+    public UUID getGuildId() {
         return guildId;
     }
 

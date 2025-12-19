@@ -40,7 +40,7 @@ public class JdbcRegionRoleRepository implements RegionRoleRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, role.getId());
-            ps.setString(2, role.getRegionId());
+            ps.setString(2, role.getRegionId().toString());
             ps.setString(3, role.getName());
             ps.setInt(4, role.getPermissions());
             ps.setLong(5, role.getCreatedAt());
@@ -111,13 +111,13 @@ public class JdbcRegionRoleRepository implements RegionRoleRepository {
     }
 
     @Override
-    public List<RegionRole> findByRegion(String regionId) {
+    public List<RegionRole> findByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         List<RegionRole> roles = new ArrayList<>();
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM region_roles WHERE region_id = ?")) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -131,14 +131,14 @@ public class JdbcRegionRoleRepository implements RegionRoleRepository {
     }
 
     @Override
-    public Optional<RegionRole> findByRegionAndName(String regionId, String name) {
+    public Optional<RegionRole> findByRegionAndName(UUID regionId, String name) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT * FROM region_roles WHERE region_id = ? AND name = ?")) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, name);
             ResultSet rs = ps.executeQuery();
 
@@ -153,12 +153,12 @@ public class JdbcRegionRoleRepository implements RegionRoleRepository {
     }
 
     @Override
-    public void deleteAllByRegion(String regionId) {
+    public void deleteAllByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM region_roles WHERE region_id = ?")) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete all roles for region", e);
@@ -175,4 +175,6 @@ public class JdbcRegionRoleRepository implements RegionRoleRepository {
             UUID.fromString(rs.getString("created_by"))
         );
     }
+
+    // Note: RegionRole constructor is updated to convert String to UUID internally
 }

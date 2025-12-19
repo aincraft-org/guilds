@@ -14,7 +14,8 @@ import java.util.UUID;
 import org.aincraft.ChunkKey;
 import org.aincraft.ClaimResult;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
+import org.aincraft.service.GuildLifecycleService;
+import org.aincraft.service.TerritoryService;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -37,7 +38,8 @@ import org.mockito.quality.Strictness;
 @DisplayName("CreateComponent")
 class CreateComponentTest {
 
-    @Mock private GuildService guildService;
+    @Mock private GuildLifecycleService lifecycleService;
+    @Mock private TerritoryService territoryService;
     @Mock private Player player;
     @Mock private Location location;
     @Mock private Chunk chunk;
@@ -48,7 +50,7 @@ class CreateComponentTest {
 
     @BeforeEach
     void setUp() {
-        createComponent = new CreateComponent(guildService);
+        createComponent = new CreateComponent(lifecycleService, territoryService);
         playerId = UUID.randomUUID();
         when(player.getUniqueId()).thenReturn(playerId);
         when(player.getLocation()).thenReturn(location);
@@ -81,16 +83,16 @@ class CreateComponentTest {
         void shouldCreateGuildWithNameOnly() {
             when(player.hasPermission("guilds.create")).thenReturn(true);
             Guild guild = new Guild("TestGuild", null, playerId);
-            when(guildService.createGuild(eq("TestGuild"), isNull(), eq(playerId)))
+            when(lifecycleService.createGuild(eq("TestGuild"), isNull(), eq(playerId)))
                     .thenReturn(guild);
-            when(guildService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
+            when(territoryService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
                     .thenReturn(ClaimResult.success());
 
             boolean result = createComponent.execute(player, new String[]{"create", "TestGuild"});
 
             assertThat(result).isTrue();
-            verify(guildService).createGuild("TestGuild", null, playerId);
-            verify(guildService).claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class));
+            verify(lifecycleService).createGuild("TestGuild", null, playerId);
+            verify(territoryService).claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class));
         }
 
         @Test
@@ -98,17 +100,17 @@ class CreateComponentTest {
         void shouldCreateGuildWithNameAndDescription() {
             when(player.hasPermission("guilds.create")).thenReturn(true);
             Guild guild = new Guild("TestGuild", "A cool guild", playerId);
-            when(guildService.createGuild(eq("TestGuild"), eq("A cool guild"), eq(playerId)))
+            when(lifecycleService.createGuild(eq("TestGuild"), eq("A cool guild"), eq(playerId)))
                     .thenReturn(guild);
-            when(guildService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
+            when(territoryService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
                     .thenReturn(ClaimResult.success());
 
             boolean result = createComponent.execute(player,
                     new String[]{"create", "TestGuild", "A", "cool", "guild"});
 
             assertThat(result).isTrue();
-            verify(guildService).createGuild("TestGuild", "A cool guild", playerId);
-            verify(guildService).claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class));
+            verify(lifecycleService).createGuild("TestGuild", "A cool guild", playerId);
+            verify(territoryService).claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class));
         }
 
         @Test
@@ -119,7 +121,7 @@ class CreateComponentTest {
             boolean result = createComponent.execute(player, new String[]{"create"});
 
             assertThat(result).isFalse();
-            verify(guildService, never()).createGuild(anyString(), anyString(), any());
+            verify(lifecycleService, never()).createGuild(anyString(), anyString(), any());
         }
 
         @Test
@@ -130,7 +132,7 @@ class CreateComponentTest {
             boolean result = createComponent.execute(player, new String[]{"create", "TestGuild"});
 
             assertThat(result).isTrue(); // Command handled, but denied
-            verify(guildService, never()).createGuild(anyString(), anyString(), any());
+            verify(lifecycleService, never()).createGuild(anyString(), anyString(), any());
             verify(player, atLeastOnce()).sendMessage(any(net.kyori.adventure.text.Component.class));
         }
 
@@ -138,7 +140,7 @@ class CreateComponentTest {
         @DisplayName("should send error when creation fails")
         void shouldSendErrorWhenCreationFails() {
             when(player.hasPermission("guilds.create")).thenReturn(true);
-            when(guildService.createGuild(anyString(), any(), any())).thenReturn(null);
+            when(lifecycleService.createGuild(anyString(), any(), any())).thenReturn(null);
 
             boolean result = createComponent.execute(player, new String[]{"create", "Duplicate"});
 

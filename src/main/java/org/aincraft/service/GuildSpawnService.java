@@ -40,7 +40,7 @@ public class GuildSpawnService {
      * @param hasManageSpawnPermission whether the player has MANAGE_SPAWN permission
      * @return true if spawn was set successfully
      */
-    public boolean setGuildSpawn(String guildId, UUID playerId, Location location, boolean hasManageSpawnPermission) {
+    public boolean setGuildSpawn(UUID guildId, UUID playerId, Location location, boolean hasManageSpawnPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(location, "Location cannot be null");
@@ -81,7 +81,7 @@ public class GuildSpawnService {
      * @param hasManageSpawnPermission whether the player has MANAGE_SPAWN permission
      * @return true if spawn was cleared successfully
      */
-    public boolean clearGuildSpawn(String guildId, UUID playerId, boolean hasManageSpawnPermission) {
+    public boolean clearGuildSpawn(UUID guildId, UUID playerId, boolean hasManageSpawnPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -106,7 +106,7 @@ public class GuildSpawnService {
      * @param guildId the guild ID
      * @return the spawn location, or null if no spawn is set or world is not loaded
      */
-    public Location getGuildSpawnLocation(String guildId) {
+    public Location getGuildSpawnLocation(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         Optional<Guild> guildOpt = guildRepository.findById(guildId);
@@ -140,7 +140,7 @@ public class GuildSpawnService {
      * @param guildId the guild ID
      * @return the homeblock ChunkKey, or null if not set
      */
-    public ChunkKey getGuildHomeblock(String guildId) {
+    public ChunkKey getGuildHomeblock(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return guildRepository.findById(guildId)
                 .map(Guild::getHomeblock)

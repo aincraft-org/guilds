@@ -25,14 +25,14 @@ public interface GuildProgressionRepository {
      * @param guildId the guild ID (cannot be null)
      * @return the progression if found, empty otherwise
      */
-    Optional<GuildProgression> findByGuildId(String guildId);
+    Optional<GuildProgression> findByGuildId(UUID guildId);
 
     /**
      * Deletes a guild's progression data.
      *
      * @param guildId the guild ID (cannot be null)
      */
-    void delete(String guildId);
+    void delete(UUID guildId);
 
     /**
      * Records an XP contribution from a player to their guild.
@@ -41,7 +41,7 @@ public interface GuildProgressionRepository {
      * @param playerId the player UUID
      * @param xpAmount the amount of XP contributed
      */
-    void recordContribution(String guildId, UUID playerId, long xpAmount);
+    void recordContribution(UUID guildId, UUID playerId, long xpAmount);
 
     /**
      * Gets the top XP contributors for a guild.
@@ -50,7 +50,7 @@ public interface GuildProgressionRepository {
      * @param limit maximum number of contributors to return
      * @return map of player UUID to total XP contributed, sorted descending
      */
-    Map<UUID, Long> getTopContributors(String guildId, int limit);
+    Map<UUID, Long> getTopContributors(UUID guildId, int limit);
 
     /**
      * Gets the total XP contributed by a specific player to their guild.
@@ -59,12 +59,12 @@ public interface GuildProgressionRepository {
      * @param playerId the player UUID
      * @return the total XP contributed, or 0 if no record found
      */
-    long getPlayerContribution(String guildId, UUID playerId);
+    long getPlayerContribution(UUID guildId, UUID playerId);
 
     /**
      * Deletes all contribution records for a guild.
      *
      * @param guildId the guild ID
      */
-    void deleteContributions(String guildId);
+    void deleteContributions(UUID guildId);
 }

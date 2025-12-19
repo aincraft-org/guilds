@@ -19,7 +19,7 @@ public interface ChunkClaimRepository {
      * @param claimedBy the player who claimed it
      * @return true if claimed successfully, false if already claimed
      */
-    boolean claim(ChunkKey chunk, String guildId, UUID claimedBy);
+    boolean claim(ChunkKey chunk, UUID guildId, UUID claimedBy);
 
     /**
      * Unclaims a chunk.
@@ -28,12 +28,12 @@ public interface ChunkClaimRepository {
      * @param guildId the guild that owns the chunk (for verification)
      * @return true if unclaimed successfully, false if not owned by guild
      */
-    boolean unclaim(ChunkKey chunk, String guildId);
+    boolean unclaim(ChunkKey chunk, UUID guildId);
 
     /**
      * Unclaims all chunks owned by a guild.
      */
-    void unclaimAll(String guildId);
+    void unclaimAll(UUID guildId);
 
     /**
      * Gets the guild that owns a chunk.
@@ -41,7 +41,7 @@ public interface ChunkClaimRepository {
      * @param chunk the chunk to check
      * @return the guild ID if claimed, empty otherwise
      */
-    Optional<String> getOwner(ChunkKey chunk);
+    Optional<UUID> getOwner(ChunkKey chunk);
 
     /**
      * Gets all chunks owned by a guild.
@@ -49,7 +49,7 @@ public interface ChunkClaimRepository {
      * @param guildId the guild ID
      * @return list of chunk keys
      */
-    List<ChunkKey> getGuildChunks(String guildId);
+    List<ChunkKey> getGuildChunks(UUID guildId);
 
     /**
      * Gets the number of chunks owned by a guild.
@@ -57,7 +57,7 @@ public interface ChunkClaimRepository {
      * @param guildId the guild ID
      * @return the chunk count
      */
-    int getChunkCount(String guildId);
+    int getChunkCount(UUID guildId);
 
     /**
      * Gets ownership data for multiple chunks in a single query.

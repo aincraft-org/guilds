@@ -10,17 +10,17 @@ public interface MemberRegionRoleRepository {
     /**
      * Assigns a region role to a member.
      */
-    void assignRole(String regionId, UUID playerId, String roleId);
+    void assignRole(UUID regionId, UUID playerId, String roleId);
 
     /**
      * Unassigns a region role from a member.
      */
-    void unassignRole(String regionId, UUID playerId, String roleId);
+    void unassignRole(UUID regionId, UUID playerId, String roleId);
 
     /**
      * Gets all region role IDs assigned to a member in a region.
      */
-    List<String> getMemberRoleIds(String regionId, UUID playerId);
+    List<String> getMemberRoleIds(UUID regionId, UUID playerId);
 
     /**
      * Gets all member UUIDs that have a specific region role.
@@ -30,12 +30,12 @@ public interface MemberRegionRoleRepository {
     /**
      * Checks if a member has a specific region role assigned.
      */
-    boolean hasMemberRole(String regionId, UUID playerId, String roleId);
+    boolean hasMemberRole(UUID regionId, UUID playerId, String roleId);
 
     /**
      * Removes all region role assignments for a member in a region.
      */
-    void removeAllMemberRoles(String regionId, UUID playerId);
+    void removeAllMemberRoles(UUID regionId, UUID playerId);
 
     /**
      * Removes all assignments for a specific role (for role deletion).
@@ -45,5 +45,5 @@ public interface MemberRegionRoleRepository {
     /**
      * Removes all role assignments for a region (for region deletion).
      */
-    void removeAllByRegion(String regionId);
+    void removeAllByRegion(UUID regionId);
 }

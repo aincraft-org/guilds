@@ -16,6 +16,7 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
+import java.util.UUID;
 
 @Singleton
 public class ProjectService {
@@ -50,7 +51,7 @@ public class ProjectService {
         this.vaultTransactionRepository = Objects.requireNonNull(vaultTransactionRepository);
     }
 
-    public ProjectStartResult startProject(String guildId, UUID requesterId, String projectDefId) {
+    public ProjectStartResult startProject(UUID guildId, UUID requesterId, String projectDefId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
         Objects.requireNonNull(projectDefId, "Project definition ID cannot be null");
@@ -107,7 +108,7 @@ public class ProjectService {
         return ProjectStartResult.success(project);
     }
 
-    public Optional<GuildProject> getActiveProject(String guildId) {
+    public Optional<GuildProject> getActiveProject(UUID guildId) {
         return projectRepository.findActiveByGuildId(guildId);
     }
 
@@ -200,7 +201,7 @@ public class ProjectService {
         return true;
     }
 
-    public void recordQuestProgress(String guildId, QuestType type, String targetId, long amount) {
+    public void recordQuestProgress(UUID guildId, QuestType type, String targetId, long amount) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(type, "Quest type cannot be null");
         Objects.requireNonNull(targetId, "Target ID cannot be null");
@@ -235,7 +236,7 @@ public class ProjectService {
      *             This method is kept for backward compatibility but should not be used.
      */
     @Deprecated
-    public MaterialContributionResult contributeMaterials(String guildId, UUID requesterId) {
+    public MaterialContributionResult contributeMaterials(UUID guildId, UUID requesterId) {
         return MaterialContributionResult.failure("Material contributions are no longer supported. " +
                 "Materials will be taken from vault when you complete the project.");
     }
@@ -247,7 +248,7 @@ public class ProjectService {
      * @param guildId the guild ID
      * @return map of materials to total vault amounts, or empty map if no active project or vault
      */
-    public Map<Material, Integer> calculateAvailableMaterials(String guildId) {
+    public Map<Material, Integer> calculateAvailableMaterials(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         // Get active project
@@ -325,7 +326,7 @@ public class ProjectService {
      * @param requesterId player requesting completion
      * @return result with buff or error
      */
-    public ProjectCompletionResult completeProject(String guildId, UUID requesterId) {
+    public ProjectCompletionResult completeProject(UUID guildId, UUID requesterId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
 
@@ -433,7 +434,7 @@ public class ProjectService {
         return ProjectCompletionResult.success(buff);
     }
 
-    public boolean abandonProject(String guildId, UUID requesterId) {
+    public boolean abandonProject(UUID guildId, UUID requesterId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
 
@@ -456,20 +457,20 @@ public class ProjectService {
         return true;
     }
 
-    public Optional<ActiveBuff> getActiveBuff(String guildId) {
+    public Optional<ActiveBuff> getActiveBuff(UUID guildId) {
         return buffRepository.findActiveByGuildId(guildId);
     }
 
-    public List<ActiveBuff> getAllBuffs(String guildId) {
+    public List<ActiveBuff> getAllBuffs(UUID guildId) {
         return buffRepository.findByGuildId(guildId);
     }
 
-    public List<ProjectDefinition> getAvailableProjects(String guildId) {
+    public List<ProjectDefinition> getAvailableProjects(UUID guildId) {
         int guildLevel = getGuildLevel(guildId);
         return poolService.getAvailableProjects(guildId, guildLevel);
     }
 
-    private int getGuildLevel(String guildId) {
+    private int getGuildLevel(UUID guildId) {
         // TODO: integrate with ProgressionService properly
         // For now return 1 as default
         return 1;

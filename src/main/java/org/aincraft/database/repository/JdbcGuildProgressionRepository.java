@@ -40,7 +40,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, progression.getGuildId());
+            ps.setObject(1, progression.getGuildId());
             ps.setInt(2, progression.getLevel());
             ps.setLong(3, progression.getCurrentXp());
             ps.setLong(4, progression.getTotalXpEarned());
@@ -85,12 +85,12 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
     }
 
     @Override
-    public Optional<GuildProgression> findByGuildId(String guildId) {
+    public Optional<GuildProgression> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM guild_progression WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -104,12 +104,12 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
     }
 
     @Override
-    public void delete(String guildId) {
+    public void delete(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guild_progression WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete guild progression", e);
@@ -117,7 +117,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
     }
 
     @Override
-    public void recordContribution(String guildId, UUID playerId, long xpAmount) {
+    public void recordContribution(UUID guildId, UUID playerId, long xpAmount) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -129,7 +129,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ps.setLong(3, xpAmount);
             ps.setLong(4, System.currentTimeMillis());
@@ -176,7 +176,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
     }
 
     @Override
-    public Map<UUID, Long> getTopContributors(String guildId, int limit) {
+    public Map<UUID, Long> getTopContributors(UUID guildId, int limit) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = """
@@ -191,7 +191,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setInt(2, limit);
             ResultSet rs = ps.executeQuery();
 
@@ -208,7 +208,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
     }
 
     @Override
-    public long getPlayerContribution(String guildId, UUID playerId) {
+    public long getPlayerContribution(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -220,7 +220,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ResultSet rs = ps.executeQuery();
 
@@ -235,12 +235,12 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
     }
 
     @Override
-    public void deleteContributions(String guildId) {
+    public void deleteContributions(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guild_xp_contributions WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete contributions", e);
@@ -248,7 +248,7 @@ public class JdbcGuildProgressionRepository implements GuildProgressionRepositor
     }
 
     private GuildProgression mapRowToProgression(ResultSet rs) throws SQLException {
-        String guildId = rs.getString("guild_id");
+        UUID guildId = UUID.fromString(rs.getString("guild_id"));
         int level = rs.getInt("level");
         long currentXp = rs.getLong("current_xp");
         long totalXpEarned = rs.getLong("total_xp_earned");

@@ -2,6 +2,7 @@ package org.aincraft.subregion;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Manages region permission storage and retrieval.
@@ -36,7 +37,7 @@ public interface RegionPermissionRepository {
      * @param regionId the region ID
      * @return list of permissions
      */
-    List<RegionPermission> findByRegion(String regionId);
+    List<RegionPermission> findByRegion(UUID regionId);
 
     /**
      * Finds a permission for a specific subject in a region.
@@ -46,7 +47,7 @@ public interface RegionPermissionRepository {
      * @param subjectType the subject type
      * @return Optional containing the permission, or empty if not found
      */
-    Optional<RegionPermission> findByRegionAndSubject(String regionId, String subjectId, SubjectType subjectType);
+    Optional<RegionPermission> findByRegionAndSubject(UUID regionId, String subjectId, SubjectType subjectType);
 
     /**
      * Finds all player permissions for a region.
@@ -54,7 +55,7 @@ public interface RegionPermissionRepository {
      * @param regionId the region ID
      * @return list of player permissions
      */
-    List<RegionPermission> findPlayerPermissions(String regionId);
+    List<RegionPermission> findPlayerPermissions(UUID regionId);
 
     /**
      * Finds all role permissions for a region.
@@ -62,12 +63,12 @@ public interface RegionPermissionRepository {
      * @param regionId the region ID
      * @return list of role permissions
      */
-    List<RegionPermission> findRolePermissions(String regionId);
+    List<RegionPermission> findRolePermissions(UUID regionId);
 
     /**
      * Deletes all permissions for a region.
      *
      * @param regionId the region ID
      */
-    void deleteAllByRegion(String regionId);
+    void deleteAllByRegion(UUID regionId);
 }

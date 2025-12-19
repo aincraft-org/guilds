@@ -42,8 +42,8 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, relationship.getId());
-            ps.setString(2, relationship.getSourceGuildId());
-            ps.setString(3, relationship.getTargetGuildId());
+            ps.setString(2, relationship.getSourceGuildId().toString());
+            ps.setString(3, relationship.getTargetGuildId().toString());
             ps.setString(4, relationship.getRelationType().name());
             ps.setString(5, relationship.getStatus().name());
             ps.setLong(6, relationship.getCreatedAt());
@@ -115,7 +115,7 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
     }
 
     @Override
-    public Optional<GuildRelationship> findRelationship(String guildId1, String guildId2) {
+    public Optional<GuildRelationship> findRelationship(UUID guildId1, UUID guildId2) {
         Objects.requireNonNull(guildId1, "Guild ID 1 cannot be null");
         Objects.requireNonNull(guildId2, "Guild ID 2 cannot be null");
 
@@ -129,10 +129,10 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId1);
-            ps.setString(2, guildId2);
-            ps.setString(3, guildId2);
-            ps.setString(4, guildId1);
+            ps.setString(1, guildId1.toString());
+            ps.setString(2, guildId2.toString());
+            ps.setString(3, guildId2.toString());
+            ps.setString(4, guildId1.toString());
             ps.setString(5, RelationStatus.ACTIVE.name());
 
             ResultSet rs = ps.executeQuery();
@@ -147,7 +147,7 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
     }
 
     @Override
-    public List<GuildRelationship> findAllByGuild(String guildId) {
+    public List<GuildRelationship> findAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = """
@@ -159,8 +159,8 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
-            ps.setString(2, guildId);
+            ps.setString(1, guildId.toString());
+            ps.setString(2, guildId.toString());
 
             ResultSet rs = ps.executeQuery();
 
@@ -175,7 +175,7 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
     }
 
     @Override
-    public List<GuildRelationship> findByType(String guildId, RelationType type, RelationStatus status) {
+    public List<GuildRelationship> findByType(UUID guildId, RelationType type, RelationStatus status) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(type, "Relation type cannot be null");
         Objects.requireNonNull(status, "Status cannot be null");
@@ -191,8 +191,8 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
-            ps.setString(2, guildId);
+            ps.setString(1, guildId.toString());
+            ps.setString(2, guildId.toString());
             ps.setString(3, type.name());
             ps.setString(4, status.name());
 
@@ -209,15 +209,15 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
     }
 
     @Override
-    public void deleteAllByGuild(String guildId) {
+    public void deleteAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "DELETE FROM guild_relationships WHERE source_guild_id = ? OR target_guild_id = ?";
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
-            ps.setString(2, guildId);
+            ps.setString(1, guildId.toString());
+            ps.setString(2, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete all relationships for guild", e);
@@ -227,8 +227,8 @@ public class JdbcGuildRelationshipRepository implements GuildRelationshipReposit
     private GuildRelationship mapResultSet(ResultSet rs) throws SQLException {
         return new GuildRelationship(
             rs.getString("id"),
-            rs.getString("source_guild_id"),
-            rs.getString("target_guild_id"),
+            UUID.fromString(rs.getString("source_guild_id")),
+            UUID.fromString(rs.getString("target_guild_id")),
             RelationType.valueOf(rs.getString("relation_type")),
             RelationStatus.valueOf(rs.getString("status")),
             rs.getLong("created_at"),

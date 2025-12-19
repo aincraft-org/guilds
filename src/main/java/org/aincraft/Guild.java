@@ -13,7 +13,7 @@ public final class Guild {
     private static final int MIN_MAX_CHUNKS = 1;
     private static final int CHUNK_SHIFT = 4; // Block coordinates to chunk coordinates (right shift 4 = divide by 16)
 
-    private final String id;
+    private final UUID id;
     private String name;
     private String description;
     private UUID ownerId;
@@ -36,51 +36,27 @@ public final class Guild {
     private boolean isPublic;
 
     /**
+     * Private constructor - use factory methods instead.
      * Creates a new Guild with the given parameters.
      *
+     * @param id the guild ID (cannot be null)
      * @param name the guild name (cannot be null or empty)
      * @param description the guild description (can be null)
      * @param ownerId the UUID of the guild owner (cannot be null)
-     * @throws IllegalArgumentException if name is null/empty or ownerId is null
-     */
-    public Guild(String name, String description, UUID ownerId) {
-        this.id = UUID.randomUUID().toString();
-        this.name = Objects.requireNonNull(name, "Guild name cannot be null");
-        if (name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Guild name cannot be empty");
-        }
-        this.description = description;
-        this.ownerId = Objects.requireNonNull(ownerId, "Owner ID cannot be null");
-        this.members = new ArrayList<>();
-        this.members.add(ownerId);
-        this.createdAt = System.currentTimeMillis();
-        this.maxMembers = DEFAULT_MAX_MEMBERS;
-        this.maxChunks = DEFAULT_MAX_CHUNKS;
-        this.allowExplosions = true;
-        this.allowFire = true;
-        this.isPublic = false;
-    }
-
-    /**
-     * Creates a Guild with existing data (for database restoration).
-     *
-     * @param id the existing guild ID
-     * @param name the guild name
-     * @param description the guild description
-     * @param ownerId the guild owner UUID
      * @param createdAt the creation timestamp
      * @param maxMembers the max members limit
      * @param color the guild color (can be null)
+     * @param isNew true if this is a newly created guild (adds owner to members), false for restoration
      */
-    public Guild(String id, String name, String description, UUID ownerId, long createdAt, int maxMembers, String color) {
-        this.id = Objects.requireNonNull(id, "Guild ID cannot be null");
-        this.name = Objects.requireNonNull(name, "Guild name cannot be null");
-        if (name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Guild name cannot be empty");
-        }
+    private Guild(UUID id, String name, String description, UUID ownerId, long createdAt, int maxMembers, String color, boolean isNew) {
+        this.id = id;
+        this.name = name;
         this.description = description;
-        this.ownerId = Objects.requireNonNull(ownerId, "Owner ID cannot be null");
+        this.ownerId = ownerId;
         this.members = new ArrayList<>();
+        if (isNew) {
+            this.members.add(ownerId);
+        }
         this.createdAt = createdAt;
         this.maxMembers = maxMembers;
         this.maxChunks = DEFAULT_MAX_CHUNKS;
@@ -92,15 +68,55 @@ public final class Guild {
 
     /**
      * Factory method to create a new Guild with validation.
+     * Generates a new UUID and current timestamp.
      *
      * @param name the guild name (cannot be null or empty)
      * @param description the guild description (can be null)
      * @param ownerId the UUID of the guild owner (cannot be null)
-     * @return a new Guild instance
-     * @throws IllegalArgumentException if name is null/empty or ownerId is null
+     * @return an Optional containing the new Guild, or Optional.empty() if validation fails
      */
-    public static Guild createGuild(String name, String description, UUID ownerId) {
-        return new Guild(name, description, ownerId);
+    public static java.util.Optional<Guild> create(String name, String description, UUID ownerId) {
+        try {
+            if (name == null || name.trim().isEmpty()) {
+                return java.util.Optional.empty();
+            }
+            if (ownerId == null) {
+                return java.util.Optional.empty();
+            }
+
+            UUID guildId = UUID.randomUUID();
+            long now = System.currentTimeMillis();
+            Guild guild = new Guild(guildId, name, description, ownerId, now, DEFAULT_MAX_MEMBERS, null, true);
+            return java.util.Optional.of(guild);
+        } catch (Exception e) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    /**
+     * Factory method to restore a Guild from database storage with validation.
+     * Used when loading guilds from persistent storage.
+     *
+     * @param id the existing guild ID (cannot be null)
+     * @param name the guild name (cannot be null or empty)
+     * @param description the guild description (can be null)
+     * @param ownerId the guild owner UUID (cannot be null)
+     * @param createdAt the creation timestamp
+     * @param maxMembers the max members limit (must be >= 1)
+     * @param color the guild color (can be null)
+     * @return an Optional containing the restored Guild, or Optional.empty() if validation fails
+     */
+    public static java.util.Optional<Guild> restore(UUID id, String name, String description, UUID ownerId, long createdAt, int maxMembers, String color) {
+        try {
+            if (id == null || name == null || name.trim().isEmpty() || ownerId == null || maxMembers < MIN_MAX_MEMBERS) {
+                return java.util.Optional.empty();
+            }
+
+            Guild guild = new Guild(id, name, description, ownerId, createdAt, maxMembers, color, false);
+            return java.util.Optional.of(guild);
+        } catch (Exception e) {
+            return java.util.Optional.empty();
+        }
     }
 
     /**
@@ -257,9 +273,9 @@ public final class Guild {
     /**
      * Gets the unique identifier of this guild.
      *
-     * @return the guild ID (immutable)
+     * @return the guild ID as UUID (immutable)
      */
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
@@ -375,7 +391,7 @@ public final class Guild {
         if (this == o) return true;
         if (!(o instanceof Guild)) return false;
         Guild guild = (Guild) o;
-        return Objects.equals(id, guild.id);
+        return id.equals(guild.id);
     }
 
     /**
@@ -385,7 +401,7 @@ public final class Guild {
      */
     @Override
     public int hashCode() {
-        return Objects.hash(id);
+        return id.hashCode();
     }
 
     /**

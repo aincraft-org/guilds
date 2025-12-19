@@ -3,6 +3,7 @@ package org.aincraft.progression.storage;
 import org.aincraft.progression.ProgressionLog;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Repository for managing progression log entries.
@@ -22,7 +23,7 @@ public interface ProgressionLogRepository {
      * @param limit maximum number of entries to return
      * @return list of log entries, newest first
      */
-    List<ProgressionLog> findByGuild(String guildId, int limit);
+    List<ProgressionLog> findByGuild(UUID guildId, int limit);
 
     /**
      * Deletes all log entries for a guild.
@@ -30,5 +31,5 @@ public interface ProgressionLogRepository {
      *
      * @param guildId the guild ID
      */
-    void deleteByGuildId(String guildId);
+    void deleteByGuildId(UUID guildId);
 }

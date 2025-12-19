@@ -4,6 +4,7 @@ import org.aincraft.project.ProjectDefinition;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Repository for persisting project pools to database.
@@ -19,7 +20,7 @@ public interface GuildProjectPoolRepository {
      * @param projects the list of projects in the pool
      * @param poolGenerationTime the timestamp when this pool was generated
      */
-    void savePool(String guildId, List<ProjectDefinition> projects, long poolGenerationTime);
+    void savePool(UUID guildId, List<ProjectDefinition> projects, long poolGenerationTime);
 
     /**
      * Retrieves all projects in a guild's pool.
@@ -27,14 +28,14 @@ public interface GuildProjectPoolRepository {
      * @param guildId the guild ID
      * @return list of project definitions in the pool, or empty list if no pool exists
      */
-    List<ProjectDefinition> getPool(String guildId);
+    List<ProjectDefinition> getPool(UUID guildId);
 
     /**
      * Deletes all projects in a guild's pool.
      *
      * @param guildId the guild ID
      */
-    void deletePoolByGuildId(String guildId);
+    void deletePoolByGuildId(UUID guildId);
 
     /**
      * Gets the timestamp of the last pool generation for a guild.
@@ -42,7 +43,7 @@ public interface GuildProjectPoolRepository {
      * @param guildId the guild ID
      * @return Optional containing the timestamp, or empty if no pool exists
      */
-    Optional<Long> getLastPoolGenerationTime(String guildId);
+    Optional<Long> getLastPoolGenerationTime(UUID guildId);
 
     /**
      * Sets the guild creation timestamp, used as anchor for 24h refresh cycles.
@@ -50,7 +51,7 @@ public interface GuildProjectPoolRepository {
      * @param guildId the guild ID
      * @param timestamp the guild creation timestamp in milliseconds
      */
-    void setGuildCreatedAt(String guildId, long timestamp);
+    void setGuildCreatedAt(UUID guildId, long timestamp);
 
     /**
      * Gets the guild creation timestamp.
@@ -58,5 +59,5 @@ public interface GuildProjectPoolRepository {
      * @param guildId the guild ID
      * @return Optional containing the timestamp, or empty if not set
      */
-    Optional<Long> getGuildCreatedAt(String guildId);
+    Optional<Long> getGuildCreatedAt(UUID guildId);
 }

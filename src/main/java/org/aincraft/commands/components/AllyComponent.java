@@ -2,6 +2,7 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import java.util.List;
+import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.GuildRelationship;
 import org.aincraft.RelationshipService;
@@ -204,7 +205,7 @@ public class AllyComponent implements GuildCommand {
     }
 
     private boolean handleList(Player player, Guild guild) {
-        List<String> allies = relationshipService.getAllies(guild.getId());
+        List<UUID> allies = relationshipService.getAllies(guild.getId());
         List<GuildRelationship> pendingRequests = relationshipService.getPendingAllyRequests(guild.getId());
         List<GuildRelationship> sentRequests = relationshipService.getSentAllyRequests(guild.getId());
 
@@ -214,7 +215,7 @@ public class AllyComponent implements GuildCommand {
             player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "No active allies"));
         } else {
             player.sendMessage(MessageFormatter.deserialize("<yellow>Active Allies<reset>:"));
-            for (String allyId : allies) {
+            for (UUID allyId : allies) {
                 Guild ally = lifecycleService.getGuildById(allyId);
                 if (ally != null) {
                     player.sendMessage(MessageFormatter.deserialize("  <green>•</green> <white>" + ally.getName()));

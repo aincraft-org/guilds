@@ -7,7 +7,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.GuildDefaultPermissions;
 import org.aincraft.database.ConnectionProvider;
 import org.aincraft.database.DatabaseType;
@@ -41,7 +43,7 @@ public class JdbcGuildDefaultPermissionsRepository implements GuildDefaultPermis
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, permissions.getGuildId());
+            ps.setObject(1, permissions.getGuildId());
             ps.setInt(2, permissions.getAllyPermissions());
             ps.setInt(3, permissions.getEnemyPermissions());
             ps.setInt(4, permissions.getOutsiderPermissions());
@@ -85,13 +87,13 @@ public class JdbcGuildDefaultPermissionsRepository implements GuildDefaultPermis
     }
 
     @Override
-    public Optional<GuildDefaultPermissions> findByGuildId(String guildId) {
+    public Optional<GuildDefaultPermissions> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT * FROM guild_default_permissions WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -104,13 +106,13 @@ public class JdbcGuildDefaultPermissionsRepository implements GuildDefaultPermis
     }
 
     @Override
-    public void delete(String guildId) {
+    public void delete(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "DELETE FROM guild_default_permissions WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete guild default permissions", e);
@@ -118,7 +120,7 @@ public class JdbcGuildDefaultPermissionsRepository implements GuildDefaultPermis
     }
 
     @Override
-    public int getPermissions(String guildId, SubjectType subjectType) {
+    public int getPermissions(UUID guildId, SubjectType subjectType) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(subjectType, "Subject type cannot be null");
 
@@ -147,7 +149,7 @@ public class JdbcGuildDefaultPermissionsRepository implements GuildDefaultPermis
 
     private GuildDefaultPermissions mapResultSet(ResultSet rs) throws SQLException {
         return new GuildDefaultPermissions(
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("guild_id")),
             rs.getInt("ally_permissions"),
             rs.getInt("enemy_permissions"),
             rs.getInt("outsider_permissions")

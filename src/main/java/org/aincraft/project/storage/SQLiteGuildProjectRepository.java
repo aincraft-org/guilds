@@ -8,6 +8,7 @@ import org.bukkit.Material;
 
 import java.sql.*;
 import java.util.*;
+import java.util.UUID;
 
 public class SQLiteGuildProjectRepository implements GuildProjectRepository {
 
@@ -97,7 +98,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
             conn.setAutoCommit(false);
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, project.getId());
-                pstmt.setString(2, project.getGuildId());
+                pstmt.setObject(2, project.getGuildId());
                 pstmt.setString(3, project.getProjectDefinitionId());
                 pstmt.setString(4, project.getStatus().name());
                 pstmt.setLong(5, project.getStartedAt());
@@ -185,7 +186,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public Optional<GuildProject> findActiveByGuildId(String guildId) {
+    public Optional<GuildProject> findActiveByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM guild_projects WHERE guild_id = ? AND status = 'IN_PROGRESS' LIMIT 1";
@@ -193,7 +194,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -207,7 +208,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public List<GuildProject> findByGuildId(String guildId) {
+    public List<GuildProject> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM guild_projects WHERE guild_id = ? ORDER BY started_at DESC";
@@ -216,7 +217,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -246,7 +247,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public void deleteByGuildId(String guildId) {
+    public void deleteByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "DELETE FROM guild_projects WHERE guild_id = ?";
@@ -254,7 +255,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete projects by guild", e);
@@ -318,7 +319,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public int getPoolSeed(String guildId) {
+    public int getPoolSeed(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT seed FROM guild_project_pool_seed WHERE guild_id = ?";
@@ -326,7 +327,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -340,7 +341,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public void incrementPoolSeed(String guildId) {
+    public void incrementPoolSeed(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         long currentTime = System.currentTimeMillis();
@@ -353,7 +354,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             pstmt.setLong(2, currentTime);
             pstmt.executeUpdate();
         } catch (SQLException e) {
@@ -362,7 +363,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public Long getLastRefreshTime(String guildId) {
+    public Long getLastRefreshTime(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT last_refresh_time FROM guild_project_pool_seed WHERE guild_id = ?";
@@ -370,7 +371,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -386,7 +387,7 @@ public class SQLiteGuildProjectRepository implements GuildProjectRepository {
 
     private GuildProject mapRowToProject(Connection conn, ResultSet rs) throws SQLException {
         String id = rs.getString("id");
-        String guildId = rs.getString("guild_id");
+        UUID guildId = UUID.fromString(rs.getString("guild_id"));
         String projectDefinitionId = rs.getString("project_definition_id");
         ProjectStatus status = ProjectStatus.valueOf(rs.getString("status"));
         long startedAt = rs.getLong("started_at");

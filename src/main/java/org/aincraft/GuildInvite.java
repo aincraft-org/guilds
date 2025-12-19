@@ -8,7 +8,7 @@ import java.util.UUID;
  */
 public record GuildInvite(
     String id,
-    String guildId,
+    UUID guildId,
     UUID inviterId,
     UUID inviteeId,
     long createdAt,
@@ -24,7 +24,7 @@ public record GuildInvite(
      * @param inviteeId the player who received the invite
      * @return a new GuildInvite
      */
-    public static GuildInvite create(String guildId, UUID inviterId, UUID inviteeId) {
+    public static GuildInvite create(UUID guildId, UUID inviterId, UUID inviteeId) {
         long now = System.currentTimeMillis();
         return new GuildInvite(
             UUID.randomUUID().toString(),

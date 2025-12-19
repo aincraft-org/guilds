@@ -2,6 +2,7 @@ package org.aincraft.listeners;
 
 import com.google.inject.Inject;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildDefaultPermissionsService;
@@ -170,7 +171,7 @@ public class GuildProtectionListener implements Listener {
     /**
      * Maps a guild relationship to a SubjectType for permission checking.
      */
-    private SubjectType mapRelationToSubjectType(String chunkOwnerId, Guild playerGuild) {
+    private SubjectType mapRelationToSubjectType(UUID chunkOwnerId, Guild playerGuild) {
         if (playerGuild == null) {
             return SubjectType.GUILD_OUTSIDER;
         }

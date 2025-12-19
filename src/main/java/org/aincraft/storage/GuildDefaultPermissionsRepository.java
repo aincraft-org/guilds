@@ -1,6 +1,7 @@
 package org.aincraft.storage;
 
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.GuildDefaultPermissions;
 import org.aincraft.subregion.SubjectType;
 
@@ -22,14 +23,14 @@ public interface GuildDefaultPermissionsRepository {
      * @param guildId the guild ID
      * @return Optional containing the permissions, or empty if not found
      */
-    Optional<GuildDefaultPermissions> findByGuildId(String guildId);
+    Optional<GuildDefaultPermissions> findByGuildId(UUID guildId);
 
     /**
      * Deletes permissions for a guild.
      *
      * @param guildId the guild ID
      */
-    void delete(String guildId);
+    void delete(UUID guildId);
 
     /**
      * Gets permissions for a specific relationship type, returning defaults if not found.
@@ -38,5 +39,5 @@ public interface GuildDefaultPermissionsRepository {
      * @param subjectType the relationship type (GUILD_ALLY, GUILD_ENEMY, GUILD_OUTSIDER)
      * @return the permissions bitfield, or 0 if guild not found
      */
-    int getPermissions(String guildId, SubjectType subjectType);
+    int getPermissions(UUID guildId, SubjectType subjectType);
 }

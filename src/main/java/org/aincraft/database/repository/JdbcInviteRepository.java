@@ -40,7 +40,7 @@ public class JdbcInviteRepository implements InviteRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, invite.id());
-            ps.setString(2, invite.guildId());
+            ps.setString(2, invite.guildId().toString());
             ps.setString(3, invite.inviterId().toString());
             ps.setString(4, invite.inviteeId().toString());
             ps.setLong(5, invite.createdAt());
@@ -100,14 +100,14 @@ public class JdbcInviteRepository implements InviteRepository {
     }
 
     @Override
-    public List<GuildInvite> findByGuildId(String guildId) {
+    public List<GuildInvite> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         List<GuildInvite> invites = new ArrayList<>();
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT * FROM guild_invites WHERE guild_id = ? ORDER BY created_at DESC")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -142,14 +142,14 @@ public class JdbcInviteRepository implements InviteRepository {
     }
 
     @Override
-    public Optional<GuildInvite> findActiveInvite(String guildId, UUID inviteeId) {
+    public Optional<GuildInvite> findActiveInvite(UUID guildId, UUID inviteeId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(inviteeId, "Invitee ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT * FROM guild_invites WHERE guild_id = ? AND invitee_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, inviteeId.toString());
             ResultSet rs = ps.executeQuery();
 
@@ -164,13 +164,13 @@ public class JdbcInviteRepository implements InviteRepository {
     }
 
     @Override
-    public int countPendingInvites(String guildId) {
+    public int countPendingInvites(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT COUNT(*) FROM guild_invites WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -208,12 +208,12 @@ public class JdbcInviteRepository implements InviteRepository {
     }
 
     @Override
-    public void deleteByGuildId(String guildId) {
+    public void deleteByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guild_invites WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete invites by guild ID", e);
@@ -223,7 +223,7 @@ public class JdbcInviteRepository implements InviteRepository {
     private GuildInvite mapRowToInvite(ResultSet rs) throws SQLException {
         return new GuildInvite(
             rs.getString("id"),
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("guild_id")),
             UUID.fromString(rs.getString("inviter_id")),
             UUID.fromString(rs.getString("invitee_id")),
             rs.getLong("created_at"),

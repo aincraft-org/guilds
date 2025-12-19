@@ -15,6 +15,7 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
+import java.util.UUID;
 
 /**
  * Service layer for guild progression operations.
@@ -60,7 +61,7 @@ public class ProgressionService {
      * @param source the source of the XP
      * @param baseAmount the base amount of XP before multipliers
      */
-    public void awardXp(String guildId, UUID playerId, XpSource source, long baseAmount) {
+    public void awardXp(UUID guildId, UUID playerId, XpSource source, long baseAmount) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(source, "XP source cannot be null");
@@ -122,7 +123,7 @@ public class ProgressionService {
      * @param requesterId the player requesting the level-up
      * @return result indicating success or specific failure reason
      */
-    public LevelUpResult attemptLevelUp(String guildId, UUID requesterId) {
+    public LevelUpResult attemptLevelUp(UUID guildId, UUID requesterId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
 
@@ -214,12 +215,6 @@ public class ProgressionService {
                 newMaxChunks - calculateMaxChunks(progression.getLevel() - 1))
         ));
 
-        // Award skill points for level up
-        int spToAward = skillTreeRegistry.getSpPerLevel();
-        if (spToAward > 0) {
-            skillTreeService.awardSkillPoints(guildId, spToAward);
-        }
-
         // Clear cost cache for this level (no longer needed)
         clearCostCache(guildId, progression.getLevel() - 1);
 
@@ -235,7 +230,7 @@ public class ProgressionService {
      * @param currentLevel the current level
      * @return the level-up cost
      */
-    public LevelUpCost calculateLevelUpCost(String guildId, int currentLevel) {
+    public LevelUpCost calculateLevelUpCost(UUID guildId, int currentLevel) {
         String cacheKey = guildId + ":" + currentLevel;
         return costCache.computeIfAbsent(cacheKey,
             k -> costGenerator.generateCost(guildId, currentLevel));
@@ -248,7 +243,7 @@ public class ProgressionService {
      * @param guildId the guild ID
      * @param level the level
      */
-    private void clearCostCache(String guildId, int level) {
+    private void clearCostCache(UUID guildId, int level) {
         costCache.remove(guildId + ":" + level);
     }
 
@@ -280,7 +275,7 @@ public class ProgressionService {
      * @param guildId the guild ID
      * @return the progression
      */
-    public GuildProgression getOrCreateProgression(String guildId) {
+    public GuildProgression getOrCreateProgression(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         return progressionRepository.findByGuildId(guildId)
@@ -297,7 +292,7 @@ public class ProgressionService {
      * @param guildId the guild ID
      * @return optional progression
      */
-    public Optional<GuildProgression> getProgression(String guildId) {
+    public Optional<GuildProgression> getProgression(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return progressionRepository.findByGuildId(guildId);
     }
@@ -309,7 +304,7 @@ public class ProgressionService {
      * @param limit maximum number of contributors
      * @return map of player UUID to XP contributed
      */
-    public Map<UUID, Long> getTopContributors(String guildId, int limit) {
+    public Map<UUID, Long> getTopContributors(UUID guildId, int limit) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return progressionRepository.getTopContributors(guildId, limit);
     }
@@ -321,7 +316,7 @@ public class ProgressionService {
      * @param playerId the player UUID
      * @return the total XP contributed
      */
-    public long getPlayerContribution(String guildId, UUID playerId) {
+    public long getPlayerContribution(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         return progressionRepository.getPlayerContribution(guildId, playerId);
@@ -332,7 +327,7 @@ public class ProgressionService {
      *
      * @param guildId the guild ID
      */
-    public void deleteProgression(String guildId) {
+    public void deleteProgression(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         progressionRepository.delete(guildId);
         progressionRepository.deleteContributions(guildId);
@@ -346,7 +341,7 @@ public class ProgressionService {
      * @param level the new level
      * @param adminId the UUID of the admin performing this action
      */
-    public void setLevel(String guildId, int level, UUID adminId) {
+    public void setLevel(UUID guildId, int level, UUID adminId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(adminId, "Admin ID cannot be null");
 
@@ -387,7 +382,7 @@ public class ProgressionService {
      * @param amount the amount of XP to add
      * @param adminId the UUID of the admin performing this action
      */
-    public void addXp(String guildId, long amount, UUID adminId) {
+    public void addXp(UUID guildId, long amount, UUID adminId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(adminId, "Admin ID cannot be null");
 
@@ -422,7 +417,7 @@ public class ProgressionService {
      * @param xp the new XP amount
      * @param adminId the UUID of the admin performing this action
      */
-    public void setXp(String guildId, long xp, UUID adminId) {
+    public void setXp(UUID guildId, long xp, UUID adminId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(adminId, "Admin ID cannot be null");
 
@@ -455,7 +450,7 @@ public class ProgressionService {
      * @param guildId the guild ID
      * @param progression the guild progression
      */
-    private void processAutoLevelUps(String guildId, GuildProgression progression) {
+    private void processAutoLevelUps(UUID guildId, GuildProgression progression) {
         while (progression.getLevel() < config.getMaxLevel()) {
             long xpRequired = calculateXpRequired(progression.getLevel() + 1);
 
@@ -467,6 +462,10 @@ public class ProgressionService {
                 int newMaxMembers = calculateMaxMembers(progression.getLevel());
                 int newMaxChunks = calculateMaxChunks(progression.getLevel());
                 lifecycleService.updateGuildCapacities(guildId, newMaxMembers, newMaxChunks);
+
+                // Award skill points
+                int spToAward = skillTreeRegistry.getSpPerLevel();
+                skillTreeService.awardSkillPoints(guildId, spToAward);
             } else {
                 break;
             }

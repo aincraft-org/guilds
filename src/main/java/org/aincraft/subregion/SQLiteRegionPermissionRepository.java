@@ -75,7 +75,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, permission.getId());
-            pstmt.setString(2, permission.getRegionId());
+            pstmt.setString(2, permission.getRegionId().toString());
             pstmt.setString(3, permission.getSubjectId());
             pstmt.setString(4, permission.getSubjectType().name());
             pstmt.setInt(5, permission.getPermissions());
@@ -126,7 +126,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
     }
 
     @Override
-    public List<RegionPermission> findByRegion(String regionId) {
+    public List<RegionPermission> findByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "SELECT * FROM region_permissions WHERE region_id = ?";
@@ -136,7 +136,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -150,7 +150,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
     }
 
     @Override
-    public Optional<RegionPermission> findByRegionAndSubject(String regionId, String subjectId, SubjectType subjectType) {
+    public Optional<RegionPermission> findByRegionAndSubject(UUID regionId, String subjectId, SubjectType subjectType) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(subjectId, "Subject ID cannot be null");
         Objects.requireNonNull(subjectType, "Subject type cannot be null");
@@ -163,7 +163,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, subjectId);
             pstmt.setString(3, subjectType.name());
 
@@ -179,7 +179,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
     }
 
     @Override
-    public List<RegionPermission> findPlayerPermissions(String regionId) {
+    public List<RegionPermission> findPlayerPermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = """
@@ -192,7 +192,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, SubjectType.PLAYER.name());
 
             ResultSet rs = pstmt.executeQuery();
@@ -208,7 +208,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
     }
 
     @Override
-    public List<RegionPermission> findRolePermissions(String regionId) {
+    public List<RegionPermission> findRolePermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = """
@@ -221,7 +221,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, SubjectType.ROLE.name());
 
             ResultSet rs = pstmt.executeQuery();
@@ -237,7 +237,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
     }
 
     @Override
-    public void deleteAllByRegion(String regionId) {
+    public void deleteAllByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "DELETE FROM region_permissions WHERE region_id = ?";
@@ -245,7 +245,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete all permissions for region", e);
@@ -255,7 +255,7 @@ public class SQLiteRegionPermissionRepository implements RegionPermissionReposit
     private RegionPermission mapResultSet(ResultSet rs) throws SQLException {
         return new RegionPermission(
             rs.getString("id"),
-            rs.getString("region_id"),
+            UUID.fromString(rs.getString("region_id")),
             rs.getString("subject_id"),
             SubjectType.valueOf(rs.getString("subject_type")),
             rs.getInt("permissions"),

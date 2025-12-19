@@ -6,9 +6,13 @@ import org.aincraft.project.ActiveBuff;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 
 public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
 
@@ -68,7 +72,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, buff.id());
-            pstmt.setString(2, buff.guildId());
+            pstmt.setObject(2, buff.guildId());
             pstmt.setString(3, buff.projectDefinitionId());
             pstmt.setString(4, buff.categoryId());
             pstmt.setDouble(5, buff.value());
@@ -104,7 +108,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
     }
 
     @Override
-    public List<ActiveBuff> findByGuildId(String guildId) {
+    public List<ActiveBuff> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM active_buffs WHERE guild_id = ? ORDER BY activated_at DESC";
@@ -113,7 +117,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -127,7 +131,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
     }
 
     @Override
-    public Optional<ActiveBuff> findActiveByGuildId(String guildId) {
+    public Optional<ActiveBuff> findActiveByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM active_buffs WHERE guild_id = ? AND expires_at > ? LIMIT 1";
@@ -135,7 +139,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             pstmt.setLong(2, System.currentTimeMillis());
             ResultSet rs = pstmt.executeQuery();
 
@@ -166,7 +170,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
     }
 
     @Override
-    public void deleteByGuildId(String guildId) {
+    public void deleteByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "DELETE FROM active_buffs WHERE guild_id = ?";
@@ -174,7 +178,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete buffs by guild", e);
@@ -198,7 +202,7 @@ public class SQLiteActiveBuffRepository implements ActiveBuffRepository {
     private ActiveBuff mapRowToBuff(ResultSet rs) throws SQLException {
         return new ActiveBuff(
                 rs.getString("id"),
-                rs.getString("guild_id"),
+                UUID.fromString(rs.getString("guild_id")),
                 rs.getString("project_definition_id"),
                 rs.getString("buff_category"),
                 rs.getDouble("buff_value"),

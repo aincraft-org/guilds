@@ -10,7 +10,7 @@ import org.aincraft.ChunkKey;
  */
 public record ChunkClaimLog(
         long id,
-        String guildId,
+        UUID guildId,
         ChunkKey chunk,
         UUID playerId,
         ActionType action,
@@ -21,7 +21,7 @@ public record ChunkClaimLog(
      * Creates a new ChunkClaimLog with auto-generated timestamp and id=0.
      * The database will assign the actual id.
      */
-    public ChunkClaimLog(String guildId, ChunkKey chunk, UUID playerId, ActionType action) {
+    public ChunkClaimLog(UUID guildId, ChunkKey chunk, UUID playerId, ActionType action) {
         this(0, guildId, chunk, playerId, action, System.currentTimeMillis());
     }
 

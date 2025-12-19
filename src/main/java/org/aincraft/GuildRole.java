@@ -1,22 +1,15 @@
 package org.aincraft;
 
-import java.util.Objects;
 import java.util.UUID;
 
 /**
  * Represents a role within a guild with associated permissions.
  * Roles are guild-specific and identified by name + permission bitfield.
  */
-public final class GuildRole implements Permissible {
+public final class GuildRole extends AbstractRole<UUID> {
     public static final String DEFAULT_ROLE_NAME = "Member";
 
-    private final String id;
-    private final String guildId;
-    private String name;
-    private int permissions;
     private int priority;
-    private final UUID createdBy;  // nullable for existing roles
-    private final Long createdAt;  // nullable for existing roles
 
     /**
      * Creates a new GuildRole.
@@ -26,7 +19,7 @@ public final class GuildRole implements Permissible {
      * @param permissions the permission bitfield
      * @param priority the role priority (higher = more authority)
      */
-    public GuildRole(String guildId, String name, int permissions, int priority) {
+    public GuildRole(UUID guildId, String name, int permissions, int priority) {
         this(guildId, name, permissions, priority, null);
     }
 
@@ -39,9 +32,16 @@ public final class GuildRole implements Permissible {
      * @param priority the role priority (higher = more authority)
      * @param createdBy the UUID of the player who created this role
      */
-    public GuildRole(String guildId, String name, int permissions, int priority, UUID createdBy) {
-        this(UUID.randomUUID().toString(), guildId, name, permissions, priority,
-             createdBy, createdBy != null ? System.currentTimeMillis() : null);
+    public GuildRole(UUID guildId, String name, int permissions, int priority, UUID createdBy) {
+        super(
+            UUID.randomUUID().toString(),
+            guildId,
+            name,
+            permissions,
+            createdBy,
+            createdBy != null ? System.currentTimeMillis() : null
+        );
+        this.priority = priority;
     }
 
     /**
@@ -51,15 +51,8 @@ public final class GuildRole implements Permissible {
      * @param name the role name
      * @param permissions the permission bitfield
      */
-    public GuildRole(String guildId, String name, int permissions) {
+    public GuildRole(UUID guildId, String name, int permissions) {
         this(guildId, name, permissions, 0);
-    }
-
-    /**
-     * Creates a GuildRole with an existing ID (for database restoration).
-     */
-    public GuildRole(String id, String guildId, String name, int permissions, int priority) {
-        this(id, guildId, name, permissions, priority, null, null);
     }
 
     /**
@@ -73,54 +66,24 @@ public final class GuildRole implements Permissible {
      * @param createdBy the UUID of the creator (nullable for legacy roles)
      * @param createdAt the creation timestamp (nullable for legacy roles)
      */
-    public GuildRole(String id, String guildId, String name, int permissions, int priority,
+    public GuildRole(String id, UUID guildId, String name, int permissions, int priority,
                      UUID createdBy, Long createdAt) {
-        this.id = Objects.requireNonNull(id, "ID cannot be null");
-        this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        this.name = Objects.requireNonNull(name, "Name cannot be null");
-        this.permissions = permissions;
+        super(id, guildId, name, permissions, createdBy, createdAt);
         this.priority = priority;
-        this.createdBy = createdBy;  // nullable for legacy roles
-        this.createdAt = createdAt;  // nullable for legacy roles
-    }
-
-    /**
-     * Creates a GuildRole with an existing ID and default priority (for database restoration).
-     */
-    public GuildRole(String id, String guildId, String name, int permissions) {
-        this(id, guildId, name, permissions, 0);
     }
 
     /**
      * Creates the default "Member" role with basic permissions.
      */
-    public static GuildRole createDefault(String guildId) {
+    public static GuildRole createDefault(UUID guildId) {
         return new GuildRole(guildId, DEFAULT_ROLE_NAME, GuildPermission.defaultPermissions());
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public String getGuildId() {
-        return guildId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = Objects.requireNonNull(name, "Name cannot be null");
-    }
-
-    @Override
-    public int getPermissions() {
-        return permissions;
-    }
-
-    public void setPermissions(int permissions) {
-        this.permissions = permissions;
+    /**
+     * Gets the guild ID this role belongs to.
+     */
+    public UUID getGuildId() {
+        return getScopeId();
     }
 
     public int getPriority() {
@@ -129,48 +92,6 @@ public final class GuildRole implements Permissible {
 
     public void setPriority(int priority) {
         this.priority = priority;
-    }
-
-    public UUID getCreatedBy() {
-        return createdBy;
-    }
-
-    public Long getCreatedAt() {
-        return createdAt;
-    }
-
-    /**
-     * Checks if this role has a specific permission.
-     */
-    @Override
-    public boolean hasPermission(GuildPermission permission) {
-        return Permissible.super.hasPermission(permission);
-    }
-
-    /**
-     * Grants a permission to this role.
-     */
-    public void grantPermission(GuildPermission permission) {
-        permissions |= permission.getBit();
-    }
-
-    /**
-     * Revokes a permission from this role.
-     */
-    public void revokePermission(GuildPermission permission) {
-        permissions &= ~permission.getBit();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof GuildRole that)) return false;
-        return id.equals(that.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return id.hashCode();
     }
 
     /**
@@ -183,11 +104,12 @@ public final class GuildRole implements Permissible {
     @Override
     public String toString() {
         return "GuildRole{" +
-                "id='" + id + '\'' +
-                ", guildId='" + guildId + '\'' +
-                ", name='" + name + '\'' +
-                ", permissions=" + permissions +
+                "id='" + getId() + '\'' +
+                ", guildId='" + getGuildId() + '\'' +
+                ", name='" + getName() + '\'' +
+                ", permissions=" + getPermissions() +
                 ", priority=" + priority +
                 '}';
     }
 }
+

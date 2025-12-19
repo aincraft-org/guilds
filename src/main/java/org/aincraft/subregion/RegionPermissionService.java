@@ -65,7 +65,7 @@ public class RegionPermissionService {
      * @param createdBy   the player creating this permission
      * @return the created/updated permission
      */
-    public RegionPermission setPlayerPermission(String regionId, UUID playerId, int permissions, UUID createdBy) {
+    public RegionPermission setPlayerPermission(UUID regionId, UUID playerId, int permissions, UUID createdBy) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(createdBy, "Creator cannot be null");
@@ -97,7 +97,7 @@ public class RegionPermissionService {
      * @param createdBy   the player creating this permission
      * @return the created/updated permission
      */
-    public RegionPermission setRolePermission(String regionId, String roleId, int permissions, UUID createdBy) {
+    public RegionPermission setRolePermission(UUID regionId, String roleId, int permissions, UUID createdBy) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
         Objects.requireNonNull(createdBy, "Creator cannot be null");
@@ -127,7 +127,7 @@ public class RegionPermissionService {
      * @param playerId the player UUID
      * @return true if removed, false if not found
      */
-    public boolean removePlayerPermission(String regionId, UUID playerId) {
+    public boolean removePlayerPermission(UUID regionId, UUID playerId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -149,7 +149,7 @@ public class RegionPermissionService {
      * @param roleId   the role ID
      * @return true if removed, false if not found
      */
-    public boolean removeRolePermission(String regionId, String roleId) {
+    public boolean removeRolePermission(UUID regionId, String roleId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
 
@@ -170,7 +170,7 @@ public class RegionPermissionService {
      * @param regionId the region ID
      * @return list of permissions
      */
-    public List<RegionPermission> getRegionPermissions(String regionId) {
+    public List<RegionPermission> getRegionPermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         return permissionRepository.findByRegion(regionId);
     }
@@ -181,7 +181,7 @@ public class RegionPermissionService {
      * @param regionId the region ID
      * @return list of player permissions
      */
-    public List<RegionPermission> getPlayerPermissions(String regionId) {
+    public List<RegionPermission> getPlayerPermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         return permissionRepository.findPlayerPermissions(regionId);
     }
@@ -192,7 +192,7 @@ public class RegionPermissionService {
      * @param regionId the region ID
      * @return list of role permissions
      */
-    public List<RegionPermission> getRolePermissions(String regionId) {
+    public List<RegionPermission> getRolePermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         return permissionRepository.findRolePermissions(regionId);
     }
@@ -245,7 +245,7 @@ public class RegionPermissionService {
 
         // Check if player is in the guild
         var playerGuild = memberService.getPlayerGuild(playerId);
-        boolean isMember = playerGuild != null && playerGuild.getId().equals(region.getGuildId());
+        boolean isMember = playerGuild != null && playerGuild.getId().toString().equals(region.getGuildId());
 
         // 4. Check relationship-specific permissions (for non-members)
         if (!isMember) {
@@ -294,7 +294,7 @@ public class RegionPermissionService {
      *
      * @param regionId the region ID
      */
-    public void clearRegionPermissions(String regionId) {
+    public void clearRegionPermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         permissionRepository.deleteAllByRegion(regionId);
         // Also clear region roles and their assignments
@@ -313,7 +313,7 @@ public class RegionPermissionService {
      * @param createdBy   the creator
      * @return the created role, or null if name already exists
      */
-    public RegionRole createRegionRole(String regionId, String name, int permissions, UUID createdBy) {
+    public RegionRole createRegionRole(UUID regionId, String name, int permissions, UUID createdBy) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
         Objects.requireNonNull(createdBy, "Creator cannot be null");
@@ -335,7 +335,7 @@ public class RegionPermissionService {
      * @param roleName the role name
      * @return true if deleted, false if not found
      */
-    public boolean deleteRegionRole(String regionId, String roleName) {
+    public boolean deleteRegionRole(UUID regionId, String roleName) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleName, "Role name cannot be null");
 
@@ -356,7 +356,7 @@ public class RegionPermissionService {
      * @param regionId the region ID
      * @return list of roles
      */
-    public List<RegionRole> getRegionRoles(String regionId) {
+    public List<RegionRole> getRegionRoles(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         return regionRoleRepository.findByRegion(regionId);
     }
@@ -368,7 +368,7 @@ public class RegionPermissionService {
      * @param roleName the role name
      * @return the role, or empty if not found
      */
-    public Optional<RegionRole> getRegionRole(String regionId, String roleName) {
+    public Optional<RegionRole> getRegionRole(UUID regionId, String roleName) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleName, "Role name cannot be null");
         return regionRoleRepository.findByRegionAndName(regionId, roleName);
@@ -382,7 +382,7 @@ public class RegionPermissionService {
      * @param playerId the player UUID
      * @return true if assigned, false if role not found
      */
-    public boolean assignRegionRole(String regionId, String roleName, UUID playerId) {
+    public boolean assignRegionRole(UUID regionId, String roleName, UUID playerId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleName, "Role name cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
@@ -404,7 +404,7 @@ public class RegionPermissionService {
      * @param playerId the player UUID
      * @return true if unassigned, false if role not found
      */
-    public boolean unassignRegionRole(String regionId, String roleName, UUID playerId) {
+    public boolean unassignRegionRole(UUID regionId, String roleName, UUID playerId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleName, "Role name cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
@@ -425,7 +425,7 @@ public class RegionPermissionService {
      * @param roleName the role name
      * @return list of player UUIDs, or empty list if role not found
      */
-    public List<UUID> getMembersWithRegionRole(String regionId, String roleName) {
+    public List<UUID> getMembersWithRegionRole(UUID regionId, String roleName) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleName, "Role name cannot be null");
 
@@ -445,7 +445,7 @@ public class RegionPermissionService {
      * @param permissions the new permissions
      * @return true if updated, false if role not found
      */
-    public boolean updateRegionRolePermissions(String regionId, String roleName, int permissions) {
+    public boolean updateRegionRolePermissions(UUID regionId, String roleName, int permissions) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(roleName, "Role name cannot be null");
 
@@ -498,7 +498,7 @@ public class RegionPermissionService {
      * @param permissionBit the permission bit to check
      * @return true if the player has the permission
      */
-    private boolean checkRelationshipPermission(String guildId, Guild playerGuild, int permissionBit) {
+    private boolean checkRelationshipPermission(UUID guildId, Guild playerGuild, int permissionBit) {
         // Determine relationship type
         SubjectType subjectType = mapRelationToSubjectType(guildId, playerGuild);
 
@@ -518,7 +518,7 @@ public class RegionPermissionService {
      * @param playerGuild the player's guild (null if unguilded)
      * @return the appropriate SubjectType for relationship permissions
      */
-    private SubjectType mapRelationToSubjectType(String guildId, Guild playerGuild) {
+    private SubjectType mapRelationToSubjectType(UUID guildId, Guild playerGuild) {
         if (playerGuild == null) {
             return SubjectType.GUILD_OUTSIDER;
         }

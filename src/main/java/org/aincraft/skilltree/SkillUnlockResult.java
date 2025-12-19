@@ -1,77 +1,91 @@
 package org.aincraft.skilltree;
 
+import java.util.Objects;
+
 /**
- * Result record for skill unlock operations.
- * Encapsulates the outcome of attempting to unlock a skill, including success status,
- * error messages, and the skill that was unlocked (if successful).
+ * Immutable result type for skill unlock operations.
+ * Provides structured feedback on whether a skill unlock succeeded and why.
+ * Single Responsibility: Represent skill unlock operation result.
  *
- * @param success whether the unlock operation succeeded
- * @param errorMessage description of the failure (null if successful)
- * @param skill the skill that was unlocked (null if unsuccessful)
+ * @param success whether the unlock succeeded
+ * @param message human-readable result message
+ * @param skill the skill definition (only populated on success)
  */
 public record SkillUnlockResult(
     boolean success,
-    String errorMessage,
+    String message,
     SkillDefinition skill
 ) {
     /**
+     * Compact constructor that validates the record.
+     */
+    public SkillUnlockResult {
+        Objects.requireNonNull(message, "Message cannot be null");
+        if (success && skill == null) {
+            throw new IllegalArgumentException("Skill must be present on successful unlock");
+        }
+    }
+
+    /**
      * Creates a successful unlock result.
-     * @param skill the skill that was unlocked
-     * @return a success result
+     *
+     * @param skill the unlocked skill
+     * @return success result
      */
     public static SkillUnlockResult success(SkillDefinition skill) {
-        return new SkillUnlockResult(true, null, skill);
+        Objects.requireNonNull(skill, "Skill cannot be null");
+        return new SkillUnlockResult(true, "Skill '" + skill.name() + "' unlocked", skill);
     }
 
     /**
-     * Creates a generic failure result.
-     * @param errorMessage the error message
-     * @return a failure result
+     * Creates a failure result with generic message.
+     *
+     * @param message the failure reason
+     * @return failure result
      */
-    public static SkillUnlockResult failure(String errorMessage) {
-        return new SkillUnlockResult(false, errorMessage, null);
+    public static SkillUnlockResult failure(String message) {
+        return new SkillUnlockResult(false, message, null);
     }
 
     /**
-     * Creates a failure result for permission denial.
-     * @return a permission denied result
+     * Creates a failure due to insufficient skill points.
+     *
+     * @param available available skill points
+     * @param required required skill points
+     * @return failure result
      */
-    public static SkillUnlockResult noPermission() {
-        return failure("You don't have permission to manage skills");
+    public static SkillUnlockResult insufficientSp(int available, int required) {
+        return failure("Insufficient skill points (have " + available + ", need " + required + ")");
     }
 
     /**
-     * Creates a failure result for skill not found.
-     * @return a skill not found result
+     * Creates a failure due to missing prerequisites.
+     *
+     * @param skillId the skill ID
+     * @param missingPrereq the missing prerequisite skill ID
+     * @return failure result
      */
-    public static SkillUnlockResult skillNotFound() {
-        return failure("Skill not found");
+    public static SkillUnlockResult missingPrerequisite(String skillId, String missingPrereq) {
+        return failure("Cannot unlock '" + skillId + "': missing prerequisite '" + missingPrereq + "'");
     }
 
     /**
-     * Creates a failure result for already unlocked skill.
-     * @return an already unlocked result
+     * Creates a failure because skill is already unlocked.
+     *
+     * @param skillId the skill ID
+     * @return failure result
      */
-    public static SkillUnlockResult alreadyUnlocked() {
-        return failure("Skill is already unlocked");
+    public static SkillUnlockResult alreadyUnlocked(String skillId) {
+        return failure("Skill '" + skillId + "' is already unlocked");
     }
 
     /**
-     * Creates a failure result for insufficient skill points.
-     * @param available the skill points currently available
-     * @param required the skill points required
-     * @return an insufficient points result
+     * Creates a failure because skill definition does not exist.
+     *
+     * @param skillId the skill ID
+     * @return failure result
      */
-    public static SkillUnlockResult insufficientSP(int available, int required) {
-        return failure(String.format("Not enough skill points (have %d, need %d)", available, required));
-    }
-
-    /**
-     * Creates a failure result for missing prerequisites.
-     * @param missingSkill the name or ID of the missing prerequisite skill
-     * @return a missing prerequisites result
-     */
-    public static SkillUnlockResult missingPrerequisites(String missingSkill) {
-        return failure("Missing prerequisite: " + missingSkill);
+    public static SkillUnlockResult skillNotFound(String skillId) {
+        return failure("Skill '" + skillId + "' not found in registry");
     }
 }

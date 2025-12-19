@@ -43,7 +43,7 @@ public class JdbcChunkClaimLogRepository implements ChunkClaimLogRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, entry.guildId());
+            ps.setString(1, entry.guildId().toString());
             ps.setString(2, entry.chunk().world());
             ps.setInt(3, entry.chunk().x());
             ps.setInt(4, entry.chunk().z());
@@ -57,7 +57,7 @@ public class JdbcChunkClaimLogRepository implements ChunkClaimLogRepository {
     }
 
     @Override
-    public List<ChunkClaimLog> findByGuildId(String guildId, int limit) {
+    public List<ChunkClaimLog> findByGuildId(UUID guildId, int limit) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = """
@@ -71,7 +71,7 @@ public class JdbcChunkClaimLogRepository implements ChunkClaimLogRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setInt(2, limit);
             ResultSet rs = ps.executeQuery();
 
@@ -146,12 +146,12 @@ public class JdbcChunkClaimLogRepository implements ChunkClaimLogRepository {
     }
 
     @Override
-    public void deleteByGuildId(String guildId) {
+    public void deleteByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM chunk_claim_logs WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete chunk claim logs", e);
@@ -167,7 +167,7 @@ public class JdbcChunkClaimLogRepository implements ChunkClaimLogRepository {
 
         return new ChunkClaimLog(
             rs.getLong("id"),
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("guild_id")),
             chunk,
             UUID.fromString(rs.getString("player_id")),
             ChunkClaimLog.ActionType.valueOf(rs.getString("action")),

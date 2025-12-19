@@ -2,215 +2,166 @@ package org.aincraft.skilltree;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.aincraft.GuildPermission;
-import org.aincraft.service.PermissionService;
 import org.aincraft.skilltree.storage.GuildSkillTreeRepository;
 import org.aincraft.vault.Vault;
 import org.aincraft.vault.VaultService;
-import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.*;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Service for managing guild skill trees.
- * Handles skill unlocking, respec, and skill point management.
+ * Service layer for skill tree operations.
+ * Orchestrates skill unlocks, respecs, and skill point awards.
+ * Single Responsibility: Skill tree business logic.
+ * Dependency Inversion: Depends on abstractions via constructor injection.
+ *
+ * Note: Buff effects are calculated dynamically by BuffApplicationService based on
+ * unlocked skills, not directly managed by this service. This keeps skill unlocking
+ * separate from buff application concerns.
  */
 @Singleton
 public class SkillTreeService {
-
     private final GuildSkillTreeRepository repository;
     private final SkillTreeRegistry registry;
-    private final PermissionService permissionService;
     private final VaultService vaultService;
 
     @Inject
-    public SkillTreeService(
-            GuildSkillTreeRepository repository,
-            SkillTreeRegistry registry,
-            PermissionService permissionService,
-            VaultService vaultService
-    ) {
+    public SkillTreeService(GuildSkillTreeRepository repository,
+                            SkillTreeRegistry registry,
+                            VaultService vaultService) {
         this.repository = Objects.requireNonNull(repository, "Repository cannot be null");
         this.registry = Objects.requireNonNull(registry, "Registry cannot be null");
-        this.permissionService = Objects.requireNonNull(permissionService, "PermissionService cannot be null");
-        this.vaultService = Objects.requireNonNull(vaultService, "VaultService cannot be null");
-    }
-
-    /**
-     * Gets or creates a skill tree for a guild.
-     */
-    public GuildSkillTree getOrCreateSkillTree(String guildId) {
-        Objects.requireNonNull(guildId, "Guild ID cannot be null");
-
-        return repository.findByGuildId(guildId)
-                .orElseGet(() -> {
-                    GuildSkillTree newTree = new GuildSkillTree(guildId);
-                    repository.save(newTree);
-                    return newTree;
-                });
-    }
-
-    /**
-     * Gets a skill tree for a guild.
-     */
-    public Optional<GuildSkillTree> getSkillTree(String guildId) {
-        Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        return repository.findByGuildId(guildId);
+        this.vaultService = Objects.requireNonNull(vaultService, "Vault service cannot be null");
     }
 
     /**
      * Attempts to unlock a skill for a guild.
-     * Validates permission, prerequisites, and SP cost.
+     * Validates prerequisites, checks SP, and saves state.
+     * Buff effects are calculated dynamically by BuffApplicationService.
+     *
+     * @param guildId the guild ID
+     * @param skillId the skill ID to unlock
+     * @return result indicating success or specific failure reason
      */
-    public SkillUnlockResult unlockSkill(String guildId, UUID requesterId, String skillId) {
+    public SkillUnlockResult unlockSkill(UUID guildId, String skillId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        Objects.requireNonNull(requesterId, "Requester ID cannot be null");
         Objects.requireNonNull(skillId, "Skill ID cannot be null");
 
-        // Check permission
-        if (!permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_SKILLS)) {
-            return SkillUnlockResult.noPermission();
-        }
-
-        // Get skill definition
+        // Check if skill exists
         Optional<SkillDefinition> skillOpt = registry.getSkill(skillId);
         if (skillOpt.isEmpty()) {
-            return SkillUnlockResult.skillNotFound();
+            return SkillUnlockResult.skillNotFound(skillId);
         }
         SkillDefinition skill = skillOpt.get();
 
-        // Get skill tree
+        // Get or create skill tree
         GuildSkillTree tree = getOrCreateSkillTree(guildId);
 
         // Check if already unlocked
-        if (tree.hasSkill(skillId)) {
-            return SkillUnlockResult.alreadyUnlocked();
-        }
-
-        // Check SP
-        if (!tree.canAfford(skill.spCost())) {
-            return SkillUnlockResult.insufficientSP(tree.getAvailableSkillPoints(), skill.spCost());
+        if (tree.isUnlocked(skillId)) {
+            return SkillUnlockResult.alreadyUnlocked(skillId);
         }
 
         // Check prerequisites
-        for (String prereqId : skill.prerequisites()) {
-            if (!tree.hasSkill(prereqId)) {
-                Optional<SkillDefinition> prereqOpt = registry.getSkill(prereqId);
-                String prereqName = prereqOpt.map(SkillDefinition::name).orElse(prereqId);
-                return SkillUnlockResult.missingPrerequisites(prereqName);
+        if (skill.hasPrerequisites()) {
+            for (String prereqId : skill.prerequisites()) {
+                if (!tree.isUnlocked(prereqId)) {
+                    return SkillUnlockResult.missingPrerequisite(skillId, prereqId);
+                }
             }
         }
 
+        // Check SP cost
+        if (tree.getAvailableSp() < skill.spCost()) {
+            return SkillUnlockResult.insufficientSp(tree.getAvailableSp(), skill.spCost());
+        }
+
         // Unlock the skill
-        tree.unlockSkill(skillId, skill.spCost());
+        tree.unlockSkill(skill);
+
+        // Save state (buff effects are calculated dynamically by BuffApplicationService)
         repository.save(tree);
-        repository.unlockSkill(guildId, skillId);
+        repository.unlockSkill(guildId, skillId, System.currentTimeMillis());
 
         return SkillUnlockResult.success(skill);
     }
 
     /**
-     * Checks if a skill can be unlocked (for UI display).
-     */
-    public boolean canUnlock(String guildId, String skillId) {
-        Optional<SkillDefinition> skillOpt = registry.getSkill(skillId);
-        if (skillOpt.isEmpty()) return false;
-
-        SkillDefinition skill = skillOpt.get();
-        GuildSkillTree tree = getOrCreateSkillTree(guildId);
-
-        if (tree.hasSkill(skillId)) return false;
-        if (!tree.canAfford(skill.spCost())) return false;
-
-        for (String prereqId : skill.prerequisites()) {
-            if (!tree.hasSkill(prereqId)) return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Checks if prerequisites are met for a skill (ignoring SP).
-     */
-    public boolean hasPrerequisites(String guildId, String skillId) {
-        Optional<SkillDefinition> skillOpt = registry.getSkill(skillId);
-        if (skillOpt.isEmpty()) return false;
-
-        GuildSkillTree tree = getOrCreateSkillTree(guildId);
-
-        for (String prereqId : skillOpt.get().prerequisites()) {
-            if (!tree.hasSkill(prereqId)) return false;
-        }
-        return true;
-    }
-
-    /**
      * Attempts to respec a guild's skill tree.
-     * Requires respec material in vault.
+     * Validates respec is enabled, consumes materials from vault, and resets tree.
+     *
+     * @param guildId the guild ID
+     * @param requesterId the player requesting the respec
+     * @param vault the guild vault to consume materials from
+     * @return result indicating success or specific failure reason
      */
-    public RespecResult respec(String guildId, UUID requesterId) {
+    public RespecResult respec(UUID guildId, UUID requesterId, Vault vault) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
+        Objects.requireNonNull(vault, "Vault cannot be null");
 
         // Check if respec is enabled
-        if (!registry.isRespecEnabled()) {
-            return RespecResult.failure("Respec is disabled");
-        }
-
-        // Check permission
-        if (!permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_SKILLS)) {
-            return RespecResult.noPermission();
+        RespecConfig config = registry.getRespecConfig();
+        if (!config.enabled()) {
+            return RespecResult.disabled();
         }
 
         // Get skill tree
         GuildSkillTree tree = getOrCreateSkillTree(guildId);
 
-        // Check if there are skills to reset
-        if (tree.getUnlockedSkillIds().isEmpty()) {
-            return RespecResult.noSkillsToReset();
+        // Check if there are skills to reset (optional optimization)
+        if (tree.getUnlockedSkills().isEmpty()) {
+            return RespecResult.failure("No skills to reset");
         }
 
-        // Check vault for respec material
-        Optional<Vault> vaultOpt = vaultService.getGuildVault(guildId);
-        if (vaultOpt.isEmpty()) {
-            return RespecResult.failure("No guild vault found");
-        }
-
-        Vault vault = vaultOpt.get();
-        Material respecMaterial = registry.getRespecMaterial();
-        int respecAmount = registry.getRespecAmount();
-
-        // Count material in vault
-        int available = countMaterial(vault.getContents(), respecMaterial);
-        if (available < respecAmount) {
-            String materialName = formatMaterialName(respecMaterial);
-            return RespecResult.insufficientMaterials(materialName, available, respecAmount);
-        }
-
-        // Deduct material from vault
+        // Try to consume materials from vault
         ItemStack[] contents = vault.getContents();
-        deductMaterial(contents, respecMaterial, respecAmount);
+        int availableAmount = countMaterial(contents, config.material());
+
+        if (availableAmount < config.amount()) {
+            return RespecResult.insufficientMaterials(
+                config.material().name(),
+                availableAmount,
+                config.amount()
+            );
+        }
+
+        // Consume materials
+        deductMaterial(contents, config.material(), config.amount());
         vault.setContents(contents);
-        vaultService.updateVaultContents(vault.getId(), contents);
 
-        // Calculate refunded points
-        int refundedPoints = tree.getTotalSkillPointsEarned() - tree.getAvailableSkillPoints();
+        // Save vault changes
+        try {
+            vaultService.updateVaultContents(vault.getId(), contents);
+        } catch (Exception e) {
+            return RespecResult.materialConsumptionFailed();
+        }
 
-        // Respec
+        // Calculate SP that will be restored
+        int spRestored = tree.getTotalSpEarned() - tree.getAvailableSp();
+
+        // Perform respec (buff effects are recalculated dynamically by BuffApplicationService)
         tree.respec();
         repository.save(tree);
-        repository.deleteAllSkills(guildId);
+        repository.clearUnlockedSkills(guildId);
 
-        return RespecResult.success(refundedPoints);
+        return RespecResult.success(spRestored);
     }
 
     /**
-     * Awards skill points to a guild.
+     * Awards skill points to a guild (typically from progression levelups).
+     *
+     * @param guildId the guild ID
+     * @param amount the amount of skill points to award
      */
-    public void awardSkillPoints(String guildId, int amount) {
+    public void awardSkillPoints(UUID guildId, int amount) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        if (amount <= 0) return;
+
+        if (amount <= 0) {
+            return;
+        }
 
         GuildSkillTree tree = getOrCreateSkillTree(guildId);
         tree.awardSkillPoints(amount);
@@ -218,24 +169,44 @@ public class SkillTreeService {
     }
 
     /**
-     * Gets all unlocked skills for a guild.
+     * Retrieves a guild's skill tree, creating a new one if it doesn't exist.
+     *
+     * @param guildId the guild ID
+     * @return the guild's skill tree (never null)
      */
-    public Set<String> getUnlockedSkills(String guildId) {
+    public GuildSkillTree getOrCreateSkillTree(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        return repository.getUnlockedSkills(guildId);
+
+        Optional<GuildSkillTree> treeOpt = repository.findByGuildId(guildId);
+        if (treeOpt.isPresent()) {
+            return treeOpt.get();
+        }
+
+        // Create new skill tree
+        GuildSkillTree newTree = new GuildSkillTree(guildId);
+        repository.save(newTree);
+        return newTree;
     }
 
     /**
-     * Deletes all skill tree data for a guild.
+     * Retrieves a guild's skill tree if it exists.
+     *
+     * @param guildId the guild ID
+     * @return the guild's skill tree, or empty Optional
      */
-    public void deleteSkillTree(String guildId) {
+    public Optional<GuildSkillTree> getSkillTree(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        repository.delete(guildId);
+        return repository.findByGuildId(guildId);
     }
 
-    // Helper methods
-
-    private int countMaterial(ItemStack[] contents, Material material) {
+    /**
+     * Counts the available amount of a material in vault contents.
+     *
+     * @param contents the vault contents
+     * @param material the material to count
+     * @return total amount of the material available
+     */
+    private int countMaterial(ItemStack[] contents, org.bukkit.Material material) {
         int count = 0;
         for (ItemStack item : contents) {
             if (item != null && item.getType() == material) {
@@ -245,30 +216,28 @@ public class SkillTreeService {
         return count;
     }
 
-    private void deductMaterial(ItemStack[] contents, Material material, int amount) {
+    /**
+     * Removes a specific amount of a material from vault contents.
+     *
+     * @param contents the vault contents (modified in place)
+     * @param material the material to remove
+     * @param amount the amount to remove
+     */
+    private void deductMaterial(ItemStack[] contents, org.bukkit.Material material, int amount) {
         int remaining = amount;
+
         for (int i = 0; i < contents.length && remaining > 0; i++) {
             ItemStack item = contents[i];
             if (item != null && item.getType() == material) {
-                int taken = Math.min(item.getAmount(), remaining);
-                remaining -= taken;
-                if (taken >= item.getAmount()) {
+                int toRemove = Math.min(item.getAmount(), remaining);
+                item.setAmount(item.getAmount() - toRemove);
+
+                if (item.getAmount() <= 0) {
                     contents[i] = null;
-                } else {
-                    item.setAmount(item.getAmount() - taken);
                 }
+
+                remaining -= toRemove;
             }
         }
-    }
-
-    private String formatMaterialName(Material material) {
-        String name = material.name().replace("_", " ").toLowerCase();
-        String[] words = name.split(" ");
-        StringBuilder sb = new StringBuilder();
-        for (String word : words) {
-            if (!sb.isEmpty()) sb.append(" ");
-            sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
-        }
-        return sb.toString();
     }
 }

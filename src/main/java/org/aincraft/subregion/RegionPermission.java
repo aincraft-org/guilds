@@ -10,7 +10,7 @@ import java.util.UUID;
  */
 public class RegionPermission {
     private final String id;
-    private final String regionId;
+    private final UUID regionId;
     private final String subjectId;  // Player UUID or Role ID
     private final SubjectType subjectType;
     private int permissions;  // Bitfield of allowed permissions
@@ -26,7 +26,7 @@ public class RegionPermission {
      * @param permissions the permission bitfield
      * @param createdBy   the player who created this permission
      */
-    public RegionPermission(String regionId, String subjectId, SubjectType subjectType,
+    public RegionPermission(UUID regionId, String subjectId, SubjectType subjectType,
                           int permissions, UUID createdBy) {
         this.id = UUID.randomUUID().toString();
         this.regionId = Objects.requireNonNull(regionId, "Region ID cannot be null");
@@ -48,7 +48,7 @@ public class RegionPermission {
      * @param createdAt   creation timestamp
      * @param createdBy   creator UUID
      */
-    public RegionPermission(String id, String regionId, String subjectId, SubjectType subjectType,
+    public RegionPermission(String id, UUID regionId, String subjectId, SubjectType subjectType,
                           int permissions, long createdAt, UUID createdBy) {
         this.id = Objects.requireNonNull(id, "ID cannot be null");
         this.regionId = Objects.requireNonNull(regionId, "Region ID cannot be null");
@@ -92,7 +92,7 @@ public class RegionPermission {
         return id;
     }
 
-    public String getRegionId() {
+    public UUID getRegionId() {
         return regionId;
     }
 

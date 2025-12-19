@@ -46,8 +46,8 @@ public class JdbcSubregionRepository implements SubregionRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, region.getId());
-            ps.setString(2, region.getGuildId());
+            ps.setString(1, region.getId().toString());
+            ps.setObject(2, region.getGuildId());
             ps.setString(3, region.getName());
             ps.setString(4, region.getWorld());
             ps.setInt(5, region.getMinX());
@@ -105,12 +105,12 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public void delete(String regionId) {
+    public void delete(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM subregions WHERE id = ?")) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete subregion", e);
@@ -118,12 +118,12 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public void deleteAllByGuild(String guildId) {
+    public void deleteAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM subregions WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete guild subregions", e);
@@ -131,12 +131,12 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public Optional<Subregion> findById(String regionId) {
+    public Optional<Subregion> findById(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM subregions WHERE id = ?")) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -150,14 +150,14 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public Optional<Subregion> findByGuildAndName(String guildId, String name) {
+    public Optional<Subregion> findByGuildAndName(UUID guildId, String name) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT * FROM subregions WHERE guild_id = ? AND LOWER(name) = LOWER(?)")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, name);
             ResultSet rs = ps.executeQuery();
 
@@ -172,13 +172,13 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public List<Subregion> findByGuild(String guildId) {
+    public List<Subregion> findByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         List<Subregion> regions = new ArrayList<>();
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM subregions WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -280,12 +280,12 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public int getCountByGuild(String guildId) {
+    public int getCountByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM subregions WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -299,7 +299,7 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public long getTotalVolumeByGuildAndType(String guildId, String typeId) {
+    public long getTotalVolumeByGuildAndType(UUID guildId, String typeId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = """
@@ -310,7 +310,7 @@ public class JdbcSubregionRepository implements SubregionRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, typeId);
             ResultSet rs = ps.executeQuery();
 
@@ -326,8 +326,8 @@ public class JdbcSubregionRepository implements SubregionRepository {
 
     private Subregion mapResultSet(ResultSet rs) throws SQLException {
         return new Subregion(
-            rs.getString("id"),
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("id")),
+            UUID.fromString(rs.getString("guild_id")),
             rs.getString("name"),
             rs.getString("world"),
             rs.getInt("min_x"),

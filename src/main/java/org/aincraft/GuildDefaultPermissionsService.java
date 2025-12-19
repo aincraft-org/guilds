@@ -2,7 +2,9 @@ package org.aincraft;
 
 import com.google.inject.Inject;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.storage.GuildDefaultPermissionsRepository;
 import org.aincraft.subregion.SubjectType;
 
@@ -26,7 +28,7 @@ public class GuildDefaultPermissionsService {
      * @param subjectType the relationship type (GUILD_ALLY, GUILD_ENEMY, GUILD_OUTSIDER)
      * @return the permissions bitfield
      */
-    public int getPermissions(String guildId, SubjectType subjectType) {
+    public int getPermissions(UUID guildId, SubjectType subjectType) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(subjectType, "Subject type cannot be null");
         return repository.getPermissions(guildId, subjectType);
@@ -40,7 +42,7 @@ public class GuildDefaultPermissionsService {
      * @param permissionBit the permission bit to check
      * @return true if the player has the permission
      */
-    public boolean hasPermission(String guildId, SubjectType subjectType, int permissionBit) {
+    public boolean hasPermission(UUID guildId, SubjectType subjectType, int permissionBit) {
         int permissions = getPermissions(guildId, subjectType);
         return (permissions & permissionBit) != 0;
     }
@@ -51,7 +53,7 @@ public class GuildDefaultPermissionsService {
      * @param guildId the guild ID
      * @return the guild's default permissions
      */
-    public GuildDefaultPermissions getOrCreate(String guildId) {
+    public GuildDefaultPermissions getOrCreate(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         Optional<GuildDefaultPermissions> existing = repository.findByGuildId(guildId);
@@ -71,7 +73,7 @@ public class GuildDefaultPermissionsService {
      * @param guildId the guild ID
      * @param permissions the permissions bitfield
      */
-    public void setAllyPermissions(String guildId, int permissions) {
+    public void setAllyPermissions(UUID guildId, int permissions) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         GuildDefaultPermissions perms = getOrCreate(guildId);
         perms.setAllyPermissions(permissions);
@@ -84,7 +86,7 @@ public class GuildDefaultPermissionsService {
      * @param guildId the guild ID
      * @param permissions the permissions bitfield
      */
-    public void setEnemyPermissions(String guildId, int permissions) {
+    public void setEnemyPermissions(UUID guildId, int permissions) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         GuildDefaultPermissions perms = getOrCreate(guildId);
         perms.setEnemyPermissions(permissions);
@@ -97,7 +99,7 @@ public class GuildDefaultPermissionsService {
      * @param guildId the guild ID
      * @param permissions the permissions bitfield
      */
-    public void setOutsiderPermissions(String guildId, int permissions) {
+    public void setOutsiderPermissions(UUID guildId, int permissions) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         GuildDefaultPermissions perms = getOrCreate(guildId);
         perms.setOutsiderPermissions(permissions);
@@ -109,7 +111,7 @@ public class GuildDefaultPermissionsService {
      *
      * @param guildId the guild ID
      */
-    public void resetToDefaults(String guildId) {
+    public void resetToDefaults(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         GuildDefaultPermissions perms = new GuildDefaultPermissions(guildId, 4, 0, 0); // 4 = INTERACT
         repository.save(perms);
@@ -120,7 +122,7 @@ public class GuildDefaultPermissionsService {
      *
      * @param guildId the guild ID
      */
-    public void delete(String guildId) {
+    public void delete(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         repository.delete(guildId);
     }
@@ -131,7 +133,7 @@ public class GuildDefaultPermissionsService {
      * @param guildId the guild ID
      * @return the permissions object, or an empty Optional if not found
      */
-    public Optional<GuildDefaultPermissions> getPermissionsForGuild(String guildId) {
+    public Optional<GuildDefaultPermissions> getPermissionsForGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return repository.findByGuildId(guildId);
     }

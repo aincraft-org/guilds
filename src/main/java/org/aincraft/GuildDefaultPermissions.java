@@ -1,6 +1,7 @@
 package org.aincraft;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Represents default permissions for different guild relationship types.
@@ -8,7 +9,7 @@ import java.util.Objects;
  * in their claimed territory.
  */
 public final class GuildDefaultPermissions {
-    private final String guildId;
+    private final UUID guildId;
     private int allyPermissions;
     private int enemyPermissions;
     private int outsiderPermissions;
@@ -24,7 +25,7 @@ public final class GuildDefaultPermissions {
      * @param outsiderPermissions bitfield of permissions for outsiders
      */
     public GuildDefaultPermissions(
-        String guildId,
+        UUID guildId,
         int allyPermissions,
         int enemyPermissions,
         int outsiderPermissions
@@ -37,7 +38,7 @@ public final class GuildDefaultPermissions {
         this.updatedAt = this.createdAt;
     }
 
-    public String getGuildId() {
+    public UUID getGuildId() {
         return guildId;
     }
 

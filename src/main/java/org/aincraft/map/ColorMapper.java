@@ -1,5 +1,7 @@
 package org.aincraft.map;
 
+import java.util.UUID;
+
 /**
  * Interface for mapping guilds to display colors.
  * Abstracts the color assignment logic for testability and extensibility.
@@ -13,7 +15,7 @@ public interface ColorMapper {
      * @param guildColor the guild's configured color (may be null)
      * @return the color to use for display (hex format like "#RRGGBB")
      */
-    String getColorForGuild(String guildId, String guildColor);
+    String getColorForGuild(UUID guildId, String guildColor);
 
     /**
      * Gets the display color for a guild using only the guild ID.
@@ -22,12 +24,12 @@ public interface ColorMapper {
      * @param guildId the guild ID
      * @return the generated color (hex format like "#RRGGBB")
      */
-    String getGeneratedColor(String guildId);
+    String getGeneratedColor(UUID guildId);
 
     /**
      * Clears any cached colors for a guild.
      *
      * @param guildId the guild ID
      */
-    void clearCache(String guildId);
+    void clearCache(UUID guildId);
 }

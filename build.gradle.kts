@@ -89,11 +89,6 @@ tasks {
         // Use Paper 1.21.11
         minecraftVersion("1.21.11")
 
-        // Automatically download and run the server
-        downloadPlugins {
-            // Add any dependencies here if needed
-        }
-
         // Use the shadowJar output
         pluginJars.from(shadowJar.flatMap { it.archiveFile })
     }

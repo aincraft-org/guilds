@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import org.bukkit.Material;
 
 import java.util.*;
+import java.util.UUID;
 
 /**
  * Generates procedural material costs for guild leveling.
@@ -27,7 +28,7 @@ public class ProceduralCostGenerator {
      * @param currentLevel the current level (leveling FROM this level)
      * @return the level-up cost
      */
-    public LevelUpCost generateCost(String guildId, int currentLevel) {
+    public LevelUpCost generateCost(UUID guildId, int currentLevel) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         // Create deterministic random based on guild ID + level

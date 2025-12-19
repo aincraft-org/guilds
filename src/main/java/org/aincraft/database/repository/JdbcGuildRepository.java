@@ -45,7 +45,7 @@ public class JdbcGuildRepository implements GuildRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, guild.getId());
+            ps.setString(1, guild.getId().toString());
             ps.setString(2, guild.getName());
             ps.setString(3, guild.getDescription());
             ps.setString(4, guild.getOwnerId().toString());
@@ -76,12 +76,12 @@ public class JdbcGuildRepository implements GuildRepository {
     }
 
     @Override
-    public void delete(String guildId) {
+    public void delete(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guilds WHERE id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete guild", e);
@@ -89,12 +89,12 @@ public class JdbcGuildRepository implements GuildRepository {
     }
 
     @Override
-    public Optional<Guild> findById(String guildId) {
+    public Optional<Guild> findById(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM guilds WHERE id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -145,26 +145,37 @@ public class JdbcGuildRepository implements GuildRepository {
     }
 
     private Guild mapRowToGuild(ResultSet rs) throws SQLException {
-        String id = rs.getString("id");
+        String idStr = rs.getString("id");
         String name = rs.getString("name");
         String description = rs.getString("description");
-        String ownerId = rs.getString("owner_id");
+        String ownerIdStr = rs.getString("owner_id");
         long createdAt = rs.getLong("created_at");
         int maxMembers = rs.getInt("max_members");
         String membersJson = rs.getString("members");
         String color = rs.getString("color");
 
-        Guild guild = new Guild(id, name, description, UUID.fromString(ownerId), createdAt, maxMembers, color);
+        try {
+            UUID id = UUID.fromString(idStr);
+            UUID ownerId = UUID.fromString(ownerIdStr);
 
-        restoreMembers(guild, membersJson);
-        restoreSpawn(guild, rs);
-        restoreHomeblock(guild, rs);
+            java.util.Optional<Guild> guildOpt = Guild.restore(id, name, description, ownerId, createdAt, maxMembers, color);
+            if (guildOpt.isEmpty()) {
+                throw new SQLException("Failed to create guild from database row - validation failed");
+            }
 
-        guild.setExplosionsAllowed(getBoolean(rs, "allow_explosions", true));
-        guild.setFireAllowed(getBoolean(rs, "allow_fire", true));
-        guild.setPublic(getBoolean(rs, "is_public", false));
+            Guild guild = guildOpt.get();
+            restoreMembers(guild, membersJson);
+            restoreSpawn(guild, rs);
+            restoreHomeblock(guild, rs);
 
-        return guild;
+            guild.setExplosionsAllowed(getBoolean(rs, "allow_explosions", true));
+            guild.setFireAllowed(getBoolean(rs, "allow_fire", true));
+            guild.setPublic(getBoolean(rs, "is_public", false));
+
+            return guild;
+        } catch (IllegalArgumentException e) {
+            throw new SQLException("Failed to parse guild UUID from database", e);
+        }
     }
 
     private void restoreMembers(Guild guild, String membersJson) throws SQLException {

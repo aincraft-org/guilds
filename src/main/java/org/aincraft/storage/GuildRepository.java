@@ -2,6 +2,7 @@ package org.aincraft.storage;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.Guild;
 
 /**
@@ -10,8 +11,8 @@ import org.aincraft.Guild;
  */
 public interface GuildRepository {
     void save(Guild guild);
-    void delete(String guildId);
-    Optional<Guild> findById(String guildId);
+    void delete(UUID guildId);
+    Optional<Guild> findById(UUID guildId);
     Optional<Guild> findByName(String name);
     List<Guild> findAll();
 }

@@ -3,7 +3,6 @@ package org.aincraft.listeners;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -16,8 +15,10 @@ import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildDefaultPermissionsService;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
 import org.aincraft.RelationshipService;
+import org.aincraft.service.TerritoryService;
+import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.Chunk;
@@ -49,7 +50,9 @@ import org.mockito.quality.Strictness;
 @DisplayName("GuildProtectionListener")
 class GuildProtectionListenerTest {
 
-    @Mock private GuildService guildService;
+    @Mock private TerritoryService territoryService;
+    @Mock private GuildMemberService memberService;
+    @Mock private PermissionService permissionService;
     @Mock private SubregionService subregionService;
     @Mock private RelationshipService relationshipService;
     @Mock private GuildDefaultPermissionsService guildDefaultPermissionsService;
@@ -65,7 +68,7 @@ class GuildProtectionListenerTest {
 
     @BeforeEach
     void setUp() {
-        listener = new GuildProtectionListener(guildService, subregionService, relationshipService, guildDefaultPermissionsService);
+        listener = new GuildProtectionListener(territoryService, memberService, permissionService, subregionService, relationshipService, guildDefaultPermissionsService);
         playerId = UUID.randomUUID();
         ownerId = UUID.randomUUID();
 
@@ -90,7 +93,7 @@ class GuildProtectionListenerTest {
         @Test
         @DisplayName("should allow breaking in unclaimed chunks")
         void shouldAllowBreakingInUnclaimedChunks() {
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
 
             BlockBreakEvent event = new BlockBreakEvent(block, player);
             listener.onBlockBreak(event);
@@ -102,8 +105,8 @@ class GuildProtectionListenerTest {
         @DisplayName("should deny non-guild member in claimed chunk")
         void shouldDenyNonGuildMemberInClaimedChunk() {
             Guild ownerGuild = new Guild("OwnerGuild", null, ownerId);
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(ownerGuild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(null);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(ownerGuild);
+            when(memberService.getPlayerGuild(playerId)).thenReturn(null);
 
             BlockBreakEvent event = new BlockBreakEvent(block, player);
             listener.onBlockBreak(event);
@@ -118,10 +121,10 @@ class GuildProtectionListenerTest {
             Guild guild = new Guild("TestGuild", null, ownerId);
             guild.joinGuild(playerId);
 
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(guild);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(memberService.getPlayerGuild(playerId)).thenReturn(guild);
             when(subregionService.getSubregionAt(location)).thenReturn(Optional.empty());
-            when(guildService.hasPermission(guild.getId(), playerId, GuildPermission.DESTROY))
+            when(permissionService.hasPermission(guild.getId(), playerId, GuildPermission.DESTROY))
                     .thenReturn(true);
 
             BlockBreakEvent event = new BlockBreakEvent(block, player);
@@ -136,10 +139,10 @@ class GuildProtectionListenerTest {
             Guild guild = new Guild("TestGuild", null, ownerId);
             guild.joinGuild(playerId);
 
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(guild);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(memberService.getPlayerGuild(playerId)).thenReturn(guild);
             when(subregionService.getSubregionAt(location)).thenReturn(Optional.empty());
-            when(guildService.hasPermission(guild.getId(), playerId, GuildPermission.DESTROY))
+            when(permissionService.hasPermission(guild.getId(), playerId, GuildPermission.DESTROY))
                     .thenReturn(false);
 
             BlockBreakEvent event = new BlockBreakEvent(block, player);
@@ -155,8 +158,8 @@ class GuildProtectionListenerTest {
             guild.joinGuild(playerId);
             Subregion subregion = mock(Subregion.class);
 
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(guild);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(memberService.getPlayerGuild(playerId)).thenReturn(guild);
             when(subregionService.getSubregionAt(location)).thenReturn(Optional.of(subregion));
             when(subregionService.hasSubregionPermission(subregion, playerId, GuildPermission.DESTROY))
                     .thenReturn(true);
@@ -165,7 +168,7 @@ class GuildProtectionListenerTest {
             listener.onBlockBreak(event);
 
             assertThat(event.isCancelled()).isFalse();
-            verify(guildService, never()).hasPermission(anyString(), any(), eq(GuildPermission.DESTROY));
+            verify(permissionService, never()).hasPermission(any(), any(), eq(GuildPermission.DESTROY));
         }
     }
 
@@ -179,7 +182,7 @@ class GuildProtectionListenerTest {
         @Test
         @DisplayName("should allow placing in unclaimed chunks")
         void shouldAllowPlacingInUnclaimedChunks() {
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
 
             BlockPlaceEvent event = new BlockPlaceEvent(block, blockState, block, itemStack, player, true, EquipmentSlot.HAND);
             listener.onBlockPlace(event);
@@ -193,10 +196,10 @@ class GuildProtectionListenerTest {
             Guild guild = new Guild("TestGuild", null, ownerId);
             guild.joinGuild(playerId);
 
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(guild);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(memberService.getPlayerGuild(playerId)).thenReturn(guild);
             when(subregionService.getSubregionAt(location)).thenReturn(Optional.empty());
-            when(guildService.hasPermission(guild.getId(), playerId, GuildPermission.BUILD))
+            when(permissionService.hasPermission(guild.getId(), playerId, GuildPermission.BUILD))
                     .thenReturn(true);
 
             BlockPlaceEvent event = new BlockPlaceEvent(block, blockState, block, itemStack, player, true, EquipmentSlot.HAND);
@@ -216,8 +219,8 @@ class GuildProtectionListenerTest {
             when(block.getType()).thenReturn(Material.CHEST);
 
             Guild guild = new Guild("TestGuild", null, ownerId);
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(null);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(memberService.getPlayerGuild(playerId)).thenReturn(null);
 
             PlayerInteractEvent event = mock(PlayerInteractEvent.class);
             when(event.getClickedBlock()).thenReturn(block);
@@ -260,10 +263,10 @@ class GuildProtectionListenerTest {
             Guild guild = new Guild("TestGuild", null, ownerId);
             guild.joinGuild(playerId);
 
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
-            when(guildService.getPlayerGuild(playerId)).thenReturn(guild);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(memberService.getPlayerGuild(playerId)).thenReturn(guild);
             when(subregionService.getSubregionAt(location)).thenReturn(Optional.empty());
-            when(guildService.hasPermission(guild.getId(), playerId, GuildPermission.INTERACT))
+            when(permissionService.hasPermission(guild.getId(), playerId, GuildPermission.INTERACT))
                     .thenReturn(true);
 
             PlayerInteractEvent event = mock(PlayerInteractEvent.class);

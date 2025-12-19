@@ -1,5 +1,6 @@
 package org.aincraft.commands.components.region;
 
+import com.google.inject.Inject;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +26,7 @@ public class RegionBasicComponent {
     private final SubregionTypeRegistry typeRegistry;
     private final RegionCommandHelper helper;
 
+    @Inject
     public RegionBasicComponent(SubregionService subregionService, RegionVisualizer visualizer,
                                SubregionTypeRegistry typeRegistry, RegionCommandHelper helper) {
         this.subregionService = subregionService;

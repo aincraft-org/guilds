@@ -3,7 +3,9 @@ package org.aincraft.project.storage;
 import org.aincraft.project.ActiveBuff;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ActiveBuffRepository {
 
@@ -11,13 +13,13 @@ public interface ActiveBuffRepository {
 
     Optional<ActiveBuff> findById(String buffId);
 
-    List<ActiveBuff> findByGuildId(String guildId);
+    List<ActiveBuff> findByGuildId(UUID guildId);
 
-    Optional<ActiveBuff> findActiveByGuildId(String guildId);
+    Optional<ActiveBuff> findActiveByGuildId(UUID guildId);
 
     void delete(String buffId);
 
-    void deleteByGuildId(String guildId);
+    void deleteByGuildId(UUID guildId);
 
     void deleteExpired();
 }

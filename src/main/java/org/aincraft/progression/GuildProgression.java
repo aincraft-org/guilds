@@ -1,6 +1,7 @@
 package org.aincraft.progression;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Represents the progression state of a guild.
@@ -10,7 +11,7 @@ import java.util.Objects;
 public final class GuildProgression {
     private static final int MIN_LEVEL = 1;
 
-    private final String guildId;
+    private final UUID guildId;
     private int level;
     private long currentXp;
     private long totalXpEarned;
@@ -21,7 +22,7 @@ public final class GuildProgression {
      *
      * @param guildId the guild ID (cannot be null)
      */
-    public GuildProgression(String guildId) {
+    public GuildProgression(UUID guildId) {
         this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
         this.level = MIN_LEVEL;
         this.currentXp = 0;
@@ -38,7 +39,7 @@ public final class GuildProgression {
      * @param totalXpEarned the total XP earned all-time
      * @param lastLevelupTime the timestamp of last level-up (can be null)
      */
-    public GuildProgression(String guildId, int level, long currentXp, long totalXpEarned, Long lastLevelupTime) {
+    public GuildProgression(UUID guildId, int level, long currentXp, long totalXpEarned, Long lastLevelupTime) {
         this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
         this.level = Math.max(level, MIN_LEVEL);
         this.currentXp = Math.max(currentXp, 0);
@@ -91,7 +92,7 @@ public final class GuildProgression {
      *
      * @return the guild ID
      */
-    public String getGuildId() {
+    public UUID getGuildId() {
         return guildId;
     }
 

@@ -2,6 +2,7 @@ package org.aincraft.storage;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.GuildRelationship;
 import org.aincraft.RelationStatus;
 import org.aincraft.RelationType;
@@ -41,7 +42,7 @@ public interface GuildRelationshipRepository {
      * @param guildId2 second guild ID
      * @return Optional containing the relationship, or empty if not found
      */
-    Optional<GuildRelationship> findRelationship(String guildId1, String guildId2);
+    Optional<GuildRelationship> findRelationship(UUID guildId1, UUID guildId2);
 
     /**
      * Finds all relationships involving a guild (as source or target).
@@ -49,7 +50,7 @@ public interface GuildRelationshipRepository {
      * @param guildId the guild ID
      * @return list of relationships
      */
-    List<GuildRelationship> findAllByGuild(String guildId);
+    List<GuildRelationship> findAllByGuild(UUID guildId);
 
     /**
      * Finds relationships of a specific type and status for a guild.
@@ -59,12 +60,12 @@ public interface GuildRelationshipRepository {
      * @param status the relation status
      * @return list of matching relationships
      */
-    List<GuildRelationship> findByType(String guildId, RelationType type, RelationStatus status);
+    List<GuildRelationship> findByType(UUID guildId, RelationType type, RelationStatus status);
 
     /**
      * Deletes all relationships involving a guild.
      *
      * @param guildId the guild ID
      */
-    void deleteAllByGuild(String guildId);
+    void deleteAllByGuild(UUID guildId);
 }

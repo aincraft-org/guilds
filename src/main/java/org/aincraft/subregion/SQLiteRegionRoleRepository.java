@@ -67,7 +67,7 @@ public class SQLiteRegionRoleRepository implements RegionRoleRepository {
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
             pstmt.setString(1, role.getId());
-            pstmt.setString(2, role.getRegionId());
+            pstmt.setString(2, role.getRegionId().toString());
             pstmt.setString(3, role.getName());
             pstmt.setInt(4, role.getPermissions());
             pstmt.setLong(5, role.getCreatedAt());
@@ -117,7 +117,7 @@ public class SQLiteRegionRoleRepository implements RegionRoleRepository {
     }
 
     @Override
-    public List<RegionRole> findByRegion(String regionId) {
+    public List<RegionRole> findByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "SELECT * FROM region_roles WHERE region_id = ?";
@@ -127,7 +127,7 @@ public class SQLiteRegionRoleRepository implements RegionRoleRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -141,7 +141,7 @@ public class SQLiteRegionRoleRepository implements RegionRoleRepository {
     }
 
     @Override
-    public Optional<RegionRole> findByRegionAndName(String regionId, String name) {
+    public Optional<RegionRole> findByRegionAndName(UUID regionId, String name) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
 
@@ -150,7 +150,7 @@ public class SQLiteRegionRoleRepository implements RegionRoleRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, name);
             ResultSet rs = pstmt.executeQuery();
 
@@ -164,7 +164,7 @@ public class SQLiteRegionRoleRepository implements RegionRoleRepository {
     }
 
     @Override
-    public void deleteAllByRegion(String regionId) {
+    public void deleteAllByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "DELETE FROM region_roles WHERE region_id = ?";
@@ -172,7 +172,7 @@ public class SQLiteRegionRoleRepository implements RegionRoleRepository {
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete all roles for region", e);

@@ -1,6 +1,7 @@
 package org.aincraft.vault;
 
 import java.util.Optional;
+import java.util.UUID;
 import org.bukkit.inventory.ItemStack;
 
 /**
@@ -27,7 +28,7 @@ public interface VaultRepository {
      * Finds a vault by guild ID.
      * Each guild can only have one vault.
      */
-    Optional<Vault> findByGuildId(String guildId);
+    Optional<Vault> findByGuildId(UUID guildId);
 
     /**
      * Finds a vault by its origin location.
@@ -42,7 +43,7 @@ public interface VaultRepository {
     /**
      * Checks if a guild already has a vault.
      */
-    boolean existsForGuild(String guildId);
+    boolean existsForGuild(UUID guildId);
 
     /**
      * Gets fresh contents from database (bypasses any caching).

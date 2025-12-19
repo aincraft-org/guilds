@@ -24,7 +24,7 @@ public interface ChunkClaimLogRepository {
      * @param limit maximum number of entries to return
      * @return list of log entries, newest first
      */
-    List<ChunkClaimLog> findByGuildId(String guildId, int limit);
+    List<ChunkClaimLog> findByGuildId(UUID guildId, int limit);
 
     /**
      * Finds log entries by a specific player, ordered by timestamp descending (newest first).
@@ -50,5 +50,5 @@ public interface ChunkClaimLogRepository {
      *
      * @param guildId the guild ID
      */
-    void deleteByGuildId(String guildId);
+    void deleteByGuildId(UUID guildId);
 }

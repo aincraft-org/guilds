@@ -3,6 +3,7 @@ package org.aincraft.subregion;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.aincraft.ChunkKey;
 import org.bukkit.Location;
 
@@ -19,27 +20,27 @@ public interface SubregionRepository {
     /**
      * Deletes a subregion by ID.
      */
-    void delete(String regionId);
+    void delete(UUID regionId);
 
     /**
      * Deletes all subregions belonging to a guild.
      */
-    void deleteAllByGuild(String guildId);
+    void deleteAllByGuild(UUID guildId);
 
     /**
      * Finds a subregion by its ID.
      */
-    Optional<Subregion> findById(String regionId);
+    Optional<Subregion> findById(UUID regionId);
 
     /**
      * Finds a subregion by guild and name.
      */
-    Optional<Subregion> findByGuildAndName(String guildId, String name);
+    Optional<Subregion> findByGuildAndName(UUID guildId, String name);
 
     /**
      * Finds all subregions belonging to a guild.
      */
-    List<Subregion> findByGuild(String guildId);
+    List<Subregion> findByGuild(UUID guildId);
 
     /**
      * Finds all subregions that contain a specific location.
@@ -59,7 +60,7 @@ public interface SubregionRepository {
     /**
      * Gets the count of subregions owned by a guild.
      */
-    int getCountByGuild(String guildId);
+    int getCountByGuild(UUID guildId);
 
     /**
      * Gets the total volume of all subregions of a specific type for a guild.
@@ -68,5 +69,5 @@ public interface SubregionRepository {
      * @param typeId  the type ID
      * @return total volume in blocks, or 0 if none found
      */
-    long getTotalVolumeByGuildAndType(String guildId, String typeId);
+    long getTotalVolumeByGuildAndType(UUID guildId, String typeId);
 }

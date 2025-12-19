@@ -50,6 +50,7 @@ class GuildServiceTest {
     @Mock private GuildRelationshipRepository relationshipRepository;
     @Mock private org.aincraft.claim.ChunkClaimLogRepository chunkClaimLogRepository;
     @Mock private InviteRepository inviteRepository;
+    @Mock private org.aincraft.project.storage.GuildProjectPoolRepository poolRepository;
     @Mock private GuildsConfig config;
 
     private GuildService guildService;
@@ -68,6 +69,7 @@ class GuildServiceTest {
                 relationshipRepository,
                 chunkClaimLogRepository,
                 inviteRepository,
+                poolRepository,
                 config
         );
         ownerId = UUID.randomUUID();

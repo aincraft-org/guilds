@@ -19,7 +19,9 @@
       "Bash(rm:*)",
       "WebFetch(domain:triumphteam.dev)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:search.maven.org)"
+      "WebFetch(domain:search.maven.org)",
+      "Bash(cat:*)",
+      "Bash(gradle build:*)"
     ],
     "deny": [],
     "ask": []

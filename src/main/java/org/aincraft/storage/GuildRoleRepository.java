@@ -2,6 +2,7 @@ package org.aincraft.storage;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.GuildRole;
 
 /**
@@ -26,15 +27,15 @@ public interface GuildRoleRepository {
     /**
      * Finds all roles for a guild.
      */
-    List<GuildRole> findByGuildId(String guildId);
+    List<GuildRole> findByGuildId(UUID guildId);
 
     /**
      * Finds a role by guild ID and name.
      */
-    Optional<GuildRole> findByGuildAndName(String guildId, String name);
+    Optional<GuildRole> findByGuildAndName(UUID guildId, String name);
 
     /**
      * Deletes all roles for a guild (for guild deletion).
      */
-    void deleteAllByGuild(String guildId);
+    void deleteAllByGuild(UUID guildId);
 }

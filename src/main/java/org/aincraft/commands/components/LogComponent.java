@@ -1,5 +1,6 @@
 package org.aincraft.commands.components;
 
+import com.google.inject.Inject;
 import java.util.Objects;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.MessageFormatter;
@@ -22,6 +23,7 @@ public class LogComponent {
     private final VaultLogSubcomponent vaultLogSubcomponent;
     private final ProgressionLogSubcomponent progressionLogSubcomponent;
 
+    @Inject
     public LogComponent(GuildMemberService memberService, PermissionService permissionService,
                        TerritoryService territoryService, VaultService vaultService, ProgressionLogRepository progressionLogRepository) {
         this.memberService = Objects.requireNonNull(memberService, "Member service cannot be null");

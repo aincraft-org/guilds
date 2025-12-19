@@ -50,7 +50,7 @@ public class InviteService {
      * @param inviteeId the invitee's UUID
      * @return the result of the invite operation
      */
-    public InviteResult sendInvite(String guildId, UUID inviterId, UUID inviteeId) {
+    public InviteResult sendInvite(UUID guildId, UUID inviterId, UUID inviteeId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(inviterId, "Inviter ID cannot be null");
         Objects.requireNonNull(inviteeId, "Invitee ID cannot be null");
@@ -114,7 +114,7 @@ public class InviteService {
      * @param playerId the player UUID
      * @return the result of accepting the invite
      */
-    public AcceptInviteResult acceptInvite(String guildId, UUID playerId) {
+    public AcceptInviteResult acceptInvite(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -169,7 +169,7 @@ public class InviteService {
      * @param playerId the player UUID
      * @return true if invite was declined, false if not found
      */
-    public boolean declineInvite(String guildId, UUID playerId) {
+    public boolean declineInvite(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -202,7 +202,7 @@ public class InviteService {
      * @param guildId the guild ID
      * @return list of invites
      */
-    public List<GuildInvite> getSentInvites(String guildId) {
+    public List<GuildInvite> getSentInvites(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         return inviteRepository.findByGuildId(guildId).stream()

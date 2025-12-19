@@ -30,7 +30,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
     }
 
     @Override
-    public void assignRole(String regionId, UUID playerId, String roleId) {
+    public void assignRole(UUID regionId, UUID playerId, String roleId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -39,7 +39,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, playerId.toString());
             ps.setString(3, roleId);
             ps.executeUpdate();
@@ -71,7 +71,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
     }
 
     @Override
-    public void unassignRole(String regionId, UUID playerId, String roleId) {
+    public void unassignRole(UUID regionId, UUID playerId, String roleId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -80,7 +80,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, playerId.toString());
             ps.setString(3, roleId);
             ps.executeUpdate();
@@ -90,7 +90,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
     }
 
     @Override
-    public List<String> getMemberRoleIds(String regionId, UUID playerId) {
+    public List<String> getMemberRoleIds(UUID regionId, UUID playerId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -99,7 +99,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, playerId.toString());
             ResultSet rs = ps.executeQuery();
 
@@ -136,7 +136,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
     }
 
     @Override
-    public boolean hasMemberRole(String regionId, UUID playerId, String roleId) {
+    public boolean hasMemberRole(UUID regionId, UUID playerId, String roleId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -145,7 +145,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, playerId.toString());
             ps.setString(3, roleId);
             ResultSet rs = ps.executeQuery();
@@ -156,7 +156,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
     }
 
     @Override
-    public void removeAllMemberRoles(String regionId, UUID playerId) {
+    public void removeAllMemberRoles(UUID regionId, UUID playerId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -164,7 +164,7 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, playerId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -188,14 +188,14 @@ public class JdbcMemberRegionRoleRepository implements MemberRegionRoleRepositor
     }
 
     @Override
-    public void removeAllByRegion(String regionId) {
+    public void removeAllByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "DELETE FROM member_region_roles WHERE region_id = ?";
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to remove all role assignments for region", e);

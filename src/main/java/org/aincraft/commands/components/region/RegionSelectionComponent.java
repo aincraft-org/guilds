@@ -1,5 +1,6 @@
 package org.aincraft.commands.components.region;
 
+import com.google.inject.Inject;
 import java.util.Optional;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
@@ -25,6 +26,7 @@ public class RegionSelectionComponent {
     private final GuildMemberService memberService;
     private final RegionCommandHelper helper;
 
+    @Inject
     public RegionSelectionComponent(SelectionManager selectionManager, SubregionService subregionService,
                                    PermissionService permissionService, SubregionTypeRegistry typeRegistry,
                                    GuildMemberService memberService, RegionCommandHelper helper) {

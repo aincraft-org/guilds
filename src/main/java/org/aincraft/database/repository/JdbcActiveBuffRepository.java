@@ -7,9 +7,13 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.database.ConnectionProvider;
 import org.aincraft.database.DatabaseType;
 import org.aincraft.project.ActiveBuff;
@@ -39,7 +43,7 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, buff.id());
-            ps.setString(2, buff.guildId());
+            ps.setString(2, buff.guildId().toString());
             ps.setString(3, buff.projectDefinitionId());
             ps.setString(4, buff.categoryId());
             ps.setDouble(5, buff.value());
@@ -100,7 +104,7 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
     }
 
     @Override
-    public List<ActiveBuff> findByGuildId(String guildId) {
+    public List<ActiveBuff> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM active_buffs WHERE guild_id = ? ORDER BY activated_at DESC";
@@ -108,7 +112,7 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -122,14 +126,14 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
     }
 
     @Override
-    public Optional<ActiveBuff> findActiveByGuildId(String guildId) {
+    public Optional<ActiveBuff> findActiveByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM active_buffs WHERE guild_id = ? AND expires_at > ? LIMIT 1";
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setLong(2, System.currentTimeMillis());
             ResultSet rs = ps.executeQuery();
 
@@ -157,12 +161,12 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
     }
 
     @Override
-    public void deleteByGuildId(String guildId) {
+    public void deleteByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM active_buffs WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete buffs by guild", e);
@@ -183,7 +187,7 @@ public class JdbcActiveBuffRepository implements ActiveBuffRepository {
     private ActiveBuff mapRowToBuff(ResultSet rs) throws SQLException {
         return new ActiveBuff(
             rs.getString("id"),
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("guild_id")),
             rs.getString("project_definition_id"),
             rs.getString("buff_category"),
             rs.getDouble("buff_value"),

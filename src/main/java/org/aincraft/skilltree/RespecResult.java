@@ -1,61 +1,102 @@
 package org.aincraft.skilltree;
 
+import java.util.Objects;
+
 /**
- * Result record for respec operations.
- * Encapsulates the outcome of attempting to reset a guild's skill tree,
- * including success status, error messages, and points refunded.
+ * Immutable result type for respec operations.
+ * Provides structured feedback on whether a respec succeeded and how many SP were restored.
+ * Single Responsibility: Represent respec operation result.
  *
- * @param success whether the respec operation succeeded
- * @param errorMessage description of the failure (null if successful)
- * @param refundedPoints the number of skill points refunded (0 if unsuccessful)
+ * @param success whether the respec succeeded
+ * @param message human-readable result message
+ * @param spRestored the number of skill points restored (0 if unsuccessful)
  */
 public record RespecResult(
     boolean success,
-    String errorMessage,
-    int refundedPoints
+    String message,
+    int spRestored
 ) {
     /**
+     * Compact constructor that validates the record.
+     */
+    public RespecResult {
+        Objects.requireNonNull(message, "Message cannot be null");
+        if (spRestored < 0) {
+            throw new IllegalArgumentException("SP restored cannot be negative");
+        }
+        if (success && spRestored == 0) {
+            throw new IllegalArgumentException("Successful respec must restore SP");
+        }
+    }
+
+    /**
      * Creates a successful respec result.
-     * @param refundedPoints the number of skill points that were refunded
-     * @return a success result
+     *
+     * @param spRestored the amount of skill points restored
+     * @return success result
      */
-    public static RespecResult success(int refundedPoints) {
-        return new RespecResult(true, null, refundedPoints);
+    public static RespecResult success(int spRestored) {
+        if (spRestored <= 0) {
+            throw new IllegalArgumentException("SP restored must be positive");
+        }
+        return new RespecResult(true, "Skill tree reset. " + spRestored + " SP restored.", spRestored);
     }
 
     /**
-     * Creates a generic failure result.
-     * @param errorMessage the error message
-     * @return a failure result
+     * Creates a failure result with generic message.
+     *
+     * @param message the failure reason
+     * @return failure result
      */
-    public static RespecResult failure(String errorMessage) {
-        return new RespecResult(false, errorMessage, 0);
+    public static RespecResult failure(String message) {
+        return new RespecResult(false, message, 0);
     }
 
     /**
-     * Creates a failure result for permission denial.
-     * @return a permission denied result
+     * Creates a failure due to respec being disabled.
+     *
+     * @return failure result
      */
-    public static RespecResult noPermission() {
-        return failure("You don't have permission to respec skills");
+    public static RespecResult disabled() {
+        return failure("Respecs are disabled on this server");
     }
 
     /**
-     * Creates a failure result for insufficient materials.
+     * Creates a failure due to insufficient vault materials.
+     *
      * @param material the material name
-     * @param have the amount currently owned
+     * @param have the amount available
      * @param need the amount required
-     * @return an insufficient materials result
+     * @return failure result
      */
     public static RespecResult insufficientMaterials(String material, int have, int need) {
-        return failure(String.format("Need %dx %s (have %d)", need, material, have));
+        return failure("Insufficient " + material + " in vault (have " + have + ", need " + need + ")");
     }
 
     /**
-     * Creates a failure result when there are no skills to reset.
-     * @return a no skills to reset result
+     * Creates a failure due to vault access failure.
+     *
+     * @return failure result
      */
-    public static RespecResult noSkillsToReset() {
-        return failure("No skills to reset");
+    public static RespecResult vaultAccessFailed() {
+        return failure("Failed to access guild vault for respec materials");
+    }
+
+    /**
+     * Creates a failure due to material consumption failure.
+     *
+     * @return failure result
+     */
+    public static RespecResult materialConsumptionFailed() {
+        return failure("Failed to consume materials from vault");
+    }
+
+    /**
+     * Creates a failure because guild vault does not exist.
+     *
+     * @return failure result
+     */
+    public static RespecResult vaultNotFound() {
+        return failure("Guild vault not found");
     }
 }

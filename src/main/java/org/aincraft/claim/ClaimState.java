@@ -1,6 +1,7 @@
 package org.aincraft.claim;
 
 import java.util.Objects;
+import java.util.UUID;
 import org.aincraft.Guild;
 
 /**
@@ -8,7 +9,7 @@ import org.aincraft.Guild;
  * Used to efficiently detect ownership and type transitions.
  */
 public record ClaimState(
-    String guildId,           // null = wilderness
+    UUID guildId,             // null = wilderness
     String subregionType,     // null = not in subregion
     String displayName,       // guild name or "Wilderness"
     String guildColor         // guild color in hex format (#RRGGBB) or null

@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -214,8 +215,8 @@ public class InfoComponent implements GuildCommand {
      * @param guild the guild to display relationships for
      */
     private void displayRelationships(Player player, Guild guild) {
-        List<String> allies = relationshipService.getAllies(guild.getId());
-        List<String> enemies = relationshipService.getEnemies(guild.getId());
+        List<UUID> allies = relationshipService.getAllies(guild.getId());
+        List<UUID> enemies = relationshipService.getEnemies(guild.getId());
 
         // Only show section if there are relationships
         if (!allies.isEmpty() || !enemies.isEmpty()) {
@@ -224,8 +225,8 @@ public class InfoComponent implements GuildCommand {
             // Display allies
             if (!allies.isEmpty()) {
                 player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Allies <green>(" + allies.size() + ")<gray>:"));
-                for (String allyGuildId : allies) {
-                    Guild allyGuild = lifecycleService.getGuildById(allyGuildId);
+                for (UUID ally : allies) {
+                    Guild allyGuild = lifecycleService.getGuildById(ally);
                     if (allyGuild != null) {
                         player.sendMessage(MessageFormatter.deserialize("    <green>• " + allyGuild.getName()));
                     }
@@ -235,8 +236,8 @@ public class InfoComponent implements GuildCommand {
             // Display enemies
             if (!enemies.isEmpty()) {
                 player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Enemies <red>(" + enemies.size() + ")<gray>:"));
-                for (String enemyGuildId : enemies) {
-                    Guild enemyGuild = lifecycleService.getGuildById(enemyGuildId);
+                for (UUID enemy : enemies) {
+                    Guild enemyGuild = lifecycleService.getGuildById(enemy);
                     if (enemyGuild != null) {
                         player.sendMessage(MessageFormatter.deserialize("    <red>• " + enemyGuild.getName()));
                     }

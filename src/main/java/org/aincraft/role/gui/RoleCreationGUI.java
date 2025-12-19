@@ -435,6 +435,7 @@ public class RoleCreationGUI {
             case CHAT_GUILD -> Material.BOOK;
             case LEVEL_UP -> Material.EXPERIENCE_BOTTLE;
             case MANAGE_PROJECTS -> Material.FILLED_MAP;
+            case MANAGE_SKILLS -> Material.ENCHANTED_BOOK;
         };
     }
 
@@ -461,6 +462,7 @@ public class RoleCreationGUI {
             case CHAT_GUILD -> "Use guild and ally chat";
             case LEVEL_UP -> "Level up the guild";
             case MANAGE_PROJECTS -> "Create/manage guild projects";
+            case MANAGE_SKILLS -> "Unlock and manage skill tree";
         };
     }
 

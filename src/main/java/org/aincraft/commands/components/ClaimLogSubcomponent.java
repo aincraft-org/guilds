@@ -2,8 +2,11 @@ package org.aincraft.commands.components;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 import org.aincraft.claim.ChunkClaimLog;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildMemberService;
@@ -33,7 +36,7 @@ public class ClaimLogSubcomponent {
             return true;
         }
 
-        String guildId = guild.getId();
+        UUID guildId = guild.getId();
         int page = 1;
         if (args.length >= 3) {
             try {

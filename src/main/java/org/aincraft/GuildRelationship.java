@@ -9,8 +9,8 @@ import java.util.UUID;
  */
 public class GuildRelationship {
     private final String id;
-    private final String sourceGuildId;
-    private final String targetGuildId;
+    private final UUID sourceGuildId;
+    private final UUID targetGuildId;
     private final RelationType relationType;
     private RelationStatus status;
     private final long createdAt;
@@ -24,7 +24,7 @@ public class GuildRelationship {
      * @param relationType the type of relationship
      * @param createdBy the player who created this relationship
      */
-    public GuildRelationship(String sourceGuildId, String targetGuildId, RelationType relationType, UUID createdBy) {
+    public GuildRelationship(UUID sourceGuildId, UUID targetGuildId, RelationType relationType, UUID createdBy) {
         this.id = UUID.randomUUID().toString();
         this.sourceGuildId = Objects.requireNonNull(sourceGuildId, "Source guild ID cannot be null");
         this.targetGuildId = Objects.requireNonNull(targetGuildId, "Target guild ID cannot be null");
@@ -47,7 +47,7 @@ public class GuildRelationship {
      * @param createdAt creation timestamp
      * @param createdBy creator UUID
      */
-    public GuildRelationship(String id, String sourceGuildId, String targetGuildId,
+    public GuildRelationship(String id, UUID sourceGuildId, UUID targetGuildId,
                            RelationType relationType, RelationStatus status,
                            long createdAt, UUID createdBy) {
         this.id = Objects.requireNonNull(id, "ID cannot be null");
@@ -104,7 +104,7 @@ public class GuildRelationship {
      * @param guildId the guild ID to check
      * @return true if this relationship involves the guild
      */
-    public boolean involves(String guildId) {
+    public boolean involves(UUID guildId) {
         return sourceGuildId.equals(guildId) || targetGuildId.equals(guildId);
     }
 
@@ -114,7 +114,7 @@ public class GuildRelationship {
      * @param guildId one of the guilds in the relationship
      * @return the other guild ID, or null if guildId is not part of this relationship
      */
-    public String getOtherGuild(String guildId) {
+    public UUID getOtherGuild(UUID guildId) {
         if (sourceGuildId.equals(guildId)) {
             return targetGuildId;
         } else if (targetGuildId.equals(guildId)) {
@@ -127,11 +127,11 @@ public class GuildRelationship {
         return id;
     }
 
-    public String getSourceGuildId() {
+    public UUID getSourceGuildId() {
         return sourceGuildId;
     }
 
-    public String getTargetGuildId() {
+    public UUID getTargetGuildId() {
         return targetGuildId;
     }
 

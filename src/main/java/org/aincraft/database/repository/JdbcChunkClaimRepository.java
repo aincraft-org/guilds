@@ -32,7 +32,7 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public boolean claim(ChunkKey chunk, String guildId, UUID claimedBy) {
+    public boolean claim(ChunkKey chunk, UUID guildId, UUID claimedBy) {
         Objects.requireNonNull(chunk, "Chunk cannot be null");
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(claimedBy, "Claimed by cannot be null");
@@ -51,7 +51,7 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
             ps.setString(1, chunk.world());
             ps.setInt(2, chunk.x());
             ps.setInt(3, chunk.z());
-            ps.setString(4, guildId);
+            ps.setString(4, guildId.toString());
             ps.setLong(5, System.currentTimeMillis());
             ps.setString(6, claimedBy.toString());
             ps.executeUpdate();
@@ -62,11 +62,11 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public boolean unclaim(ChunkKey chunk, String guildId) {
+    public boolean unclaim(ChunkKey chunk, UUID guildId) {
         Objects.requireNonNull(chunk, "Chunk cannot be null");
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
-        Optional<String> owner = getOwner(chunk);
+        Optional<UUID> owner = getOwner(chunk);
         if (owner.isEmpty() || !owner.get().equals(guildId)) {
             return false;
         }
@@ -85,12 +85,12 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public void unclaimAll(String guildId) {
+    public void unclaimAll(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guild_chunks WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to unclaim all chunks", e);
@@ -98,7 +98,7 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public Optional<String> getOwner(ChunkKey chunk) {
+    public Optional<UUID> getOwner(ChunkKey chunk) {
         Objects.requireNonNull(chunk, "Chunk cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
@@ -110,7 +110,7 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                return Optional.of(rs.getString("guild_id"));
+                return Optional.of(UUID.fromString(rs.getString("guild_id")));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to get chunk owner", e);
@@ -120,14 +120,14 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public List<ChunkKey> getGuildChunks(String guildId) {
+    public List<ChunkKey> getGuildChunks(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         List<ChunkKey> chunks = new ArrayList<>();
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT world, chunk_x, chunk_z FROM guild_chunks WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -145,12 +145,12 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public int getChunkCount(String guildId) {
+    public int getChunkCount(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM guild_chunks WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -202,7 +202,7 @@ public class JdbcChunkClaimRepository implements ChunkClaimRepository {
                     rs.getInt("chunk_z")
                 );
                 ChunkClaimData data = new ChunkClaimData(
-                    rs.getString("guild_id"),
+                    UUID.fromString(rs.getString("guild_id")),
                     UUID.fromString(rs.getString("claimed_by")),
                     rs.getLong("claimed_at")
                 );

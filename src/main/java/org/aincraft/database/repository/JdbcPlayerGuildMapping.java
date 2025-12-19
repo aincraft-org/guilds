@@ -30,7 +30,7 @@ public class JdbcPlayerGuildMapping implements PlayerGuildMapping {
     }
 
     @Override
-    public void addPlayerToGuild(UUID playerId, String guildId) {
+    public void addPlayerToGuild(UUID playerId, UUID guildId) {
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
@@ -39,7 +39,7 @@ public class JdbcPlayerGuildMapping implements PlayerGuildMapping {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, playerId.toString());
-            ps.setString(2, guildId);
+            ps.setString(2, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to add player to guild", e);
@@ -60,7 +60,7 @@ public class JdbcPlayerGuildMapping implements PlayerGuildMapping {
     }
 
     @Override
-    public Optional<String> getPlayerGuildId(UUID playerId) {
+    public Optional<UUID> getPlayerGuildId(UUID playerId) {
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
@@ -69,7 +69,7 @@ public class JdbcPlayerGuildMapping implements PlayerGuildMapping {
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                return Optional.of(rs.getString("guild_id"));
+                return Optional.of(UUID.fromString(rs.getString("guild_id")));
             }
         } catch (SQLException e) {
             throw new RuntimeException("Failed to get player guild ID", e);

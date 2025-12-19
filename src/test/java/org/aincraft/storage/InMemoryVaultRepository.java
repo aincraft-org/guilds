@@ -5,8 +5,11 @@ import org.aincraft.vault.VaultRepository;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 /**
  * In-memory implementation of VaultRepository for testing.
@@ -39,7 +42,7 @@ public class InMemoryVaultRepository implements VaultRepository {
     }
 
     @Override
-    public Optional<Vault> findByGuildId(String guildId) {
+    public Optional<Vault> findByGuildId(UUID guildId) {
         return Optional.ofNullable(vaultsByGuildId.get(guildId));
     }
 
@@ -57,7 +60,7 @@ public class InMemoryVaultRepository implements VaultRepository {
     }
 
     @Override
-    public boolean existsForGuild(String guildId) {
+    public boolean existsForGuild(UUID guildId) {
         return vaultsByGuildId.containsKey(guildId);
     }
 

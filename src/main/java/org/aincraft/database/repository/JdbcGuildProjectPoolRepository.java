@@ -43,7 +43,7 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
     }
 
     @Override
-    public void savePool(String guildId, List<ProjectDefinition> projects, long poolGenerationTime) {
+    public void savePool(UUID guildId, List<ProjectDefinition> projects, long poolGenerationTime) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(projects, "Projects cannot be null");
 
@@ -52,7 +52,7 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
             try {
                 // Delete old pool entries for this guild
                 try (PreparedStatement ps = conn.prepareStatement(Sql.deleteGuildProjectPool(dbType))) {
-                    ps.setString(1, guildId);
+                    ps.setString(1, guildId.toString());
                     ps.executeUpdate();
                 }
 
@@ -63,7 +63,7 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
 
                     for (ProjectDefinition project : projects) {
                         ps.setString(1, UUID.randomUUID().toString()); // Unique ID for pool entry
-                        ps.setString(2, guildId);
+                        ps.setString(2, guildId.toString());
                         ps.setString(3, project.id());
                         ps.setString(4, project.name());
                         ps.setString(5, project.description());
@@ -94,12 +94,12 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
     }
 
     @Override
-    public List<ProjectDefinition> getPool(String guildId) {
+    public List<ProjectDefinition> getPool(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(Sql.selectGuildProjectPool(dbType))) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
 
             List<ProjectDefinition> projects = new ArrayList<>();
             try (ResultSet rs = ps.executeQuery()) {
@@ -116,12 +116,12 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
     }
 
     @Override
-    public void deletePoolByGuildId(String guildId) {
+    public void deletePoolByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(Sql.deleteGuildProjectPool(dbType))) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete project pool for guild " + guildId, e);
@@ -129,12 +129,12 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
     }
 
     @Override
-    public Optional<Long> getLastPoolGenerationTime(String guildId) {
+    public Optional<Long> getLastPoolGenerationTime(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(Sql.selectLastPoolGenerationTime(dbType))) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -153,7 +153,7 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
     }
 
     @Override
-    public void setGuildCreatedAt(String guildId, long timestamp) {
+    public void setGuildCreatedAt(UUID guildId, long timestamp) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection()) {
@@ -171,7 +171,7 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
             }
 
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, guildId);
+                ps.setString(1, guildId.toString());
                 ps.setLong(2, timestamp);
                 ps.executeUpdate();
             }
@@ -181,12 +181,12 @@ public class JdbcGuildProjectPoolRepository implements GuildProjectPoolRepositor
     }
 
     @Override
-    public Optional<Long> getGuildCreatedAt(String guildId) {
+    public Optional<Long> getGuildCreatedAt(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(Sql.selectGuildCreatedAt(dbType))) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {

@@ -9,7 +9,7 @@ import java.util.UUID;
  */
 public record ProgressionLog(
         long id,
-        String guildId,
+        UUID guildId,
         UUID playerId,
         ActionType action,
         long amount,
@@ -21,7 +21,7 @@ public record ProgressionLog(
      * Creates a new ProgressionLog with auto-generated timestamp and id=0.
      * The database will assign the actual id.
      */
-    public ProgressionLog(String guildId, UUID playerId, ActionType action, long amount, String details) {
+    public ProgressionLog(UUID guildId, UUID playerId, ActionType action, long amount, String details) {
         this(0, guildId, playerId, action, amount, details, System.currentTimeMillis());
     }
 

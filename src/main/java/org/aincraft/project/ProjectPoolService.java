@@ -6,7 +6,9 @@ import org.aincraft.project.storage.GuildProjectRepository;
 import org.aincraft.project.storage.GuildProjectPoolRepository;
 
 import java.util.*;
+import java.util.UUID;
 import java.util.logging.Logger;
+import java.util.UUID;
 
 /**
  * Service for managing the pool of available projects for guilds.
@@ -45,7 +47,7 @@ public class ProjectPoolService {
      * @param guildLevel the guild's current level
      * @return list of available project definitions filtered by guild level
      */
-    public List<ProjectDefinition> getAvailableProjects(String guildId, int guildLevel) {
+    public List<ProjectDefinition> getAvailableProjects(UUID guildId, int guildLevel) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         // 1. Get or initialize guild_created_at
@@ -109,7 +111,7 @@ public class ProjectPoolService {
      * @param projectDefinitionId the project definition ID to check
      * @return true if the project is available
      */
-    public boolean isProjectAvailable(String guildId, int guildLevel, String projectDefinitionId) {
+    public boolean isProjectAvailable(UUID guildId, int guildLevel, String projectDefinitionId) {
         return getAvailableProjects(guildId, guildLevel).stream()
                 .anyMatch(p -> p.id().equals(projectDefinitionId));
     }

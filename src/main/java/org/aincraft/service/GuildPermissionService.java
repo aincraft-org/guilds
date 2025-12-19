@@ -45,7 +45,7 @@ public class GuildPermissionService {
      * @param permission the permission to check
      * @return true if the player has the permission
      */
-    public boolean hasPermission(String guildId, UUID playerId, GuildPermission permission) {
+    public boolean hasPermission(UUID guildId, UUID playerId, GuildPermission permission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(permission, "Permission cannot be null");
@@ -77,7 +77,7 @@ public class GuildPermissionService {
      * @param playerId the player UUID
      * @return the member's permissions, or null if not found
      */
-    public MemberPermissions getMemberPermissions(String guildId, UUID playerId) {
+    public MemberPermissions getMemberPermissions(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -94,7 +94,7 @@ public class GuildPermissionService {
      * @param permissions the new permissions
      * @return true if permissions were updated
      */
-    public boolean setMemberPermissions(String guildId, UUID requesterId, UUID targetId, MemberPermissions permissions) {
+    public boolean setMemberPermissions(UUID guildId, UUID requesterId, UUID targetId, MemberPermissions permissions) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
         Objects.requireNonNull(targetId, "Target ID cannot be null");
@@ -182,7 +182,7 @@ public class GuildPermissionService {
     /**
      * Computes effective permissions by OR-ing all assigned role permissions.
      */
-    private int computeEffectivePermissions(String guildId, UUID playerId) {
+    private int computeEffectivePermissions(UUID guildId, UUID playerId) {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         int permissions = 0;
         for (String roleId : roleIds) {
@@ -197,7 +197,7 @@ public class GuildPermissionService {
     /**
      * Gets the highest priority role for a member.
      */
-    private Optional<GuildRole> getHighestPriorityRole(String guildId, UUID playerId) {
+    private Optional<GuildRole> getHighestPriorityRole(UUID guildId, UUID playerId) {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         GuildRole highestRole = null;
 

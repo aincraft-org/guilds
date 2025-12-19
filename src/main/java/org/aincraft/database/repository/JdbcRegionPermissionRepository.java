@@ -41,7 +41,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, permission.getId());
-            ps.setString(2, permission.getRegionId());
+            ps.setString(2, permission.getRegionId().toString());
             ps.setString(3, permission.getSubjectId());
             ps.setString(4, permission.getSubjectType().name());
             ps.setInt(5, permission.getPermissions());
@@ -113,13 +113,13 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
     }
 
     @Override
-    public List<RegionPermission> findByRegion(String regionId) {
+    public List<RegionPermission> findByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         List<RegionPermission> permissions = new ArrayList<>();
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM region_permissions WHERE region_id = ?")) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -133,7 +133,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
     }
 
     @Override
-    public Optional<RegionPermission> findByRegionAndSubject(String regionId, String subjectId, SubjectType subjectType) {
+    public Optional<RegionPermission> findByRegionAndSubject(UUID regionId, String subjectId, SubjectType subjectType) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(subjectId, "Subject ID cannot be null");
         Objects.requireNonNull(subjectType, "Subject type cannot be null");
@@ -145,7 +145,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, subjectId);
             ps.setString(3, subjectType.name());
             ResultSet rs = ps.executeQuery();
@@ -161,7 +161,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
     }
 
     @Override
-    public List<RegionPermission> findPlayerPermissions(String regionId) {
+    public List<RegionPermission> findPlayerPermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "SELECT * FROM region_permissions WHERE region_id = ? AND subject_type = ?";
@@ -169,7 +169,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, SubjectType.PLAYER.name());
             ResultSet rs = ps.executeQuery();
 
@@ -184,7 +184,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
     }
 
     @Override
-    public List<RegionPermission> findRolePermissions(String regionId) {
+    public List<RegionPermission> findRolePermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "SELECT * FROM region_permissions WHERE region_id = ? AND subject_type = ?";
@@ -192,7 +192,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.setString(2, SubjectType.ROLE.name());
             ResultSet rs = ps.executeQuery();
 
@@ -207,12 +207,12 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
     }
 
     @Override
-    public void deleteAllByRegion(String regionId) {
+    public void deleteAllByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM region_permissions WHERE region_id = ?")) {
-            ps.setString(1, regionId);
+            ps.setString(1, regionId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete all permissions for region", e);
@@ -222,7 +222,7 @@ public class JdbcRegionPermissionRepository implements RegionPermissionRepositor
     private RegionPermission mapResultSet(ResultSet rs) throws SQLException {
         return new RegionPermission(
             rs.getString("id"),
-            rs.getString("region_id"),
+            UUID.fromString(rs.getString("region_id")),
             rs.getString("subject_id"),
             SubjectType.valueOf(rs.getString("subject_type")),
             rs.getInt("permissions"),

@@ -63,6 +63,7 @@ import org.aincraft.commands.components.JoinComponent;
 import org.aincraft.commands.components.KickComponent;
 import org.aincraft.commands.components.LeaveComponent;
 import org.aincraft.commands.components.ListComponent;
+import org.aincraft.commands.components.LogComponent;
 import org.aincraft.commands.components.MapComponent;
 import org.aincraft.commands.components.MemberComponent;
 import org.aincraft.commands.components.NameComponent;
@@ -134,7 +135,6 @@ import org.aincraft.commands.components.ProjectComponent;
 import org.aincraft.project.*;
 import org.aincraft.project.storage.*;
 import org.aincraft.project.listeners.*;
-import org.aincraft.project.gui.*;
 import org.aincraft.project.llm.*;
 import org.aincraft.database.repository.JdbcLLMProjectTextRepository;
 import org.aincraft.database.repository.JdbcGuildSkillTreeRepository;
@@ -142,7 +142,6 @@ import org.aincraft.skilltree.storage.GuildSkillTreeRepository;
 import org.aincraft.skilltree.SkillTreeRegistry;
 import org.aincraft.skilltree.SkillTreeService;
 import org.aincraft.skilltree.SkillBuffProvider;
-import org.aincraft.skilltree.gui.SkillTreeGUIListener;
 import org.aincraft.commands.components.SkillsComponent;
 
 public class GuildsModule extends AbstractModule {
@@ -291,6 +290,7 @@ public class GuildsModule extends AbstractModule {
         bind(AdminComponent.class).in(Singleton.class);
         bind(LevelUpComponent.class).in(Singleton.class);
         bind(ProjectComponent.class).in(Singleton.class);
+        bind(LogComponent.class).in(Singleton.class);
 
         // Project system - using JDBC implementations
         bind(GuildProjectRepository.class).to(JdbcGuildProjectRepository.class).in(Singleton.class);
@@ -313,7 +313,6 @@ public class GuildsModule extends AbstractModule {
         bind(SkillTreeRegistry.class).in(Singleton.class);
         bind(SkillTreeService.class).in(Singleton.class);
         bind(SkillBuffProvider.class).in(Singleton.class);
-        bind(SkillTreeGUIListener.class).in(Singleton.class);
         bind(SkillsComponent.class).in(Singleton.class);
     }
 

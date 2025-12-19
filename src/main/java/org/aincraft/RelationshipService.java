@@ -38,7 +38,7 @@ public class RelationshipService {
      * @param proposerId the player proposing (must be owner/have permission)
      * @return the created relationship, or null if failed
      */
-    public GuildRelationship proposeAlliance(String sourceGuildId, String targetGuildId, UUID proposerId) {
+    public GuildRelationship proposeAlliance(UUID sourceGuildId, UUID targetGuildId, UUID proposerId) {
         Objects.requireNonNull(sourceGuildId, "Source guild ID cannot be null");
         Objects.requireNonNull(targetGuildId, "Target guild ID cannot be null");
         Objects.requireNonNull(proposerId, "Proposer ID cannot be null");
@@ -80,7 +80,7 @@ public class RelationshipService {
      * @param accepterId the player accepting (must be owner/have permission)
      * @return true if accepted, false otherwise
      */
-    public boolean acceptAlliance(String targetGuildId, String sourceGuildId, UUID accepterId) {
+    public boolean acceptAlliance(UUID targetGuildId, UUID sourceGuildId, UUID accepterId) {
         Objects.requireNonNull(targetGuildId, "Target guild ID cannot be null");
         Objects.requireNonNull(sourceGuildId, "Source guild ID cannot be null");
         Objects.requireNonNull(accepterId, "Accepter ID cannot be null");
@@ -115,7 +115,7 @@ public class RelationshipService {
      * @param rejecterId the player rejecting
      * @return true if rejected, false otherwise
      */
-    public boolean rejectAlliance(String targetGuildId, String sourceGuildId, UUID rejecterId) {
+    public boolean rejectAlliance(UUID targetGuildId, UUID sourceGuildId, UUID rejecterId) {
         Objects.requireNonNull(targetGuildId, "Target guild ID cannot be null");
         Objects.requireNonNull(sourceGuildId, "Source guild ID cannot be null");
         Objects.requireNonNull(rejecterId, "Rejecter ID cannot be null");
@@ -149,7 +149,7 @@ public class RelationshipService {
      * @param breakerId the player breaking the alliance
      * @return true if broken, false otherwise
      */
-    public boolean breakAlliance(String guildId, String allyGuildId, UUID breakerId) {
+    public boolean breakAlliance(UUID guildId, UUID allyGuildId, UUID breakerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(allyGuildId, "Ally guild ID cannot be null");
         Objects.requireNonNull(breakerId, "Breaker ID cannot be null");
@@ -176,7 +176,7 @@ public class RelationshipService {
      * @param declarerId the player declaring
      * @return the created relationship, or null if failed
      */
-    public GuildRelationship declareEnemy(String sourceGuildId, String targetGuildId, UUID declarerId) {
+    public GuildRelationship declareEnemy(UUID sourceGuildId, UUID targetGuildId, UUID declarerId) {
         Objects.requireNonNull(sourceGuildId, "Source guild ID cannot be null");
         Objects.requireNonNull(targetGuildId, "Target guild ID cannot be null");
         Objects.requireNonNull(declarerId, "Declarer ID cannot be null");
@@ -227,7 +227,7 @@ public class RelationshipService {
      * @param declarerId the player declaring
      * @return true if relationship removed, false otherwise
      */
-    public boolean declareNeutral(String sourceGuildId, String targetGuildId, UUID declarerId) {
+    public boolean declareNeutral(UUID sourceGuildId, UUID targetGuildId, UUID declarerId) {
         Objects.requireNonNull(sourceGuildId, "Source guild ID cannot be null");
         Objects.requireNonNull(targetGuildId, "Target guild ID cannot be null");
         Objects.requireNonNull(declarerId, "Declarer ID cannot be null");
@@ -259,7 +259,7 @@ public class RelationshipService {
      * @param guildId2 second guild ID
      * @return the relation type, or null if no active relationship
      */
-    public RelationType getRelationType(String guildId1, String guildId2) {
+    public RelationType getRelationType(UUID guildId1, UUID guildId2) {
         Objects.requireNonNull(guildId1, "Guild ID 1 cannot be null");
         Objects.requireNonNull(guildId2, "Guild ID 2 cannot be null");
 
@@ -273,7 +273,7 @@ public class RelationshipService {
      * @param guildId the guild ID
      * @return list of ally guild IDs
      */
-    public List<String> getAllies(String guildId) {
+    public List<UUID> getAllies(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         return relationshipRepository.findByType(guildId, RelationType.ALLY, RelationStatus.ACTIVE)
@@ -289,7 +289,7 @@ public class RelationshipService {
      * @param guildId the guild ID
      * @return list of enemy guild IDs
      */
-    public List<String> getEnemies(String guildId) {
+    public List<UUID> getEnemies(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         return relationshipRepository.findByType(guildId, RelationType.ENEMY, RelationStatus.ACTIVE)
@@ -306,7 +306,7 @@ public class RelationshipService {
      * @param guildId the guild ID
      * @return list of relationships where this guild is the target
      */
-    public List<GuildRelationship> getPendingAllyRequests(String guildId) {
+    public List<GuildRelationship> getPendingAllyRequests(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         return relationshipRepository.findByType(guildId, RelationType.ALLY, RelationStatus.PENDING)
@@ -321,7 +321,7 @@ public class RelationshipService {
      * @param guildId the guild ID
      * @return list of relationships where this guild is the source
      */
-    public List<GuildRelationship> getSentAllyRequests(String guildId) {
+    public List<GuildRelationship> getSentAllyRequests(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         return relationshipRepository.findByType(guildId, RelationType.ALLY, RelationStatus.PENDING)
@@ -337,7 +337,7 @@ public class RelationshipService {
      * @param guildId2 second guild ID
      * @return true if allied, false otherwise
      */
-    public boolean areAllies(String guildId1, String guildId2) {
+    public boolean areAllies(UUID guildId1, UUID guildId2) {
         RelationType type = getRelationType(guildId1, guildId2);
         return type == RelationType.ALLY;
     }
@@ -349,7 +349,7 @@ public class RelationshipService {
      * @param guildId2 second guild ID
      * @return true if enemies, false otherwise
      */
-    public boolean areEnemies(String guildId1, String guildId2) {
+    public boolean areEnemies(UUID guildId1, UUID guildId2) {
         RelationType type = getRelationType(guildId1, guildId2);
         return type == RelationType.ENEMY;
     }

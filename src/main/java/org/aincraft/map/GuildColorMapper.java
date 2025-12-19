@@ -1,8 +1,11 @@
 package org.aincraft.map;
 
 import java.util.LinkedHashMap;
+import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Assigns consistent colors to guilds using hash-based algorithm with LRU caching.
@@ -15,15 +18,15 @@ public class GuildColorMapper implements ColorMapper {
         "dark_purple", "dark_red"
     );
 
-    private final Map<String, String> guildIdToColor = new LinkedHashMap<>(100, 0.75f, true) {
+    private final Map<UUID, String> guildIdToColor = new LinkedHashMap<UUID, String>(100, 0.75f, true) {
         @Override
-        protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+        protected boolean removeEldestEntry(Map.Entry<UUID, String> eldest) {
             return size() > 100;
         }
     };
 
     @Override
-    public String getColorForGuild(String guildId, String guildColor) {
+    public String getColorForGuild(UUID guildId, String guildColor) {
         // If guild has a configured color, use it
         if (guildColor != null && !guildColor.isEmpty()) {
             return guildColor;
@@ -33,12 +36,12 @@ public class GuildColorMapper implements ColorMapper {
     }
 
     @Override
-    public String getGeneratedColor(String guildId) {
+    public String getGeneratedColor(UUID guildId) {
         return guildIdToColor.computeIfAbsent(guildId, this::assignColor);
     }
 
     @Override
-    public void clearCache(String guildId) {
+    public void clearCache(UUID guildId) {
         guildIdToColor.remove(guildId);
     }
 
@@ -50,7 +53,7 @@ public class GuildColorMapper implements ColorMapper {
      * @return the color name (e.g., "red", "green")
      */
     @Deprecated
-    public String getColorForGuild(String guildId) {
+    public String getColorForGuild(UUID guildId) {
         return getGeneratedColor(guildId);
     }
 
@@ -61,7 +64,7 @@ public class GuildColorMapper implements ColorMapper {
      * @param guildId the guild ID
      * @return the assigned color name
      */
-    private String assignColor(String guildId) {
+    private String assignColor(UUID guildId) {
         int hash = Math.abs(guildId.hashCode());
         int index = hash % COLOR_POOL.size();
         return COLOR_POOL.get(index);

@@ -31,7 +31,7 @@ public interface InviteRepository {
      * @param guildId the guild ID
      * @return list of invites
      */
-    List<GuildInvite> findByGuildId(String guildId);
+    List<GuildInvite> findByGuildId(UUID guildId);
 
     /**
      * Finds all invites received by a player.
@@ -48,7 +48,7 @@ public interface InviteRepository {
      * @param inviteeId the player UUID
      * @return the invite, or empty if not found
      */
-    Optional<GuildInvite> findActiveInvite(String guildId, UUID inviteeId);
+    Optional<GuildInvite> findActiveInvite(UUID guildId, UUID inviteeId);
 
     /**
      * Counts pending invites for a guild.
@@ -56,7 +56,7 @@ public interface InviteRepository {
      * @param guildId the guild ID
      * @return number of pending invites
      */
-    int countPendingInvites(String guildId);
+    int countPendingInvites(UUID guildId);
 
     /**
      * Deletes an invite by ID.
@@ -75,5 +75,5 @@ public interface InviteRepository {
      *
      * @param guildId the guild ID
      */
-    void deleteByGuildId(String guildId);
+    void deleteByGuildId(UUID guildId);
 }

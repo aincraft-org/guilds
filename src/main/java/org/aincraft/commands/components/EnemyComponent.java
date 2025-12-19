@@ -2,6 +2,7 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import java.util.List;
+import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
@@ -116,7 +117,7 @@ public class EnemyComponent implements GuildCommand {
     }
 
     private boolean handleList(Player player, Guild guild) {
-        List<String> enemies = relationshipService.getEnemies(guild.getId());
+        List<UUID> enemies = relationshipService.getEnemies(guild.getId());
 
         player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Enemy Guilds", ""));
 
@@ -124,7 +125,7 @@ public class EnemyComponent implements GuildCommand {
             player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "No active enemies"));
         } else {
             player.sendMessage(MessageFormatter.deserialize("<yellow>Enemies<reset>:"));
-            for (String enemyId : enemies) {
+            for (UUID enemyId : enemies) {
                 Guild enemy = lifecycleService.getGuildById(enemyId);
                 if (enemy != null) {
                     player.sendMessage(MessageFormatter.deserialize("  <red>⚔</red> <white>" + enemy.getName()));

@@ -13,7 +13,8 @@ import java.util.UUID;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.GuildService;
+import org.aincraft.service.TerritoryService;
+import org.aincraft.service.PermissionService;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,7 +36,8 @@ import org.mockito.quality.Strictness;
 class SubregionServiceTest {
 
     @Mock private SubregionRepository subregionRepository;
-    @Mock private GuildService guildService;
+    @Mock private TerritoryService territoryService;
+    @Mock private PermissionService permissionService;
     @Mock private SubregionTypeRegistry typeRegistry;
     @Mock private RegionPermissionService regionPermissionService;
     @Mock private RegionTypeLimitRepository limitRepository;
@@ -44,11 +46,11 @@ class SubregionServiceTest {
     private SubregionService subregionService;
     private UUID playerId;
     private UUID ownerId;
-    private String guildId;
+    private UUID guildId;
 
     @BeforeEach
     void setUp() {
-        subregionService = new SubregionService(subregionRepository, guildService, typeRegistry, regionPermissionService, limitRepository);
+        subregionService = new SubregionService(subregionRepository, territoryService, permissionService, typeRegistry, regionPermissionService, limitRepository);
         playerId = UUID.randomUUID();
         ownerId = UUID.randomUUID();
         guildId = "guild-123";
@@ -75,7 +77,7 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 64, 0);
             Location pos2 = createLocation(10, 70, 10);
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
             when(subregionRepository.findByGuildAndName(guildId, "TestRegion"))
                     .thenReturn(Optional.empty());
@@ -83,7 +85,7 @@ class SubregionServiceTest {
             // Mock chunk ownership - all chunks owned by this guild
             Guild guild = mock(Guild.class);
             when(guild.getId()).thenReturn(guildId);
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
 
             SubregionService.SubregionCreationResult result = subregionService.createSubregion(
                     guildId, playerId, "TestRegion", pos1, pos2);
@@ -100,7 +102,7 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 64, 0);
             Location pos2 = createLocation(10, 70, 10);
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(false);
 
             SubregionService.SubregionCreationResult result = subregionService.createSubregion(
@@ -117,7 +119,7 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 64, 0);
             Location pos2 = createLocation(10, 70, 10);
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
             when(subregionRepository.findByGuildAndName(guildId, "ExistingRegion"))
                     .thenReturn(Optional.of(mock(Subregion.class)));
@@ -135,7 +137,7 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 0, 0);
             Location pos2 = createLocation(1000, 256, 1000); // Very large
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
             when(subregionRepository.findByGuildAndName(guildId, "HugeRegion"))
                     .thenReturn(Optional.empty());
@@ -155,11 +157,11 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 64, 0);
             Location pos2 = createLocation(10, 70, 10);
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
             when(subregionRepository.findByGuildAndName(guildId, "TestRegion"))
                     .thenReturn(Optional.empty());
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
 
             SubregionService.SubregionCreationResult result = subregionService.createSubregion(
                     guildId, playerId, "TestRegion", pos1, pos2);
@@ -181,7 +183,7 @@ class SubregionServiceTest {
             when(pos2.getBlockY()).thenReturn(70);
             when(pos2.getBlockZ()).thenReturn(10);
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
 
             SubregionService.SubregionCreationResult result = subregionService.createSubregion(
@@ -197,7 +199,7 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 64, 0);
             Location pos2 = createLocation(10, 70, 10);
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
             when(typeRegistry.isRegistered("invalid_type")).thenReturn(false);
 
@@ -214,7 +216,7 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 64, 0);
             Location pos2 = createLocation(10, 70, 10); // 11 * 7 * 11 = 847 blocks
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
             when(typeRegistry.isRegistered("farm")).thenReturn(true);
             when(limitRepository.findByTypeId("farm"))
@@ -235,7 +237,7 @@ class SubregionServiceTest {
             Location pos1 = createLocation(0, 64, 0);
             Location pos2 = createLocation(4, 66, 4); // 5 * 3 * 5 = 75 blocks
 
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
             when(typeRegistry.isRegistered("farm")).thenReturn(true);
             when(limitRepository.findByTypeId("farm"))
@@ -248,7 +250,7 @@ class SubregionServiceTest {
             // Mock chunk ownership
             Guild guild = mock(Guild.class);
             when(guild.getId()).thenReturn(guildId);
-            when(guildService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(guild);
 
             SubregionService.SubregionCreationResult result = subregionService.createSubregion(
                     guildId, playerId, "TestFarm", pos1, pos2, "farm");
@@ -271,7 +273,7 @@ class SubregionServiceTest {
 
             when(subregionRepository.findByGuildAndName(guildId, "TestRegion"))
                     .thenReturn(Optional.of(region));
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(true);
 
             boolean result = subregionService.deleteSubregion(guildId, playerId, "TestRegion");
@@ -289,7 +291,7 @@ class SubregionServiceTest {
 
             when(subregionRepository.findByGuildAndName(guildId, "TestRegion"))
                     .thenReturn(Optional.of(region));
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(false);
 
             boolean result = subregionService.deleteSubregion(guildId, playerId, "TestRegion");
@@ -316,7 +318,7 @@ class SubregionServiceTest {
 
             when(subregionRepository.findByGuildAndName(guildId, "TestRegion"))
                     .thenReturn(Optional.of(region));
-            when(guildService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
+            when(permissionService.hasPermission(guildId, playerId, GuildPermission.MANAGE_REGIONS))
                     .thenReturn(false);
 
             boolean result = subregionService.deleteSubregion(guildId, playerId, "TestRegion");

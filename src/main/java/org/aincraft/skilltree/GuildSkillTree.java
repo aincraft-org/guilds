@@ -4,136 +4,182 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 /**
- * Entity class representing a guild's skill tree progression state.
- * Tracks available skill points, total earned points, and unlocked skills.
- * This class is mutable to reflect dynamic progression changes.
+ * Mutable state entity representing a guild's skill tree progression.
+ * Tracks available skill points, lifetime earnings, and unlocked skills.
+ * Single Responsibility: Guild skill tree state management.
  */
 public final class GuildSkillTree {
-    private final String guildId;
-    private int availableSkillPoints;
-    private int totalSkillPointsEarned;
-    private final Set<String> unlockedSkillIds;
+    private static final int MIN_SP = 0;
+
+    private final UUID guildId;
+    private int availableSp;
+    private int totalSpEarned;
+    private final Set<String> unlockedSkills;
 
     /**
-     * Constructor for creating a new skill tree for a guild.
-     * @param guildId the unique identifier of the guild
+     * Creates a new skill tree for a guild with no skills unlocked.
+     *
+     * @param guildId the guild ID (cannot be null)
      */
-    public GuildSkillTree(String guildId) {
+    public GuildSkillTree(UUID guildId) {
         this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        this.availableSkillPoints = 0;
-        this.totalSkillPointsEarned = 0;
-        this.unlockedSkillIds = new HashSet<>();
+        this.availableSp = 0;
+        this.totalSpEarned = 0;
+        this.unlockedSkills = new HashSet<>();
     }
 
     /**
-     * Constructor for restoring a skill tree from persistent storage.
-     * @param guildId the unique identifier of the guild
-     * @param availableSP current available skill points
-     * @param totalSP total skill points earned across all time
+     * Creates a skill tree with existing data (for database restoration).
+     *
+     * @param guildId the guild ID
+     * @param availableSp available skill points
+     * @param totalSpEarned total skill points earned lifetime
      * @param unlockedSkills set of unlocked skill IDs
      */
-    public GuildSkillTree(String guildId, int availableSP, int totalSP, Set<String> unlockedSkills) {
+    public GuildSkillTree(UUID guildId, int availableSp, int totalSpEarned, Set<String> unlockedSkills) {
         this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
-        this.availableSkillPoints = Math.max(0, availableSP);
-        this.totalSkillPointsEarned = Math.max(0, totalSP);
-        this.unlockedSkillIds = unlockedSkills != null ? new HashSet<>(unlockedSkills) : new HashSet<>();
+        this.availableSp = Math.max(availableSp, MIN_SP);
+        this.totalSpEarned = Math.max(totalSpEarned, 0);
+        this.unlockedSkills = unlockedSkills != null ? new HashSet<>(unlockedSkills) : new HashSet<>();
     }
 
     /**
-     * Gets the guild ID this skill tree belongs to.
-     * @return the guild identifier
+     * Awards skill points to this guild.
+     *
+     * @param amount the amount of skill points to award (must be positive)
+     * @throws IllegalArgumentException if amount is negative
      */
-    public String getGuildId() {
+    public void awardSkillPoints(int amount) {
+        if (amount < 0) {
+            throw new IllegalArgumentException("Skill points cannot be negative");
+        }
+        this.availableSp += amount;
+        this.totalSpEarned += amount;
+    }
+
+    /**
+     * Checks if a skill can be unlocked given current state and prerequisites.
+     *
+     * @param skill the skill to check
+     * @return true if all prerequisites are unlocked and SP is sufficient
+     */
+    public boolean canUnlock(SkillDefinition skill) {
+        Objects.requireNonNull(skill, "Skill cannot be null");
+
+        // Check SP cost
+        if (availableSp < skill.spCost()) {
+            return false;
+        }
+
+        // Check prerequisites
+        if (skill.hasPrerequisites()) {
+            for (String prereqId : skill.prerequisites()) {
+                if (!unlockedSkills.contains(prereqId)) {
+                    return false;
+                }
+            }
+        }
+
+        // Already unlocked
+        if (unlockedSkills.contains(skill.id())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Unlocks a skill, consuming the required skill points.
+     * Should only be called after canUnlock() returns true.
+     *
+     * @param skill the skill to unlock
+     * @throws IllegalStateException if prerequisites are not met or insufficient SP
+     */
+    public void unlockSkill(SkillDefinition skill) {
+        Objects.requireNonNull(skill, "Skill cannot be null");
+
+        if (!canUnlock(skill)) {
+            throw new IllegalStateException("Cannot unlock skill: " + skill.id());
+        }
+
+        availableSp -= skill.spCost();
+        unlockedSkills.add(skill.id());
+    }
+
+    /**
+     * Resets the skill tree, refunding all spent skill points.
+     * Clears all unlocked skills and restores available SP.
+     */
+    public void respec() {
+        this.availableSp += calculateSpent();
+        this.unlockedSkills.clear();
+    }
+
+    /**
+     * Calculates the number of skill points currently spent.
+     *
+     * @return total SP spent on unlocked skills
+     */
+    private int calculateSpent() {
+        // Note: This requires access to skill registry to calculate actual costs
+        // For now, return the difference between total earned and available
+        return Math.max(totalSpEarned - availableSp, 0);
+    }
+
+    /**
+     * Checks if a skill is currently unlocked.
+     *
+     * @param skillId the skill ID
+     * @return true if the skill is in the unlocked set
+     */
+    public boolean isUnlocked(String skillId) {
+        return unlockedSkills.contains(skillId);
+    }
+
+    /**
+     * Gets the guild ID.
+     *
+     * @return the guild ID
+     */
+    public UUID getGuildId() {
         return guildId;
     }
 
     /**
-     * Gets the number of skill points currently available to spend.
-     * @return available skill points
+     * Gets available skill points.
+     *
+     * @return available SP
      */
-    public int getAvailableSkillPoints() {
-        return availableSkillPoints;
+    public int getAvailableSp() {
+        return availableSp;
     }
 
     /**
-     * Gets the total number of skill points earned by this guild across all time.
-     * @return total skill points earned
+     * Gets total skill points earned (lifetime).
+     *
+     * @return total SP earned
      */
-    public int getTotalSkillPointsEarned() {
-        return totalSkillPointsEarned;
+    public int getTotalSpEarned() {
+        return totalSpEarned;
     }
 
     /**
-     * Gets an unmodifiable view of all unlocked skill IDs.
-     * @return set of unlocked skill IDs
+     * Gets an unmodifiable view of unlocked skills.
+     *
+     * @return unmodifiable set of unlocked skill IDs
      */
-    public Set<String> getUnlockedSkillIds() {
-        return Collections.unmodifiableSet(unlockedSkillIds);
-    }
-
-    /**
-     * Checks if a specific skill has been unlocked.
-     * @param skillId the skill ID to check
-     * @return true if the skill is unlocked, false otherwise
-     */
-    public boolean hasSkill(String skillId) {
-        return unlockedSkillIds.contains(skillId);
-    }
-
-    /**
-     * Checks if the guild can afford to unlock a skill with the given cost.
-     * @param spCost the skill point cost
-     * @return true if affordable, false otherwise
-     */
-    public boolean canAfford(int spCost) {
-        return availableSkillPoints >= spCost;
-    }
-
-    /**
-     * Unlocks a skill, deducting the skill point cost.
-     * @param skillId the skill ID to unlock
-     * @param spCost the skill point cost
-     * @throws IllegalStateException if insufficient skill points or skill already unlocked
-     */
-    public void unlockSkill(String skillId, int spCost) {
-        if (!canAfford(spCost)) {
-            throw new IllegalStateException("Not enough skill points");
-        }
-        if (hasSkill(skillId)) {
-            throw new IllegalStateException("Skill already unlocked");
-        }
-        unlockedSkillIds.add(skillId);
-        availableSkillPoints -= spCost;
-    }
-
-    /**
-     * Awards skill points to the guild.
-     * @param amount the number of skill points to award
-     * @throws IllegalArgumentException if amount is not positive
-     */
-    public void awardSkillPoints(int amount) {
-        if (amount <= 0) {
-            throw new IllegalArgumentException("Amount must be positive");
-        }
-        availableSkillPoints += amount;
-        totalSkillPointsEarned += amount;
-    }
-
-    /**
-     * Resets the skill tree, clearing all unlocked skills and returning points to available pool.
-     * Total points earned remains unchanged.
-     */
-    public void respec() {
-        unlockedSkillIds.clear();
-        availableSkillPoints = totalSkillPointsEarned;
+    public Set<String> getUnlockedSkills() {
+        return Collections.unmodifiableSet(unlockedSkills);
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof GuildSkillTree that)) return false;
+        if (!(o instanceof GuildSkillTree)) return false;
+        GuildSkillTree that = (GuildSkillTree) o;
         return Objects.equals(guildId, that.guildId);
     }
 
@@ -145,10 +191,10 @@ public final class GuildSkillTree {
     @Override
     public String toString() {
         return "GuildSkillTree{" +
-                "guildId='" + guildId + '\'' +
-                ", availableSkillPoints=" + availableSkillPoints +
-                ", totalSkillPointsEarned=" + totalSkillPointsEarned +
-                ", unlockedSkillIds=" + unlockedSkillIds +
+                "guildId=" + guildId +
+                ", availableSp=" + availableSp +
+                ", totalSpEarned=" + totalSpEarned +
+                ", unlockedSkills=" + unlockedSkills.size() +
                 '}';
     }
 }

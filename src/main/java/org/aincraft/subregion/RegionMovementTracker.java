@@ -23,7 +23,7 @@ import org.bukkit.event.player.PlayerTeleportEvent;
  */
 public class RegionMovementTracker implements Listener {
     private final SubregionService subregionService;
-    private final Map<UUID, String> playerCurrentRegion = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> playerCurrentRegion = new ConcurrentHashMap<>();
 
     @Inject
     public RegionMovementTracker(SubregionService subregionService) {
@@ -56,11 +56,11 @@ public class RegionMovementTracker implements Listener {
         }
 
         UUID playerId = player.getUniqueId();
-        String previousRegionId = playerCurrentRegion.get(playerId);
+        UUID previousRegionId = playerCurrentRegion.get(playerId);
 
         // Get current region at new location
         Optional<Subregion> currentRegionOpt = subregionService.getSubregionAt(to);
-        String currentRegionId = currentRegionOpt.map(Subregion::getId).orElse(null);
+        UUID currentRegionId = currentRegionOpt.map(Subregion::getId).orElse(null);
 
         // No change in region
         if (java.util.Objects.equals(previousRegionId, currentRegionId)) {
@@ -89,7 +89,7 @@ public class RegionMovementTracker implements Listener {
     /**
      * Gets the current region ID for a player (for external use).
      */
-    public Optional<String> getCurrentRegionId(UUID playerId) {
+    public Optional<UUID> getCurrentRegionId(UUID playerId) {
         return Optional.ofNullable(playerCurrentRegion.get(playerId));
     }
 

@@ -63,14 +63,14 @@ public class SubregionService {
     /**
      * Gets the total volume used by a guild for a specific region type.
      */
-    public long getTypeUsage(String guildId, String typeId) {
+    public long getTypeUsage(UUID guildId, String typeId) {
         return subregionRepository.getTotalVolumeByGuildAndType(guildId, typeId);
     }
 
     /**
      * Creates a new subregion after validating all constraints (without type).
      */
-    public SubregionCreationResult createSubregion(String guildId, UUID playerId, String name,
+    public SubregionCreationResult createSubregion(UUID guildId, UUID playerId, String name,
                                                     Location pos1, Location pos2) {
         return createSubregion(guildId, playerId, name, pos1, pos2, null);
     }
@@ -81,7 +81,7 @@ public class SubregionService {
      * @param type optional type ID (null for untyped regions)
      * @return the created subregion, or empty if validation failed
      */
-    public SubregionCreationResult createSubregion(String guildId, UUID playerId, String name,
+    public SubregionCreationResult createSubregion(UUID guildId, UUID playerId, String name,
                                                     Location pos1, Location pos2, String type) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
@@ -167,7 +167,7 @@ public class SubregionService {
      *
      * @return true if deleted successfully
      */
-    public boolean deleteSubregion(String guildId, UUID playerId, String regionName) {
+    public boolean deleteSubregion(UUID guildId, UUID playerId, String regionName) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(regionName, "Region name cannot be null");
@@ -215,7 +215,7 @@ public class SubregionService {
     /**
      * Gets all subregions for a guild.
      */
-    public List<Subregion> getGuildSubregions(String guildId) {
+    public List<Subregion> getGuildSubregions(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return subregionRepository.findByGuild(guildId);
     }
@@ -223,14 +223,14 @@ public class SubregionService {
     /**
      * Finds a subregion by guild and name.
      */
-    public Optional<Subregion> getSubregionByName(String guildId, String name) {
+    public Optional<Subregion> getSubregionByName(UUID guildId, String name) {
         return subregionRepository.findByGuildAndName(guildId, name);
     }
 
     /**
      * Adds an owner to a subregion.
      */
-    public boolean addSubregionOwner(String guildId, UUID requesterId, String regionName, UUID targetId) {
+    public boolean addSubregionOwner(UUID guildId, UUID requesterId, String regionName, UUID targetId) {
         Optional<Subregion> regionOpt = subregionRepository.findByGuildAndName(guildId, regionName);
         if (regionOpt.isEmpty()) {
             return false;
@@ -254,7 +254,7 @@ public class SubregionService {
     /**
      * Removes an owner from a subregion.
      */
-    public boolean removeSubregionOwner(String guildId, UUID requesterId, String regionName, UUID targetId) {
+    public boolean removeSubregionOwner(UUID guildId, UUID requesterId, String regionName, UUID targetId) {
         Optional<Subregion> regionOpt = subregionRepository.findByGuildAndName(guildId, regionName);
         if (regionOpt.isEmpty()) {
             return false;
@@ -281,7 +281,7 @@ public class SubregionService {
     /**
      * Sets permissions on a subregion.
      */
-    public boolean setSubregionPermissions(String guildId, UUID requesterId, String regionName, int permissions) {
+    public boolean setSubregionPermissions(UUID guildId, UUID requesterId, String regionName, int permissions) {
         Optional<Subregion> regionOpt = subregionRepository.findByGuildAndName(guildId, regionName);
         if (regionOpt.isEmpty()) {
             return false;
@@ -312,7 +312,7 @@ public class SubregionService {
     /**
      * Gets a subregion by its ID.
      */
-    public Optional<Subregion> getSubregionById(String regionId) {
+    public Optional<Subregion> getSubregionById(UUID regionId) {
         return subregionRepository.findById(regionId);
     }
 
@@ -325,7 +325,7 @@ public class SubregionService {
      * @param typeId      the new type ID (null to remove type)
      * @return true if updated successfully
      */
-    public boolean setSubregionType(String guildId, UUID requesterId, String regionName, String typeId) {
+    public boolean setSubregionType(UUID guildId, UUID requesterId, String regionName, String typeId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
         Objects.requireNonNull(regionName, "Region name cannot be null");

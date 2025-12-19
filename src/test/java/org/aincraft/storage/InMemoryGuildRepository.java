@@ -1,11 +1,17 @@
 package org.aincraft.storage;
 
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 import org.aincraft.Guild;
 
 /**
@@ -25,7 +31,7 @@ public class InMemoryGuildRepository implements GuildRepository {
     }
 
     @Override
-    public void delete(String guildId) {
+    public void delete(UUID guildId) {
         Guild guild = guildsById.remove(guildId);
         if (guild != null) {
             guildsByName.remove(guild.getName().toLowerCase());
@@ -33,7 +39,7 @@ public class InMemoryGuildRepository implements GuildRepository {
     }
 
     @Override
-    public Optional<Guild> findById(String guildId) {
+    public Optional<Guild> findById(UUID guildId) {
         return Optional.ofNullable(guildsById.get(guildId));
     }
 

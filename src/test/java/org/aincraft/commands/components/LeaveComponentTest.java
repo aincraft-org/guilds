@@ -9,8 +9,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.UUID;
 import org.aincraft.Guild;
-import org.aincraft.GuildService;
 import org.aincraft.LeaveResult;
+import org.aincraft.service.GuildMemberService;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +29,7 @@ import org.mockito.quality.Strictness;
 @DisplayName("LeaveComponent")
 class LeaveComponentTest {
 
-    @Mock private GuildService guildService;
+    @Mock private GuildMemberService memberService;
     @Mock private Player player;
 
     private LeaveComponent leaveComponent;
@@ -38,7 +38,7 @@ class LeaveComponentTest {
 
     @BeforeEach
     void setUp() {
-        leaveComponent = new LeaveComponent(guildService);
+        leaveComponent = new LeaveComponent(memberService);
         playerId = UUID.randomUUID();
         ownerId = UUID.randomUUID();
         when(player.getUniqueId()).thenReturn(playerId);
@@ -57,25 +57,25 @@ class LeaveComponentTest {
         guild.joinGuild(playerId);
 
         when(player.hasPermission("guilds.leave")).thenReturn(true);
-        when(guildService.getPlayerGuild(playerId)).thenReturn(guild);
-        when(guildService.leaveGuild(guild.getId(), playerId)).thenReturn(LeaveResult.success());
+        when(memberService.getPlayerGuild(playerId)).thenReturn(guild);
+        when(memberService.leaveGuild(guild.getId(), playerId)).thenReturn(LeaveResult.success());
 
         boolean result = leaveComponent.execute(player, new String[]{"leave"});
 
         assertThat(result).isTrue();
-        verify(guildService).leaveGuild(guild.getId(), playerId);
+        verify(memberService).leaveGuild(guild.getId(), playerId);
     }
 
     @Test
     @DisplayName("should fail when not in guild")
     void shouldFailWhenNotInGuild() {
         when(player.hasPermission("guilds.leave")).thenReturn(true);
-        when(guildService.getPlayerGuild(playerId)).thenReturn(null);
+        when(memberService.getPlayerGuild(playerId)).thenReturn(null);
 
         boolean result = leaveComponent.execute(player, new String[]{"leave"});
 
         assertThat(result).isTrue();
-        verify(guildService, never()).leaveGuild(anyString(), any());
+        verify(memberService, never()).leaveGuild(anyString(), any());
     }
 
     @Test
@@ -84,13 +84,13 @@ class LeaveComponentTest {
         Guild guild = new Guild("TestGuild", null, playerId); // Player is owner
 
         when(player.hasPermission("guilds.leave")).thenReturn(true);
-        when(guildService.getPlayerGuild(playerId)).thenReturn(guild);
-        when(guildService.leaveGuild(guild.getId(), playerId)).thenReturn(LeaveResult.ownerCannotLeave());
+        when(memberService.getPlayerGuild(playerId)).thenReturn(guild);
+        when(memberService.leaveGuild(guild.getId(), playerId)).thenReturn(LeaveResult.ownerCannotLeave());
 
         boolean result = leaveComponent.execute(player, new String[]{"leave"});
 
         assertThat(result).isTrue();
-        verify(guildService).leaveGuild(guild.getId(), playerId);
+        verify(memberService).leaveGuild(guild.getId(), playerId);
     }
 
     @Test
@@ -101,6 +101,6 @@ class LeaveComponentTest {
         boolean result = leaveComponent.execute(player, new String[]{"leave"});
 
         assertThat(result).isTrue();
-        verify(guildService, never()).leaveGuild(anyString(), any());
+        verify(memberService, never()).leaveGuild(anyString(), any());
     }
 }

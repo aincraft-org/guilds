@@ -1,8 +1,10 @@
 package org.aincraft.project;
 
+import java.util.UUID;
+
 public record ActiveBuff(
         String id,
-        String guildId,
+        UUID guildId,
         String projectDefinitionId,
         String categoryId,
         double value,

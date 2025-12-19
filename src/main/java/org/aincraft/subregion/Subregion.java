@@ -12,8 +12,8 @@ import org.bukkit.Location;
  * Subregions allow fine-grained permission control over specific areas.
  */
 public final class Subregion {
-    private final String id;
-    private final String guildId;
+    private final UUID id;
+    private final UUID guildId;
     private String name;
     private final String world;
     private final int minX, minY, minZ;
@@ -27,7 +27,7 @@ public final class Subregion {
     /**
      * Creates a new Subregion without a type.
      */
-    public Subregion(String guildId, String name, String world,
+    public Subregion(UUID guildId, String name, String world,
                      int minX, int minY, int minZ,
                      int maxX, int maxY, int maxZ,
                      UUID createdBy) {
@@ -37,11 +37,11 @@ public final class Subregion {
     /**
      * Creates a new Subregion with an optional type.
      */
-    public Subregion(String guildId, String name, String world,
+    public Subregion(UUID guildId, String name, String world,
                      int minX, int minY, int minZ,
                      int maxX, int maxY, int maxZ,
                      UUID createdBy, String type) {
-        this.id = UUID.randomUUID().toString();
+        this.id = UUID.randomUUID();
         this.guildId = Objects.requireNonNull(guildId, "Guild ID cannot be null");
         this.name = Objects.requireNonNull(name, "Name cannot be null");
         this.world = Objects.requireNonNull(world, "World cannot be null");
@@ -62,7 +62,7 @@ public final class Subregion {
     /**
      * Creates a Subregion with existing data (for database restoration).
      */
-    public Subregion(String id, String guildId, String name, String world,
+    public Subregion(UUID id, UUID guildId, String name, String world,
                      int minX, int minY, int minZ,
                      int maxX, int maxY, int maxZ,
                      UUID createdBy, long createdAt,
@@ -87,14 +87,14 @@ public final class Subregion {
     /**
      * Creates a Subregion from two Bukkit Locations without a type.
      */
-    public static Subregion fromLocations(String guildId, String name, Location pos1, Location pos2, UUID createdBy) {
+    public static Subregion fromLocations(UUID guildId, String name, Location pos1, Location pos2, UUID createdBy) {
         return fromLocations(guildId, name, pos1, pos2, createdBy, null);
     }
 
     /**
      * Creates a Subregion from two Bukkit Locations with an optional type.
      */
-    public static Subregion fromLocations(String guildId, String name, Location pos1, Location pos2, UUID createdBy, String type) {
+    public static Subregion fromLocations(UUID guildId, String name, Location pos1, Location pos2, UUID createdBy, String type) {
         Objects.requireNonNull(pos1, "Position 1 cannot be null");
         Objects.requireNonNull(pos2, "Position 2 cannot be null");
 
@@ -182,8 +182,8 @@ public final class Subregion {
     }
 
     // Getters
-    public String getId() { return id; }
-    public String getGuildId() { return guildId; }
+    public UUID getId() { return id; }
+    public UUID getGuildId() { return guildId; }
     public String getName() { return name; }
     public void setName(String name) { this.name = Objects.requireNonNull(name); }
     public String getWorld() { return world; }

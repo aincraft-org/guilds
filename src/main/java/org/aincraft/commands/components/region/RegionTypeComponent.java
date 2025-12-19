@@ -1,5 +1,6 @@
 package org.aincraft.commands.components.region;
 
+import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.subregion.SubregionService;
@@ -19,6 +20,7 @@ public class RegionTypeComponent {
     private final RegionTypeLimitRepository limitRepository;
     private final RegionCommandHelper helper;
 
+    @Inject
     public RegionTypeComponent(SubregionService subregionService, SubregionTypeRegistry typeRegistry,
                               RegionTypeLimitRepository limitRepository, RegionCommandHelper helper) {
         this.subregionService = subregionService;

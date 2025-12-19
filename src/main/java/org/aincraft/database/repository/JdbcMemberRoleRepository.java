@@ -30,7 +30,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
     }
 
     @Override
-    public void assignRole(String guildId, UUID playerId, String roleId) {
+    public void assignRole(UUID guildId, UUID playerId, String roleId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -39,7 +39,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ps.setString(3, roleId);
             ps.executeUpdate();
@@ -61,7 +61,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
     }
 
     @Override
-    public void unassignRole(String guildId, UUID playerId, String roleId) {
+    public void unassignRole(UUID guildId, UUID playerId, String roleId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -69,7 +69,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "DELETE FROM member_roles WHERE guild_id = ? AND player_id = ? AND role_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ps.setString(3, roleId);
             ps.executeUpdate();
@@ -79,7 +79,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
     }
 
     @Override
-    public List<String> getMemberRoleIds(String guildId, UUID playerId) {
+    public List<String> getMemberRoleIds(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -87,7 +87,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT role_id FROM member_roles WHERE guild_id = ? AND player_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ResultSet rs = ps.executeQuery();
 
@@ -122,7 +122,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
     }
 
     @Override
-    public boolean hasMemberRole(String guildId, UUID playerId, String roleId) {
+    public boolean hasMemberRole(UUID guildId, UUID playerId, String roleId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -130,7 +130,7 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT 1 FROM member_roles WHERE guild_id = ? AND player_id = ? AND role_id = ? LIMIT 1")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ps.setString(3, roleId);
             return ps.executeQuery().next();
@@ -140,14 +140,14 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
     }
 
     @Override
-    public void removeAllMemberRoles(String guildId, UUID playerId) {
+    public void removeAllMemberRoles(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "DELETE FROM member_roles WHERE guild_id = ? AND player_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -169,12 +169,12 @@ public class JdbcMemberRoleRepository implements MemberRoleRepository {
     }
 
     @Override
-    public void removeAllByGuild(String guildId) {
+    public void removeAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM member_roles WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to remove all by guild", e);

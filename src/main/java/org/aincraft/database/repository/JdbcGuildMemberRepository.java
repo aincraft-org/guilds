@@ -34,7 +34,7 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
     }
 
     @Override
-    public void addMember(String guildId, UUID playerId, MemberPermissions permissions) {
+    public void addMember(UUID guildId, UUID playerId, MemberPermissions permissions) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(permissions, "Permissions cannot be null");
@@ -43,7 +43,7 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ps.setInt(3, permissions.getBitfield());
             ps.setLong(4, System.currentTimeMillis());
@@ -54,14 +54,14 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
     }
 
     @Override
-    public void removeMember(String guildId, UUID playerId) {
+    public void removeMember(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "DELETE FROM guild_members WHERE guild_id = ? AND player_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -70,12 +70,12 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
     }
 
     @Override
-    public void removeAllMembers(String guildId) {
+    public void removeAllMembers(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guild_members WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to remove all guild members", e);
@@ -83,14 +83,14 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
     }
 
     @Override
-    public Optional<MemberPermissions> getPermissions(String guildId, UUID playerId) {
+    public Optional<MemberPermissions> getPermissions(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT permissions FROM guild_members WHERE guild_id = ? AND player_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ResultSet rs = ps.executeQuery();
 
@@ -105,7 +105,7 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
     }
 
     @Override
-    public void setPermissions(String guildId, UUID playerId, MemberPermissions permissions) {
+    public void setPermissions(UUID guildId, UUID playerId, MemberPermissions permissions) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(permissions, "Permissions cannot be null");
@@ -114,7 +114,7 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
              PreparedStatement ps = conn.prepareStatement(
                  "UPDATE guild_members SET permissions = ? WHERE guild_id = ? AND player_id = ?")) {
             ps.setInt(1, permissions.getBitfield());
-            ps.setString(2, guildId);
+            ps.setString(2, guildId.toString());
             ps.setString(3, playerId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
@@ -123,7 +123,7 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
     }
 
     @Override
-    public List<UUID> getMembersWithPermission(String guildId, GuildPermission permission) {
+    public List<UUID> getMembersWithPermission(UUID guildId, GuildPermission permission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(permission, "Permission cannot be null");
 
@@ -131,7 +131,7 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT player_id FROM guild_members WHERE guild_id = ? AND (permissions & ?) != 0")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setInt(2, permission.getBit());
             ResultSet rs = ps.executeQuery();
 
@@ -146,14 +146,14 @@ public class JdbcGuildMemberRepository implements GuildMemberRepository {
     }
 
     @Override
-    public Optional<Long> getMemberJoinDate(String guildId, UUID playerId) {
+    public Optional<Long> getMemberJoinDate(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT joined_at FROM guild_members WHERE guild_id = ? AND player_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, playerId.toString());
             ResultSet rs = ps.executeQuery();
 

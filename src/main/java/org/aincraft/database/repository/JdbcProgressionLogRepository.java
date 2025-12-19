@@ -43,7 +43,7 @@ public class JdbcProgressionLogRepository implements ProgressionLogRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, entry.guildId());
+            ps.setObject(1, entry.guildId());
 
             if (entry.playerId() != null) {
                 ps.setString(2, entry.playerId().toString());
@@ -62,7 +62,7 @@ public class JdbcProgressionLogRepository implements ProgressionLogRepository {
     }
 
     @Override
-    public List<ProgressionLog> findByGuild(String guildId, int limit) {
+    public List<ProgressionLog> findByGuild(UUID guildId, int limit) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = """
@@ -76,7 +76,7 @@ public class JdbcProgressionLogRepository implements ProgressionLogRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setInt(2, limit);
             ResultSet rs = ps.executeQuery();
 
@@ -91,12 +91,12 @@ public class JdbcProgressionLogRepository implements ProgressionLogRepository {
     }
 
     @Override
-    public void deleteByGuildId(String guildId) {
+    public void deleteByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM progression_logs WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete progression logs", e);
@@ -109,7 +109,7 @@ public class JdbcProgressionLogRepository implements ProgressionLogRepository {
 
         return new ProgressionLog(
             rs.getLong("id"),
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("guild_id")),
             playerId,
             ProgressionLog.ActionType.valueOf(rs.getString("action")),
             rs.getLong("amount"),

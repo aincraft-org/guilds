@@ -41,7 +41,7 @@ public class JdbcVaultRepository implements VaultRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, vault.getId());
-            ps.setString(2, vault.getGuildId());
+            ps.setObject(2, vault.getGuildId());
             ps.setString(3, vault.getWorld());
             ps.setInt(4, vault.getOriginX());
             ps.setInt(5, vault.getOriginY());
@@ -120,12 +120,12 @@ public class JdbcVaultRepository implements VaultRepository {
     }
 
     @Override
-    public Optional<Vault> findByGuildId(String guildId) {
+    public Optional<Vault> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT * FROM guild_vaults WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -177,12 +177,12 @@ public class JdbcVaultRepository implements VaultRepository {
     }
 
     @Override
-    public boolean existsForGuild(String guildId) {
+    public boolean existsForGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT COUNT(*) FROM guild_vaults WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -217,7 +217,7 @@ public class JdbcVaultRepository implements VaultRepository {
     private Vault mapResultSet(ResultSet rs) throws SQLException {
         return new Vault(
             rs.getString("id"),
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("guild_id")),
             rs.getString("world"),
             rs.getInt("origin_x"),
             rs.getInt("origin_y"),

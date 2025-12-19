@@ -7,8 +7,11 @@ import org.aincraft.project.llm.ProjectText;
 import org.bukkit.Material;
 
 import java.util.*;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 import java.util.logging.Logger;
+import java.util.UUID;
 
 /**
  * Procedurally generates random project definitions for guilds.
@@ -82,7 +85,7 @@ public class ProjectGenerator {
      * @param poolTimestamp timestamp of when this pool should be generated (for seeding)
      * @return a list of generated project definitions
      */
-    public List<ProjectDefinition> generateProjects(String guildId, int guildLevel, int count, long poolTimestamp) {
+    public List<ProjectDefinition> generateProjects(UUID guildId, int guildLevel, int count, long poolTimestamp) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         if (count <= 0) {
             throw new IllegalArgumentException("Count must be positive");

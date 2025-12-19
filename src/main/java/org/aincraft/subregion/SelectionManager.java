@@ -97,7 +97,7 @@ public class SelectionManager {
     /**
      * Starts a pending region creation for a player.
      */
-    public void startPendingCreation(UUID playerId, String name, String type, String guildId) {
+    public void startPendingCreation(UUID playerId, String name, String type, UUID guildId) {
         pendingCreations.put(playerId, new PendingCreation(name, type, guildId, System.currentTimeMillis()));
         clearSelection(playerId);
     }
@@ -173,5 +173,5 @@ public class SelectionManager {
     /**
      * Represents a pending region creation request.
      */
-    public record PendingCreation(String name, String type, String guildId, long createdAt) {}
+    public record PendingCreation(String name, String type, UUID guildId, long createdAt) {}
 }

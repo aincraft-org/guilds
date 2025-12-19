@@ -42,9 +42,10 @@ import org.aincraft.commands.components.MapComponent;
 import org.aincraft.commands.components.MemberComponent;
 import org.aincraft.commands.components.NameComponent;
 import org.aincraft.commands.components.NeutralComponent;
-import org.aincraft.commands.components.RegionComponent;
+import org.aincraft.commands.components.region.RegionComponent;
 import org.aincraft.commands.components.RoleComponent;
 import org.aincraft.commands.components.SetspawnComponent;
+import org.aincraft.commands.components.SkillsComponent;
 import org.aincraft.commands.components.SpawnComponent;
 import org.aincraft.commands.components.ToggleComponent;
 import org.aincraft.commands.components.UnclaimComponent;
@@ -134,6 +135,7 @@ public class GuildsPlugin extends JavaPlugin {
     private AdminComponent adminComponent;
     private LevelUpComponent levelUpComponent;
     private ProjectComponent projectComponent;
+    private SkillsComponent skillsComponent;
 
     @Override
     public void onEnable() {
@@ -156,7 +158,9 @@ public class GuildsPlugin extends JavaPlugin {
         // Initialize map renderer
         ChunkClaimRepository chunkClaimRepository = injector.getInstance(ChunkClaimRepository.class);
         GuildColorMapper colorMapper = new GuildColorMapper();
-        this.mapRenderer = new GuildMapRenderer(guildService, chunkClaimRepository, colorMapper, relationshipService);
+        org.aincraft.service.GuildLifecycleService lifecycleService = injector.getInstance(org.aincraft.service.GuildLifecycleService.class);
+        org.aincraft.service.GuildMemberService memberServiceForMap = injector.getInstance(org.aincraft.service.GuildMemberService.class);
+        this.mapRenderer = new GuildMapRenderer(lifecycleService, memberServiceForMap, chunkClaimRepository, colorMapper, relationshipService);
 
         // Register listeners
         registerListeners();
@@ -232,7 +236,7 @@ public class GuildsPlugin extends JavaPlugin {
         org.aincraft.vault.gui.SharedVaultInventoryManager sharedVaultInventoryManager = injector.getInstance(org.aincraft.vault.gui.SharedVaultInventoryManager.class);
         org.aincraft.progression.storage.ProgressionLogRepository progressionLogRepository = injector.getInstance(org.aincraft.progression.storage.ProgressionLogRepository.class);
         vaultComponent = new VaultComponent(vaultService, sharedVaultInventoryManager);
-        logComponent = new LogComponent(guildService, vaultService, progressionLogRepository);
+        logComponent = injector.getInstance(LogComponent.class);
 
         allyComponent = injector.getInstance(AllyComponent.class);
         enemyComponent = injector.getInstance(EnemyComponent.class);
@@ -242,6 +246,7 @@ public class GuildsPlugin extends JavaPlugin {
         adminComponent = injector.getInstance(AdminComponent.class);
         levelUpComponent = injector.getInstance(LevelUpComponent.class);
         projectComponent = injector.getInstance(ProjectComponent.class);
+        skillsComponent = injector.getInstance(SkillsComponent.class);
     }
 
     private void registerListeners() {
@@ -771,6 +776,11 @@ public class GuildsPlugin extends JavaPlugin {
                             levelUpComponent.execute(context.getSource().getSender(), new String[]{"upgrade", "confirm"});
                             return 1;
                         })))
+                .then(Commands.literal("skills")
+                    .executes(context -> {
+                        skillsComponent.execute(context.getSource().getSender(), new String[]{"skills"});
+                        return 1;
+                    }))
                 .then(registerProjectCommands())
                 .then(registerAdminCommands())
                 .build(),

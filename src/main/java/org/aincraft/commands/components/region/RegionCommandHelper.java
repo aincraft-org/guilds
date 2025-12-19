@@ -1,5 +1,6 @@
 package org.aincraft.commands.components.region;
 
+import com.google.inject.Inject;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.commands.MessageFormatter;
@@ -22,6 +23,7 @@ public class RegionCommandHelper {
     private final RegionPermissionService permissionService;
     private final SubregionTypeRegistry typeRegistry;
 
+    @Inject
     public RegionCommandHelper(GuildMemberService memberService, SubregionService subregionService,
                               RegionPermissionService permissionService, SubregionTypeRegistry typeRegistry) {
         this.memberService = memberService;

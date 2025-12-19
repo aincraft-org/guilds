@@ -1,41 +1,61 @@
 package org.aincraft.skilltree.storage;
 
 import org.aincraft.skilltree.GuildSkillTree;
+
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Repository interface for guild skill tree persistence.
+ * Defines contract for saving, loading, and managing skill tree data.
+ * Single Responsibility: Skill tree data access abstraction.
+ * Dependency Inversion: Callers depend on this interface, not concrete implementations.
  */
 public interface GuildSkillTreeRepository {
+    /**
+     * Saves or updates a guild's skill tree.
+     *
+     * @param tree the skill tree to save (cannot be null)
+     */
+    void save(GuildSkillTree tree);
 
     /**
-     * Saves a guild's skill tree state.
+     * Retrieves a guild's skill tree.
+     *
+     * @param guildId the guild ID (cannot be null)
+     * @return the skill tree if found, or empty Optional
      */
-    void save(GuildSkillTree skillTree);
+    Optional<GuildSkillTree> findByGuildId(UUID guildId);
 
     /**
-     * Finds a guild's skill tree by guild ID.
+     * Deletes a guild's skill tree and unlocked skills.
+     *
+     * @param guildId the guild ID (cannot be null)
      */
-    Optional<GuildSkillTree> findByGuildId(String guildId);
+    void delete(UUID guildId);
 
     /**
-     * Deletes a guild's skill tree and all unlocked skills.
+     * Records that a skill was unlocked.
+     *
+     * @param guildId the guild ID (cannot be null)
+     * @param skillId the skill ID (cannot be null)
+     * @param unlockedAt the unlock timestamp (milliseconds since epoch)
      */
-    void delete(String guildId);
+    void unlockSkill(UUID guildId, String skillId, long unlockedAt);
 
     /**
-     * Unlocks a skill for a guild.
+     * Clears all unlocked skills for a guild (used in respec).
+     *
+     * @param guildId the guild ID (cannot be null)
      */
-    void unlockSkill(String guildId, String skillId);
+    void clearUnlockedSkills(UUID guildId);
 
     /**
-     * Gets all unlocked skill IDs for a guild.
+     * Retrieves all unlocked skill IDs for a guild.
+     *
+     * @param guildId the guild ID (cannot be null)
+     * @return unmodifiable set of unlocked skill IDs
      */
-    Set<String> getUnlockedSkills(String guildId);
-
-    /**
-     * Deletes all unlocked skills for a guild (used for respec).
-     */
-    void deleteAllSkills(String guildId);
+    Set<String> getUnlockedSkills(UUID guildId);
 }

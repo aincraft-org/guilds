@@ -49,7 +49,7 @@ public class ChunkClaimService {
      * @param hasClaimPermission whether the player has CLAIM permission
      * @return ClaimResult indicating success or failure
      */
-    public ClaimResult claimChunk(String guildId, UUID playerId, ChunkKey chunk, boolean hasClaimPermission) {
+    public ClaimResult claimChunk(UUID guildId, UUID playerId, ChunkKey chunk, boolean hasClaimPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(chunk, "Chunk cannot be null");
@@ -119,7 +119,7 @@ public class ChunkClaimService {
      * @param hasUnclaimPermission whether the player has UNCLAIM permission
      * @return true if unclaimed successfully
      */
-    public boolean unclaimChunk(String guildId, UUID playerId, ChunkKey chunk, boolean hasUnclaimPermission) {
+    public boolean unclaimChunk(UUID guildId, UUID playerId, ChunkKey chunk, boolean hasUnclaimPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(chunk, "Chunk cannot be null");
@@ -153,7 +153,7 @@ public class ChunkClaimService {
      * @param hasUnclaimPermission whether the player has UNCLAIM permission
      * @return true if unclaimed successfully
      */
-    public boolean unclaimAllChunks(String guildId, UUID playerId, boolean hasUnclaimPermission) {
+    public boolean unclaimAllChunks(UUID guildId, UUID playerId, boolean hasUnclaimPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -190,7 +190,7 @@ public class ChunkClaimService {
      * @param guildId the guild ID
      * @return list of chunk keys
      */
-    public List<ChunkKey> getGuildChunks(String guildId) {
+    public List<ChunkKey> getGuildChunks(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return chunkClaimRepository.getGuildChunks(guildId);
     }
@@ -202,7 +202,7 @@ public class ChunkClaimService {
      * @param limit maximum number of entries to return
      * @return list of claim log entries, newest first
      */
-    public List<ChunkClaimLog> getGuildClaimLogs(String guildId, int limit) {
+    public List<ChunkClaimLog> getGuildClaimLogs(UUID guildId, int limit) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return claimLogRepository.findByGuildId(guildId, limit);
     }
@@ -213,7 +213,7 @@ public class ChunkClaimService {
      * @param guildId the guild ID
      * @return the chunk count
      */
-    public int getGuildChunkCount(String guildId) {
+    public int getGuildChunkCount(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return chunkClaimRepository.getChunkCount(guildId);
     }
@@ -234,7 +234,7 @@ public class ChunkClaimService {
         return false;
     }
 
-    private ClaimResult checkBufferDistance(ChunkKey chunk, String guildId) {
+    private ClaimResult checkBufferDistance(ChunkKey chunk, UUID guildId) {
         int bufferDistance = config.getClaimBufferDistance();
 
         if (bufferDistance == 0) {

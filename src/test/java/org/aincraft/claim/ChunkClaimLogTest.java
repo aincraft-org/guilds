@@ -18,7 +18,7 @@ class ChunkClaimLogTest {
     void shouldCreateLogWithAllFields() {
         ChunkKey chunk = new ChunkKey("world", 5, -3);
         UUID playerId = UUID.randomUUID();
-        String guildId = "guild123";
+        UUID guildId = "guild123";
 
         ChunkClaimLog log = new ChunkClaimLog(
                 1L,
@@ -42,7 +42,7 @@ class ChunkClaimLogTest {
     void shouldCreateLogWithSimplifiedConstructor() {
         ChunkKey chunk = new ChunkKey("world", 10, 20);
         UUID playerId = UUID.randomUUID();
-        String guildId = "guild456";
+        UUID guildId = "guild456";
 
         ChunkClaimLog log = new ChunkClaimLog(guildId, chunk, playerId, ChunkClaimLog.ActionType.UNCLAIM);
 

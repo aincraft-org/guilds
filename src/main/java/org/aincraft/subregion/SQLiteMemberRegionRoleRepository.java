@@ -56,7 +56,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
     }
 
     @Override
-    public void assignRole(String regionId, UUID playerId, String roleId) {
+    public void assignRole(UUID regionId, UUID playerId, String roleId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -66,7 +66,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, playerId.toString());
             pstmt.setString(3, roleId);
 
@@ -77,7 +77,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
     }
 
     @Override
-    public void unassignRole(String regionId, UUID playerId, String roleId) {
+    public void unassignRole(UUID regionId, UUID playerId, String roleId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -87,7 +87,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, playerId.toString());
             pstmt.setString(3, roleId);
 
@@ -98,7 +98,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
     }
 
     @Override
-    public List<String> getMemberRoleIds(String regionId, UUID playerId) {
+    public List<String> getMemberRoleIds(UUID regionId, UUID playerId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -109,7 +109,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, playerId.toString());
 
             ResultSet rs = pstmt.executeQuery();
@@ -150,7 +150,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
     }
 
     @Override
-    public boolean hasMemberRole(String regionId, UUID playerId, String roleId) {
+    public boolean hasMemberRole(UUID regionId, UUID playerId, String roleId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -160,7 +160,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, playerId.toString());
             pstmt.setString(3, roleId);
 
@@ -172,7 +172,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
     }
 
     @Override
-    public void removeAllMemberRoles(String regionId, UUID playerId) {
+    public void removeAllMemberRoles(UUID regionId, UUID playerId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -181,7 +181,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.setString(2, playerId.toString());
 
             pstmt.executeUpdate();
@@ -208,7 +208,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
     }
 
     @Override
-    public void removeAllByRegion(String regionId) {
+    public void removeAllByRegion(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String sql = "DELETE FROM member_region_roles WHERE region_id = ?";
@@ -216,7 +216,7 @@ public class SQLiteMemberRegionRoleRepository implements MemberRegionRoleReposit
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
 
             pstmt.executeUpdate();
         } catch (SQLException e) {

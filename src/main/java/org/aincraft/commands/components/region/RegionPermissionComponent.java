@@ -1,5 +1,6 @@
 package org.aincraft.commands.components.region;
 
+import com.google.inject.Inject;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +24,7 @@ public class RegionPermissionComponent {
     private final RegionPermissionService permissionService;
     private final RegionCommandHelper helper;
 
+    @Inject
     public RegionPermissionComponent(SubregionService subregionService, RegionPermissionService permissionService,
                                     RegionCommandHelper helper) {
         this.subregionService = subregionService;

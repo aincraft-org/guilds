@@ -68,7 +68,12 @@ public class GuildLifecycleService {
             return null;
         }
 
-        Guild guild = new Guild(name, description, ownerId);
+        Optional<Guild> guildOpt = Guild.create(name, description, ownerId);
+        if (guildOpt.isEmpty()) {
+            return null;
+        }
+
+        Guild guild = guildOpt.get();
         guildRepository.save(guild);
         playerGuildMapping.addPlayerToGuild(ownerId, guild.getId());
         memberRepository.addMember(guild.getId(), ownerId, MemberPermissions.all());
@@ -92,7 +97,7 @@ public class GuildLifecycleService {
      * @param requesterId the UUID of the player requesting deletion
      * @return true if the guild was deleted
      */
-    public boolean deleteGuild(String guildId, UUID requesterId) {
+    public boolean deleteGuild(UUID guildId, UUID requesterId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
 
@@ -135,7 +140,7 @@ public class GuildLifecycleService {
      * @param guildId the guild ID
      * @return the Guild, or null if not found
      */
-    public Guild getGuildById(String guildId) {
+    public Guild getGuildById(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return guildRepository.findById(guildId).orElse(null);
     }
@@ -159,7 +164,7 @@ public class GuildLifecycleService {
      * @param maxMembers the new maximum members
      * @param maxChunks the new maximum chunks
      */
-    public void updateGuildCapacities(String guildId, int maxMembers, int maxChunks) {
+    public void updateGuildCapacities(UUID guildId, int maxMembers, int maxChunks) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         Optional<Guild> guildOpt = guildRepository.findById(guildId);

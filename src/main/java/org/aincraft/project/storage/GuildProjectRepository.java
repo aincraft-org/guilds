@@ -5,7 +5,9 @@ import org.aincraft.project.ProjectStatus;
 import org.bukkit.Material;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface GuildProjectRepository {
 
@@ -13,13 +15,13 @@ public interface GuildProjectRepository {
 
     Optional<GuildProject> findById(String projectId);
 
-    Optional<GuildProject> findActiveByGuildId(String guildId);
+    Optional<GuildProject> findActiveByGuildId(UUID guildId);
 
-    List<GuildProject> findByGuildId(String guildId);
+    List<GuildProject> findByGuildId(UUID guildId);
 
     void delete(String projectId);
 
-    void deleteByGuildId(String guildId);
+    void deleteByGuildId(UUID guildId);
 
     void updateQuestProgress(String projectId, String questId, long newCount);
 
@@ -32,9 +34,9 @@ public interface GuildProjectRepository {
 
     void updateStatus(String projectId, ProjectStatus status, Long completedAt);
 
-    int getPoolSeed(String guildId);
+    int getPoolSeed(UUID guildId);
 
-    void incrementPoolSeed(String guildId);
+    void incrementPoolSeed(UUID guildId);
 
-    Long getLastRefreshTime(String guildId);
+    Long getLastRefreshTime(UUID guildId);
 }

@@ -3,7 +3,9 @@ package org.aincraft.project;
 import org.bukkit.Material;
 
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Represents a guild's active or completed project.
@@ -16,7 +18,7 @@ import java.util.Map;
 public final class GuildProject {
 
     private final String id;
-    private final String guildId;
+    private final UUID guildId;
     private final String projectDefinitionId;
     private ProjectStatus status;
     private final Map<String, Long> questProgress;
@@ -29,7 +31,7 @@ public final class GuildProject {
 
     public GuildProject(
             String id,
-            String guildId,
+            UUID guildId,
             String projectDefinitionId,
             ProjectStatus status,
             Map<String, Long> questProgress,
@@ -51,7 +53,7 @@ public final class GuildProject {
         return id;
     }
 
-    public String getGuildId() {
+    public UUID getGuildId() {
         return guildId;
     }
 

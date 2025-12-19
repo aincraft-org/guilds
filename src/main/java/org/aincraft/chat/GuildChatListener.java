@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -115,7 +116,7 @@ public class GuildChatListener implements Listener {
         Component chatMessage = formatAllyChatMessage(sender, guild, message);
 
         // Get transitive allies
-        Set<String> allyGuildIds = getTransitiveAllies(guild.getId());
+        Set<UUID> allyGuildIds = getTransitiveAllies(guild.getId());
         allyGuildIds.add(guild.getId()); // Include sender's guild
 
         // Send to all members of allied guilds
@@ -172,18 +173,18 @@ public class GuildChatListener implements Listener {
      * @param guildId the starting guild ID
      * @return set of all transitively allied guild IDs (excluding the starting guild)
      */
-    private Set<String> getTransitiveAllies(String guildId) {
-        Set<String> visited = new HashSet<>();
-        Queue<String> queue = new LinkedList<>();
+    private Set<UUID> getTransitiveAllies(UUID guildId) {
+        Set<UUID> visited = new HashSet<>();
+        Queue<UUID> queue = new LinkedList<>();
 
         queue.add(guildId);
         visited.add(guildId);
 
         while (!queue.isEmpty()) {
-            String current = queue.poll();
-            List<String> allies = relationshipService.getAllies(current);
+            UUID current = queue.poll();
+            List<UUID> allies = relationshipService.getAllies(current);
 
-            for (String ally : allies) {
+            for (UUID ally : allies) {
                 if (!visited.contains(ally)) {
                     visited.add(ally);
                     queue.add(ally);

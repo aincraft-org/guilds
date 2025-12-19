@@ -6,7 +6,9 @@ import org.aincraft.project.storage.ActiveBuffRepository;
 import org.aincraft.skilltree.SkillBuffProvider;
 
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 
 @Singleton
 public class BuffApplicationService {
@@ -31,7 +33,7 @@ public class BuffApplicationService {
      * Combines project buffs (multiplicative base) with skill buffs (additive).
      * Example: Project 1.25x + Skill 15% = 1.25 + 0.15 = 1.40x
      */
-    public double getXpMultiplier(String guildId) {
+    public double getXpMultiplier(UUID guildId) {
         return getCombinedBuffValue(guildId, "XP_MULTIPLIER", 1.0);
     }
 
@@ -39,7 +41,7 @@ public class BuffApplicationService {
      * Gets the total luck bonus for a guild.
      * Combines project buffs with skill buffs (additive).
      */
-    public double getLuckBonus(String guildId) {
+    public double getLuckBonus(UUID guildId) {
         return getCombinedBuffValue(guildId, "LUCK_BONUS", 1.0);
     }
 
@@ -47,7 +49,7 @@ public class BuffApplicationService {
      * Gets the total crop growth multiplier for a guild.
      * Combines project buffs with skill buffs (additive).
      */
-    public double getCropGrowthMultiplier(String guildId) {
+    public double getCropGrowthMultiplier(UUID guildId) {
         return getCombinedBuffValue(guildId, "CROP_GROWTH_SPEED", 1.0);
     }
 
@@ -55,7 +57,7 @@ public class BuffApplicationService {
      * Gets the total mob spawn multiplier for a guild.
      * Combines project buffs with skill buffs (additive).
      */
-    public double getMobSpawnMultiplier(String guildId) {
+    public double getMobSpawnMultiplier(UUID guildId) {
         return getCombinedBuffValue(guildId, "MOB_SPAWN_RATE", 1.0);
     }
 
@@ -64,7 +66,7 @@ public class BuffApplicationService {
      * Combines project buffs with skill buffs (additive).
      * For protection, lower values are better (damage reduction).
      */
-    public double getProtectionMultiplier(String guildId) {
+    public double getProtectionMultiplier(UUID guildId) {
         // Protection is special: project buff is like 0.85 (15% reduction)
         // Skill bonus is 0.05 (5% reduction), so we subtract from project buff
         double projectBuff = getProjectBuffValue(guildId, "PROTECTION_BOOST", 1.0);
@@ -77,7 +79,7 @@ public class BuffApplicationService {
      * Gets the total damage boost multiplier for a guild.
      * Combines project buffs with skill buffs (additive).
      */
-    public double getDamageBoostMultiplier(String guildId) {
+    public double getDamageBoostMultiplier(UUID guildId) {
         return getCombinedBuffValue(guildId, "DAMAGE_BOOST", 1.0);
     }
 
@@ -90,7 +92,7 @@ public class BuffApplicationService {
      * @param defaultValue default value if no project buff
      * @return combined buff value
      */
-    public double getCombinedBuffValue(String guildId, String categoryId, double defaultValue) {
+    public double getCombinedBuffValue(UUID guildId, String categoryId, double defaultValue) {
         double projectBuff = getProjectBuffValue(guildId, categoryId, defaultValue);
         double skillBonus = skillBuffProvider.getSkillBonusValue(guildId, categoryId);
         return projectBuff + skillBonus;
@@ -99,7 +101,7 @@ public class BuffApplicationService {
     /**
      * Gets only the project buff value (without skill bonuses).
      */
-    public double getProjectBuffValue(String guildId, String categoryId, double defaultValue) {
+    public double getProjectBuffValue(UUID guildId, String categoryId, double defaultValue) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(categoryId, "Category ID cannot be null");
 
@@ -123,7 +125,7 @@ public class BuffApplicationService {
     /**
      * Gets only the skill buff bonus value.
      */
-    public double getSkillBuffValue(String guildId, String categoryId) {
+    public double getSkillBuffValue(UUID guildId, String categoryId) {
         return skillBuffProvider.getSkillBonusValue(guildId, categoryId);
     }
 
@@ -132,11 +134,11 @@ public class BuffApplicationService {
      *             or getProjectBuffValue() for project-only buffs.
      */
     @Deprecated
-    public double getBuffValue(String guildId, String categoryId, double defaultValue) {
+    public double getBuffValue(UUID guildId, String categoryId, double defaultValue) {
         return getProjectBuffValue(guildId, categoryId, defaultValue);
     }
 
-    public boolean hasBuff(String guildId, String categoryId) {
+    public boolean hasBuff(UUID guildId, String categoryId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(categoryId, "Category ID cannot be null");
 

@@ -7,7 +7,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.aincraft.Guild;
+import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
+import org.aincraft.GuildService;
 import org.aincraft.MemberPermissions;
 import org.aincraft.storage.GuildRepository;
 import org.aincraft.storage.GuildRoleRepository;
@@ -21,14 +23,17 @@ public class GuildRoleService {
     private final GuildRoleRepository roleRepository;
     private final MemberRoleRepository memberRoleRepository;
     private final GuildRepository guildRepository;
+    private final GuildService guildService;
 
     @Inject
     public GuildRoleService(GuildRoleRepository roleRepository,
                             MemberRoleRepository memberRoleRepository,
-                            GuildRepository guildRepository) {
+                            GuildRepository guildRepository,
+                            GuildService guildService) {
         this.roleRepository = Objects.requireNonNull(roleRepository, "RoleRepository cannot be null");
         this.memberRoleRepository = Objects.requireNonNull(memberRoleRepository, "MemberRoleRepository cannot be null");
         this.guildRepository = Objects.requireNonNull(guildRepository, "GuildRepository cannot be null");
+        this.guildService = Objects.requireNonNull(guildService, "GuildService cannot be null");
     }
 
     /**
@@ -40,7 +45,7 @@ public class GuildRoleService {
      * @param hasManageRolesPermission whether requester has MANAGE_ROLES permission
      * @return the created role, or null if failed
      */
-    public GuildRole createRole(String guildId, String name, int permissions, boolean hasManageRolesPermission) {
+    public GuildRole createRole(UUID guildId, String name, int permissions, boolean hasManageRolesPermission) {
         return createRole(guildId, name, permissions, 0, hasManageRolesPermission);
     }
 
@@ -54,7 +59,7 @@ public class GuildRoleService {
      * @param hasManageRolesPermission whether requester has MANAGE_ROLES permission
      * @return the created role, or null if failed
      */
-    public GuildRole createRole(String guildId, String name, int permissions, int priority, boolean hasManageRolesPermission) {
+    public GuildRole createRole(UUID guildId, String name, int permissions, int priority, boolean hasManageRolesPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
 
@@ -79,7 +84,7 @@ public class GuildRoleService {
      * @param hasManageRolesPermission whether requester has MANAGE_ROLES permission
      * @return true if deleted successfully
      */
-    public boolean deleteRole(String guildId, String roleId, boolean hasManageRolesPermission) {
+    public boolean deleteRole(UUID guildId, String roleId, boolean hasManageRolesPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
 
@@ -106,7 +111,7 @@ public class GuildRoleService {
      * @param hasManageRolesPermission whether requester has MANAGE_ROLES permission
      * @return true if updated successfully
      */
-    public boolean updateRolePermissions(String guildId, String roleId, int permissions, boolean hasManageRolesPermission) {
+    public boolean updateRolePermissions(UUID guildId, String roleId, int permissions, boolean hasManageRolesPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
 
@@ -144,7 +149,7 @@ public class GuildRoleService {
      * @param hasManageRolesPermission whether requester has MANAGE_ROLES permission
      * @return true if renamed successfully
      */
-    public boolean renameRole(String guildId, String roleId, String newName, boolean hasManageRolesPermission) {
+    public boolean renameRole(UUID guildId, String roleId, String newName, boolean hasManageRolesPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
         Objects.requireNonNull(newName, "New name cannot be null");
@@ -174,7 +179,7 @@ public class GuildRoleService {
      * @param guildId the guild ID
      * @return list of roles
      */
-    public List<GuildRole> getGuildRoles(String guildId) {
+    public List<GuildRole> getGuildRoles(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         return roleRepository.findByGuildId(guildId);
     }
@@ -186,7 +191,7 @@ public class GuildRoleService {
      * @param name the role name
      * @return the role, or null if not found
      */
-    public GuildRole getRoleByName(String guildId, String name) {
+    public GuildRole getRoleByName(UUID guildId, String name) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
         return roleRepository.findByGuildAndName(guildId, name).orElse(null);
@@ -212,7 +217,7 @@ public class GuildRoleService {
      * @param hasManageRolesPermission whether requester has MANAGE_ROLES permission
      * @return true if assigned successfully
      */
-    public boolean assignRole(String guildId, UUID targetId, String roleId, boolean hasManageRolesPermission) {
+    public boolean assignRole(UUID guildId, UUID targetId, String roleId, boolean hasManageRolesPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(targetId, "Target ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -244,7 +249,7 @@ public class GuildRoleService {
      * @param hasManageRolesPermission whether requester has MANAGE_ROLES permission
      * @return true if unassigned successfully
      */
-    public boolean unassignRole(String guildId, UUID targetId, String roleId, boolean hasManageRolesPermission) {
+    public boolean unassignRole(UUID guildId, UUID targetId, String roleId, boolean hasManageRolesPermission) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(targetId, "Target ID cannot be null");
         Objects.requireNonNull(roleId, "Role ID cannot be null");
@@ -264,7 +269,7 @@ public class GuildRoleService {
      * @param playerId the member UUID
      * @return list of roles
      */
-    public List<GuildRole> getMemberRoles(String guildId, UUID playerId) {
+    public List<GuildRole> getMemberRoles(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -283,7 +288,7 @@ public class GuildRoleService {
      * @param playerId the player UUID
      * @return the highest priority role, or empty if no roles assigned
      */
-    public Optional<GuildRole> getHighestPriorityRole(String guildId, UUID playerId) {
+    public Optional<GuildRole> getHighestPriorityRole(UUID guildId, UUID playerId) {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         GuildRole highestRole = null;
 
@@ -307,7 +312,7 @@ public class GuildRoleService {
      * @param playerId the player UUID
      * @return the effective permissions bitfield
      */
-    public int computeEffectivePermissions(String guildId, UUID playerId) {
+    public int computeEffectivePermissions(UUID guildId, UUID playerId) {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         int permissions = 0;
         for (String roleId : roleIds) {
@@ -326,7 +331,7 @@ public class GuildRoleService {
      * @param playerId the player UUID
      * @return the effective permissions as MemberPermissions
      */
-    public MemberPermissions getEffectivePermissions(String guildId, UUID playerId) {
+    public MemberPermissions getEffectivePermissions(UUID guildId, UUID playerId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
@@ -344,7 +349,7 @@ public class GuildRoleService {
      * @param guildId the guild ID
      * @param playerId the new member's UUID
      */
-    public void assignDefaultRole(String guildId, UUID playerId) {
+    public void assignDefaultRole(UUID guildId, UUID playerId) {
         roleRepository.findByGuildAndName(guildId, GuildRole.DEFAULT_ROLE_NAME)
                 .ifPresent(role -> memberRoleRepository.assignRole(guildId, playerId, role.getId()));
     }
@@ -366,7 +371,7 @@ public class GuildRoleService {
      * @param guildId the guild ID
      * @param playerId the member's UUID
      */
-    public void removeAllMemberRoles(String guildId, UUID playerId) {
+    public void removeAllMemberRoles(UUID guildId, UUID playerId) {
         memberRoleRepository.removeAllMemberRoles(guildId, playerId);
     }
 
@@ -375,8 +380,50 @@ public class GuildRoleService {
      *
      * @param guildId the guild ID
      */
-    public void deleteAllGuildRoles(String guildId) {
+    public void deleteAllGuildRoles(UUID guildId) {
         memberRoleRepository.removeAllByGuild(guildId);
         roleRepository.deleteAllByGuild(guildId);
+    }
+
+    // === UUID-based wrapper methods that check permissions ===
+
+    /**
+     * Creates a new role with UUID-based permission check.
+     */
+    public GuildRole createRole(UUID guildId, UUID requesterId, String name, int permissions, int priority) {
+        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES);
+        return createRole(guildId, name, permissions, priority, hasPermission);
+    }
+
+    /**
+     * Deletes a role with UUID-based permission check.
+     */
+    public boolean deleteRole(UUID guildId, UUID requesterId, String roleId) {
+        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES);
+        return deleteRole(guildId, roleId, hasPermission);
+    }
+
+    /**
+     * Updates role permissions with UUID-based permission check.
+     */
+    public boolean updateRolePermissions(UUID guildId, UUID requesterId, String roleId, int permissions) {
+        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES);
+        return updateRolePermissions(guildId, roleId, permissions, hasPermission);
+    }
+
+    /**
+     * Assigns role to a target with UUID-based permission check.
+     */
+    public boolean assignRole(UUID guildId, UUID requesterId, UUID targetId, String roleId) {
+        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES);
+        return assignRole(guildId, targetId, roleId, hasPermission);
+    }
+
+    /**
+     * Unassigns role from a target with UUID-based permission check.
+     */
+    public boolean unassignRole(UUID guildId, UUID requesterId, UUID targetId, String roleId) {
+        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES);
+        return unassignRole(guildId, targetId, roleId, hasPermission);
     }
 }

@@ -40,7 +40,7 @@ public class JdbcGuildRoleRepository implements GuildRoleRepository {
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, role.getId());
-            ps.setString(2, role.getGuildId());
+            ps.setString(2, role.getGuildId().toString());
             ps.setString(3, role.getName());
             ps.setInt(4, role.getPermissions());
             ps.setInt(5, role.getPriority());
@@ -92,14 +92,14 @@ public class JdbcGuildRoleRepository implements GuildRoleRepository {
     }
 
     @Override
-    public List<GuildRole> findByGuildId(String guildId) {
+    public List<GuildRole> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         List<GuildRole> roles = new ArrayList<>();
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT id, guild_id, name, permissions, priority, created_by, created_at FROM guild_roles WHERE guild_id = ? ORDER BY priority DESC")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -113,14 +113,14 @@ public class JdbcGuildRoleRepository implements GuildRoleRepository {
     }
 
     @Override
-    public Optional<GuildRole> findByGuildAndName(String guildId, String name) {
+    public Optional<GuildRole> findByGuildAndName(UUID guildId, String name) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT id, guild_id, name, permissions, priority, created_by, created_at FROM guild_roles WHERE guild_id = ? AND name = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setString(2, name);
             ResultSet rs = ps.executeQuery();
 
@@ -135,12 +135,12 @@ public class JdbcGuildRoleRepository implements GuildRoleRepository {
     }
 
     @Override
-    public void deleteAllByGuild(String guildId) {
+    public void deleteAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guild_roles WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete all guild roles", e);
@@ -162,7 +162,7 @@ public class JdbcGuildRoleRepository implements GuildRoleRepository {
 
         return new GuildRole(
             rs.getString("id"),
-            rs.getString("guild_id"),
+            UUID.fromString(rs.getString("guild_id")),
             rs.getString("name"),
             rs.getInt("permissions"),
             rs.getInt("priority"),

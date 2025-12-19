@@ -284,15 +284,13 @@ skill-tree:
     amount: 1
 
   # Skill definitions organized by branch
-  # Each skill has: name, description, branch, tier, sp-cost, prerequisites, effect
+  # Each skill has: name, description, branch, sp-cost, prerequisites, effect
   skills:
     # ============ ECONOMY BRANCH ============
-    # Tier 1
     eco_xp_boost_1:
       name: "XP Insight I"
       description: "Gain 5% more guild XP from all sources"
       branch: ECONOMY
-      tier: 1
       sp-cost: 1
       prerequisites: []
       effect:
@@ -304,7 +302,6 @@ skill-tree:
       name: "Fortune's Favor I"
       description: "Increase luck bonus by 5%"
       branch: ECONOMY
-      tier: 1
       sp-cost: 1
       prerequisites: []
       effect:
@@ -312,12 +309,10 @@ skill-tree:
         value: 0.05
         display-name: "+5% Luck"
 
-    # Tier 2
     eco_xp_boost_2:
       name: "XP Insight II"
       description: "Gain 10% more guild XP from all sources"
       branch: ECONOMY
-      tier: 2
       sp-cost: 2
       prerequisites:
         - eco_xp_boost_1
@@ -330,7 +325,6 @@ skill-tree:
       name: "Fortune's Favor II"
       description: "Increase luck bonus by 10%"
       branch: ECONOMY
-      tier: 2
       sp-cost: 2
       prerequisites:
         - eco_luck_1
@@ -339,12 +333,10 @@ skill-tree:
         value: 0.10
         display-name: "+10% Luck"
 
-    # Tier 3
     eco_xp_boost_3:
       name: "XP Mastery"
       description: "Gain 15% more guild XP from all sources"
       branch: ECONOMY
-      tier: 3
       sp-cost: 3
       prerequisites:
         - eco_xp_boost_2
@@ -357,7 +349,6 @@ skill-tree:
       name: "Green Thumb I"
       description: "Crops grow 10% faster in territory"
       branch: ECONOMY
-      tier: 3
       sp-cost: 2
       prerequisites:
         - eco_luck_1
@@ -366,12 +357,10 @@ skill-tree:
         value: 0.10
         display-name: "+10% Crop Speed"
 
-    # Tier 4
     eco_xp_boost_4:
       name: "XP Expertise"
       description: "Gain 20% more guild XP from all sources"
       branch: ECONOMY
-      tier: 4
       sp-cost: 4
       prerequisites:
         - eco_xp_boost_3
@@ -384,7 +373,6 @@ skill-tree:
       name: "Green Thumb II"
       description: "Crops grow 20% faster in territory"
       branch: ECONOMY
-      tier: 4
       sp-cost: 3
       prerequisites:
         - eco_crop_1
@@ -393,12 +381,10 @@ skill-tree:
         value: 0.20
         display-name: "+20% Crop Speed"
 
-    # Tier 5
     eco_luck_3:
       name: "Fortune's Blessing"
       description: "Increase luck bonus by 15%"
       branch: ECONOMY
-      tier: 5
       sp-cost: 4
       prerequisites:
         - eco_luck_2
@@ -411,7 +397,6 @@ skill-tree:
       name: "Bountiful Harvest"
       description: "Crops grow 30% faster in territory"
       branch: ECONOMY
-      tier: 5
       sp-cost: 4
       prerequisites:
         - eco_crop_2
@@ -421,12 +406,10 @@ skill-tree:
         display-name: "+30% Crop Speed"
 
     # ============ TERRITORY BRANCH ============
-    # Tier 1
     terr_mob_spawn_1:
       name: "Wildlife Attractor I"
       description: "Increase mob spawn rate by 10% in territory"
       branch: TERRITORY
-      tier: 1
       sp-cost: 1
       prerequisites: []
       effect:
@@ -438,7 +421,6 @@ skill-tree:
       name: "Fortification I"
       description: "Reduce damage taken by 3% in territory"
       branch: TERRITORY
-      tier: 1
       sp-cost: 1
       prerequisites: []
       effect:
@@ -446,12 +428,10 @@ skill-tree:
         value: 0.03
         display-name: "-3% Damage"
 
-    # Tier 2
     terr_mob_spawn_2:
       name: "Wildlife Attractor II"
       description: "Increase mob spawn rate by 20% in territory"
       branch: TERRITORY
-      tier: 2
       sp-cost: 2
       prerequisites:
         - terr_mob_spawn_1
@@ -464,7 +444,6 @@ skill-tree:
       name: "Fortification II"
       description: "Reduce damage taken by 6% in territory"
       branch: TERRITORY
-      tier: 2
       sp-cost: 2
       prerequisites:
         - terr_protection_1
@@ -473,12 +452,10 @@ skill-tree:
         value: 0.06
         display-name: "-6% Damage"
 
-    # Tier 3
     terr_mob_spawn_3:
       name: "Wildlife Sanctuary"
       description: "Increase mob spawn rate by 30% in territory"
       branch: TERRITORY
-      tier: 3
       sp-cost: 3
       prerequisites:
         - terr_mob_spawn_2
@@ -491,7 +468,6 @@ skill-tree:
       name: "Bastion"
       description: "Reduce damage taken by 10% in territory"
       branch: TERRITORY
-      tier: 3
       sp-cost: 3
       prerequisites:
         - terr_protection_2
@@ -500,12 +476,10 @@ skill-tree:
         value: 0.10
         display-name: "-10% Damage"
 
-    # Tier 4
     terr_crop_growth:
       name: "Fertile Grounds"
       description: "Crops grow 25% faster in territory"
       branch: TERRITORY
-      tier: 4
       sp-cost: 3
       prerequisites:
         - terr_mob_spawn_2
@@ -518,7 +492,6 @@ skill-tree:
       name: "Stronghold"
       description: "Reduce damage taken by 15% in territory"
       branch: TERRITORY
-      tier: 4
       sp-cost: 4
       prerequisites:
         - terr_protection_3
@@ -527,12 +500,10 @@ skill-tree:
         value: 0.15
         display-name: "-15% Damage"
 
-    # Tier 5
     terr_mob_spawn_4:
       name: "Beast Haven"
       description: "Increase mob spawn rate by 40% in territory"
       branch: TERRITORY
-      tier: 5
       sp-cost: 5
       prerequisites:
         - terr_mob_spawn_3
@@ -545,7 +516,6 @@ skill-tree:
       name: "Impenetrable"
       description: "Reduce damage taken by 20% in territory"
       branch: TERRITORY
-      tier: 5
       sp-cost: 5
       prerequisites:
         - terr_protection_4
@@ -555,12 +525,10 @@ skill-tree:
         display-name: "-20% Damage"
 
     # ============ COMBAT BRANCH ============
-    # Tier 1
     combat_damage_1:
       name: "Battle Training I"
       description: "Deal 5% more damage in territory"
       branch: COMBAT
-      tier: 1
       sp-cost: 1
       prerequisites: []
       effect:
@@ -572,7 +540,6 @@ skill-tree:
       name: "Warrior's Wisdom I"
       description: "Gain 5% more XP from combat"
       branch: COMBAT
-      tier: 1
       sp-cost: 1
       prerequisites: []
       effect:
@@ -580,12 +547,10 @@ skill-tree:
         value: 0.05
         display-name: "+5% Combat XP"
 
-    # Tier 2
     combat_damage_2:
       name: "Battle Training II"
       description: "Deal 10% more damage in territory"
       branch: COMBAT
-      tier: 2
       sp-cost: 2
       prerequisites:
         - combat_damage_1
@@ -598,7 +563,6 @@ skill-tree:
       name: "Battle Hardened I"
       description: "Take 5% less damage in territory"
       branch: COMBAT
-      tier: 2
       sp-cost: 2
       prerequisites:
         - combat_xp_1
@@ -607,12 +571,10 @@ skill-tree:
         value: 0.05
         display-name: "-5% Damage Taken"
 
-    # Tier 3
     combat_damage_3:
       name: "Battle Mastery"
       description: "Deal 15% more damage in territory"
       branch: COMBAT
-      tier: 3
       sp-cost: 3
       prerequisites:
         - combat_damage_2
@@ -625,7 +587,6 @@ skill-tree:
       name: "Battle Hardened II"
       description: "Take 10% less damage in territory"
       branch: COMBAT
-      tier: 3
       sp-cost: 3
       prerequisites:
         - combat_protection_1
@@ -634,12 +595,10 @@ skill-tree:
         value: 0.10
         display-name: "-10% Damage Taken"
 
-    # Tier 4
     combat_damage_4:
       name: "Warlord's Might"
       description: "Deal 20% more damage in territory"
       branch: COMBAT
-      tier: 4
       sp-cost: 4
       prerequisites:
         - combat_damage_3
@@ -652,7 +611,6 @@ skill-tree:
       name: "Warrior's Wisdom II"
       description: "Gain 10% more XP from combat"
       branch: COMBAT
-      tier: 4
       sp-cost: 3
       prerequisites:
         - combat_xp_1
@@ -662,12 +620,10 @@ skill-tree:
         value: 0.10
         display-name: "+10% Combat XP"
 
-    # Tier 5
     combat_damage_5:
       name: "Overwhelming Force"
       description: "Deal 25% more damage in territory"
       branch: COMBAT
-      tier: 5
       sp-cost: 5
       prerequisites:
         - combat_damage_4
@@ -680,7 +636,6 @@ skill-tree:
       name: "Unstoppable"
       description: "Take 15% less damage in territory"
       branch: COMBAT
-      tier: 5
       sp-cost: 5
       prerequisites:
         - combat_protection_2

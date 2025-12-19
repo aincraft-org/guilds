@@ -19,7 +19,7 @@ public class InMemoryChunkClaimRepository implements ChunkClaimRepository {
     private final Map<ChunkKey, ChunkClaimData> claims = new ConcurrentHashMap<>();
 
     @Override
-    public boolean claim(ChunkKey chunk, String guildId, UUID claimedBy) {
+    public boolean claim(ChunkKey chunk, UUID guildId, UUID claimedBy) {
         Objects.requireNonNull(chunk, "Chunk cannot be null");
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(claimedBy, "Claimer ID cannot be null");
@@ -33,7 +33,7 @@ public class InMemoryChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public boolean unclaim(ChunkKey chunk, String guildId) {
+    public boolean unclaim(ChunkKey chunk, UUID guildId) {
         ChunkClaimData data = claims.get(chunk);
         if (data == null || !data.guildId().equals(guildId)) {
             return false;
@@ -43,7 +43,7 @@ public class InMemoryChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public void unclaimAll(String guildId) {
+    public void unclaimAll(UUID guildId) {
         claims.entrySet().removeIf(entry -> entry.getValue().guildId().equals(guildId));
     }
 
@@ -54,7 +54,7 @@ public class InMemoryChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public List<ChunkKey> getGuildChunks(String guildId) {
+    public List<ChunkKey> getGuildChunks(UUID guildId) {
         return claims.entrySet().stream()
                 .filter(entry -> entry.getValue().guildId().equals(guildId))
                 .map(Map.Entry::getKey)
@@ -62,7 +62,7 @@ public class InMemoryChunkClaimRepository implements ChunkClaimRepository {
     }
 
     @Override
-    public int getChunkCount(String guildId) {
+    public int getChunkCount(UUID guildId) {
         return (int) claims.values().stream()
                 .filter(data -> data.guildId().equals(guildId))
                 .count();

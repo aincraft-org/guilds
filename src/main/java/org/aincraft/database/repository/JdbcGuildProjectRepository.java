@@ -8,11 +8,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 import org.aincraft.database.ConnectionProvider;
 import org.aincraft.database.DatabaseType;
 import org.aincraft.project.GuildProject;
@@ -45,7 +51,7 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
             conn.setAutoCommit(false);
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, project.getId());
-                ps.setString(2, project.getGuildId());
+                ps.setObject(2, project.getGuildId());
                 ps.setString(3, project.getProjectDefinitionId());
                 ps.setString(4, project.getStatus().name());
                 ps.setLong(5, project.getStartedAt());
@@ -159,14 +165,14 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public Optional<GuildProject> findActiveByGuildId(String guildId) {
+    public Optional<GuildProject> findActiveByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM guild_projects WHERE guild_id = ? AND status = 'IN_PROGRESS' LIMIT 1";
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -180,7 +186,7 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public List<GuildProject> findByGuildId(String guildId) {
+    public List<GuildProject> findByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = "SELECT * FROM guild_projects WHERE guild_id = ? ORDER BY started_at DESC";
@@ -188,7 +194,7 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -215,12 +221,12 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public void deleteByGuildId(String guildId) {
+    public void deleteByGuildId(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("DELETE FROM guild_projects WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete projects by guild", e);
@@ -326,12 +332,12 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public int getPoolSeed(String guildId) {
+    public int getPoolSeed(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT seed FROM guild_project_pool_seed WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -345,7 +351,7 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public void incrementPoolSeed(String guildId) {
+    public void incrementPoolSeed(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String sql = getIncrementPoolSeedSql();
@@ -353,7 +359,7 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ps.setLong(2, currentTime);
             if (dbType == DatabaseType.H2) {
                 ps.setLong(3, currentTime);
@@ -365,12 +371,12 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
     }
 
     @Override
-    public Long getLastRefreshTime(String guildId) {
+    public Long getLastRefreshTime(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         try (Connection conn = connectionProvider.getConnection();
              PreparedStatement ps = conn.prepareStatement("SELECT last_refresh_time FROM guild_project_pool_seed WHERE guild_id = ?")) {
-            ps.setString(1, guildId);
+            ps.setString(1, guildId.toString());
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
@@ -413,7 +419,7 @@ public class JdbcGuildProjectRepository implements GuildProjectRepository {
 
     private GuildProject mapRowToProject(Connection conn, ResultSet rs) throws SQLException {
         String id = rs.getString("id");
-        String guildId = rs.getString("guild_id");
+        UUID guildId = UUID.fromString(rs.getString("guild_id"));
         String projectDefinitionId = rs.getString("project_definition_id");
         ProjectStatus status = ProjectStatus.valueOf(rs.getString("status"));
         long startedAt = rs.getLong("started_at");

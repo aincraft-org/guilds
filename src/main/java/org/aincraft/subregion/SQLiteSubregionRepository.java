@@ -94,8 +94,8 @@ public class SQLiteSubregionRepository implements SubregionRepository {
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(upsertSQL)) {
-            pstmt.setString(1, region.getId());
-            pstmt.setString(2, region.getGuildId());
+            pstmt.setString(1, region.getId().toString());
+            pstmt.setObject(2, region.getGuildId());
             pstmt.setString(3, region.getName());
             pstmt.setString(4, region.getWorld());
             pstmt.setInt(5, region.getMinX());
@@ -116,14 +116,14 @@ public class SQLiteSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public void delete(String regionId) {
+    public void delete(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String deleteSQL = "DELETE FROM subregions WHERE id = ?";
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete subregion", e);
@@ -131,14 +131,14 @@ public class SQLiteSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public void deleteAllByGuild(String guildId) {
+    public void deleteAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String deleteSQL = "DELETE FROM subregions WHERE guild_id = ?";
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(deleteSQL)) {
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             pstmt.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete guild subregions", e);
@@ -146,14 +146,14 @@ public class SQLiteSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public Optional<Subregion> findById(String regionId) {
+    public Optional<Subregion> findById(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
 
         String selectSQL = "SELECT * FROM subregions WHERE id = ?";
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
-            pstmt.setString(1, regionId);
+            pstmt.setString(1, regionId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -167,7 +167,7 @@ public class SQLiteSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public Optional<Subregion> findByGuildAndName(String guildId, String name) {
+    public Optional<Subregion> findByGuildAndName(UUID guildId, String name) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(name, "Name cannot be null");
 
@@ -175,7 +175,7 @@ public class SQLiteSubregionRepository implements SubregionRepository {
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             pstmt.setString(2, name);
             ResultSet rs = pstmt.executeQuery();
 
@@ -190,7 +190,7 @@ public class SQLiteSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public List<Subregion> findByGuild(String guildId) {
+    public List<Subregion> findByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String selectSQL = "SELECT * FROM subregions WHERE guild_id = ?";
@@ -198,7 +198,7 @@ public class SQLiteSubregionRepository implements SubregionRepository {
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             while (rs.next()) {
@@ -300,14 +300,14 @@ public class SQLiteSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public int getCountByGuild(String guildId) {
+    public int getCountByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String selectSQL = "SELECT COUNT(*) FROM subregions WHERE guild_id = ?";
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             ResultSet rs = pstmt.executeQuery();
 
             if (rs.next()) {
@@ -321,7 +321,7 @@ public class SQLiteSubregionRepository implements SubregionRepository {
     }
 
     @Override
-    public long getTotalVolumeByGuildAndType(String guildId, String typeId) {
+    public long getTotalVolumeByGuildAndType(UUID guildId, String typeId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         String selectSQL = """
@@ -332,7 +332,7 @@ public class SQLiteSubregionRepository implements SubregionRepository {
 
         try (Connection conn = DriverManager.getConnection(connectionString);
              PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
-            pstmt.setString(1, guildId);
+            pstmt.setString(1, guildId.toString());
             pstmt.setString(2, typeId);
             ResultSet rs = pstmt.executeQuery();
 
@@ -348,8 +348,8 @@ public class SQLiteSubregionRepository implements SubregionRepository {
 
     private Subregion mapResultSet(ResultSet rs) throws SQLException {
         return new Subregion(
-                rs.getString("id"),
-                rs.getString("guild_id"),
+                UUID.fromString(rs.getString("id")),
+                UUID.fromString(rs.getString("guild_id")),
                 rs.getString("name"),
                 rs.getString("world"),
                 rs.getInt("min_x"),

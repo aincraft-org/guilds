@@ -1,11 +1,17 @@
 package org.aincraft.storage;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.UUID;
 import org.aincraft.GuildRelationship;
 import org.aincraft.RelationStatus;
 import org.aincraft.RelationType;
@@ -35,7 +41,7 @@ public class InMemoryGuildRelationshipRepository implements GuildRelationshipRep
     }
 
     @Override
-    public Optional<GuildRelationship> findRelationship(String guildId1, String guildId2) {
+    public Optional<GuildRelationship> findRelationship(UUID guildId1, UUID guildId2) {
         Objects.requireNonNull(guildId1, "Guild ID 1 cannot be null");
         Objects.requireNonNull(guildId2, "Guild ID 2 cannot be null");
 
@@ -47,7 +53,7 @@ public class InMemoryGuildRelationshipRepository implements GuildRelationshipRep
     }
 
     @Override
-    public List<GuildRelationship> findAllByGuild(String guildId) {
+    public List<GuildRelationship> findAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         return relationshipsById.values().stream()
@@ -56,7 +62,7 @@ public class InMemoryGuildRelationshipRepository implements GuildRelationshipRep
     }
 
     @Override
-    public List<GuildRelationship> findByType(String guildId, RelationType type, RelationStatus status) {
+    public List<GuildRelationship> findByType(UUID guildId, RelationType type, RelationStatus status) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(type, "Relation type cannot be null");
         Objects.requireNonNull(status, "Status cannot be null");
@@ -69,7 +75,7 @@ public class InMemoryGuildRelationshipRepository implements GuildRelationshipRep
     }
 
     @Override
-    public void deleteAllByGuild(String guildId) {
+    public void deleteAllByGuild(UUID guildId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
 
         relationshipsById.entrySet().removeIf(entry -> entry.getValue().involves(guildId));
