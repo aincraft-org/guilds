@@ -5,6 +5,9 @@ import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildMemberService;
+import org.aincraft.skilltree.SkillTreeRegistry;
+import org.aincraft.skilltree.SkillTreeService;
+import org.aincraft.skilltree.gui.SkillTreeGUI;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -12,17 +15,24 @@ import java.util.Objects;
 
 /**
  * Command component for /g skills.
- * Opens the skill tree GUI.
+ * Opens the skill tree GUI for the player's guild.
+ * Single Responsibility: Skill command routing to GUI.
  */
 public class SkillsComponent implements GuildCommand {
 
     private final GuildMemberService memberService;
+    private final SkillTreeService skillTreeService;
+    private final SkillTreeRegistry skillTreeRegistry;
 
     @Inject
     public SkillsComponent(
-            GuildMemberService memberService
+            GuildMemberService memberService,
+            SkillTreeService skillTreeService,
+            SkillTreeRegistry skillTreeRegistry
     ) {
-        this.memberService = Objects.requireNonNull(memberService);
+        this.memberService = Objects.requireNonNull(memberService, "GuildMemberService cannot be null");
+        this.skillTreeService = Objects.requireNonNull(skillTreeService, "SkillTreeService cannot be null");
+        this.skillTreeRegistry = Objects.requireNonNull(skillTreeRegistry, "SkillTreeRegistry cannot be null");
     }
 
     @Override
@@ -37,6 +47,10 @@ public class SkillsComponent implements GuildCommand {
             player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
             return true;
         }
+
+        // Open skill tree GUI
+        SkillTreeGUI gui = new SkillTreeGUI(guild.getId(), player, skillTreeService, skillTreeRegistry);
+        gui.open();
         return true;
     }
 
