@@ -42,6 +42,7 @@ import org.aincraft.commands.components.MapComponent;
 import org.aincraft.commands.components.MemberComponent;
 import org.aincraft.commands.components.NameComponent;
 import org.aincraft.commands.components.NeutralComponent;
+import org.aincraft.commands.components.OwnerComponent;
 import org.aincraft.commands.components.region.RegionComponent;
 import org.aincraft.commands.components.RoleComponent;
 import org.aincraft.commands.components.SetspawnComponent;
@@ -125,6 +126,7 @@ public class GuildsPlugin extends JavaPlugin {
     private InvitesComponent invitesComponent;
     private RoleComponent roleComponent;
     private MemberComponent memberComponent;
+    private OwnerComponent ownerComponent;
     private RegionComponent regionComponent;
     private VaultComponent vaultComponent;
     private LogComponent logComponent;
@@ -232,6 +234,7 @@ public class GuildsPlugin extends JavaPlugin {
         invitesComponent = injector.getInstance(InvitesComponent.class);
         roleComponent = injector.getInstance(RoleComponent.class);
         memberComponent = injector.getInstance(MemberComponent.class);
+        ownerComponent = injector.getInstance(OwnerComponent.class);
         regionComponent = injector.getInstance(RegionComponent.class);
 
         VaultService vaultService = injector.getInstance(VaultService.class);
@@ -696,6 +699,11 @@ public class GuildsPlugin extends JavaPlugin {
                             memberComponent.execute(context.getSource().getSender(), new String[]{"member", playerName});
                             return 1;
                         })))
+                .then(Commands.literal("owner")
+                    .executes(context -> {
+                        ownerComponent.execute(context.getSource().getSender(), new String[]{"owner"});
+                        return 1;
+                    }))
                 .then(Commands.literal("map")
                     .executes(context -> {
                         mapComponent.execute(context.getSource().getSender(), new String[]{"map", "1"});
