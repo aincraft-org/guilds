@@ -11,6 +11,7 @@ import org.aincraft.claim.ChunkClaimLog;
 import org.aincraft.claim.ChunkClaimLogRepository;
 import org.aincraft.config.GuildsConfig;
 import org.aincraft.project.storage.GuildProjectPoolRepository;
+import org.aincraft.role.CompositeGuildRoleRepository;
 import org.aincraft.storage.ChunkClaimRepository;
 import org.aincraft.storage.GuildMemberRepository;
 import org.aincraft.storage.GuildRelationshipRepository;
@@ -346,7 +347,7 @@ public class GuildService {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         int permissions = 0;
         for (String roleId : roleIds) {
-            Optional<GuildRole> role = roleRepository.findById(roleId);
+            Optional<GuildRole> role = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
             if (role.isPresent()) {
                 permissions |= role.get().getPermissions();
             }
@@ -366,7 +367,7 @@ public class GuildService {
         GuildRole highestRole = null;
 
         for (String roleId : roleIds) {
-            Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+            Optional<GuildRole> roleOpt = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
             if (roleOpt.isPresent()) {
                 GuildRole role = roleOpt.get();
                 if (highestRole == null || role.getPriority() > highestRole.getPriority()) {
@@ -656,7 +657,7 @@ public class GuildService {
 
     /**
      * Unclaims all chunks owned by a guild.
-     * Requires the player to have UNCLAIM permission.
+     * Requires the player to have UNCLAIM_ALL permission.
      *
      * @param guildId the guild ID
      * @param playerId the player unclaiming all chunks
@@ -666,7 +667,7 @@ public class GuildService {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(playerId, "Player ID cannot be null");
 
-        if (!hasPermission(guildId, playerId, GuildPermission.UNCLAIM)) {
+        if (!hasPermission(guildId, playerId, GuildPermission.UNCLAIM_ALL)) {
             return false;
         }
 
@@ -977,6 +978,40 @@ public class GuildService {
     }
 
     /**
+     * Copies permissions and priority from a source role to a new role.
+     * Requires MANAGE_ROLES permission.
+     *
+     * @param guildId the guild ID
+     * @param requesterId the player copying the role
+     * @param sourceName the name of the role to copy from
+     * @param newName the name for the new role
+     * @return the created role, or null if failed
+     */
+    public GuildRole copyRole(UUID guildId, UUID requesterId, String sourceName, String newName) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(requesterId, "Requester ID cannot be null");
+        Objects.requireNonNull(sourceName, "Source role name cannot be null");
+        Objects.requireNonNull(newName, "New role name cannot be null");
+
+        if (!hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES)) {
+            return null;
+        }
+
+        GuildRole sourceRole = roleRepository.findByGuildAndName(guildId, sourceName).orElse(null);
+        if (sourceRole == null) {
+            return null;
+        }
+
+        if (roleRepository.findByGuildAndName(guildId, newName).isPresent()) {
+            return null;
+        }
+
+        GuildRole newRole = new GuildRole(guildId, newName, sourceRole.getPermissions(), sourceRole.getPriority(), requesterId);
+        roleRepository.save(newRole);
+        return newRole;
+    }
+
+    /**
      * Gets all roles assigned to a member.
      *
      * @param guildId the guild ID
@@ -1225,6 +1260,21 @@ public class GuildService {
             }
         }
         return false;
+    }
+
+    /**
+     * Validates buffer distance requirements for a chunk.
+     * Public method for pre-validation before guild creation or chunk claiming.
+     * Uses Manhattan distance: |dx| + |dz|.
+     *
+     * @param chunk the chunk to validate
+     * @param excludedGuildId the guild ID to exclude from distance check (pass random UUID for new guilds)
+     * @return ClaimResult.success() if valid, or ClaimResult.tooCloseToGuild() if too close
+     */
+    public ClaimResult validateBufferDistance(ChunkKey chunk, UUID excludedGuildId) {
+        Objects.requireNonNull(chunk, "Chunk cannot be null");
+        Objects.requireNonNull(excludedGuildId, "Excluded guild ID cannot be null");
+        return checkBufferDistance(chunk, excludedGuildId);
     }
 
     /**

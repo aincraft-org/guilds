@@ -9,6 +9,7 @@ import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
 import org.aincraft.MemberPermissions;
+import org.aincraft.role.CompositeGuildRoleRepository;
 import org.aincraft.storage.GuildMemberRepository;
 import org.aincraft.storage.GuildRepository;
 import org.aincraft.storage.GuildRoleRepository;
@@ -186,7 +187,7 @@ public class GuildPermissionService {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         int permissions = 0;
         for (String roleId : roleIds) {
-            Optional<GuildRole> role = roleRepository.findById(roleId);
+            Optional<GuildRole> role = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
             if (role.isPresent()) {
                 permissions |= role.get().getPermissions();
             }
@@ -202,7 +203,7 @@ public class GuildPermissionService {
         GuildRole highestRole = null;
 
         for (String roleId : roleIds) {
-            Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+            Optional<GuildRole> roleOpt = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
             if (roleOpt.isPresent()) {
                 GuildRole role = roleOpt.get();
                 if (highestRole == null || role.getPriority() > highestRole.getPriority()) {
