@@ -375,7 +375,7 @@ public class RoleCreationGUI {
                         // Update existing role - update permissions and priority
                         if (roleService.updateRolePermissions(guild.getId(), existingRole.getId(), selectedPermissions, hasManageRoles)) {
                             // Reload the role to get updated permissions
-                            GuildRole updated = roleService.getRoleById(existingRole.getId());
+                            GuildRole updated = roleService.getRoleByIdAndGuild(existingRole.getId(), guild.getId()).orElse(null);
                             if (updated != null) {
                                 updated.setPriority(priority);
                                 roleService.saveRole(updated);
@@ -419,6 +419,7 @@ public class RoleCreationGUI {
             case INTERACT -> Material.OAK_DOOR;
             case CLAIM -> Material.GOLD_BLOCK;
             case UNCLAIM -> Material.COBBLESTONE;
+            case UNCLAIM_ALL -> Material.NETHERITE_BLOCK;
             case INVITE -> Material.NAME_TAG;
             case KICK -> Material.REDSTONE;
             case MANAGE_ROLES -> Material.WRITABLE_BOOK;
@@ -447,6 +448,7 @@ public class RoleCreationGUI {
             case INTERACT -> "Use doors, buttons, chests";
             case CLAIM -> "Claim chunks for guild";
             case UNCLAIM -> "Unclaim guild chunks";
+            case UNCLAIM_ALL -> "Unclaim all guild chunks";
             case INVITE -> "Invite players to guild";
             case KICK -> "Remove members from guild";
             case MANAGE_ROLES -> "Edit existing roles";

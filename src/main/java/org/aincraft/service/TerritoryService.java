@@ -63,13 +63,14 @@ public class TerritoryService {
      * Unclaims all chunks for a guild.
      *
      * @param guildId the guild ID
+     * @param playerId the player performing the unclaim
+     * @return true if unclaimed successfully, false if no UNCLAIM_ALL permission
      */
-    public void unclaimAll(UUID guildId) {
-        // Use the guild owner to unclaim all
-        Guild guild = guildService.getGuildById(guildId);
-        if (guild != null) {
-            guildService.unclaimAllChunks(guildId, guild.getOwnerId());
-        }
+    public boolean unclaimAll(UUID guildId, UUID playerId) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(playerId, "Player ID cannot be null");
+
+        return guildService.unclaimAllChunks(guildId, playerId);
     }
 
     /**
@@ -101,5 +102,18 @@ public class TerritoryService {
      */
     public List<ChunkClaimLog> getGuildClaimLogs(UUID guildId, int limit) {
         return guildService.getGuildClaimLogs(guildId, limit);
+    }
+
+    /**
+     * Validates that a chunk meets the buffer distance requirements from other guilds.
+     * Does NOT check if the chunk is already claimed or other possession checks.
+     * Used for pre-validation before guild creation.
+     *
+     * @param chunk the chunk to validate
+     * @param guildId the guild ID (used to exclude from buffer check)
+     * @return ClaimResult.success() if buffer distance is valid, or ClaimResult.tooCloseToGuild() if not
+     */
+    public ClaimResult validateBufferDistance(ChunkKey chunk, UUID guildId) {
+        return guildService.validateBufferDistance(chunk, guildId);
     }
 }

@@ -4,9 +4,11 @@ import com.google.inject.Inject;
 import java.util.List;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
+import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildMemberService;
+import org.aincraft.service.PermissionService;
 import org.aincraft.service.TerritoryService;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
@@ -21,12 +23,14 @@ public class UnclaimComponent implements GuildCommand {
     private final GuildMemberService memberService;
     private final TerritoryService territoryService;
     private final SubregionService subregionService;
+    private final PermissionService permissionService;
 
     @Inject
-    public UnclaimComponent(GuildMemberService memberService, TerritoryService territoryService, SubregionService subregionService) {
+    public UnclaimComponent(GuildMemberService memberService, TerritoryService territoryService, SubregionService subregionService, PermissionService permissionService) {
         this.memberService = memberService;
         this.territoryService = territoryService;
         this.subregionService = subregionService;
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -64,6 +68,12 @@ public class UnclaimComponent implements GuildCommand {
 
         // Check if "all" argument is provided
         if (args.length > 1 && "all".equalsIgnoreCase(args[1])) {
+            // Check UNCLAIM_ALL permission BEFORE subregion check
+            if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.UNCLAIM_ALL)) {
+                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to unclaim all chunks"));
+                return true;
+            }
+
             // Check for any subregions before unclaiming all
             List<Subregion> allSubregions = subregionService.getGuildSubregions(guild.getId());
             if (!allSubregions.isEmpty()) {
@@ -78,7 +88,10 @@ public class UnclaimComponent implements GuildCommand {
                 return true;
             }
 
-            territoryService.unclaimAll(guild.getId());
+            if (!territoryService.unclaimAll(guild.getId(), player.getUniqueId())) {
+                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to unclaim all chunks"));
+                return true;
+            }
             player.sendMessage(MessageFormatter.deserialize("<green>Unclaimed all chunks for <gold>" + guild.getName() + "</gold></green>"));
         } else {
             // Unclaim single chunk at player's location

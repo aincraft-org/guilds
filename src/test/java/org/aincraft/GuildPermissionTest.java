@@ -68,5 +68,6 @@ class GuildPermissionTest {
         assertThat(GuildPermission.KICK.getBit()).isEqualTo(64);
         assertThat(GuildPermission.MANAGE_ROLES.getBit()).isEqualTo(128);
         assertThat(GuildPermission.MANAGE_REGIONS.getBit()).isEqualTo(256);
+        assertThat(GuildPermission.UNCLAIM_ALL.getBit()).isEqualTo(8388608);
     }
 }

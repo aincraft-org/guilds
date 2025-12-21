@@ -6,6 +6,7 @@ import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
+import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -95,6 +96,13 @@ public class KickComponent implements GuildCommand {
 
         if (memberService.kickMember(guild.getId(), player.getUniqueId(), target.getUniqueId())) {
             player.sendMessage(MessageFormatter.deserialize("<green>✓ <gold>" + target.getName() + "</gold> was kicked from the guild</green>"));
+
+            // Notify the kicked player if they are online
+            Player onlineTarget = Bukkit.getPlayer(target.getUniqueId());
+            if (onlineTarget != null) {
+                onlineTarget.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You were kicked from " + guild.getName()));
+            }
+
             return true;
         }
 

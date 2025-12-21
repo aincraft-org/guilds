@@ -82,7 +82,7 @@ public class DisbandComponent implements GuildCommand {
         }
 
         if (lifecycleService.deleteGuild(guild.getId(), player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.deserialize("<green>✓ Guild '<gold>" + guild.getName() + "</gold>' disbanded</green>"));
+            // Success - notification to all members (including owner) is handled by notifyMembersOfDisband()
             return true;
         }
 

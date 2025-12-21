@@ -136,21 +136,33 @@ public class ClaimEntryNotifier implements Listener {
     }
 
     /**
-     * Converts a guild color (hex format) to a TextColor for display.
-     * Falls back to GOLD if no color is set.
+     * Converts a guild color (hex or named color) to a TextColor for display.
+     * Falls back to GOLD if no color is set or invalid.
      *
-     * @param hexColor the hex color (#RRGGBB) or null
+     * @param color the color string (hex #RRGGBB or named color like "red", "blue")
      * @return a TextColor to use for display
      */
-    private TextColor getGuildColor(String hexColor) {
-        if (hexColor != null && hexColor.startsWith("#") && hexColor.length() == 7) {
+    private TextColor getGuildColor(String color) {
+        if (color == null) {
+            return NamedTextColor.GOLD;
+        }
+
+        // Check if hex format
+        if (color.startsWith("#") && color.length() == 7) {
             try {
-                return TextColor.fromHexString(hexColor);
+                return TextColor.fromHexString(color);
             } catch (IllegalArgumentException e) {
-                // Fall through to default
+                // Fall through to named color check
             }
         }
-        // Default to GOLD if no color set
+
+        // Check if named color
+        TextColor namedColor = NamedTextColor.NAMES.value(color.toLowerCase());
+        if (namedColor != null) {
+            return namedColor;
+        }
+
+        // Default to GOLD if invalid
         return NamedTextColor.GOLD;
     }
 }

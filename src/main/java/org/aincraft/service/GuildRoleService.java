@@ -92,7 +92,7 @@ public class GuildRoleService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = findRoleByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -119,7 +119,7 @@ public class GuildRoleService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = findRoleByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -158,7 +158,7 @@ public class GuildRoleService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = findRoleByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -199,13 +199,49 @@ public class GuildRoleService {
 
     /**
      * Gets a role by ID.
+     * Warning: This method does NOT support default roles (guild context is not available).
+     * Consider using findRoleByIdAndGuild(roleId, guildId) or a guild-specific lookup instead.
      *
      * @param roleId the role ID
      * @return the role, or null if not found
+     * @deprecated This method doesn't have guild context needed for default roles.
+     *             Use a guild-aware lookup method or provide guildId.
      */
+    @Deprecated(since = "1.0", forRemoval = true)
     public GuildRole getRoleById(String roleId) {
         Objects.requireNonNull(roleId, "Role ID cannot be null");
         return roleRepository.findById(roleId).orElse(null);
+    }
+
+    /**
+     * Finds a role by ID and guild ID (supports default roles with guild context).
+     * This method should be used when dealing with roles that might be default roles.
+     *
+     * @param roleId the role ID
+     * @param guildId the guild ID context
+     * @return the role, or empty if not found
+     */
+    public Optional<GuildRole> getRoleByIdAndGuild(String roleId, UUID guildId) {
+        Objects.requireNonNull(roleId, "Role ID cannot be null");
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+
+        // CompositeGuildRoleRepository requires guild context for default roles
+        if (roleRepository instanceof org.aincraft.role.CompositeGuildRoleRepository) {
+            return ((org.aincraft.role.CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
+        }
+        return roleRepository.findById(roleId);
+    }
+
+    /**
+     * Finds a role by ID and guild ID (supports default roles with guild context).
+     * Internal method - use getRoleByIdAndGuild() instead.
+     *
+     * @param roleId the role ID
+     * @param guildId the guild ID context
+     * @return the role, or empty if not found
+     */
+    private Optional<GuildRole> findRoleByIdAndGuild(String roleId, UUID guildId) {
+        return getRoleByIdAndGuild(roleId, guildId);
     }
 
     /**
@@ -231,7 +267,7 @@ public class GuildRoleService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = findRoleByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -276,7 +312,7 @@ public class GuildRoleService {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         List<GuildRole> roles = new ArrayList<>();
         for (String roleId : roleIds) {
-            roleRepository.findById(roleId).ifPresent(roles::add);
+            findRoleByIdAndGuild(roleId, guildId).ifPresent(roles::add);
         }
         return roles;
     }
@@ -293,7 +329,7 @@ public class GuildRoleService {
         GuildRole highestRole = null;
 
         for (String roleId : roleIds) {
-            Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+            Optional<GuildRole> roleOpt = findRoleByIdAndGuild(roleId, guildId);
             if (roleOpt.isPresent()) {
                 GuildRole role = roleOpt.get();
                 if (highestRole == null || role.getPriority() > highestRole.getPriority()) {
@@ -316,7 +352,7 @@ public class GuildRoleService {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         int permissions = 0;
         for (String roleId : roleIds) {
-            Optional<GuildRole> role = roleRepository.findById(roleId);
+            Optional<GuildRole> role = findRoleByIdAndGuild(roleId, guildId);
             if (role.isPresent()) {
                 permissions |= role.get().getPermissions();
             }
@@ -425,5 +461,44 @@ public class GuildRoleService {
     public boolean unassignRole(UUID guildId, UUID requesterId, UUID targetId, String roleId) {
         boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES);
         return unassignRole(guildId, targetId, roleId, hasPermission);
+    }
+
+    /**
+     * Copies permissions and priority from a source role to a new role.
+     * Requires MANAGE_ROLES permission.
+     *
+     * @param guildId the guild ID
+     * @param requesterId the player copying the role
+     * @param sourceName the name of the role to copy from
+     * @param newName the name for the new role
+     * @return the created role, or null if failed
+     */
+    public GuildRole copyRole(UUID guildId, UUID requesterId, String sourceName, String newName) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(requesterId, "Requester ID cannot be null");
+        Objects.requireNonNull(sourceName, "Source role name cannot be null");
+        Objects.requireNonNull(newName, "New role name cannot be null");
+
+        // Check MANAGE_ROLES permission
+        boolean hasPermission = guildService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_ROLES);
+        if (!hasPermission) {
+            return null;
+        }
+
+        // Find source role by name
+        GuildRole sourceRole = getRoleByName(guildId, sourceName);
+        if (sourceRole == null) {
+            return null;
+        }
+
+        // Check if target name already exists
+        if (roleRepository.findByGuildAndName(guildId, newName).isPresent()) {
+            return null;
+        }
+
+        // Create new role with same permissions and priority as source
+        GuildRole newRole = new GuildRole(guildId, newName, sourceRole.getPermissions(), sourceRole.getPriority(), requesterId);
+        roleRepository.save(newRole);
+        return newRole;
     }
 }

@@ -621,6 +621,16 @@ public class GuildsPlugin extends JavaPlugin {
                                         roleComponent.execute(context.getSource().getSender(), new String[]{"role", "create", name, perms, String.valueOf(priority)});
                                         return 1;
                                     })))))
+                    .then(Commands.literal("copy")
+                        .then(Commands.argument("source", StringArgumentType.word())
+                            .suggests(this::suggestRoleNames)
+                            .then(Commands.argument("newName", StringArgumentType.word())
+                                .executes(context -> {
+                                    String source = StringArgumentType.getString(context, "source");
+                                    String newName = StringArgumentType.getString(context, "newName");
+                                    roleComponent.execute(context.getSource().getSender(), new String[]{"role", "copy", source, newName});
+                                    return 1;
+                                }))))
                     .then(Commands.literal("delete")
                         .then(Commands.argument("name", StringArgumentType.word())
                             .suggests(this::suggestRoleNames)

@@ -434,7 +434,11 @@ public class GuildProtectionListener implements Listener {
     private boolean isProtectedInteraction(Block block) {
         return switch (block.getType()) {
             // Containers
-            case CHEST, TRAPPED_CHEST, BARREL, SHULKER_BOX,
+            case CHEST, TRAPPED_CHEST,
+                 // Copper chests
+                 COPPER_CHEST, EXPOSED_COPPER_CHEST, WEATHERED_COPPER_CHEST, OXIDIZED_COPPER_CHEST,
+                 WAXED_COPPER_CHEST, WAXED_EXPOSED_COPPER_CHEST, WAXED_WEATHERED_COPPER_CHEST, WAXED_OXIDIZED_COPPER_CHEST,
+                 BARREL, SHULKER_BOX,
                  WHITE_SHULKER_BOX, ORANGE_SHULKER_BOX, MAGENTA_SHULKER_BOX,
                  LIGHT_BLUE_SHULKER_BOX, YELLOW_SHULKER_BOX, LIME_SHULKER_BOX,
                  PINK_SHULKER_BOX, GRAY_SHULKER_BOX, LIGHT_GRAY_SHULKER_BOX,

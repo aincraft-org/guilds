@@ -137,7 +137,7 @@ public class MemberComponent implements GuildCommand {
         } else {
             sender.sendMessage(MessageFormatter.deserialize("<yellow>Roles:"));
             for (String roleId : roleIds) {
-                GuildRole role = roleService.getRoleById(roleId);
+                GuildRole role = roleService.getRoleByIdAndGuild(roleId, guild.getId()).orElse(null);
                 if (role != null) {
                     String priorityBadge = role.getPriority() > 0 ? "<dark_gray>[<gold>" + role.getPriority() + "</gold>]</dark_gray> " : "";
                     sender.sendMessage(MessageFormatter.deserialize(priorityBadge + "  <gray>• <yellow>" + role.getName()));
@@ -148,7 +148,7 @@ public class MemberComponent implements GuildCommand {
         // Show effective permissions (from highest priority role)
         int effectivePermissions = 0;
         for (String roleId : roleIds) {
-            GuildRole role = roleService.getRoleById(roleId);
+            GuildRole role = roleService.getRoleByIdAndGuild(roleId, guild.getId()).orElse(null);
             if (role != null) {
                 effectivePermissions |= role.getPermissions();
             }

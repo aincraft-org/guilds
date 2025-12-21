@@ -621,7 +621,7 @@ public class GuildService {
 
     /**
      * Unclaims a chunk from a guild.
-     * Requires the player to have UNCLAIM permission.
+     * Requires the player to have UNCLAIM_ALL permission.
      *
      * @param guildId the guild ID
      * @param playerId the player unclaiming the chunk
@@ -633,7 +633,7 @@ public class GuildService {
         Objects.requireNonNull(playerId, "Player ID cannot be null");
         Objects.requireNonNull(chunk, "Chunk cannot be null");
 
-        if (!hasPermission(guildId, playerId, GuildPermission.UNCLAIM)) {
+        if (!hasPermission(guildId, playerId, GuildPermission.UNCLAIM_ALL)) {
             return false;
         }
 
@@ -795,7 +795,7 @@ public class GuildService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -824,7 +824,7 @@ public class GuildService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -866,7 +866,7 @@ public class GuildService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -908,10 +908,14 @@ public class GuildService {
 
     /**
      * Gets a role by ID.
+     * Warning: This method requires guildId to properly support default roles.
+     * Consider using the GuildRoleService.getRoleByIdAndGuild() method instead.
      *
      * @param roleId the role ID
      * @return the role, or null if not found
+     * @deprecated Use getRoleById(guildId, roleId) variant or GuildRoleService instead
      */
+    @Deprecated(since = "1.0", forRemoval = true)
     public GuildRole getRoleById(String roleId) {
         Objects.requireNonNull(roleId, "Role ID cannot be null");
         return roleRepository.findById(roleId).orElse(null);
@@ -944,7 +948,7 @@ public class GuildService {
             return false;
         }
 
-        Optional<GuildRole> roleOpt = roleRepository.findById(roleId);
+        Optional<GuildRole> roleOpt = ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId);
         if (roleOpt.isEmpty() || !roleOpt.get().getGuildId().equals(guildId)) {
             return false;
         }
@@ -1025,7 +1029,7 @@ public class GuildService {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guildId, playerId);
         List<GuildRole> roles = new ArrayList<>();
         for (String roleId : roleIds) {
-            roleRepository.findById(roleId).ifPresent(roles::add);
+            ((CompositeGuildRoleRepository) roleRepository).findByIdAndGuild(roleId, guildId).ifPresent(roles::add);
         }
         return roles;
     }

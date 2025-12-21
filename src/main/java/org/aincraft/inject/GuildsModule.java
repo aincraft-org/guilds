@@ -36,8 +36,14 @@ import org.aincraft.database.repository.JdbcGuildProjectRepository;
 import org.aincraft.database.repository.JdbcActiveBuffRepository;
 import org.aincraft.database.repository.JdbcChunkClaimLogRepository;
 import org.aincraft.database.repository.JdbcGuildProjectPoolRepository;
+import org.aincraft.database.repository.JdbcGuildDefaultRoleAssignmentRepository;
 import org.aincraft.GuildService;
 import org.aincraft.GuildsPlugin;
+import org.aincraft.role.DefaultRoleRegistry;
+import org.aincraft.role.DefaultRoleAssignmentLoader;
+import org.aincraft.role.GuildDefaultRoleAssignmentRepository;
+import org.aincraft.role.GuildDefaultRoleAssignmentService;
+import org.aincraft.role.CompositeGuildRoleRepository;
 import org.aincraft.InviteService;
 import org.aincraft.RelationshipService;
 import org.aincraft.claim.AutoClaimListener;
@@ -161,7 +167,8 @@ public class GuildsModule extends AbstractModule {
         bind(GuildRepository.class).to(JdbcGuildRepository.class).in(Singleton.class);
         bind(PlayerGuildMapping.class).to(JdbcPlayerGuildMapping.class).in(Singleton.class);
         bind(GuildMemberRepository.class).to(JdbcGuildMemberRepository.class).in(Singleton.class);
-        bind(GuildRoleRepository.class).to(JdbcGuildRoleRepository.class).in(Singleton.class);
+        bind(GuildRoleRepository.class).annotatedWith(com.google.inject.name.Names.named("persisted")).to(JdbcGuildRoleRepository.class).in(Singleton.class);
+        bind(GuildRoleRepository.class).to(CompositeGuildRoleRepository.class).in(Singleton.class);
         bind(MemberRoleRepository.class).to(JdbcMemberRoleRepository.class).in(Singleton.class);
         bind(ChunkClaimRepository.class).to(JdbcChunkClaimRepository.class).in(Singleton.class);
         bind(GuildRelationshipRepository.class).to(JdbcGuildRelationshipRepository.class).in(Singleton.class);
@@ -238,6 +245,12 @@ public class GuildsModule extends AbstractModule {
 
         // Configuration
         bind(GuildsConfig.class).in(Singleton.class);
+
+        // Default roles system
+        bind(DefaultRoleRegistry.class).in(Singleton.class);
+        bind(DefaultRoleAssignmentLoader.class).in(Singleton.class);
+        bind(GuildDefaultRoleAssignmentRepository.class).to(JdbcGuildDefaultRoleAssignmentRepository.class).in(Singleton.class);
+        bind(GuildDefaultRoleAssignmentService.class).in(Singleton.class);
 
         // Progression system - using JDBC implementations
         bind(GuildProgressionRepository.class).to(JdbcGuildProgressionRepository.class).in(Singleton.class);

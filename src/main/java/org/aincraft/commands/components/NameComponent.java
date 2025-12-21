@@ -1,6 +1,7 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
@@ -8,8 +9,11 @@ import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
  * Command component for setting a guild's name.
@@ -104,6 +108,20 @@ public class NameComponent implements GuildCommand {
         guild.setName(newName);
         lifecycleService.save(guild);
         player.sendMessage(MessageFormatter.deserialize("<green>Guild name changed to: <gold>" + newName + "</gold></green>"));
+
+        // Broadcast to guild members
+        Component broadcastMessage = Component.text()
+            .append(Component.text("[Guild] ", NamedTextColor.GRAY))
+            .append(Component.text(player.getName() + " changed the guild name to " + newName, NamedTextColor.YELLOW))
+            .build();
+
+        for (UUID memberId : guild.getMembers()) {
+            Player member = player.getServer().getPlayer(memberId);
+            if (member != null && member.isOnline() && !member.equals(player)) {
+                member.sendMessage(broadcastMessage);
+            }
+        }
+
         return true;
     }
 }

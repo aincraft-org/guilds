@@ -2,12 +2,14 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
+import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.TerritoryService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.Location;
 
 /**
  * Component for creating a new guild.
@@ -15,11 +17,13 @@ import org.bukkit.entity.Player;
 public class CreateComponent implements GuildCommand {
     private final GuildLifecycleService lifecycleService;
     private final TerritoryService territoryService;
+    private final GuildService guildService;
 
     @Inject
-    public CreateComponent(GuildLifecycleService lifecycleService, TerritoryService territoryService) {
+    public CreateComponent(GuildLifecycleService lifecycleService, TerritoryService territoryService, GuildService guildService) {
         this.lifecycleService = lifecycleService;
         this.territoryService = territoryService;
+        this.guildService = guildService;
     }
 
     @Override
@@ -57,6 +61,18 @@ public class CreateComponent implements GuildCommand {
         String name = args[1];
         String description = args.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)) : null;
 
+        // Extract the chunk where the guild will be created
+        org.aincraft.ChunkKey chunk = org.aincraft.ChunkKey.from(player.getLocation().getChunk());
+
+        // VALIDATION PHASE: Validate chunk claim BEFORE creating guild
+        // This ensures we don't create a guild in the database if chunk claim would fail
+        org.aincraft.ClaimResult preValidation = validateChunkClaimForNewGuild(chunk, player.getUniqueId());
+        if (!preValidation.isSuccess()) {
+            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Cannot create guild: " + preValidation.getReason()));
+            return true;
+        }
+
+        // CREATION PHASE: All validations passed, now create the guild
         Guild guild = lifecycleService.createGuild(name, description, player.getUniqueId());
 
         if (guild == null) {
@@ -66,15 +82,68 @@ public class CreateComponent implements GuildCommand {
 
         player.sendMessage(MessageFormatter.format("<green>✓ Guild '<gold>%s</gold>' created successfully!</green>", guild.getName()));
 
-        // Auto-claim the chunk where guild was created
-        org.aincraft.ChunkKey chunk = org.aincraft.ChunkKey.from(player.getLocation().getChunk());
-        org.aincraft.ClaimResult claimResult = territoryService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
+        // CLAIM PHASE: Guild created successfully, now claim the chunk
+        // This should succeed given our pre-validation, but we still check the result
+        org.aincraft.ClaimResult claimResult = claimInitialChunk(guild.getId(), player.getUniqueId(), chunk);
         if (claimResult.isSuccess()) {
             player.sendMessage(MessageFormatter.format("<green>✓ Automatically claimed chunk at <gold>%d, %d</gold></green>", chunk.x(), chunk.z()));
         } else {
+            // This is a fallback - should not happen after pre-validation
+            // Log a warning as this indicates an unexpected state
             player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Could not auto-claim chunk: " + claimResult.getReason()));
         }
 
+        // SPAWN PHASE: Set spawn location to player's current location
+        // Guild owner automatically has MANAGE_SPAWN permission
+        Location playerLocation = player.getLocation();
+        boolean spawnSet = guildService.setGuildSpawn(guild.getId(), player.getUniqueId(), playerLocation);
+        if (spawnSet) {
+            player.sendMessage(MessageFormatter.format("<green>✓ Guild spawn set to your location</green>"));
+        } else {
+            // This should not happen since guild was just created with a claimed chunk
+            // But log a warning if spawn setting fails for any reason
+            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Could not set guild spawn (this is unexpected)"));
+        }
+
         return true;
+    }
+
+    /**
+     * Validates that a chunk can be claimed for a new guild.
+     * Checks all validation rules that would fail during actual claim.
+     *
+     * @param chunk the chunk to validate
+     * @param playerId the player attempting to create the guild
+     * @return ClaimResult.success() if valid, or a failure reason if not
+     */
+    private org.aincraft.ClaimResult validateChunkClaimForNewGuild(org.aincraft.ChunkKey chunk, java.util.UUID playerId) {
+        // Check if chunk is already claimed
+        Guild chunkOwner = territoryService.getChunkOwner(chunk);
+        if (chunkOwner != null) {
+            return org.aincraft.ClaimResult.alreadyClaimed(chunkOwner.getName());
+        }
+
+        // For a new guild, check buffer distance to other guilds
+        // Use a temporary UUID that won't match any existing guild
+        java.util.UUID tempGuildId = java.util.UUID.randomUUID();
+        org.aincraft.ClaimResult bufferCheck = territoryService.validateBufferDistance(chunk, tempGuildId);
+        if (!bufferCheck.isSuccess()) {
+            return bufferCheck;
+        }
+
+        return org.aincraft.ClaimResult.success();
+    }
+
+    /**
+     * Claims the initial chunk for a newly created guild.
+     * Should only be called after the guild has been successfully created.
+     *
+     * @param guildId the guild ID
+     * @param playerId the player claiming the chunk
+     * @param chunk the chunk to claim
+     * @return the claim result
+     */
+    private org.aincraft.ClaimResult claimInitialChunk(java.util.UUID guildId, java.util.UUID playerId, org.aincraft.ChunkKey chunk) {
+        return territoryService.claimChunk(guildId, playerId, chunk);
     }
 }

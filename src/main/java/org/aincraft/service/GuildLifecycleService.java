@@ -95,7 +95,7 @@ public class GuildLifecycleService {
 
     /**
      * Deletes a guild if the requester is the owner.
-     * Notifies all guild members before deletion.
+     * Notifies all guild members (including the owner) before deletion.
      *
      * @param guildId the guild ID
      * @param requesterId the UUID of the player requesting deletion
@@ -115,6 +115,7 @@ public class GuildLifecycleService {
             return false;
         }
 
+        // Notify all members before database deletion to ensure guild data is available
         notifyMembersOfDisband(guild);
 
         for (UUID memberId : guild.getMembers()) {

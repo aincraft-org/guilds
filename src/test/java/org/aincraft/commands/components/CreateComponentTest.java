@@ -14,6 +14,7 @@ import java.util.UUID;
 import org.aincraft.ChunkKey;
 import org.aincraft.ClaimResult;
 import org.aincraft.Guild;
+import org.aincraft.GuildService;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.TerritoryService;
 import org.bukkit.Chunk;
@@ -40,6 +41,7 @@ class CreateComponentTest {
 
     @Mock private GuildLifecycleService lifecycleService;
     @Mock private TerritoryService territoryService;
+    @Mock private GuildService guildService;
     @Mock private Player player;
     @Mock private Location location;
     @Mock private Chunk chunk;
@@ -50,7 +52,7 @@ class CreateComponentTest {
 
     @BeforeEach
     void setUp() {
-        createComponent = new CreateComponent(lifecycleService, territoryService);
+        createComponent = new CreateComponent(lifecycleService, territoryService, guildService);
         playerId = UUID.randomUUID();
         when(player.getUniqueId()).thenReturn(playerId);
         when(player.getLocation()).thenReturn(location);
@@ -60,6 +62,8 @@ class CreateComponentTest {
         when(chunk.getZ()).thenReturn(0);
         when(chunk.getWorld()).thenReturn(world); // For ChunkKey.from(chunk)
         when(world.getName()).thenReturn("world");
+        // Default: spawn setting succeeds
+        when(guildService.setGuildSpawn(any(UUID.class), any(UUID.class), any(Location.class))).thenReturn(true);
     }
 
     @Test
@@ -83,6 +87,13 @@ class CreateComponentTest {
         void shouldCreateGuildWithNameOnly() {
             when(player.hasPermission("guilds.create")).thenReturn(true);
             Guild guild = new Guild("TestGuild", null, playerId);
+
+            // Mock validation phase
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.validateBufferDistance(any(ChunkKey.class), any(UUID.class)))
+                    .thenReturn(ClaimResult.success());
+
+            // Mock creation and claim phases
             when(lifecycleService.createGuild(eq("TestGuild"), isNull(), eq(playerId)))
                     .thenReturn(guild);
             when(territoryService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
@@ -91,6 +102,8 @@ class CreateComponentTest {
             boolean result = createComponent.execute(player, new String[]{"create", "TestGuild"});
 
             assertThat(result).isTrue();
+            verify(territoryService).getChunkOwner(any(ChunkKey.class));
+            verify(territoryService).validateBufferDistance(any(ChunkKey.class), any(UUID.class));
             verify(lifecycleService).createGuild("TestGuild", null, playerId);
             verify(territoryService).claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class));
         }
@@ -100,6 +113,13 @@ class CreateComponentTest {
         void shouldCreateGuildWithNameAndDescription() {
             when(player.hasPermission("guilds.create")).thenReturn(true);
             Guild guild = new Guild("TestGuild", "A cool guild", playerId);
+
+            // Mock validation phase
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.validateBufferDistance(any(ChunkKey.class), any(UUID.class)))
+                    .thenReturn(ClaimResult.success());
+
+            // Mock creation and claim phases
             when(lifecycleService.createGuild(eq("TestGuild"), eq("A cool guild"), eq(playerId)))
                     .thenReturn(guild);
             when(territoryService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
@@ -122,6 +142,7 @@ class CreateComponentTest {
 
             assertThat(result).isFalse();
             verify(lifecycleService, never()).createGuild(anyString(), anyString(), any());
+            verify(territoryService, never()).validateBufferDistance(any(ChunkKey.class), any(UUID.class));
         }
 
         @Test
@@ -133,6 +154,7 @@ class CreateComponentTest {
 
             assertThat(result).isTrue(); // Command handled, but denied
             verify(lifecycleService, never()).createGuild(anyString(), anyString(), any());
+            verify(territoryService, never()).validateBufferDistance(any(ChunkKey.class), any(UUID.class));
             verify(player, atLeastOnce()).sendMessage(any(net.kyori.adventure.text.Component.class));
         }
 
@@ -140,11 +162,128 @@ class CreateComponentTest {
         @DisplayName("should send error when creation fails")
         void shouldSendErrorWhenCreationFails() {
             when(player.hasPermission("guilds.create")).thenReturn(true);
+
+            // Mock validation phase
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.validateBufferDistance(any(ChunkKey.class), any(UUID.class)))
+                    .thenReturn(ClaimResult.success());
+
+            // Mock guild creation failure
             when(lifecycleService.createGuild(anyString(), any(), any())).thenReturn(null);
 
             boolean result = createComponent.execute(player, new String[]{"create", "Duplicate"});
 
             assertThat(result).isTrue();
+            verify(player, atLeastOnce()).sendMessage(any(net.kyori.adventure.text.Component.class));
+        }
+
+        @Test
+        @DisplayName("should fail when chunk is already claimed")
+        void shouldFailWhenChunkIsAlreadyClaimed() {
+            when(player.hasPermission("guilds.create")).thenReturn(true);
+            Guild existingGuild = new Guild("ExistingGuild", null, UUID.randomUUID());
+
+            // Mock validation phase - chunk already claimed
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(existingGuild);
+
+            boolean result = createComponent.execute(player, new String[]{"create", "NewGuild"});
+
+            assertThat(result).isTrue();
+            verify(lifecycleService, never()).createGuild(anyString(), anyString(), any());
+            verify(player, atLeastOnce()).sendMessage(any(net.kyori.adventure.text.Component.class));
+        }
+
+        @Test
+        @DisplayName("should fail when chunk violates buffer distance")
+        void shouldFailWhenChunkViolatesBufferDistance() {
+            when(player.hasPermission("guilds.create")).thenReturn(true);
+
+            // Mock validation phase - chunk not claimed but violates buffer
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.validateBufferDistance(any(ChunkKey.class), any(UUID.class)))
+                    .thenReturn(ClaimResult.tooCloseToGuild("NearbyGuild", 4, 2));
+
+            boolean result = createComponent.execute(player, new String[]{"create", "NewGuild"});
+
+            assertThat(result).isTrue();
+            verify(lifecycleService, never()).createGuild(anyString(), anyString(), any());
+            verify(player, atLeastOnce()).sendMessage(any(net.kyori.adventure.text.Component.class));
+        }
+
+        @Test
+        @DisplayName("should set spawn location to player's location")
+        void shouldSetSpawnLocationToPlayersLocation() {
+            when(player.hasPermission("guilds.create")).thenReturn(true);
+            Guild guild = new Guild("TestGuild", null, playerId);
+
+            // Mock validation phase
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.validateBufferDistance(any(ChunkKey.class), any(UUID.class)))
+                    .thenReturn(ClaimResult.success());
+
+            // Mock creation and claim phases
+            when(lifecycleService.createGuild(eq("TestGuild"), isNull(), eq(playerId)))
+                    .thenReturn(guild);
+            when(territoryService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
+                    .thenReturn(ClaimResult.success());
+
+            boolean result = createComponent.execute(player, new String[]{"create", "TestGuild"});
+
+            assertThat(result).isTrue();
+            // Verify spawn was set with the player's location
+            verify(guildService).setGuildSpawn(eq(guild.getId()), eq(playerId), eq(location));
+        }
+
+        @Test
+        @DisplayName("should send spawn set message when spawn is successfully set")
+        void shouldSendSpawnSetMessage() {
+            when(player.hasPermission("guilds.create")).thenReturn(true);
+            Guild guild = new Guild("TestGuild", null, playerId);
+
+            // Mock validation phase
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.validateBufferDistance(any(ChunkKey.class), any(UUID.class)))
+                    .thenReturn(ClaimResult.success());
+
+            // Mock creation and claim phases
+            when(lifecycleService.createGuild(eq("TestGuild"), isNull(), eq(playerId)))
+                    .thenReturn(guild);
+            when(territoryService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
+                    .thenReturn(ClaimResult.success());
+            when(guildService.setGuildSpawn(eq(guild.getId()), eq(playerId), any(Location.class)))
+                    .thenReturn(true);
+
+            boolean result = createComponent.execute(player, new String[]{"create", "TestGuild"});
+
+            assertThat(result).isTrue();
+            // Verify appropriate message was sent (should mention spawn)
+            verify(player, atLeastOnce()).sendMessage(any(net.kyori.adventure.text.Component.class));
+        }
+
+        @Test
+        @DisplayName("should send warning when spawn setting fails")
+        void shouldSendWarningWhenSpawnSettingFails() {
+            when(player.hasPermission("guilds.create")).thenReturn(true);
+            Guild guild = new Guild("TestGuild", null, playerId);
+
+            // Mock validation phase
+            when(territoryService.getChunkOwner(any(ChunkKey.class))).thenReturn(null);
+            when(territoryService.validateBufferDistance(any(ChunkKey.class), any(UUID.class)))
+                    .thenReturn(ClaimResult.success());
+
+            // Mock creation and claim phases
+            when(lifecycleService.createGuild(eq("TestGuild"), isNull(), eq(playerId)))
+                    .thenReturn(guild);
+            when(territoryService.claimChunk(eq(guild.getId()), eq(playerId), any(ChunkKey.class)))
+                    .thenReturn(ClaimResult.success());
+            // Spawn setting fails
+            when(guildService.setGuildSpawn(eq(guild.getId()), eq(playerId), any(Location.class)))
+                    .thenReturn(false);
+
+            boolean result = createComponent.execute(player, new String[]{"create", "TestGuild"});
+
+            assertThat(result).isTrue();
+            // Verify warning was sent when spawn setting failed
             verify(player, atLeastOnce()).sendMessage(any(net.kyori.adventure.text.Component.class));
         }
     }

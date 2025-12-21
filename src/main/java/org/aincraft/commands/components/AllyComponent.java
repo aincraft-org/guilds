@@ -10,6 +10,7 @@ import org.aincraft.commands.GuildCommand;
 import org.aincraft.commands.MessageFormatter;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -117,6 +118,10 @@ public class AllyComponent implements GuildCommand {
 
         player.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
             "✓ Alliance proposal sent to '" + targetGuild.getName() + "'"));
+
+        // Notify all online members of the target guild
+        notifyTargetGuildMembers(targetGuild, guild);
+
         return true;
     }
 
@@ -244,5 +249,23 @@ public class AllyComponent implements GuildCommand {
         }
 
         return true;
+    }
+
+    /**
+     * Notifies all online members of the target guild about the alliance proposal.
+     *
+     * @param targetGuild the guild receiving the alliance proposal
+     * @param sourceGuild the guild sending the alliance proposal
+     */
+    private void notifyTargetGuildMembers(Guild targetGuild, Guild sourceGuild) {
+        Bukkit.getOnlinePlayers().stream()
+            .filter(p -> {
+                Guild playerGuild = memberService.getPlayerGuild(p.getUniqueId());
+                return playerGuild != null && playerGuild.getId().equals(targetGuild.getId());
+            })
+            .forEach(p -> p.sendMessage(MessageFormatter.deserialize(
+                "<aqua>✉ Alliance request from <gold>" + sourceGuild.getName() +
+                "</gold>. Use <white>/g ally accept " + sourceGuild.getName() + "</white> to accept.</aqua>"
+            )));
     }
 }

@@ -8,6 +8,7 @@ import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import org.aincraft.Guild;
 import org.aincraft.RelationshipService;
 import org.aincraft.service.GuildLifecycleService;
@@ -110,21 +111,35 @@ public class InfoComponent implements GuildCommand {
     private void displayGuildInfo(Player player, Guild guild) {
         // Header with guild name embedded
         String guildName = guild.getName();
+        TextColor guildColor = getGuildColor(guild.getColor());
         int totalWidth = 40;
         int nameLength = guildName.length() + 4; // +4 for brackets and spaces
         int sideLength = (totalWidth - nameLength) / 2;
 
-        StringBuilder header = new StringBuilder();
-        header.append("<dark_gray>o<gold>0<yellow>o<gold>.");
+        // Build header component programmatically to apply guild color
+        var headerBuilder = Component.text()
+            .append(Component.text("o", NamedTextColor.DARK_GRAY))
+            .append(Component.text("0", NamedTextColor.GOLD))
+            .append(Component.text("o", NamedTextColor.YELLOW))
+            .append(Component.text(".", NamedTextColor.GOLD));
+
         for (int i = 0; i < Math.max(0, sideLength - 4); i++) {
-            header.append("_");
+            headerBuilder.append(Component.text("_", NamedTextColor.GOLD));
         }
-        header.append("<dark_gray>[ <white>").append(guildName).append(" <dark_gray>]");
+
+        headerBuilder.append(Component.text("[ ", NamedTextColor.DARK_GRAY))
+            .append(Component.text(guildName, guildColor))
+            .append(Component.text(" ]", NamedTextColor.DARK_GRAY));
+
         for (int i = 0; i < Math.max(0, sideLength - 4); i++) {
-            header.append("<gold>_");
+            headerBuilder.append(Component.text("_", NamedTextColor.GOLD));
         }
-        header.append("<yellow>o<gold>0<dark_gray>o");
-        player.sendMessage(MessageFormatter.deserialize(header.toString()));
+
+        headerBuilder.append(Component.text("o", NamedTextColor.YELLOW))
+            .append(Component.text("0", NamedTextColor.GOLD))
+            .append(Component.text("o", NamedTextColor.DARK_GRAY));
+
+        player.sendMessage(headerBuilder.build());
         player.sendMessage(Component.newline());
 
         // Description if exists
@@ -334,5 +349,36 @@ public class InfoComponent implements GuildCommand {
 
             player.sendMessage(MessageFormatter.deserialize(progressBar.toString()));
         }
+    }
+
+    /**
+     * Converts a guild color (hex or named color) to a TextColor for display.
+     * Falls back to GOLD if no color is set or invalid.
+     *
+     * @param color the color string (hex #RRGGBB or named color like "red", "blue")
+     * @return a TextColor to use for display
+     */
+    private TextColor getGuildColor(String color) {
+        if (color == null) {
+            return NamedTextColor.GOLD;
+        }
+
+        // Check if hex format
+        if (color.startsWith("#") && color.length() == 7) {
+            try {
+                return TextColor.fromHexString(color);
+            } catch (IllegalArgumentException e) {
+                // Fall through to named color check
+            }
+        }
+
+        // Check if named color
+        TextColor namedColor = NamedTextColor.NAMES.value(color.toLowerCase());
+        if (namedColor != null) {
+            return namedColor;
+        }
+
+        // Default to GOLD if invalid
+        return NamedTextColor.GOLD;
     }
 }

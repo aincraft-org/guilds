@@ -101,6 +101,14 @@ public class RelationshipService {
         GuildRelationship relationship = request.get();
         if (relationship.accept()) {
             relationshipRepository.save(relationship);
+
+            // Create bidirectional reverse relationship for symmetry
+            GuildRelationship reverseRelationship = new GuildRelationship(
+                targetGuildId, sourceGuildId, RelationType.ALLY, accepterId
+            );
+            reverseRelationship.accept(); // Set status to ACTIVE
+            relationshipRepository.save(reverseRelationship);
+
             return true;
         }
 
@@ -162,6 +170,18 @@ public class RelationshipService {
         GuildRelationship rel = relationship.get();
         if (rel.cancel()) {
             relationshipRepository.save(rel);
+
+            // Cancel the reverse relationship as well for symmetry
+            List<GuildRelationship> allRelations = relationshipRepository.findAllByGuild(guildId);
+            allRelations.stream()
+                .filter(r -> r.getRelationType() == RelationType.ALLY)
+                .filter(r -> r.involves(allyGuildId))
+                .filter(r -> !r.getId().equals(rel.getId())) // Don't cancel the one we already handled
+                .forEach(r -> {
+                    r.cancel();
+                    relationshipRepository.save(r);
+                });
+
             return true;
         }
 
