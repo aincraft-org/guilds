@@ -3,7 +3,8 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import java.util.Objects;
 import org.aincraft.GuildPermission;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.progression.storage.ProgressionLogRepository;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
@@ -35,7 +36,7 @@ public class LogComponent {
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use log commands"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
@@ -47,13 +48,13 @@ public class LogComponent {
         // Check if player is in a guild
         org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // Check VIEW_LOGS permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.VIEW_LOGS)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to view logs"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -71,9 +72,6 @@ public class LogComponent {
     }
 
     private void showHelp(Player player) {
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Log Commands", ""));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g log claim [page]", "View chunk claim/unclaim history"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g log vault [page]", "View vault transaction history"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g log progression [page]", "View XP and level progression history"));
+        Messages.send(player, MessageKey.LIST_HEADER);
     }
 }

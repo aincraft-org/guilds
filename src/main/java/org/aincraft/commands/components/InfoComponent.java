@@ -16,7 +16,8 @@ import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.TerritoryService;
 import org.aincraft.service.SpawnService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.progression.GuildProgression;
 import org.aincraft.progression.ProgressionConfig;
 import org.aincraft.progression.ProgressionService;
@@ -70,12 +71,12 @@ public class InfoComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to view guild info"));
+            Messages.send(sender, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -91,9 +92,9 @@ public class InfoComponent implements GuildCommand {
 
         if (guild == null) {
             if (args.length >= 2) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + args[1] + "' not found"));
+                Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, args[1]);
             } else {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
+                Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             }
             return true;
         }
@@ -145,7 +146,8 @@ public class InfoComponent implements GuildCommand {
         // Description if exists
         if (guild.getDescription() != null && !guild.getDescription().isEmpty()) {
             player.sendMessage(Component.empty());
-            player.sendMessage(MessageFormatter.deserialize("  <gray>\"" + guild.getDescription() + "\""));
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                .deserialize("  <gray>\"" + guild.getDescription() + "\""));
             player.sendMessage(Component.empty());
         }
 
@@ -189,27 +191,32 @@ public class InfoComponent implements GuildCommand {
         player.sendMessage(Component.empty());
 
         // Level and progression section
-        player.sendMessage(MessageFormatter.deserialize("  <yellow>Progression"));
+        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+            .deserialize("  <yellow>Progression"));
         displayLevelProgress(player, guild);
 
         player.sendMessage(Component.empty());
 
         // Statistics section
-        player.sendMessage(MessageFormatter.deserialize("  <yellow>Statistics"));
-        player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Members: <white>" +
-            guild.getMemberCount() + "<dark_gray>/<white>" + guild.getMaxMembers()));
+        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+            .deserialize("  <yellow>Statistics"));
+        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+            .deserialize("  <dark_gray>• <gray>Members: <white>" +
+                guild.getMemberCount() + "<dark_gray>/<white>" + guild.getMaxMembers()));
 
         int claimedChunks = territoryService.getGuildChunks(guild.getId()).size();
         int maxChunks = guild.getMaxChunks();
-        player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Chunks: <white>" +
-            claimedChunks + "<dark_gray>/<white>" + maxChunks));
+        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+            .deserialize("  <dark_gray>• <gray>Chunks: <white>" +
+                claimedChunks + "<dark_gray>/<white>" + maxChunks));
 
         // Display toggles inline
         String explosions = guild.isExplosionsAllowed() ? "<green>✓" : "<red>✗";
         String fire = guild.isFireAllowed() ? "<green>✓" : "<red>✗";
         String isPublic = guild.isPublic() ? "<green>Public" : "<red>Private";
-        player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Explosions: " + explosions +
-            "  <dark_gray>• <gray>Fire: " + fire + "  <dark_gray>• <gray>Access: " + isPublic));
+        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+            .deserialize("  <dark_gray>• <gray>Explosions: " + explosions +
+                "  <dark_gray>• <gray>Fire: " + fire + "  <dark_gray>• <gray>Access: " + isPublic));
 
         player.sendMessage(Component.empty());
 
@@ -235,26 +242,31 @@ public class InfoComponent implements GuildCommand {
 
         // Only show section if there are relationships
         if (!allies.isEmpty() || !enemies.isEmpty()) {
-            player.sendMessage(MessageFormatter.deserialize("  <yellow>Relationships"));
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                .deserialize("  <yellow>Relationships"));
 
             // Display allies
             if (!allies.isEmpty()) {
-                player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Allies <green>(" + allies.size() + ")<gray>:"));
+                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                    .deserialize("  <dark_gray>• <gray>Allies <green>(" + allies.size() + ")<gray>:"));
                 for (UUID ally : allies) {
                     Guild allyGuild = lifecycleService.getGuildById(ally);
                     if (allyGuild != null) {
-                        player.sendMessage(MessageFormatter.deserialize("    <green>• " + allyGuild.getName()));
+                        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                            .deserialize("    <green>• " + allyGuild.getName()));
                     }
                 }
             }
 
             // Display enemies
             if (!enemies.isEmpty()) {
-                player.sendMessage(MessageFormatter.deserialize("  <dark_gray>• <gray>Enemies <red>(" + enemies.size() + ")<gray>:"));
+                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                    .deserialize("  <dark_gray>• <gray>Enemies <red>(" + enemies.size() + ")<gray>:"));
                 for (UUID enemy : enemies) {
                     Guild enemyGuild = lifecycleService.getGuildById(enemy);
                     if (enemyGuild != null) {
-                        player.sendMessage(MessageFormatter.deserialize("    <red>• " + enemyGuild.getName()));
+                        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                            .deserialize("    <red>• " + enemyGuild.getName()));
                     }
                 }
             }
@@ -272,7 +284,8 @@ public class InfoComponent implements GuildCommand {
             return;
         }
 
-        player.sendMessage(MessageFormatter.deserialize("  <yellow>Region Limits"));
+        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+            .deserialize("  <yellow>Region Limits"));
         for (RegionTypeLimit limit : limits) {
             long usage = subregionService.getTypeUsage(guild.getId(), limit.typeId());
             long max = limit.maxTotalVolume();
@@ -283,7 +296,8 @@ public class InfoComponent implements GuildCommand {
                     .orElse(limit.typeId());
 
             String color = percent >= 90 ? "<red>" : percent >= 70 ? "<yellow>" : "<green>";
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                .deserialize(
                     "  <dark_gray>• <gray>" + displayName + ": " + color +
                     formatNumber(usage) + "<dark_gray>/<white>" + formatNumber(max) +
                     " <dark_gray>(" + String.format("%.0f", percent) + "%)"));
@@ -318,7 +332,8 @@ public class InfoComponent implements GuildCommand {
         String levelText = level >= maxLevel
             ? String.format("  <dark_gray>• <gray>Level: <gold>%d <dark_gray>(MAX)", level)
             : String.format("  <dark_gray>• <gray>Level: <gold>%d <dark_gray>/ <gold>%d", level, maxLevel);
-        player.sendMessage(MessageFormatter.deserialize(levelText));
+        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+            .deserialize(levelText));
 
         // Build XP progress bar only if not at max level
         if (level < maxLevel) {
@@ -347,7 +362,8 @@ public class InfoComponent implements GuildCommand {
             progressBar.append(String.format("%,d", xpRequired));
             progressBar.append("<dark_gray>)");
 
-            player.sendMessage(MessageFormatter.deserialize(progressBar.toString()));
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                .deserialize(progressBar.toString()));
         }
     }
 

@@ -6,7 +6,8 @@ import org.aincraft.Guild;
 import org.aincraft.InviteResult;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -30,26 +31,26 @@ public class InviteComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can invite others to guilds"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         // Check permission
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to use this command"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Validate args
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -69,40 +70,19 @@ public class InviteComponent implements GuildCommand {
         // Handle result
         switch (result.getStatus()) {
             case SUCCESS -> {
-                player.sendMessage(MessageFormatter.format(
-                    "<green>✓ Invited <gold>" + target.getName() + "</gold> to your guild (expires in 5 minutes)</green>"
-                ));
+                Messages.send(player, MessageKey.INVITE_SENT, target.getName());
                 // Notify target if online
                 if (onlineTarget != null) {
-                    onlineTarget.sendMessage(MessageFormatter.format(
-                        "<green>You've been invited to join <gold>" + guild.getName() + "</gold>!</green>"
-                    ));
-                    onlineTarget.sendMessage(MessageFormatter.format(
-                        "<gray>Use <gold>/g accept " + guild.getName() + "</gold> to accept or <gold>/g decline " + guild.getName() + "</gold> to decline</gray>"
-                    ));
+                    Messages.send(onlineTarget, MessageKey.INVITE_RECEIVED, guild.getName());
                 }
             }
-            case NO_PERMISSION -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "You don't have permission to invite players to this guild"
-            ));
-            case ALREADY_INVITED -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, target.getName() + " already has a pending invite to your guild"
-            ));
-            case INVITEE_IN_GUILD -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, target.getName() + " is already in a guild"
-            ));
-            case GUILD_FULL -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "Your guild is full"
-            ));
-            case INVITE_LIMIT_REACHED -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "Your guild has reached the maximum number of pending invites (10)"
-            ));
-            case TARGET_NOT_FOUND -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "Player not found: " + targetName
-            ));
-            case FAILURE -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "Failed to send invite: " + result.getReason()
-            ));
+            case NO_PERMISSION -> Messages.send(player, MessageKey.INVITE_NO_PERMISSION);
+            case ALREADY_INVITED -> Messages.send(player, MessageKey.INVITE_ALREADY_PENDING, target.getName());
+            case INVITEE_IN_GUILD -> Messages.send(player, MessageKey.INVITE_TARGET_IN_GUILD, target.getName());
+            case GUILD_FULL -> Messages.send(player, MessageKey.ERROR_GUILD_FULL);
+            case INVITE_LIMIT_REACHED -> Messages.send(player, MessageKey.INVITE_MAX_PENDING);
+            case TARGET_NOT_FOUND -> Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, targetName);
+            case FAILURE -> Messages.send(player, MessageKey.ERROR_NO_PERMISSION, result.getReason());
         }
 
         return true;

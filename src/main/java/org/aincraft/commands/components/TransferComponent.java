@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
@@ -45,48 +46,48 @@ public class TransferComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to transfer guild ownership"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return false;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         if (!guild.isOwner(player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Only the guild owner can transfer ownership"));
+            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
             return true;
         }
 
         OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
 
         if (target == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Player not found"));
+            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND);
             return true;
         }
 
         // Check if trying to transfer to yourself
         if (player.getUniqueId().equals(target.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You cannot transfer ownership to yourself"));
+            Messages.send(player, MessageKey.GUILD_TRANSFER_CONFIRM, "cannot transfer to yourself");
             return true;
         }
 
         // Check if target is a guild member
         if (!guild.isMember(target.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ The target player is not a guild member"));
+            Messages.send(player, MessageKey.GUILD_TRANSFER_CONFIRM, "target player is not a guild member");
             return true;
         }
 
@@ -95,14 +96,12 @@ public class TransferComponent implements GuildCommand {
             lifecycleService.save(guild);
 
             // Notify old owner
-            player.sendMessage(MessageFormatter.deserialize("<green>✓ Guild ownership transferred to <gold>" + target.getName() + "</gold></green>"));
+            Messages.send(player, MessageKey.GUILD_TRANSFER_SUCCESS, target.getName());
 
             // Notify new owner if online
             Player newOwner = Bukkit.getPlayer(target.getUniqueId());
             if (newOwner != null && newOwner.isOnline()) {
-                newOwner.sendMessage(MessageFormatter.deserialize(
-                    "<green>You are now the owner of <gold>" + guild.getName() + "</gold></green>"
-                ));
+                Messages.send(newOwner, MessageKey.GUILD_TRANSFER_SUCCESS, guild.getName());
             }
 
             // Broadcast to guild members
@@ -121,7 +120,7 @@ public class TransferComponent implements GuildCommand {
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Failed to transfer ownership"));
+        Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
         return true;
     }
 }

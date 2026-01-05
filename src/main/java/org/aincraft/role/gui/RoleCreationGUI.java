@@ -11,7 +11,8 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildRoleService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.Material;
@@ -205,7 +206,7 @@ public class RoleCreationGUI {
                 .name(Component.text("Cancel").color(NamedTextColor.RED))
                 .asGuiItem(event -> {
                     creator.closeInventory();
-                    creator.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Role creation cancelled"));
+                    Messages.send(creator, MessageKey.ACTION_CANCELLED);
                 }));
 
         gui.setItem(6, 9, ItemBuilder.from(Material.EMERALD)
@@ -399,13 +400,13 @@ public class RoleCreationGUI {
 
                     if (role != null) {
                         creator.closeInventory();
-                        String priorityText = priority > 0 ? " (priority: " + priority + ")" : "";
-                        String action = isEdit ? "Updated" : "Created";
-                        creator.sendMessage(MessageFormatter.deserialize(
-                                "<green>" + action + " role '<gold>" + roleName + "</gold>'" + priorityText + "</green>"));
+                        if (isEdit) {
+                            Messages.send(creator, MessageKey.ROLE_UPDATED);
+                        } else {
+                            Messages.send(creator, MessageKey.ROLE_CREATED);
+                        }
                     } else {
-                        creator.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                                "Failed to " + (isEdit ? "update" : "create") + " role. You may lack MANAGE_ROLES permission."));
+                        Messages.send(creator, MessageKey.ERROR_NO_PERMISSION);
                     }
                 }));
 

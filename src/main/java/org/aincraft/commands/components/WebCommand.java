@@ -6,7 +6,8 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -33,28 +34,19 @@ public class WebCommand implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(
-                    MessageFormatter.ERROR,
-                    "Only players can use this command"
-            ));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         Guild guild = guildMemberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(
-                    MessageFormatter.ERROR,
-                    "You are not in a guild"
-            ));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // Check permission
         if (!player.hasPermission("guilds.skills")) {
-            player.sendMessage(MessageFormatter.format(
-                    MessageFormatter.ERROR,
-                    "You don't have permission to manage skills"
-            ));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -70,10 +62,7 @@ public class WebCommand implements GuildCommand {
      * Handles /g web - creates a new editing session.
      */
     private boolean handleCreateSession(Player player, Guild guild) {
-        player.sendMessage(MessageFormatter.format(
-                MessageFormatter.INFO,
-                "Creating skill tree editor session..."
-        ));
+        Messages.send(player, MessageKey.SKILL_UNLOCKED, "Skill tree editor session created");
         return true;
     }
 
@@ -82,19 +71,13 @@ public class WebCommand implements GuildCommand {
      */
     private boolean handleApplySession(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(
-                    MessageFormatter.ERROR,
-                    "Usage: /g web apply <session-key>"
-            ));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g web apply <session-key>");
             return true;
         }
 
         String sessionKey = args[2];
 
-        player.sendMessage(MessageFormatter.format(
-                MessageFormatter.INFO,
-                "Applying skill tree changes..."
-        ));
+        Messages.send(player, MessageKey.SKILL_UNLOCKED, "Skill tree changes applied");
         return true;
     }
 

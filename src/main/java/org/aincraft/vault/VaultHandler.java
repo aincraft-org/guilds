@@ -2,7 +2,8 @@ package org.aincraft.vault;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.multiblock.MultiblockInstance;
 import org.aincraft.multiblock.events.MultiblockBreakEvent;
 import org.aincraft.multiblock.events.MultiblockFormEvent;
@@ -38,11 +39,9 @@ public class VaultHandler implements Listener {
         VaultService.VaultCreationResult result = vaultService.createVault(player, instance);
 
         if (result.success()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
-                    "Guild vault created! Use /g vault to access it."));
+            Messages.send(player, MessageKey.VAULT_OPENED);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    result.errorMessage()));
+            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, result.errorMessage());
             event.setCancelled(true);
         }
     }
@@ -66,8 +65,7 @@ public class VaultHandler implements Listener {
         ).ifPresent(vault -> {
             // Check if player can destroy the vault
             if (!vaultService.canDestroyVault(player.getUniqueId(), vault)) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                        "Only the guild owner can destroy the vault. Use /g vault destroy."));
+                Messages.send(player, MessageKey.VAULT_OWNER_ONLY);
                 event.setCancelled(true);
                 return;
             }
@@ -84,8 +82,7 @@ public class VaultHandler implements Listener {
 
             // Delete the vault
             vaultService.destroyVault(vault);
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING,
-                    "Guild vault destroyed! All items have been dropped."));
+            Messages.send(player, MessageKey.VAULT_ITEMS_DROPPED);
         });
     }
 }

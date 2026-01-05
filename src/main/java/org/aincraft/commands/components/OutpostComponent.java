@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.outpost.Outpost;
 import org.aincraft.outpost.OutpostService;
 import org.aincraft.service.GuildMemberService;
@@ -49,14 +51,14 @@ public class OutpostComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -84,7 +86,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleCreate(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g outpost create <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost create <name>");
             return true;
         }
 
@@ -96,12 +98,9 @@ public class OutpostComponent implements GuildCommand {
 
         if (result.isSuccess()) {
             Outpost outpost = result.getOutpost();
-            player.sendMessage(MessageFormatter.deserialize(
-                "<green>✓ Outpost created: <gold>" + outpost.getName() +
-                "</gold> at <aqua>" + outpost.getLocation() + "</aqua></green>"
-            ));
+            Messages.send(player, MessageKey.OUTPOST_CREATED, name);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.getMessage()));
+            player.sendMessage(MiniMessage.miniMessage().deserialize(result.getMessage()));
         }
 
         return true;
@@ -112,19 +111,16 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleDelete(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g outpost delete <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost delete <name>");
             return true;
         }
 
         String name = args[2];
 
         if (outpostService.deleteOutpost(guild.getId(), player.getUniqueId(), name)) {
-            player.sendMessage(MessageFormatter.deserialize(
-                "<green>✓ Outpost <gold>" + name + "</gold> deleted</green>"
-            ));
+            Messages.send(player, MessageKey.OUTPOST_DELETED, name);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "Failed to delete outpost. Ensure it exists and you have permission."));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
         }
 
         return true;
@@ -137,13 +133,13 @@ public class OutpostComponent implements GuildCommand {
         List<Outpost> outposts = outpostService.getOutposts(guild.getId());
 
         if (outposts.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Your guild has no outposts"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Outposts", ""));
+        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Outposts"));
         for (Outpost outpost : outposts) {
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<yellow>  " + outpost.getName() + "</yellow> <gray>at " +
                 outpost.getLocation() + "</gray>"
             ));
@@ -157,7 +153,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleTeleport(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g outpost tp <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost tp <name>");
             return true;
         }
 
@@ -165,7 +161,7 @@ public class OutpostComponent implements GuildCommand {
         Optional<Outpost> outpostOpt = outpostService.getOutpost(guild.getId(), name);
 
         if (outpostOpt.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Outpost not found"));
+            Messages.send(player, MessageKey.OUTPOST_NOT_FOUND);
             return true;
         }
 
@@ -173,15 +169,12 @@ public class OutpostComponent implements GuildCommand {
         Location spawnLoc = outpostService.getOutpostSpawnLocation(outpost);
 
         if (spawnLoc == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "Outpost world is not loaded. Try again later."));
+            Messages.send(player, MessageKey.OUTPOST_NOT_FOUND);
             return true;
         }
 
         player.teleport(spawnLoc);
-        player.sendMessage(MessageFormatter.deserialize(
-            "<green>✓ Teleported to <gold>" + outpost.getName() + "</gold>!</green>"
-        ));
+        Messages.send(player, MessageKey.OUTPOST_TELEPORTED, outpost.getName());
 
         return true;
     }
@@ -191,7 +184,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleSetspawn(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g outpost setspawn <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost setspawn <name>");
             return true;
         }
 
@@ -202,11 +195,9 @@ public class OutpostComponent implements GuildCommand {
             guild.getId(), player.getUniqueId(), name, location);
 
         if (result.isSuccess()) {
-            player.sendMessage(MessageFormatter.deserialize(
-                "<green>✓ Outpost spawn updated to your location</green>"
-            ));
+            Messages.send(player, MessageKey.OUTPOST_SPAWN_SET);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.getMessage()));
+            player.sendMessage(MiniMessage.miniMessage().deserialize(result.getMessage()));
         }
 
         return true;
@@ -217,7 +208,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleRename(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g outpost rename <old> <new>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost rename <old> <new>");
             return true;
         }
 
@@ -228,12 +219,12 @@ public class OutpostComponent implements GuildCommand {
             guild.getId(), player.getUniqueId(), oldName, newName);
 
         if (result.isSuccess()) {
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                 "<green>✓ Outpost renamed from <gold>" + oldName +
                 "</gold> to <gold>" + newName + "</gold></green>"
             ));
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.getMessage()));
+            player.sendMessage(MiniMessage.miniMessage().deserialize(result.getMessage()));
         }
 
         return true;
@@ -243,18 +234,24 @@ public class OutpostComponent implements GuildCommand {
      * Sends usage information to the player.
      */
     private void sendUsage(Player player) {
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Outpost Commands", ""));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE,
-            "/g outpost create <name>", "Create outpost at current location"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE,
-            "/g outpost delete <name>", "Delete an outpost"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE,
-            "/g outpost list", "List all guild outposts"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE,
-            "/g outpost tp <name>", "Teleport to outpost spawn"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE,
-            "/g outpost setspawn <name>", "Update outpost spawn location"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE,
-            "/g outpost rename <old> <new>", "Rename an outpost"));
+        player.sendMessage(Messages.get(MessageKey.INFO_HEADER, "Outpost Commands"));
+        player.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gray>/g outpost create <name> <dark_gray>- Create outpost at current location</dark_gray></gray>"
+        ));
+        player.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gray>/g outpost delete <name> <dark_gray>- Delete an outpost</dark_gray></gray>"
+        ));
+        player.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gray>/g outpost list <dark_gray>- List all guild outposts</dark_gray></gray>"
+        ));
+        player.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gray>/g outpost tp <name> <dark_gray>- Teleport to outpost spawn</dark_gray></gray>"
+        ));
+        player.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gray>/g outpost setspawn <name> <dark_gray>- Update outpost spawn location</dark_gray></gray>"
+        ));
+        player.sendMessage(MiniMessage.miniMessage().deserialize(
+            "<gray>/g outpost rename <old> <new> <dark_gray>- Rename an outpost</dark_gray></gray>"
+        ));
     }
 }

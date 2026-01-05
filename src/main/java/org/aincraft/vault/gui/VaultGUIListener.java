@@ -2,7 +2,8 @@ package org.aincraft.vault.gui;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransaction;
 import org.bukkit.Material;
@@ -52,8 +53,7 @@ public class VaultGUIListener implements Listener {
                 // Taking from vault = withdraw
                 if (isVaultInventory && !shared.canWithdraw()) {
                     event.setCancelled(true);
-                    player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                            "You don't have permission to withdraw from the vault"));
+                    Messages.send(player, MessageKey.VAULT_WITHDRAW_DENIED);
                     return;
                 }
                 if (isVaultInventory) {
@@ -64,8 +64,7 @@ public class VaultGUIListener implements Listener {
                 // Placing in vault = deposit
                 if (isVaultInventory && !shared.canDeposit()) {
                     event.setCancelled(true);
-                    player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                            "You don't have permission to deposit into the vault"));
+                    Messages.send(player, MessageKey.VAULT_DEPOSIT_DENIED);
                     return;
                 }
                 if (isVaultInventory) {
@@ -78,8 +77,7 @@ public class VaultGUIListener implements Listener {
                     // Shift-click from player inventory = deposit
                     if (!shared.canDeposit()) {
                         event.setCancelled(true);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                                "You don't have permission to deposit into the vault"));
+                        Messages.send(player, MessageKey.VAULT_DEPOSIT_DENIED);
                         return;
                     }
                     logDeposit(shared, player, event.getCurrentItem());
@@ -87,8 +85,7 @@ public class VaultGUIListener implements Listener {
                     // Shift-click from vault = withdraw
                     if (!shared.canWithdraw()) {
                         event.setCancelled(true);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                                "You don't have permission to withdraw from the vault"));
+                        Messages.send(player, MessageKey.VAULT_WITHDRAW_DENIED);
                         return;
                     }
                     logWithdraw(shared, player, event.getCurrentItem(), event);
@@ -99,8 +96,7 @@ public class VaultGUIListener implements Listener {
                     // Swapping requires both permissions
                     if (!shared.canDeposit() || !shared.canWithdraw()) {
                         event.setCancelled(true);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                                "You need both deposit and withdraw permissions to swap items"));
+                        Messages.send(player, MessageKey.VAULT_NO_PERMISSION);
                         return;
                     }
                     logDeposit(shared, player, event.getCursor());
@@ -112,8 +108,7 @@ public class VaultGUIListener implements Listener {
                     // Hotbar swap also requires both permissions
                     if (!shared.canDeposit() || !shared.canWithdraw()) {
                         event.setCancelled(true);
-                        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                                "You need both deposit and withdraw permissions to swap items"));
+                        Messages.send(player, MessageKey.VAULT_NO_PERMISSION);
                         return;
                     }
                     // Log both transactions
@@ -149,8 +144,7 @@ public class VaultGUIListener implements Listener {
 
         if (affectsVault && !shared.canDeposit()) {
             event.setCancelled(true);
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "You don't have permission to deposit into the vault"));
+            Messages.send(player, MessageKey.VAULT_DEPOSIT_DENIED);
         } else if (affectsVault) {
             // Log deposit for dragged items
             ItemStack newItems = event.getOldCursor().clone();
@@ -197,8 +191,7 @@ public class VaultGUIListener implements Listener {
         event.setCancelled(true);
 
         if (!result.success()) {
-            event.getPlayer().sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    result.errorMessage()));
+            Messages.send(event.getPlayer(), MessageKey.VAULT_NOT_FOUND);
             return;
         }
 

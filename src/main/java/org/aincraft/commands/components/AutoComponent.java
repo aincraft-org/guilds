@@ -5,7 +5,8 @@ import org.aincraft.Guild;
 import org.aincraft.claim.AutoClaimManager;
 import org.aincraft.claim.AutoClaimMode;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -42,30 +43,25 @@ public class AutoComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to use auto mode"));
+            Messages.send(player, MessageKey.CLAIM_NO_PERMISSION);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // No subcommand - show current mode
         if (args.length == 1) {
             AutoClaimMode currentMode = autoClaimManager.getMode(player.getUniqueId());
-            String modeText = switch (currentMode) {
-                case OFF -> "<gray>OFF</gray>";
-                case AUTO_CLAIM -> "<green>AUTO_CLAIM</green>";
-                case AUTO_UNCLAIM -> "<yellow>AUTO_UNCLAIM</yellow>";
-            };
-            player.sendMessage(MessageFormatter.deserialize("<gold>Current auto mode:</gold> " + modeText));
+            Messages.send(player, MessageKey.AUTO_CURRENT_MODE);
             return true;
         }
 
@@ -74,18 +70,18 @@ public class AutoComponent implements GuildCommand {
         switch (subcommand) {
             case "claim" -> {
                 autoClaimManager.setMode(player.getUniqueId(), AutoClaimMode.AUTO_CLAIM);
-                player.sendMessage(MessageFormatter.deserialize("<green>Auto-claim enabled</green>"));
+                Messages.send(player, MessageKey.AUTO_ENABLED_CLAIM);
             }
             case "unclaim" -> {
                 autoClaimManager.setMode(player.getUniqueId(), AutoClaimMode.AUTO_UNCLAIM);
-                player.sendMessage(MessageFormatter.deserialize("<yellow>Auto-unclaim enabled</yellow>"));
+                Messages.send(player, MessageKey.AUTO_ENABLED_UNCLAIM);
             }
             case "off" -> {
                 autoClaimManager.setMode(player.getUniqueId(), AutoClaimMode.OFF);
-                player.sendMessage(MessageFormatter.deserialize("<gray>Auto mode disabled</gray>"));
+                Messages.send(player, MessageKey.AUTO_DISABLED);
             }
             default -> {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+                Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             }
         }
 

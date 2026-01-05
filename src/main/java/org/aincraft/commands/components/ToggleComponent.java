@@ -6,7 +6,8 @@ import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -42,28 +43,28 @@ public class ToggleComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to toggle guild settings"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return false;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         if (!guild.isOwner(player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only the guild owner can toggle guild settings"));
+            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
             return true;
         }
 
@@ -73,8 +74,7 @@ public class ToggleComponent implements GuildCommand {
             case "fire" -> toggleFire(player, guild);
             case "public" -> togglePublic(player, guild);
             default -> {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Unknown setting: " + setting));
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Available settings: explosions, fire, public"));
+                Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
                 yield true;
             }
         };
@@ -85,9 +85,7 @@ public class ToggleComponent implements GuildCommand {
         guild.setExplosionsAllowed(newValue);
         lifecycleService.save(guild);
 
-        String status = newValue ? "<green>enabled</green>" : "<red>disabled</red>";
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Explosions " + status + " in guild territory</green>"));
+        player.sendMessage(Messages.get(MessageKey.GUILD_COLOR_SET, "Explosions " + (newValue ? "enabled" : "disabled")));
         return true;
     }
 
@@ -96,9 +94,7 @@ public class ToggleComponent implements GuildCommand {
         guild.setFireAllowed(newValue);
         lifecycleService.save(guild);
 
-        String status = newValue ? "<green>enabled</green>" : "<red>disabled</red>";
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Fire spread " + status + " in guild territory</green>"));
+        player.sendMessage(Messages.get(MessageKey.GUILD_COLOR_SET, "Fire spread " + (newValue ? "enabled" : "disabled")));
         return true;
     }
 
@@ -107,9 +103,7 @@ public class ToggleComponent implements GuildCommand {
         guild.setPublic(newValue);
         lifecycleService.save(guild);
 
-        String status = newValue ? "<green>public</green>" : "<gold>private</gold>";
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Guild is now " + status + "</green>"));
+        player.sendMessage(Messages.get(MessageKey.GUILD_COLOR_SET, "Guild is now " + (newValue ? "public" : "private")));
         return true;
     }
 }

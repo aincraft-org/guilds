@@ -7,7 +7,8 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.progression.*;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
@@ -43,20 +44,20 @@ public class LevelUpComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // Check permission
         if (!guild.isOwner(player.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.LEVEL_UP)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to level up the guild"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -73,7 +74,7 @@ public class LevelUpComponent implements GuildCommand {
         GuildProgression progression = progressionService.getOrCreateProgression(guild.getId());
 
         if (progression.getLevel() >= config.getMaxLevel()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild is already at maximum level"));
+            Messages.send(player, MessageKey.LEVEL_UP_MAX_LEVEL);
             return true;
         }
 
@@ -149,28 +150,17 @@ public class LevelUpComponent implements GuildCommand {
         LevelUpResult result = progressionService.attemptLevelUp(guild.getId(), player.getUniqueId());
 
         if (result.isSuccess()) {
-            // Success message to guild
-            Component successMessage = Component.text()
-                    .append(Component.text("✧ ", NamedTextColor.GOLD, TextDecoration.BOLD))
-                    .append(Component.text("Guild Leveled Up!", NamedTextColor.GOLD, TextDecoration.BOLD))
-                    .append(Component.text(" ✧", NamedTextColor.GOLD, TextDecoration.BOLD))
-                    .append(Component.newline())
-                    .append(Component.text("Your guild is now level ", NamedTextColor.YELLOW))
-                    .append(Component.text(result.getNewLevel(), NamedTextColor.GREEN, TextDecoration.BOLD))
-                    .append(Component.text("!", NamedTextColor.YELLOW))
-                    .build();
-
             // Broadcast to all guild members
             for (UUID memberId : guild.getMembers()) {
                 Player member = player.getServer().getPlayer(memberId);
                 if (member != null && member.isOnline()) {
-                    member.sendMessage(successMessage);
+                    Messages.send(member, MessageKey.LEVEL_UP_SUCCESS, result.getNewLevel());
                 }
             }
 
             return true;
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.getErrorMessage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, result.getErrorMessage());
             return true;
         }
     }

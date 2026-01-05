@@ -4,11 +4,11 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
 import java.util.List;
-import java.util.UUID;
 import java.util.Objects;
-import java.util.UUID;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.aincraft.claim.ChunkClaimLog;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.TerritoryService;
 import org.bukkit.entity.Player;
@@ -32,7 +32,7 @@ public class ClaimLogSubcomponent {
     public boolean execute(Player player, String[] args) {
         org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -51,11 +51,11 @@ public class ClaimLogSubcomponent {
         List<ChunkClaimLog> logs = territoryService.getGuildClaimLogs(guildId, LOG_PAGE_SIZE * page);
 
         if (logs.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "No claim history recorded"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Claim History", " (Page " + page + ")"));
+        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Claim History (Page " + page + ")"));
 
         int shown = 0;
         for (int i = offset; i < logs.size() && shown < LOG_PAGE_SIZE; i++) {
@@ -67,13 +67,13 @@ public class ClaimLogSubcomponent {
             String time = DATE_FORMAT.format(new Date(log.timestamp()));
             String location = "[" + log.chunk().world() + "] " + log.chunk().x() + "/" + log.chunk().z();
 
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                     "<gray>" + time + " " + action + " <gold>" + location + "</gold> by " + playerName + "</gray>"));
             shown++;
         }
 
         if (logs.size() > page * LOG_PAGE_SIZE) {
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                     "<gray>Use <yellow>/g log claim " + (page + 1) + "</yellow> for more</gray>"));
         }
 

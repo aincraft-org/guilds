@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.TerritoryService;
 import org.bukkit.command.CommandSender;
@@ -41,18 +42,18 @@ public class ClaimComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to claim chunks"));
+            Messages.send(player, MessageKey.CLAIM_NO_PERMISSION);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -61,19 +62,18 @@ public class ClaimComponent implements GuildCommand {
         Guild existingOwner = territoryService.getChunkOwner(chunk);
         if (existingOwner != null) {
             if (existingOwner.getId().equals(guild.getId())) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Your guild already owns this chunk"));
+                Messages.send(player, MessageKey.CLAIM_ALREADY_OWNED);
             } else {
-                player.sendMessage(MessageFormatter.deserialize("<red>This chunk is claimed by <gold>" + existingOwner.getName() + "</gold></red>"));
+                Messages.send(player, MessageKey.CLAIM_ALREADY_CLAIMED, existingOwner.getName());
             }
             return true;
         }
 
         org.aincraft.ClaimResult result = territoryService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
         if (result.isSuccess()) {
-            player.sendMessage(MessageFormatter.deserialize("<green>Claimed chunk at <gold>" + chunk.x() + ", " + chunk.z() +
-                    "</gold> for <gold>" + guild.getName() + "</gold></green>"));
+            Messages.send(player, MessageKey.CLAIM_SUCCESS, chunk.x(), chunk.z());
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.getReason()));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, result.getReason());
         }
 
         return true;

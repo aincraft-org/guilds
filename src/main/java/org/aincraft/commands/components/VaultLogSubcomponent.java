@@ -5,7 +5,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import org.aincraft.commands.MessageFormatter;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.vault.Vault;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransaction;
@@ -30,7 +32,7 @@ public class VaultLogSubcomponent {
         Optional<Vault> vaultOpt = vaultService.getGuildVault(player.getUniqueId());
 
         if (vaultOpt.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Your guild does not have a vault"));
+            Messages.send(player, MessageKey.VAULT_NOT_FOUND);
             return true;
         }
 
@@ -49,11 +51,11 @@ public class VaultLogSubcomponent {
         List<VaultTransaction> transactions = vaultService.getRecentTransactions(vault.getId(), TRANSACTION_PAGE_SIZE * page);
 
         if (transactions.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "No transactions recorded"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Vault Transactions", " (Page " + page + ")"));
+        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Vault Transactions (Page " + page + ")"));
 
         int shown = 0;
         for (int i = offset; i < transactions.size() && shown < TRANSACTION_PAGE_SIZE; i++) {
@@ -65,13 +67,13 @@ public class VaultLogSubcomponent {
             String itemName = tx.itemType().name().toLowerCase().replace("_", " ");
             String time = DATE_FORMAT.format(new Date(tx.timestamp()));
 
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                     "<gray>" + time + " " + action + " <gold>" + tx.amount() + "x " + itemName + "</gold> by " + playerName + "</gray>"));
             shown++;
         }
 
         if (transactions.size() > page * TRANSACTION_PAGE_SIZE) {
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                     "<gray>Use <yellow>/g log vault " + (page + 1) + "</yellow> for more</gray>"));
         }
 

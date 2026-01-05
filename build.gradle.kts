@@ -12,9 +12,13 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public")
     maven("https://oss.sonatype.org/content/repositories/snapshots")
+    maven {
+        url = uri("https://codeberg.org/api/packages/aincraft/maven")
+    }
 }
 
 dependencies {
+    implementation("org.aincraft:mint-api:1.0.0-SNAPSHOT")
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
 
     // Guice DI

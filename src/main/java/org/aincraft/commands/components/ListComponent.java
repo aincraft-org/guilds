@@ -5,7 +5,8 @@ import java.util.List;
 import org.aincraft.Guild;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -39,19 +40,19 @@ public class ListComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to list guilds"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         List<Guild> allGuilds = lifecycleService.listAllGuilds();
 
         if (allGuilds.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "No guilds exist yet"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
             return true;
         }
 
@@ -63,7 +64,7 @@ public class ListComponent implements GuildCommand {
                     page = 1;
                 }
             } catch (NumberFormatException e) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Invalid page number"));
+                Messages.send(player, MessageKey.LIST_INVALID_PAGE);
                 return true;
             }
         }
@@ -89,7 +90,7 @@ public class ListComponent implements GuildCommand {
         int startIndex = (page - 1) * GUILDS_PER_PAGE;
         int endIndex = Math.min(startIndex + GUILDS_PER_PAGE, guilds.size());
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Guilds (Page " + page + "/" + totalPages + ")", ""));
+        Messages.send(player, MessageKey.LIST_HEADER, page, totalPages);
 
         for (int i = startIndex; i < endIndex; i++) {
             Guild guild = guilds.get(i);
@@ -98,13 +99,15 @@ public class ListComponent implements GuildCommand {
                 ownerName = guild.getOwnerId().toString();
             }
 
-            player.sendMessage(MessageFormatter.deserialize("<yellow>" + (i + 1) + ". <gold>" + guild.getName() +
-                "<gray> [" + guild.getMemberCount() + "/" + guild.getMaxMembers() + "] " +
-                "<white>Owner: " + ownerName));
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                .deserialize("<yellow>" + (i + 1) + ". <gold>" + guild.getName() +
+                    "<gray> [" + guild.getMemberCount() + "/" + guild.getMaxMembers() + "] " +
+                    "<white>Owner: " + ownerName));
         }
 
         if (totalPages > 1) {
-            player.sendMessage(MessageFormatter.deserialize("<gray>Use /g list " + (page + 1) + " for next page"));
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                .deserialize("<gray>Use /g list " + (page + 1) + " for next page"));
         }
     }
 }

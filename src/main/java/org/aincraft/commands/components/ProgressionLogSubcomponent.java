@@ -1,6 +1,8 @@
 package org.aincraft.commands.components;
 
-import org.aincraft.commands.MessageFormatter;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.progression.ProgressionLog;
 import org.aincraft.progression.storage.ProgressionLogRepository;
 import org.aincraft.service.GuildMemberService;
@@ -33,7 +35,7 @@ public class ProgressionLogSubcomponent {
         org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -51,11 +53,11 @@ public class ProgressionLogSubcomponent {
         List<ProgressionLog> logs = logRepository.findByGuild(guild.getId(), LOG_PAGE_SIZE * page);
 
         if (logs.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "No progression events recorded"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Progression History", " (Page " + page + ")"));
+        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Progression History (Page " + page + ")"));
 
         int shown = 0;
         for (int i = offset; i < logs.size() && shown < LOG_PAGE_SIZE; i++) {
@@ -63,13 +65,13 @@ public class ProgressionLogSubcomponent {
             String time = DATE_FORMAT.format(new Date(log.timestamp()));
             String message = formatLogEntry(log);
 
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                     "<gray>" + time + " " + message + "</gray>"));
             shown++;
         }
 
         if (logs.size() > page * LOG_PAGE_SIZE) {
-            player.sendMessage(MessageFormatter.deserialize(
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
                     "<gray>Use <yellow>/g log progression " + (page + 1) + "</yellow> for more</gray>"));
         }
 

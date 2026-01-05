@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.LeaveResult;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -38,38 +39,38 @@ public class LeaveComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to leave guilds"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, "leave guilds");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         LeaveResult result = memberService.leaveGuild(guild.getId(), player.getUniqueId());
 
         if (result.isSuccess()) {
-            player.sendMessage(MessageFormatter.deserialize("<green>✓ You left '<gold>" + guild.getName() + "</gold>'</green>"));
+            Messages.send(player, MessageKey.GUILD_LEFT, guild.getName());
             return true;
         }
 
         // Display verbose error message
         String errorMsg = switch (result.getStatus()) {
-            case OWNER_CANNOT_LEAVE -> "✗ " + result.getReason();
-            case NOT_IN_GUILD -> "✗ " + result.getReason();
-            case FAILURE -> "✗ Failed to leave guild: " + result.getReason();
-            default -> "✗ Failed to leave guild";
+            case OWNER_CANNOT_LEAVE -> result.getReason();
+            case NOT_IN_GUILD -> result.getReason();
+            case FAILURE -> result.getReason();
+            default -> "Failed to leave guild";
         };
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, errorMsg));
+        Messages.send(player, MessageKey.ERROR_NO_PERMISSION, "leave guilds");
         return true;
     }
 }

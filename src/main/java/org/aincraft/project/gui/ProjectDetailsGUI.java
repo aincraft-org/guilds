@@ -5,8 +5,10 @@ import dev.triumphteam.gui.guis.Gui;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.aincraft.Guild;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.project.*;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -115,11 +117,10 @@ public class ProjectDetailsGUI {
                                     projectService.completeProject(guild.getId(), viewer.getUniqueId());
 
                             if (result.success()) {
-                                viewer.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
-                                        "Project completed! Buff activated: " + result.buff().categoryId()));
+                                Messages.send(viewer, MessageKey.PROJECT_COMPLETED);
                                 viewer.closeInventory();
                             } else {
-                                viewer.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
+                                viewer.sendMessage(MiniMessage.miniMessage().deserialize(result.errorMessage()));
                             }
                         }));
             } else {
@@ -135,12 +136,10 @@ public class ProjectDetailsGUI {
                         boolean abandoned = projectService.abandonProject(guild.getId(), viewer.getUniqueId());
 
                         if (abandoned) {
-                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.INFO,
-                                    "Project abandoned. All progress has been reset."));
+                            Messages.send(viewer, MessageKey.PROJECT_ABANDONED);
                             viewer.closeInventory();
                         } else {
-                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                                    "Failed to abandon project."));
+                            Messages.send(viewer, MessageKey.ERROR_NO_PERMISSION);
                         }
                     }));
         } else {
@@ -152,15 +151,14 @@ public class ProjectDetailsGUI {
                                 projectService.startProject(guild.getId(), viewer.getUniqueId(), definition.id());
 
                         if (result.success()) {
-                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.SUCCESS,
-                                    "Started project: " + definition.name()));
+                            Messages.send(viewer, MessageKey.PROJECT_STARTED, definition.name());
 
                             // Open updated details GUI
                             ProjectDetailsGUI newGUI = new ProjectDetailsGUI(
                                     guild, viewer, projectService, registry, definition, result.project(), guildLevel);
                             newGUI.open();
                         } else {
-                            viewer.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
+                            viewer.sendMessage(MiniMessage.miniMessage().deserialize(result.errorMessage()));
                         }
                     }));
         }

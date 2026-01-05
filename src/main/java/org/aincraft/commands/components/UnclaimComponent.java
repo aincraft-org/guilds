@@ -6,7 +6,8 @@ import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.service.TerritoryService;
@@ -51,18 +52,18 @@ public class UnclaimComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to unclaim chunks"));
+            Messages.send(player, MessageKey.CLAIM_NO_PERMISSION);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -70,63 +71,56 @@ public class UnclaimComponent implements GuildCommand {
         if (args.length > 1 && "all".equalsIgnoreCase(args[1])) {
             // Check UNCLAIM_ALL permission BEFORE subregion check
             if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.UNCLAIM_ALL)) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to unclaim all chunks"));
+                Messages.send(player, MessageKey.CLAIM_NO_PERMISSION);
                 return true;
             }
 
             // Check for any subregions before unclaiming all
             List<Subregion> allSubregions = subregionService.getGuildSubregions(guild.getId());
             if (!allSubregions.isEmpty()) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                        "Cannot unclaim all chunks - guild contains " + allSubregions.size() + " subregion(s):"));
+                player.sendMessage(Messages.get(MessageKey.CLAIM_CANNOT_UNCLAIM_HOMEBLOCK, allSubregions.size()));
                 for (Subregion region : allSubregions) {
-                    player.sendMessage(MessageFormatter.deserialize(
-                            "<gray>  • <gold>" + region.getName() + "</gold></gray>"));
+                    player.sendMessage(Messages.get(MessageKey.ERROR_NO_PERMISSION, region.getName()));
                 }
-                player.sendMessage(MessageFormatter.deserialize(
-                        "<gray>Delete subregions first with <yellow>/g region delete <name></yellow></gray>"));
+                player.sendMessage(Messages.get(MessageKey.ERROR_NO_PERMISSION, "/g region delete <name>"));
                 return true;
             }
 
             if (!territoryService.unclaimAll(guild.getId(), player.getUniqueId())) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to unclaim all chunks"));
+                Messages.send(player, MessageKey.CLAIM_NO_PERMISSION);
                 return true;
             }
-            player.sendMessage(MessageFormatter.deserialize("<green>Unclaimed all chunks for <gold>" + guild.getName() + "</gold></green>"));
+            Messages.send(player, MessageKey.CLAIM_UNCLAIM_ALL, guild.getName());
         } else {
             // Unclaim single chunk at player's location
             ChunkKey chunk = ChunkKey.from(player.getLocation().getChunk());
 
             Guild chunkOwner = territoryService.getChunkOwner(chunk);
             if (chunkOwner == null) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "This chunk is not claimed"));
+                Messages.send(player, MessageKey.CLAIM_NOT_OWNED);
                 return true;
             }
 
             if (!chunkOwner.getId().equals(guild.getId())) {
-                player.sendMessage(MessageFormatter.deserialize("<red>This chunk is claimed by <gold>" + chunkOwner.getName() +
-                        "</gold>, not your guild</red>"));
+                Messages.send(player, MessageKey.CLAIM_NOT_OWNED);
                 return true;
             }
 
             // Check for subregions in this chunk
             List<Subregion> subregions = subregionService.getSubregionsInChunk(chunk);
             if (!subregions.isEmpty()) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                        "Cannot unclaim chunk - it contains " + subregions.size() + " subregion(s):"));
+                player.sendMessage(Messages.get(MessageKey.CLAIM_CANNOT_UNCLAIM_HOMEBLOCK, subregions.size()));
                 for (Subregion region : subregions) {
-                    player.sendMessage(MessageFormatter.deserialize(
-                            "<gray>  • <gold>" + region.getName() + "</gold></gray>"));
+                    player.sendMessage(Messages.get(MessageKey.ERROR_NO_PERMISSION, region.getName()));
                 }
-                player.sendMessage(MessageFormatter.deserialize(
-                        "<gray>Delete subregions first with <yellow>/g region delete <name></yellow></gray>"));
+                player.sendMessage(Messages.get(MessageKey.ERROR_NO_PERMISSION, "/g region delete <name>"));
                 return true;
             }
 
             if (territoryService.unclaimChunk(guild.getId(), player.getUniqueId(), chunk)) {
-                player.sendMessage(MessageFormatter.deserialize("<green>Unclaimed chunk at <gold>" + chunk.x() + ", " + chunk.z() + "</gold></green>"));
+                Messages.send(player, MessageKey.CLAIM_UNCLAIMED, chunk.x(), chunk.z());
             } else {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to unclaim chunk. You may lack UNCLAIM permission."));
+                Messages.send(player, MessageKey.CLAIM_NO_PERMISSION);
             }
         }
 

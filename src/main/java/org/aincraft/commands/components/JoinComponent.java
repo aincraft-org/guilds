@@ -3,7 +3,8 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
@@ -40,17 +41,17 @@ public class JoinComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to join guilds"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return false;
         }
 
@@ -58,25 +59,22 @@ public class JoinComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Guild '" + guildName + "' not found"));
+            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
             return true;
         }
 
         // Check if guild is private
         if (!guild.isPublic()) {
-            player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR,
-                "✗ " + guild.getName() + " is private. You need an invite to join"
-            ));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (memberService.joinGuild(guild.getId(), player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.deserialize("<green>✓ You joined '<gold>" + guild.getName() + "</gold>'!</green>"));
+            Messages.send(player, MessageKey.GUILD_JOINED, guild.getName());
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Failed to join guild. You may already be in a guild or the guild is full"));
+        Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
         return true;
     }
 }

@@ -3,7 +3,8 @@ package org.aincraft.commands.components.region;
 import com.google.inject.Inject;
 import java.util.UUID;
 import org.aincraft.Guild;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.subregion.RegionPermissionService;
 import org.aincraft.subregion.Subregion;
@@ -41,7 +42,7 @@ public class RegionCommandHelper {
     public Guild requireGuild(Player player) {
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
         }
         return guild;
     }
@@ -57,7 +58,7 @@ public class RegionCommandHelper {
     public Subregion requireRegion(Guild guild, String regionName, Player player) {
         var regionOpt = subregionService.getSubregionByName(guild.getId(), regionName);
         if (regionOpt.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Region not found: " + regionName));
+            Messages.send(player, MessageKey.REGION_NOT_FOUND, regionName);
             return null;
         }
         return regionOpt.get();
@@ -73,7 +74,7 @@ public class RegionCommandHelper {
     public Player requirePlayer(String playerName, Player sender) {
         Player player = Bukkit.getPlayer(playerName);
         if (player == null) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Player not found or not online"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_NOT_FOUND);
         }
         return player;
     }
@@ -88,8 +89,7 @@ public class RegionCommandHelper {
      */
     public boolean requireModifyPermission(Subregion region, UUID playerId, Player player) {
         if (!permissionService.canModifyPermissions(region, playerId)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "You don't have permission to modify region permissions"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return false;
         }
         return true;
@@ -119,8 +119,7 @@ public class RegionCommandHelper {
      */
     public boolean validateRegionType(String typeId, Player player) {
         if (!typeRegistry.isRegistered(typeId)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "Unknown region type: " + typeId + ". Use /g region types to see available types."));
+            Messages.send(player, MessageKey.REGION_TYPE_UNKNOWN, typeId);
             return false;
         }
         return true;

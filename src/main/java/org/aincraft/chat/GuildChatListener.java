@@ -16,7 +16,8 @@ import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.RelationshipService;
 import org.aincraft.chat.ChatModeService.ChatMode;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.Bukkit;
@@ -60,8 +61,7 @@ public class GuildChatListener implements Listener {
         // Get sender's guild
         Guild guild = memberService.getPlayerGuild(sender.getUniqueId());
         if (guild == null) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "You are not in a guild. Chat mode reset to public."));
+            Messages.send(sender, MessageKey.CHAT_NO_GUILD_RESET);
             chatModeService.setMode(sender.getUniqueId(), ChatMode.PUBLIC);
             return;
         }
@@ -73,9 +73,7 @@ public class GuildChatListener implements Listener {
 
         if (!guild.isOwner(sender.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), sender.getUniqueId(), requiredPermission)) {
-            String chatType = (mode == ChatMode.OFFICER) ? "officer" : "guild";
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "You don't have permission to use " + chatType + " chat."));
+            Messages.send(sender, MessageKey.CHAT_NO_PERMISSION);
             event.setCancelled(true);
             return;
         }

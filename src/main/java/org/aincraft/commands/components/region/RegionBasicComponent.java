@@ -9,7 +9,8 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.aincraft.subregion.SubregionTypeRegistry;
@@ -44,7 +45,7 @@ public class RegionBasicComponent {
      */
     public boolean handleDelete(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region delete <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region delete <name>");
             return true;
         }
 
@@ -55,10 +56,9 @@ public class RegionBasicComponent {
 
         String name = args[2];
         if (subregionService.deleteSubregion(guild.getId(), player.getUniqueId(), name)) {
-            player.sendMessage(MessageFormatter.deserialize("<green>Deleted region <gold>" + name + "</gold></green>"));
+            Messages.send(player, MessageKey.REGION_DELETED, name);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "Failed to delete region. It may not exist or you lack permission."));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to delete region. It may not exist or you lack permission.");
         }
 
         return true;
@@ -79,12 +79,11 @@ public class RegionBasicComponent {
         List<Subregion> regions = subregionService.getGuildSubregions(guild.getId());
 
         if (regions.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Your guild has no regions"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Guild Regions", " (" + regions.size() + ")"));
-        player.sendMessage(MessageFormatter.deserialize("<gray><italic>Hover over a region to visualize its boundaries</italic></gray>"));
+        Messages.send(player, MessageKey.LIST_HEADER);
 
         for (Subregion region : regions) {
             Component regionLine = buildRegionListItem(region);
@@ -114,8 +113,7 @@ public class RegionBasicComponent {
             // Try to find region at player's location
             Optional<Subregion> atLocation = subregionService.getSubregionAt(player.getLocation());
             if (atLocation.isEmpty()) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                        "Usage: /g region info <name> or stand inside a region"));
+                Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region info <name> or stand inside a region");
                 return true;
             }
             name = atLocation.get().getName();
@@ -126,7 +124,7 @@ public class RegionBasicComponent {
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Region: " + region.getName(), ""));
+        Messages.send(player, MessageKey.INFO_HEADER, "Region: " + region.getName());
 
         // Type info
         if (region.getType() != null) {
@@ -134,24 +132,22 @@ public class RegionBasicComponent {
             var typeOpt = typeRegistry.getType(region.getType());
             if (typeOpt.isPresent()) {
                 var type = typeOpt.get();
-                player.sendMessage(MessageFormatter.format(MessageFormatter.INFO,
-                        "Type", displayName + " - " + type.getDescription()));
+                Messages.send(player, MessageKey.INFO_HEADER, "Type: " + displayName + " - " + type.getDescription());
             } else {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Type", region.getType()));
+                Messages.send(player, MessageKey.INFO_HEADER, "Type: " + region.getType());
             }
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "World", region.getWorld()));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Bounds",
+        Messages.send(player, MessageKey.INFO_HEADER, "World: " + region.getWorld());
+        Messages.send(player, MessageKey.INFO_HEADER, "Bounds: " +
                 region.getMinX() + "," + region.getMinY() + "," + region.getMinZ() + " to " +
-                region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ()));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Volume", region.getVolume() + " blocks"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Created", new Date(region.getCreatedAt()).toString()));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Owners", region.getOwners().size() + " player(s)"));
+                region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ());
+        Messages.send(player, MessageKey.INFO_HEADER, "Volume: " + region.getVolume() + " blocks");
+        Messages.send(player, MessageKey.INFO_HEADER, "Created: " + new Date(region.getCreatedAt()).toString());
+        Messages.send(player, MessageKey.INFO_HEADER, "Owners: " + region.getOwners().size() + " player(s)");
 
         if (region.getPermissions() != 0) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Custom Permissions",
-                    String.valueOf(region.getPermissions())));
+            Messages.send(player, MessageKey.INFO_HEADER, "Custom Permissions: " + region.getPermissions());
         }
 
         return true;
@@ -166,7 +162,7 @@ public class RegionBasicComponent {
      */
     public boolean handleVisualize(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region visualize <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region visualize <name>");
             return true;
         }
 
@@ -184,10 +180,7 @@ public class RegionBasicComponent {
         // Start visualization
         visualizer.visualizeRegion(player, region);
 
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Visualizing region <gold>" + regionName + "</gold> for 10 seconds...</green>"));
-        player.sendMessage(MessageFormatter.deserialize(
-                "<gray>Corners shown with <white>white particles</white>, edges with <aqua>cyan particles</aqua>, center with <green>green particles</green></gray>"));
+        Messages.send(player, MessageKey.INFO_HEADER, regionName);
 
         return true;
     }

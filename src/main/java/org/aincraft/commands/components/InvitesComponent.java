@@ -8,7 +8,8 @@ import org.aincraft.GuildInvite;
 import org.aincraft.GuildPermission;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
@@ -39,35 +40,32 @@ public class InvitesComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can view invites"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         // Check permission
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to use this command"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Show received invites
         List<GuildInvite> receivedInvites = inviteService.getReceivedInvites(player.getUniqueId());
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Guild Invites", ""));
+        Messages.send(player, MessageKey.LIST_HEADER, "Guild Invites");
 
         if (receivedInvites.isEmpty()) {
-            player.sendMessage(MessageFormatter.format("<gray>No pending invites</gray>"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
         } else {
-            player.sendMessage(MessageFormatter.format("<gold>Received Invites:</gold>"));
+            Messages.send(player, MessageKey.INVITE_RECEIVED);
             for (GuildInvite invite : receivedInvites) {
                 Guild guild = lifecycleService.getGuildById(invite.guildId());
                 if (guild != null) {
                     OfflinePlayer inviter = Bukkit.getOfflinePlayer(invite.inviterId());
                     String timeLeft = formatTimeLeft(invite.remainingMillis());
 
-                    player.sendMessage(MessageFormatter.format(
-                        "  <gray>•</gray> <gold>" + guild.getName() + "</gold> <gray>(from <white>" +
-                        inviter.getName() + "</white>) - expires in <yellow>" + timeLeft + "</yellow></gray>"
-                    ));
+                    player.sendMessage(Messages.get(MessageKey.INVITE_RECEIVED, guild.getName(), inviter.getName(), timeLeft));
                 }
             }
         }
@@ -79,15 +77,12 @@ public class InvitesComponent implements GuildCommand {
 
             if (!sentInvites.isEmpty()) {
                 player.sendMessage("");
-                player.sendMessage(MessageFormatter.format("<gold>Sent Invites (" + guild.getName() + "):</gold>"));
+                Messages.send(player, MessageKey.LIST_HEADER, "Sent Invites (" + guild.getName() + ")");
                 for (GuildInvite invite : sentInvites) {
                     OfflinePlayer invitee = Bukkit.getOfflinePlayer(invite.inviteeId());
                     String timeLeft = formatTimeLeft(invite.remainingMillis());
 
-                    player.sendMessage(MessageFormatter.format(
-                        "  <gray>•</gray> <white>" + invitee.getName() + "</white> <gray>- expires in <yellow>" +
-                        timeLeft + "</yellow></gray>"
-                    ));
+                    player.sendMessage(Messages.get(MessageKey.LIST_HEADER, invitee.getName(), timeLeft));
                 }
             }
         }

@@ -3,7 +3,8 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.SpawnService;
 import org.bukkit.Location;
@@ -42,36 +43,32 @@ public class SpawnComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to use guild spawn"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // Get spawn location
         Location spawnLocation = spawnService.getGuildSpawnLocation(guild.getId());
         if (spawnLocation == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Your guild does not have a spawn point set"));
+            Messages.send(player, MessageKey.SPAWN_NO_SPAWN);
             return true;
         }
 
         // Teleport player
         player.teleport(spawnLocation);
-        player.sendMessage(MessageFormatter.deserialize(
-            "<green>✓ Teleported to guild spawn at <gold>" +
-            guild.getName() +
-            "</gold>!</green>"
-        ));
+        Messages.send(player, MessageKey.SPAWN_TELEPORTED, guild.getName());
         return true;
     }
 }

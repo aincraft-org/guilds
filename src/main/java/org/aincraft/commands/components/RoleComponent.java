@@ -14,7 +14,8 @@ import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.role.gui.RoleCreationGUI;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.GuildRoleService;
@@ -71,18 +72,18 @@ public final class RoleComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to manage roles"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -112,17 +113,7 @@ public final class RoleComponent implements GuildCommand {
     }
 
     private void showRoleUsage(Player player) {
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Role Commands", ""));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role editor <name>", "Open role editor (create or edit)"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role create <name> <perms> <priority>", "Create role directly"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role copy <source> <new_name>", "Copy role from source"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role delete <name>", "Delete role"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role perm <name> <perm> <true|false>", "Set permission"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role priority <name> <priority>", "Set role priority"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role list", "List roles"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role info <name>", "Show role info"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role assign <player> <role>", "Assign role"));
-        player.sendMessage(MessageFormatter.format(MessageFormatter.USAGE, "/g role unassign <player> <role>", "Unassign role"));
+        Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
     }
 
     /**
@@ -130,7 +121,7 @@ public final class RoleComponent implements GuildCommand {
      */
     private boolean handleEditor(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role editor <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role editor <name>");
             return true;
         }
 
@@ -138,7 +129,7 @@ public final class RoleComponent implements GuildCommand {
 
         // Check MANAGE_ROLES permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
             return true;
         }
 
@@ -153,7 +144,7 @@ public final class RoleComponent implements GuildCommand {
      */
     private boolean handleCreate(Player player, Guild guild, String[] args) {
         if (args.length < 5) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role create <name> <perms> <priority>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role create <name> <perms> <priority>");
             return true;
         }
 
@@ -161,19 +152,19 @@ public final class RoleComponent implements GuildCommand {
 
         // Check if role name already exists
         if (roleService.getRoleByName(guild.getId(), name) != null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "A role with that name already exists."));
+            Messages.send(player, MessageKey.ROLE_ALREADY_EXISTS, name);
             return true;
         }
 
         // Check MANAGE_ROLES permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
             return true;
         }
 
         int permissions = parsePermissions(args[3]);
         if (permissions == -1) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Invalid permissions. Must be an integer."));
+            Messages.send(player, MessageKey.ROLE_INVALID_PERMISSIONS);
             return true;
         }
 
@@ -181,18 +172,17 @@ public final class RoleComponent implements GuildCommand {
         try {
             priority = Integer.parseInt(args[4]);
         } catch (NumberFormatException e) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Invalid priority. Must be an integer."));
+            Messages.send(player, MessageKey.ROLE_INVALID_PRIORITY);
             return true;
         }
 
         GuildRole role = roleService.createRole(guild.getId(), player.getUniqueId(), name, permissions, priority);
         if (role == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to create role. You may lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
             return true;
         }
 
-        String priorityText = priority > 0 ? " <gray>(priority: <yellow>" + priority + "</yellow>)</gray>" : "";
-        player.sendMessage(MessageFormatter.deserialize("<green>Created role '<gold>" + name + "</gold>'" + priorityText + "</green>"));
+        Messages.send(player, MessageKey.ROLE_CREATED, name);
         return true;
     }
 
@@ -201,7 +191,7 @@ public final class RoleComponent implements GuildCommand {
      */
     private boolean handleCopy(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role copy <source_role> <new_role_name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role copy <source_role> <new_role_name>");
             return true;
         }
 
@@ -210,52 +200,51 @@ public final class RoleComponent implements GuildCommand {
 
         // Validate that source and target names are different
         if (sourceName.equalsIgnoreCase(newName)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Source and target role names must be different."));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Check if source role exists
         GuildRole sourceRole = roleService.getRoleByName(guild.getId(), sourceName);
         if (sourceRole == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Source role not found: <gold>" + sourceName + "</gold>"));
+            Messages.send(player, MessageKey.ROLE_NOT_FOUND, sourceName);
             return true;
         }
 
         // Check if target role name already exists
         if (roleService.getRoleByName(guild.getId(), newName) != null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "A role with that name already exists: <gold>" + newName + "</gold>"));
+            Messages.send(player, MessageKey.ROLE_ALREADY_EXISTS, newName);
             return true;
         }
 
         // Check MANAGE_ROLES permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
             return true;
         }
 
         // Perform the copy
         GuildRole copiedRole = roleService.copyRole(guild.getId(), player.getUniqueId(), sourceName, newName);
         if (copiedRole == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to copy role. Please try again."));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
-        // Provide feedback with details
-        String priorityText = copiedRole.getPriority() > 0 ? " <gray>(priority: <yellow>" + copiedRole.getPriority() + "</yellow>)</gray>" : "";
-        player.sendMessage(MessageFormatter.deserialize("<green>Copied role '<gold>" + sourceName + "</gold>' to '<gold>" + newName + "</gold>'" + priorityText + "</green>"));
+        Messages.send(player, MessageKey.ROLE_COPIED, sourceName, newName);
         return true;
     }
 
     private boolean handleList(Player player, Guild guild) {
         List<GuildRole> roles = roleService.getGuildRoles(guild.getId());
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Guild Roles", " (sorted by priority)"));
+        // Send header
+        player.sendMessage(Component.text("Guild Roles (sorted by priority)", NamedTextColor.GOLD));
         if (roles.isEmpty()) {
-            player.sendMessage(MessageFormatter.deserialize("<gray>No roles defined"));
+            player.sendMessage(Component.text("No roles defined", NamedTextColor.GRAY));
         } else {
             for (GuildRole role : roles) {
-                String priorityBadge = role.getPriority() > 0 ? "<dark_gray>[<gold>" + role.getPriority() + "</gold>]</dark_gray> " : "";
-                player.sendMessage(MessageFormatter.deserialize(priorityBadge + "<yellow>" + role.getName() + "<gray> [" + role.getPermissions() + "]"));
+                String priorityBadge = role.getPriority() > 0 ? "[" + role.getPriority() + "] " : "";
+                player.sendMessage(Component.text(priorityBadge + role.getName() + " [" + role.getPermissions() + "]", NamedTextColor.YELLOW));
             }
         }
         return true;
@@ -263,14 +252,14 @@ public final class RoleComponent implements GuildCommand {
 
     private boolean handleInfo(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role info <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role info <name>");
             return true;
         }
 
         String name = args[2];
         GuildRole role = roleService.getRoleByName(guild.getId(), name);
         if (role == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + name));
+            Messages.send(player, MessageKey.ROLE_NOT_FOUND, name);
             return true;
         }
 
@@ -280,29 +269,28 @@ public final class RoleComponent implements GuildCommand {
 
     private boolean handleDelete(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role delete <name>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role delete <name>");
             return true;
         }
 
         String name = args[2];
         GuildRole role = roleService.getRoleByName(guild.getId(), name);
         if (role == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + name));
+            Messages.send(player, MessageKey.ROLE_NOT_FOUND, name);
             return true;
         }
 
         if (roleService.deleteRole(guild.getId(), player.getUniqueId(), role.getId())) {
-            player.sendMessage(MessageFormatter.deserialize("<green>Deleted role '<gold>" + name + "</gold>'</green>"));
+            Messages.send(player, MessageKey.ROLE_DELETED, name);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to delete role. You may lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
         }
         return true;
     }
 
     private boolean handleSetPerm(Player player, Guild guild, String[] args) {
         if (args.length < 5) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role perm <role> <permission> <true|false>"));
-            player.sendMessage(MessageFormatter.deserialize("<gray>Permissions: BUILD, DESTROY, INTERACT, CLAIM, UNCLAIM, INVITE, KICK, MANAGE_ROLES"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role perm <role> <permission> <true|false>");
             return true;
         }
 
@@ -312,7 +300,7 @@ public final class RoleComponent implements GuildCommand {
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
+            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
             return true;
         }
 
@@ -320,7 +308,7 @@ public final class RoleComponent implements GuildCommand {
         try {
             perm = GuildPermission.valueOf(permName);
         } catch (IllegalArgumentException e) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Unknown permission: " + permName));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -332,19 +320,16 @@ public final class RoleComponent implements GuildCommand {
         }
 
         if (roleService.updateRolePermissions(guild.getId(), player.getUniqueId(), role.getId(), newPermissions)) {
-            String action = grant ? "granted" : "revoked";
-            player.sendMessage(MessageFormatter.deserialize("<green>" + action.substring(0, 1).toUpperCase() + action.substring(1) + " " +
-                    "<gold>" + permName + "</gold> for role <gold>" + roleName + "</gold></green>"));
+            Messages.send(player, grant ? MessageKey.ROLE_PERMISSION_ADDED : MessageKey.ROLE_PERMISSION_REMOVED, permName, roleName);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to update permissions. You may lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
         }
         return true;
     }
 
     private boolean handleSetPriority(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role priority <role> <priority>"));
-            player.sendMessage(MessageFormatter.deserialize("<gray>Priority: higher number = more authority"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role priority <role> <priority>");
             return true;
         }
 
@@ -354,32 +339,32 @@ public final class RoleComponent implements GuildCommand {
         try {
             priority = Integer.parseInt(args[3]);
         } catch (NumberFormatException e) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Invalid priority. Must be an integer."));
+            Messages.send(player, MessageKey.ROLE_INVALID_PRIORITY);
             return true;
         }
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
+            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
             return true;
         }
 
         // Check permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
             return true;
         }
 
         role.setPriority(priority);
         roleService.saveRole(role);
 
-        player.sendMessage(MessageFormatter.deserialize("<green>Set priority of <gold>" + roleName + "</gold> to <yellow>" + priority + "</yellow></green>"));
+        Messages.send(player, MessageKey.ROLE_PRIORITY_SET, roleName, priority);
         return true;
     }
 
     private boolean handleAssign(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role assign <player> <role>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role assign <player> <role>");
             return true;
         }
 
@@ -388,29 +373,28 @@ public final class RoleComponent implements GuildCommand {
 
         Player target = Bukkit.getPlayer(targetName);
         if (target == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Player not found: " + targetName));
+            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, targetName);
             return true;
         }
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
+            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
             return true;
         }
 
         if (roleService.assignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
-            player.sendMessage(MessageFormatter.deserialize("<green>Assigned <gold>" + roleName +
-                    "</gold> to <gold>" + target.getName() + "</gold></green>"));
-            target.sendMessage(MessageFormatter.deserialize("<green>You have been assigned the role <gold>" + roleName + "</gold> in guild <gold>" + guild.getName() + "</gold></green>"));
+            Messages.send(player, MessageKey.ROLE_ASSIGNED, roleName, target.getName());
+            Messages.send(target, MessageKey.ROLE_ASSIGNED, roleName, guild.getName());
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to assign role. Player may not be a member or you lack permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
         }
         return true;
     }
 
     private boolean handleUnassign(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g role unassign <player> <role>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "/g role unassign <player> <role>");
             return true;
         }
 
@@ -419,22 +403,21 @@ public final class RoleComponent implements GuildCommand {
 
         Player target = Bukkit.getPlayer(targetName);
         if (target == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Player not found: " + targetName));
+            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, targetName);
             return true;
         }
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Role not found: " + roleName));
+            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
             return true;
         }
 
         if (roleService.unassignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
-            player.sendMessage(MessageFormatter.deserialize("<green>Unassigned <gold>" + roleName +
-                    "</gold> from <gold>" + target.getName() + "</gold></green>"));
-            target.sendMessage(MessageFormatter.deserialize("<yellow>You have been unassigned the role <gold>" + roleName + "</gold> in guild <gold>" + guild.getName() + "</gold></yellow>"));
+            Messages.send(player, MessageKey.ROLE_UNASSIGNED, roleName, target.getName());
+            Messages.send(target, MessageKey.ROLE_UNASSIGNED, roleName, guild.getName());
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Failed to unassign role. You may lack MANAGE_ROLES permission."));
+            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
         }
         return true;
     }
@@ -472,7 +455,7 @@ public final class RoleComponent implements GuildCommand {
         int sideLength = (totalWidth - roleName.length() - 4) / 2;
         String underline = "_".repeat(Math.max(0, sideLength - 4));
 
-        player.sendMessage(MessageFormatter.deserialize(ROLE_HEADER,
+        player.sendMessage(Messages.provider().getWithResolvers(MessageKey.LIST_HEADER,
                 Placeholder.component("role_name", Component.text(roleName)),
                 Placeholder.component("left_underline", Component.text(underline)),
                 Placeholder.component("right_underline", Component.text(underline))));
@@ -480,21 +463,20 @@ public final class RoleComponent implements GuildCommand {
 
         // Priority
         if (role.getPriority() > 0) {
-            player.sendMessage(MessageFormatter.deserialize(ROLE_PRIORITY_WITH_VALUE,
+            player.sendMessage(Messages.provider().getWithResolvers(MessageKey.ROLE_PRIORITY_SET,
                     Placeholder.component("priority", Component.text(role.getPriority()))));
         } else {
-            player.sendMessage(MessageFormatter.deserialize(ROLE_PRIORITY_DEFAULT));
+            player.sendMessage(Component.text("Priority: 0 (default)", NamedTextColor.YELLOW));
         }
 
         // Permissions
-        player.sendMessage(MessageFormatter.deserialize(ROLE_PERMISSIONS_HEADER));
+        player.sendMessage(Component.text("Permissions:", NamedTextColor.YELLOW));
         if (role.getPermissions() == 0) {
-            player.sendMessage(MessageFormatter.deserialize(ROLE_PERMISSIONS_NONE));
+            player.sendMessage(Component.text("  • None", NamedTextColor.DARK_GRAY));
         } else {
             for (GuildPermission perm : GuildPermission.values()) {
                 if (role.hasPermission(perm)) {
-                    player.sendMessage(MessageFormatter.deserialize(ROLE_PERMISSION_ITEM,
-                            Placeholder.component("permission", Component.text(perm.name()))));
+                    player.sendMessage(Component.text("  • " + perm.name(), NamedTextColor.GREEN));
                 }
             }
         }
@@ -515,26 +497,22 @@ public final class RoleComponent implements GuildCommand {
 
         // Members
         List<UUID> memberIds = memberRoleRepository.getMembersWithRole(role.getId());
-        player.sendMessage(MessageFormatter.deserialize(ROLE_MEMBERS_HEADER,
-                Placeholder.component("member_count", Component.text(memberIds.size()))));
+        player.sendMessage(Component.text("Members (" + memberIds.size() + "):", NamedTextColor.YELLOW));
 
         if (memberIds.isEmpty()) {
-            player.sendMessage(MessageFormatter.deserialize(ROLE_MEMBERS_NONE));
+            player.sendMessage(Component.text("No members assigned", NamedTextColor.GRAY));
         } else {
             int displayLimit = 10;
             for (int i = 0; i < Math.min(displayLimit, memberIds.size()); i++) {
                 UUID memberId = memberIds.get(i);
                 var offlinePlayer = Bukkit.getOfflinePlayer(memberId);
                 String memberName = offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown";
-                String statusColor = offlinePlayer.isOnline() ? "green" : "gray";
+                NamedTextColor statusColor = offlinePlayer.isOnline() ? NamedTextColor.GREEN : NamedTextColor.GRAY;
 
-                player.sendMessage(MessageFormatter.deserialize(ROLE_MEMBER_ITEM,
-                        Placeholder.component("member_name", Component.text(memberName)),
-                        Placeholder.component("status_color", Component.text(statusColor))));
+                player.sendMessage(Component.text("  • " + memberName, statusColor));
             }
             if (memberIds.size() > displayLimit) {
-                player.sendMessage(MessageFormatter.deserialize(ROLE_MEMBERS_MORE,
-                        Placeholder.component("more_count", Component.text(memberIds.size() - displayLimit))));
+                player.sendMessage(Component.text("  ...and " + (memberIds.size() - displayLimit) + " more", NamedTextColor.DARK_GRAY));
             }
         }
 

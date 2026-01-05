@@ -6,7 +6,8 @@ import org.aincraft.Guild;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.command.CommandSender;
@@ -46,47 +47,44 @@ public class DisbandComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to disband guilds"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         if (!guild.isOwner(player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Only the guild owner can disband the guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
             return true;
         }
 
         // Check for subregions before disbanding
         List<Subregion> subregions = subregionService.getGuildSubregions(guild.getId());
         if (!subregions.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "✗ Cannot disband guild - it contains " + subregions.size() + " subregion(s):"));
+            player.sendMessage(Messages.get(MessageKey.ERROR_NO_PERMISSION,
+                "Cannot disband guild - it contains " + subregions.size() + " subregion(s)"));
             for (Subregion region : subregions) {
-                player.sendMessage(MessageFormatter.deserialize(
-                        "<gray>  • <gold>" + region.getName() + "</gold></gray>"));
+                player.sendMessage(Messages.get(MessageKey.ERROR_NO_PERMISSION, region.getName()));
             }
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<gray>Delete subregions first with <yellow>/g region delete <name></yellow></gray>"));
             return true;
         }
 
         if (lifecycleService.deleteGuild(guild.getId(), player.getUniqueId())) {
-            // Success - notification to all members (including owner) is handled by notifyMembersOfDisband()
+            Messages.send(player, MessageKey.GUILD_DISBANDED);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Failed to disband guild"));
+        Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
         return true;
     }
 }

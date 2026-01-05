@@ -5,7 +5,8 @@ import java.util.Objects;
 import org.aincraft.Guild;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -27,19 +28,19 @@ public class DeclineComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can decline guild invites"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         // Check permission
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to use this command"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Validate args
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return true;
         }
 
@@ -47,7 +48,7 @@ public class DeclineComponent implements GuildCommand {
         String guildName = args[1];
         Guild guild = lifecycleService.getGuildByName(guildName);
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
+            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
             return true;
         }
 
@@ -55,13 +56,9 @@ public class DeclineComponent implements GuildCommand {
         boolean declined = inviteService.declineInvite(guild.getId(), player.getUniqueId());
 
         if (declined) {
-            player.sendMessage(MessageFormatter.format(
-                "<gray>Declined invite to <gold>" + guild.getName() + "</gold></gray>"
-            ));
+            Messages.send(player, MessageKey.INVITE_DECLINED, guild.getName());
         } else {
-            player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "You don't have a pending invite to " + guild.getName()
-            ));
+            Messages.send(player, MessageKey.INVITE_NOT_FOUND, guild.getName());
         }
 
         return true;

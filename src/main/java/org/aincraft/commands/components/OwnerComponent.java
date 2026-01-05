@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -40,18 +41,18 @@ public class OwnerComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to check guild owner"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
@@ -60,9 +61,8 @@ public class OwnerComponent implements GuildCommand {
         OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerId);
 
         // Display owner information
-        player.sendMessage(MessageFormatter.format("<green><bold>Guild Owner</bold></green>"));
-        player.sendMessage(MessageFormatter.format("<gray>─────────────────────────</gray>"));
-        player.sendMessage(MessageFormatter.format("<gold>" + owner.getName() + "</gold>"));
+        Messages.send(player, MessageKey.LIST_HEADER, "Guild Owner");
+        Messages.send(player, MessageKey.INFO_HEADER, owner.getName());
 
         return true;
     }

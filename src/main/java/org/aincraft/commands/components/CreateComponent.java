@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.TerritoryService;
 import org.bukkit.command.CommandSender;
@@ -44,17 +45,17 @@ public class CreateComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to create guilds"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return false;
         }
 
@@ -68,7 +69,7 @@ public class CreateComponent implements GuildCommand {
         // This ensures we don't create a guild in the database if chunk claim would fail
         org.aincraft.ClaimResult preValidation = validateChunkClaimForNewGuild(chunk, player.getUniqueId());
         if (!preValidation.isSuccess()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Cannot create guild: " + preValidation.getReason()));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, preValidation.getReason());
             return true;
         }
 
@@ -76,21 +77,21 @@ public class CreateComponent implements GuildCommand {
         Guild guild = lifecycleService.createGuild(name, description, player.getUniqueId());
 
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Failed to create guild. Name may already exist or you're already in a guild"));
+            Messages.send(player, MessageKey.GUILD_NAME_TAKEN);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format("<green>✓ Guild '<gold>%s</gold>' created successfully!</green>", guild.getName()));
+        Messages.send(player, MessageKey.GUILD_CREATED, guild.getName());
 
         // CLAIM PHASE: Guild created successfully, now claim the chunk
         // This should succeed given our pre-validation, but we still check the result
         org.aincraft.ClaimResult claimResult = claimInitialChunk(guild.getId(), player.getUniqueId(), chunk);
         if (claimResult.isSuccess()) {
-            player.sendMessage(MessageFormatter.format("<green>✓ Automatically claimed chunk at <gold>%d, %d</gold></green>", chunk.x(), chunk.z()));
+            Messages.send(player, MessageKey.CLAIM_SUCCESS, chunk.x(), chunk.z());
         } else {
             // This is a fallback - should not happen after pre-validation
             // Log a warning as this indicates an unexpected state
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Could not auto-claim chunk: " + claimResult.getReason()));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, claimResult.getReason());
         }
 
         // SPAWN PHASE: Set spawn location to player's current location
@@ -98,11 +99,11 @@ public class CreateComponent implements GuildCommand {
         Location playerLocation = player.getLocation();
         boolean spawnSet = guildService.setGuildSpawn(guild.getId(), player.getUniqueId(), playerLocation);
         if (spawnSet) {
-            player.sendMessage(MessageFormatter.format("<green>✓ Guild spawn set to your location</green>"));
+            Messages.send(player, MessageKey.SPAWN_SET);
         } else {
             // This should not happen since guild was just created with a claimed chunk
             // But log a warning if spawn setting fails for any reason
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "Could not set guild spawn (this is unexpected)"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, "Could not set guild spawn");
         }
 
         return true;

@@ -6,7 +6,8 @@ import org.aincraft.AcceptInviteResult;
 import org.aincraft.Guild;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -28,13 +29,13 @@ public class AcceptComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can accept guild invites"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         // Check permission
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to use this command"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -46,8 +47,7 @@ public class AcceptComponent implements GuildCommand {
 
         // Validate args
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
-            player.sendMessage(MessageFormatter.format("<gray>Use <gold>/g accept usage</gold> for detailed help</gray>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return true;
         }
 
@@ -55,7 +55,7 @@ public class AcceptComponent implements GuildCommand {
         String guildName = args[1];
         Guild guild = lifecycleService.getGuildByName(guildName);
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild not found: " + guildName));
+            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
             return true;
         }
 
@@ -64,52 +64,20 @@ public class AcceptComponent implements GuildCommand {
 
         // Handle result
         switch (result.getStatus()) {
-            case SUCCESS -> player.sendMessage(MessageFormatter.format(
-                "<green>✓ You have joined <gold>" + guild.getName() + "</gold>!</green>"
-            ));
-            case EXPIRED -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "The invite to " + guild.getName() + " has expired"
-            ));
-            case NOT_FOUND -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "You don't have a pending invite to " + guild.getName()
-            ));
-            case ALREADY_IN_GUILD -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "You are already in a guild"
-            ));
-            case GUILD_FULL -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, guild.getName() + " is now full"
-            ));
-            case GUILD_NOT_FOUND -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, guild.getName() + " no longer exists"
-            ));
-            case FAILURE -> player.sendMessage(MessageFormatter.format(
-                MessageFormatter.ERROR, "Failed to accept invite: " + result.getReason()
-            ));
+            case SUCCESS -> Messages.send(player, MessageKey.INVITE_ACCEPTED, guild.getName());
+            case EXPIRED -> Messages.send(player, MessageKey.INVITE_EXPIRED, guild.getName());
+            case NOT_FOUND -> Messages.send(player, MessageKey.INVITE_NOT_FOUND, guild.getName());
+            case ALREADY_IN_GUILD -> Messages.send(player, MessageKey.ERROR_ALREADY_IN_GUILD);
+            case GUILD_FULL -> Messages.send(player, MessageKey.ERROR_GUILD_FULL);
+            case GUILD_NOT_FOUND -> Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, guild.getName());
+            case FAILURE -> Messages.send(player, MessageKey.ERROR_NO_PERMISSION, result.getReason());
         }
 
         return true;
     }
 
     private void showUsage(Player player) {
-        player.sendMessage(MessageFormatter.format("<green><bold>Accept Command Usage</bold></green>"));
-        player.sendMessage(MessageFormatter.format("<gray>─────────────────────────</gray>"));
-        player.sendMessage(MessageFormatter.format("<gold>/g accept <guild></gold> <gray>- Accept an invite to join a guild</gray>"));
-        player.sendMessage(MessageFormatter.format("<gold>/g accept usage</gold> <gray>- Show this help message</gray>"));
-        player.sendMessage(MessageFormatter.format(""));
-        player.sendMessage(MessageFormatter.format("<green><bold>Examples:</bold></green>"));
-        player.sendMessage(MessageFormatter.format("<gray>• /g accept Warriors</gray>"));
-        player.sendMessage(MessageFormatter.format("<gray>• /g accept \"Guild Name\"</gray>"));
-        player.sendMessage(MessageFormatter.format(""));
-        player.sendMessage(MessageFormatter.format("<green><bold>Requirements:</bold></green>"));
-        player.sendMessage(MessageFormatter.format("<gray>• You must have a pending invite to the guild</gray>"));
-        player.sendMessage(MessageFormatter.format("<gray>• You cannot already be in a guild</gray>"));
-        player.sendMessage(MessageFormatter.format("<gray>• The guild must not be full</gray>"));
-        player.sendMessage(MessageFormatter.format("<gray>• The invite must not have expired</gray>"));
-        player.sendMessage(MessageFormatter.format(""));
-        player.sendMessage(MessageFormatter.format("<green><bold>Related Commands:</bold></green>"));
-        player.sendMessage(MessageFormatter.format("<gray>• /g invites - View your pending invites</gray>"));
-        player.sendMessage(MessageFormatter.format("<gray>• /g decline <guild> - Decline a guild invite</gray>"));
-        player.sendMessage(MessageFormatter.format("<gray>• /g leave - Leave your current guild</gray>"));
+        player.sendMessage(Messages.get(MessageKey.INFO_HEADER));
     }
 
     @Override

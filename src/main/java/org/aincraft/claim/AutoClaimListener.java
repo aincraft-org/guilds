@@ -7,7 +7,8 @@ import org.aincraft.ChunkKey;
 import org.aincraft.ClaimResult;
 import org.aincraft.Guild;
 import org.aincraft.claim.events.PlayerEnterClaimEvent;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.TerritoryService;
 import org.aincraft.subregion.Subregion;
@@ -48,7 +49,7 @@ public class AutoClaimListener implements Listener {
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             autoClaimManager.disable(player.getUniqueId());
-            player.sendMessage(MessageFormatter.deserialize("<red>Auto-" + (mode == AutoClaimMode.AUTO_CLAIM ? "claim" : "unclaim") + " disabled: you are not in a guild</red>"));
+            Messages.send(player, MessageKey.AUTO_NOT_IN_GUILD);
             return;
         }
 
@@ -65,13 +66,11 @@ public class AutoClaimListener implements Listener {
         ClaimResult result = territoryService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
 
         switch (result.getStatus()) {
-            case SUCCESS -> player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Claimed chunk at <gold>" + chunk.x() + ", " + chunk.z() + "</gold></green>"));
+            case SUCCESS -> Messages.send(player, MessageKey.CLAIM_SUCCESS, chunk.x(), chunk.z());
             case ALREADY_OWNED -> {} // Silently continue
             default -> {
                 autoClaimManager.disable(player.getUniqueId());
-                player.sendMessage(MessageFormatter.deserialize(
-                        "<red>Auto-claim disabled: " + getErrorMessage(result) + "</red>"));
+                Messages.send(player, MessageKey.AUTO_DISABLED);
             }
         }
     }
@@ -85,18 +84,15 @@ public class AutoClaimListener implements Listener {
         List<Subregion> subregions = subregionService.getSubregionsInChunk(chunk);
         if (!subregions.isEmpty()) {
             autoClaimManager.disable(player.getUniqueId());
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<red>Auto-unclaim disabled: chunk contains " + subregions.size() + " subregion(s)</red>"));
+            Messages.send(player, MessageKey.AUTO_DISABLED);
             return;
         }
 
         if (territoryService.unclaimChunk(guild.getId(), player.getUniqueId(), chunk)) {
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Unclaimed chunk at <gold>" + chunk.x() + ", " + chunk.z() + "</gold></green>"));
+            Messages.send(player, MessageKey.CLAIM_UNCLAIMED, chunk.x(), chunk.z());
         } else {
             autoClaimManager.disable(player.getUniqueId());
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<red>Auto-unclaim disabled: you don't have UNCLAIM permission</red>"));
+            Messages.send(player, MessageKey.AUTO_DISABLED);
         }
     }
 

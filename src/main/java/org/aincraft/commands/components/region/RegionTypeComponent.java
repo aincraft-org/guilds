@@ -2,7 +2,8 @@ package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.subregion.SubregionService;
 import org.aincraft.subregion.SubregionType;
 import org.aincraft.subregion.SubregionTypeRegistry;
@@ -36,14 +37,15 @@ public class RegionTypeComponent {
      * @return true if handled
      */
     public boolean handleTypes(Player player) {
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Region Types", " (" + typeRegistry.size() + ")"));
+        Messages.send(player, MessageKey.LIST_HEADER);
 
         for (SubregionType type : typeRegistry.getAllTypes()) {
-            String builtIn = typeRegistry.isBuiltIn(type.getId()) ? " <gray>(built-in)</gray>" : "";
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<gray>• <gold>" + type.getId() + "</gold> - " + type.getDisplayName() + builtIn));
+            String builtIn = typeRegistry.isBuiltIn(type.getId()) ? " (built-in)" : "";
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                    .deserialize("<gray>• <gold>" + type.getId() + "</gold> - " + type.getDisplayName() + builtIn));
             if (!type.getDescription().isEmpty()) {
-                player.sendMessage(MessageFormatter.deserialize("  <dark_gray>" + type.getDescription() + "</dark_gray>"));
+                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                        .deserialize("  <dark_gray>" + type.getDescription() + "</dark_gray>"));
             }
         }
 
@@ -59,7 +61,7 @@ public class RegionTypeComponent {
      */
     public boolean handleSetType(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region settype <name> <type>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region settype <name> <type>");
             return true;
         }
 
@@ -74,11 +76,9 @@ public class RegionTypeComponent {
         // Special cases: "none" or "clear" removes the type
         if (typeId.equals("none") || typeId.equals("clear")) {
             if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, null)) {
-                player.sendMessage(MessageFormatter.deserialize(
-                        "<green>Cleared type from region <gold>" + regionName + "</gold></green>"));
+                Messages.send(player, MessageKey.REGION_TYPE_UNKNOWN, "None");
             } else {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                        "Failed to update region type. Region may not exist or you lack permission."));
+                Messages.send(player, MessageKey.ERROR_USAGE, "Failed to update region type. Region may not exist or you lack permission.");
             }
             return true;
         }
@@ -90,11 +90,9 @@ public class RegionTypeComponent {
 
         if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, typeId)) {
             String displayName = helper.formatTypeDisplayName(typeId);
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Set type of region <gold>" + regionName + "</gold> to <yellow>" + displayName + "</yellow></green>"));
+            Messages.send(player, MessageKey.INFO_HEADER, regionName, displayName);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "Failed to update region type. Region may not exist or you lack permission."));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to update region type. Region may not exist or you lack permission.");
         }
 
         return true;
@@ -125,7 +123,7 @@ public class RegionTypeComponent {
 
         // Set or remove limit (op only)
         if (!player.isOp()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only operators can modify type limits"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -133,8 +131,7 @@ public class RegionTypeComponent {
 
         if (action.equals("remove")) {
             limitRepository.delete(typeId);
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Removed volume limit for type <gold>" + typeId + "</gold></green>"));
+            Messages.send(player, MessageKey.REGION_TYPE_LIMIT_SET, typeId, "removed");
             return true;
         }
 
@@ -143,12 +140,12 @@ public class RegionTypeComponent {
         try {
             volume = Long.parseLong(action);
         } catch (NumberFormatException e) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Invalid volume. Use a number or 'remove'."));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Invalid volume. Use a number or 'remove'.");
             return true;
         }
 
         if (volume <= 0) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Volume must be positive"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Volume must be positive");
             return true;
         }
 
@@ -156,9 +153,7 @@ public class RegionTypeComponent {
         limitRepository.save(limit);
 
         String displayName = helper.formatTypeDisplayName(typeId);
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Set volume limit for <gold>" + displayName + "</gold> to <yellow>" +
-                helper.formatNumber(volume) + "</yellow> blocks</green>"));
+        Messages.send(player, MessageKey.REGION_TYPE_LIMIT_SET, displayName, volume);
 
         return true;
     }
@@ -169,15 +164,15 @@ public class RegionTypeComponent {
     private boolean listAllLimits(Player player) {
         var limits = limitRepository.findAll();
         if (limits.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.WARNING, "No type volume limits configured"));
+            Messages.send(player, MessageKey.LIST_EMPTY);
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Region Type Limits", " (" + limits.size() + ")"));
+        Messages.send(player, MessageKey.LIST_HEADER);
         for (RegionTypeLimit limit : limits) {
             String displayName = helper.formatTypeDisplayName(limit.typeId());
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<gray>• <gold>" + limit.typeId() + "</gold> (" + displayName + "): <yellow>" +
+            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
+                    .deserialize("<gray>• <gold>" + limit.typeId() + "</gold> (" + displayName + "): <yellow>" +
                     helper.formatNumber(limit.maxTotalVolume()) + "</yellow> blocks max</gray>"));
         }
         return true;
@@ -190,13 +185,12 @@ public class RegionTypeComponent {
         var limitOpt = limitRepository.findByTypeId(typeId);
         String displayName = helper.formatTypeDisplayName(typeId);
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.HEADER, "Type Limit: " + displayName, ""));
+        Messages.send(player, MessageKey.INFO_HEADER, displayName);
 
         if (limitOpt.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Limit", "No limit configured"));
+            Messages.send(player, MessageKey.INFO_HEADER, "No limit configured");
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.INFO, "Max Volume",
-                    helper.formatNumber(limitOpt.get().maxTotalVolume()) + " blocks"));
+            Messages.send(player, MessageKey.INFO_HEADER, "Max Volume: " + helper.formatNumber(limitOpt.get().maxTotalVolume()) + " blocks");
         }
 
         return true;

@@ -6,7 +6,8 @@ import org.aincraft.GuildPermission;
 import org.aincraft.chat.ChatModeService;
 import org.aincraft.chat.ChatModeService.ChatMode;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.command.CommandSender;
@@ -48,29 +49,25 @@ public class AllyChatComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "You don't have permission to use ally chat"));
+            Messages.send(player, MessageKey.CHAT_NO_PERMISSION);
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // Check CHAT_GUILD permission (owners bypass)
         if (!guild.isOwner(player.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.CHAT_GUILD)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "You don't have permission to use ally chat"));
+            Messages.send(player, MessageKey.CHAT_NO_PERMISSION);
             return true;
         }
 
@@ -79,11 +76,9 @@ public class AllyChatComponent implements GuildCommand {
             ChatMode newMode = chatModeService.toggleMode(player.getUniqueId(), ChatMode.ALLY);
 
             if (newMode == ChatMode.ALLY) {
-                player.sendMessage(MessageFormatter.deserialize(
-                    "<aqua>Ally chat enabled</aqua>"));
+                Messages.send(player, MessageKey.CHAT_ALLY_ENABLED);
             } else {
-                player.sendMessage(MessageFormatter.deserialize(
-                    "<gray>Ally chat disabled</gray>"));
+                Messages.send(player, MessageKey.CHAT_ALLY_DISABLED);
             }
             return true;
         }

@@ -2,7 +2,8 @@ package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.map.GuildMapRenderer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -41,13 +42,13 @@ public class MapComponent implements GuildCommand {
     public boolean execute(CommandSender sender, String[] args) {
         // Verify player sender
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         // Check permission
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to view the map"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -57,16 +58,14 @@ public class MapComponent implements GuildCommand {
             try {
                 size = Integer.parseInt(args[1]);
             } catch (NumberFormatException e) {
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "Invalid size: must be a number between " + MIN_SIZE + " and " + MAX_SIZE));
+                Messages.send(player, MessageKey.MAP_INVALID_SIZE, MIN_SIZE, MAX_SIZE);
                 return true;
             }
         }
 
         // Validate size
         if (size < MIN_SIZE || size > MAX_SIZE) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "Map size must be between " + MIN_SIZE + " and " + MAX_SIZE));
+            Messages.send(player, MessageKey.MAP_SIZE_RANGE, MIN_SIZE, MAX_SIZE);
             return true;
         }
 

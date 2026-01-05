@@ -9,7 +9,8 @@ import org.aincraft.GuildDefaultPermissionsService;
 import org.aincraft.GuildPermission;
 import org.aincraft.RelationType;
 import org.aincraft.RelationshipService;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.service.TerritoryService;
@@ -70,8 +71,7 @@ public class GuildProtectionListener implements Listener {
 
         if (!canPerformAction(player, loc, GuildPermission.DESTROY)) {
             event.setCancelled(true);
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "You don't have permission to break blocks here"));
+            Messages.send(player, MessageKey.PROTECTION_BREAK_DENIED);
         }
     }
 
@@ -82,8 +82,7 @@ public class GuildProtectionListener implements Listener {
 
         if (!canPerformAction(player, loc, GuildPermission.BUILD)) {
             event.setCancelled(true);
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "You don't have permission to build here"));
+            Messages.send(player, MessageKey.PROTECTION_BUILD_DENIED);
         }
     }
 
@@ -103,8 +102,7 @@ public class GuildProtectionListener implements Listener {
 
             if (!canPerformAction(player, loc, GuildPermission.INTERACT)) {
                 event.setCancelled(true);
-                player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                        "You don't have permission to interact here"));
+                Messages.send(player, MessageKey.PROTECTION_INTERACT_DENIED);
             }
             return;
         }
@@ -121,8 +119,7 @@ public class GuildProtectionListener implements Listener {
         Location loc = player.getLocation();
         if (!canPerformAction(player, loc, GuildPermission.BUILD)) {
             event.setCancelled(true);
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "You don't have permission to use this item here"));
+            Messages.send(player, MessageKey.PROTECTION_BUILD_DENIED);
         }
     }
 
@@ -143,8 +140,7 @@ public class GuildProtectionListener implements Listener {
 
         if (!canPerformAction(player, loc, GuildPermission.INTERACT)) {
             event.setCancelled(true);
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "You don't have permission to interact here"));
+            Messages.send(player, MessageKey.PROTECTION_INTERACT_DENIED);
         }
     }
 

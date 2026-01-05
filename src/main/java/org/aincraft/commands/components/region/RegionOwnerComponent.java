@@ -2,7 +2,8 @@ package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
 import org.aincraft.Guild;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.entity.Player;
@@ -30,7 +31,7 @@ public class RegionOwnerComponent {
      */
     public boolean handleAddOwner(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region addowner <region> <player>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region addowner <region> <player>");
             return true;
         }
 
@@ -53,11 +54,9 @@ public class RegionOwnerComponent {
         }
 
         if (subregionService.addSubregionOwner(guild.getId(), player.getUniqueId(), regionName, target.getUniqueId())) {
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Added <gold>" + target.getName() + "</gold> as owner of <gold>" + regionName + "</gold></green>"));
+            Messages.send(player, MessageKey.REGION_OWNER_ADDED, target.getName(), regionName);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "Failed to add owner. Region may not exist or you lack permission."));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to add owner. Region may not exist or you lack permission.");
         }
 
         return true;
@@ -72,7 +71,7 @@ public class RegionOwnerComponent {
      */
     public boolean handleRemoveOwner(Player player, String[] args) {
         if (args.length < 4) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region removeowner <region> <player>"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region removeowner <region> <player>");
             return true;
         }
 
@@ -95,11 +94,9 @@ public class RegionOwnerComponent {
         }
 
         if (subregionService.removeSubregionOwner(guild.getId(), player.getUniqueId(), regionName, target.getUniqueId())) {
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Removed <gold>" + target.getName() + "</gold> as owner of <gold>" + regionName + "</gold></green>"));
+            Messages.send(player, MessageKey.REGION_OWNER_REMOVED, target.getName(), regionName);
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "Failed to remove owner. Region may not exist, you lack permission, or can't remove the creator."));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to remove owner. Region may not exist, you lack permission, or can't remove the creator.");
         }
 
         return true;

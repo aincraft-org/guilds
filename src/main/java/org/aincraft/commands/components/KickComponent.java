@@ -3,7 +3,8 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.Bukkit;
@@ -42,71 +43,71 @@ public class KickComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to kick from guilds"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return false;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         if (!guild.isOwner(player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Only the guild owner can kick members"));
+            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
             return true;
         }
 
         OfflinePlayer target = org.bukkit.Bukkit.getOfflinePlayer(args[1]);
 
         if (target == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Player not found"));
+            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, args[1]);
             return true;
         }
 
         // Check if trying to kick yourself
         if (player.getUniqueId().equals(target.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You cannot kick yourself"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Check if target is guild owner
         if (guild.isOwner(target.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You cannot kick the guild owner"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Check if target has ADMIN permission (only owner can kick admins)
         if (!guild.isOwner(player.getUniqueId()) &&
             permissionService.hasPermission(guild.getId(), target.getUniqueId(), org.aincraft.GuildPermission.ADMIN)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Only the guild owner can kick administrators"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (memberService.kickMember(guild.getId(), player.getUniqueId(), target.getUniqueId())) {
-            player.sendMessage(MessageFormatter.deserialize("<green>✓ <gold>" + target.getName() + "</gold> was kicked from the guild</green>"));
+            Messages.send(player, MessageKey.GUILD_KICKED, target.getName());
 
             // Notify the kicked player if they are online
             Player onlineTarget = Bukkit.getPlayer(target.getUniqueId());
             if (onlineTarget != null) {
-                onlineTarget.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You were kicked from " + guild.getName()));
+                Messages.send(onlineTarget, MessageKey.GUILD_KICKED, guild.getName());
             }
 
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ Failed to kick member. You may lack permission or they have a higher role than you"));
+        Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
         return true;
     }
 }

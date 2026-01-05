@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import java.util.Optional;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.subregion.SelectionManager;
@@ -47,7 +48,7 @@ public class RegionSelectionComponent {
      */
     public boolean handleCreate(Player player, String[] args) {
         if (args.length < 3) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: /g region create <name> [type]"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region create <name> [type]");
             return true;
         }
 
@@ -66,26 +67,21 @@ public class RegionSelectionComponent {
 
         // Validate permissions
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_REGIONS)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to manage regions"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Validate name uniqueness
         if (subregionService.getSubregionByName(guild.getId(), name).isPresent()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "A region with that name already exists"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "A region with that name already exists");
             return true;
         }
 
         // Start the creation workflow
         selectionManager.startPendingCreation(player.getUniqueId(), name, type, guild.getId());
 
-        String typeInfo = type != null
-                ? " <yellow>[" + helper.formatTypeDisplayName(type) + "]</yellow>"
-                : "";
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Starting region creation for <gold>\"" + name + "\"</gold>" + typeInfo + "</green>"));
-        player.sendMessage(MessageFormatter.deserialize(
-                "<gray>Set position 1 with <yellow>/g region pos1</yellow></gray>"));
+        Messages.send(player, MessageKey.REGION_CREATED, name, 0);
+        Messages.send(player, MessageKey.INFO_HEADER, "Set position 1 with /g region pos1");
 
         return true;
     }
@@ -98,22 +94,19 @@ public class RegionSelectionComponent {
      */
     public boolean handlePos1(Player player) {
         if (!selectionManager.hasPendingCreation(player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "No region creation in progress. Start with /g region create <name> [type]"));
+            Messages.send(player, MessageKey.REGION_NO_CREATION);
             return true;
         }
 
         Location loc = player.getLocation();
         selectionManager.setPos1(player.getUniqueId(), loc);
 
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Position 1 set at <gold>" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() + "</gold></green>"));
+        Messages.send(player, MessageKey.REGION_POS1_SET, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
 
         if (selectionManager.hasCompleteSelection(player.getUniqueId())) {
             return finalizePendingCreation(player);
         } else {
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<gray>Now set position 2 with <yellow>/g region pos2</yellow></gray>"));
+            Messages.send(player, MessageKey.INFO_HEADER, "Set position 2");
         }
 
         return true;
@@ -127,22 +120,19 @@ public class RegionSelectionComponent {
      */
     public boolean handlePos2(Player player) {
         if (!selectionManager.hasPendingCreation(player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                    "No region creation in progress. Start with /g region create <name> [type]"));
+            Messages.send(player, MessageKey.REGION_NO_CREATION);
             return true;
         }
 
         Location loc = player.getLocation();
         selectionManager.setPos2(player.getUniqueId(), loc);
 
-        player.sendMessage(MessageFormatter.deserialize(
-                "<green>Position 2 set at <gold>" + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ() + "</gold></green>"));
+        Messages.send(player, MessageKey.REGION_POS2_SET, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
 
         if (selectionManager.hasCompleteSelection(player.getUniqueId())) {
             return finalizePendingCreation(player);
         } else {
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<gray>Now set position 1 with <yellow>/g region pos1</yellow></gray>"));
+            Messages.send(player, MessageKey.INFO_HEADER, "Set position 1");
         }
 
         return true;
@@ -156,13 +146,13 @@ public class RegionSelectionComponent {
      */
     public boolean handleCancel(Player player) {
         if (!selectionManager.hasPendingCreation(player.getUniqueId())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "No region creation in progress"));
+            Messages.send(player, MessageKey.REGION_NO_CREATION);
             return true;
         }
 
         selectionManager.clearSelection(player.getUniqueId());
         selectionManager.clearPendingCreation(player.getUniqueId());
-        player.sendMessage(MessageFormatter.deserialize("<yellow>Region creation cancelled</yellow>"));
+        Messages.send(player, MessageKey.REGION_CANCELLED);
 
         return true;
     }
@@ -176,7 +166,7 @@ public class RegionSelectionComponent {
     private boolean finalizePendingCreation(Player player) {
         Optional<SelectionManager.PendingCreation> pendingOpt = selectionManager.getPendingCreation(player.getUniqueId());
         if (pendingOpt.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "No pending region creation found"));
+            Messages.send(player, MessageKey.REGION_NO_CREATION);
             return true;
         }
 
@@ -184,7 +174,7 @@ public class RegionSelectionComponent {
         Optional<SelectionManager.PlayerSelection> selectionOpt = selectionManager.getSelection(player.getUniqueId());
 
         if (selectionOpt.isEmpty() || !selectionOpt.get().isComplete()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Selection incomplete"));
+            Messages.send(player, MessageKey.ERROR_USAGE, "Selection incomplete");
             return true;
         }
 
@@ -195,13 +185,9 @@ public class RegionSelectionComponent {
 
         if (result.success()) {
             var region = result.region();
-            String typeInfo = pending.type() != null
-                    ? " <yellow>[" + helper.formatTypeDisplayName(pending.type()) + "]</yellow>"
-                    : "";
-            player.sendMessage(MessageFormatter.deserialize(
-                    "<green>Created region <gold>\"" + pending.name() + "\"</gold>" + typeInfo + " (" + region.getVolume() + " blocks)</green>"));
+            Messages.send(player, MessageKey.REGION_CREATED, pending.name(), region.getVolume());
         } else {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, result.errorMessage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, result.errorMessage());
         }
 
         // Clear selection state

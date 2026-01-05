@@ -4,7 +4,8 @@ import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.service.SpawnService;
@@ -45,32 +46,31 @@ public class SetspawnComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to set guild spawn"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // Check if player has MANAGE_SPAWN permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_SPAWN)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "✗ You don't have permission to set guild spawn"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Check if guild has homeblock before attempting to set spawn
         if (!guild.hasHomeblock()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-                "✗ Failed to set spawn. Guild must have a homeblock (claim a chunk first)"));
+            Messages.send(player, MessageKey.SPAWN_NO_HOMEBLOCK);
             return true;
         }
 
@@ -80,23 +80,14 @@ public class SetspawnComponent implements GuildCommand {
             // Check if location was adjusted
             org.bukkit.Location actual = spawnService.getGuildSpawnLocation(guild.getId());
             if (actual != null && !isSameLocation(originalLoc, actual)) {
-                player.sendMessage(MessageFormatter.deserialize(
-                    "<yellow>⚠ Spawn was moved to homeblock at <gold>" +
-                    String.format("%.1f, %.1f, %.1f", actual.getX(), actual.getY(), actual.getZ()) +
-                    "</gold></yellow>"
-                ));
+                Messages.send(player, MessageKey.SPAWN_SET);
             } else {
-                player.sendMessage(MessageFormatter.deserialize(
-                    "<green>✓ Guild spawn set at <gold>" +
-                    String.format("%.1f, %.1f, %.1f", originalLoc.getX(), originalLoc.getY(), originalLoc.getZ()) +
-                    "</gold>!</green>"
-                ));
+                Messages.send(player, MessageKey.SPAWN_SET);
             }
             return true;
         }
 
-        player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR,
-            "✗ Failed to set spawn. Could not find safe location in homeblock."));
+        Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
         return true;
     }
 

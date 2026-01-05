@@ -5,7 +5,8 @@ import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.commands.MessageFormatter;
+import org.aincraft.messages.MessageKey;
+import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
@@ -50,30 +51,30 @@ public class NameComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Only players can use this command"));
+            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to change guild name"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (args.length < 2) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Usage: " + getUsage()));
+            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
             return false;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You are not in a guild"));
+            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
             return true;
         }
 
         // Check if player has EDIT_GUILD_INFO permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.EDIT_GUILD_INFO)) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "You don't have permission to change guild name"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
@@ -90,24 +91,24 @@ public class NameComponent implements GuildCommand {
 
         // Validate name
         if (newName.isEmpty()) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild name cannot be empty"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         if (newName.length() > 32) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "Guild name cannot be longer than 32 characters"));
+            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }
 
         // Check if name already exists
         if (lifecycleService.getGuildByName(newName) != null) {
-            player.sendMessage(MessageFormatter.format(MessageFormatter.ERROR, "A guild with that name already exists"));
+            Messages.send(player, MessageKey.GUILD_NAME_TAKEN);
             return true;
         }
 
         guild.setName(newName);
         lifecycleService.save(guild);
-        player.sendMessage(MessageFormatter.deserialize("<green>Guild name changed to: <gold>" + newName + "</gold></green>"));
+        Messages.send(player, MessageKey.GUILD_NAME_CHANGED, newName);
 
         // Broadcast to guild members
         Component broadcastMessage = Component.text()
