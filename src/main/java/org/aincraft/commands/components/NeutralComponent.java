@@ -1,11 +1,10 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
@@ -45,28 +44,28 @@ public class NeutralComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(sender, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(sender, "<error>You don't have permission to use this command</error>");
             return true;
         }
 
         Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
         if (playerGuild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         if (!playerGuild.isOwner(player.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
+            Mint.sendMessage(player, "<error>Only the guild owner can use this command</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: <accent>" + getUsage() + "</accent></error>");
             return true;
         }
 
@@ -74,12 +73,12 @@ public class NeutralComponent implements GuildCommand {
         Guild targetGuild = lifecycleService.getGuildByName(targetGuildName);
 
         if (targetGuild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, targetGuildName);
+            Mint.sendMessage(player, "<error>Guild not found: <secondary>" + targetGuildName + "</secondary></error>");
             return true;
         }
 
         if (targetGuild.getId().equals(playerGuild.getId())) {
-            Messages.send(player, MessageKey.ALLY_CANNOT_SELF);
+            Mint.sendMessage(player, "<error>You cannot perform this action on your own guild</error>");
             return true;
         }
 
@@ -88,11 +87,11 @@ public class NeutralComponent implements GuildCommand {
         );
 
         if (!success) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.NEUTRAL_SET, targetGuild.getName());
+        Mint.sendMessage(player, "<success>Neutral status set with guild <secondary>" + targetGuild.getName() + "</secondary></success>");
         return true;
     }
 }

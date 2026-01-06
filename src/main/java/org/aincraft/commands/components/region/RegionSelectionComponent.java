@@ -1,11 +1,10 @@
 package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.Optional;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.subregion.SelectionManager;
@@ -48,7 +47,7 @@ public class RegionSelectionComponent {
      */
     public boolean handleCreate(Player player, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region create <name> [type]");
+            Mint.sendMessage(player, "<error>Usage: /g region create <name> [type]</error>");
             return true;
         }
 
@@ -67,21 +66,21 @@ public class RegionSelectionComponent {
 
         // Validate permissions
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_REGIONS)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to do that</error>");
             return true;
         }
 
         // Validate name uniqueness
         if (subregionService.getSubregionByName(guild.getId(), name).isPresent()) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "A region with that name already exists");
+            Mint.sendMessage(player, "<error>A region with that name already exists</error>");
             return true;
         }
 
         // Start the creation workflow
         selectionManager.startPendingCreation(player.getUniqueId(), name, type, guild.getId());
 
-        Messages.send(player, MessageKey.REGION_CREATED, name, 0);
-        Messages.send(player, MessageKey.INFO_HEADER, "Set position 1 with /g region pos1");
+        Mint.sendMessage(player, String.format("<success>Region <secondary>%s</secondary> created!</success>", name));
+        Mint.sendMessage(player, "<info>Set position 1 with /g region pos1</info>");
 
         return true;
     }
@@ -94,19 +93,19 @@ public class RegionSelectionComponent {
      */
     public boolean handlePos1(Player player) {
         if (!selectionManager.hasPendingCreation(player.getUniqueId())) {
-            Messages.send(player, MessageKey.REGION_NO_CREATION);
+            Mint.sendMessage(player, "<error>No pending region creation</error>");
             return true;
         }
 
         Location loc = player.getLocation();
         selectionManager.setPos1(player.getUniqueId(), loc);
 
-        Messages.send(player, MessageKey.REGION_POS1_SET, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        Mint.sendMessage(player, String.format("<info>Position 1 set at <secondary>%d, %d, %d</secondary></info>", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
 
         if (selectionManager.hasCompleteSelection(player.getUniqueId())) {
             return finalizePendingCreation(player);
         } else {
-            Messages.send(player, MessageKey.INFO_HEADER, "Set position 2");
+            Mint.sendMessage(player, "<info>Set position 2</info>");
         }
 
         return true;
@@ -120,19 +119,19 @@ public class RegionSelectionComponent {
      */
     public boolean handlePos2(Player player) {
         if (!selectionManager.hasPendingCreation(player.getUniqueId())) {
-            Messages.send(player, MessageKey.REGION_NO_CREATION);
+            Mint.sendMessage(player, "<error>No pending region creation</error>");
             return true;
         }
 
         Location loc = player.getLocation();
         selectionManager.setPos2(player.getUniqueId(), loc);
 
-        Messages.send(player, MessageKey.REGION_POS2_SET, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+        Mint.sendMessage(player, String.format("<info>Position 2 set at <secondary>%d, %d, %d</secondary></info>", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
 
         if (selectionManager.hasCompleteSelection(player.getUniqueId())) {
             return finalizePendingCreation(player);
         } else {
-            Messages.send(player, MessageKey.INFO_HEADER, "Set position 1");
+            Mint.sendMessage(player, "<info>Set position 1</info>");
         }
 
         return true;
@@ -146,13 +145,13 @@ public class RegionSelectionComponent {
      */
     public boolean handleCancel(Player player) {
         if (!selectionManager.hasPendingCreation(player.getUniqueId())) {
-            Messages.send(player, MessageKey.REGION_NO_CREATION);
+            Mint.sendMessage(player, "<error>No pending region creation</error>");
             return true;
         }
 
         selectionManager.clearSelection(player.getUniqueId());
         selectionManager.clearPendingCreation(player.getUniqueId());
-        Messages.send(player, MessageKey.REGION_CANCELLED);
+        Mint.sendMessage(player, "<warning>Region creation cancelled</warning>");
 
         return true;
     }
@@ -166,7 +165,7 @@ public class RegionSelectionComponent {
     private boolean finalizePendingCreation(Player player) {
         Optional<SelectionManager.PendingCreation> pendingOpt = selectionManager.getPendingCreation(player.getUniqueId());
         if (pendingOpt.isEmpty()) {
-            Messages.send(player, MessageKey.REGION_NO_CREATION);
+            Mint.sendMessage(player, "<error>No pending region creation</error>");
             return true;
         }
 
@@ -174,7 +173,7 @@ public class RegionSelectionComponent {
         Optional<SelectionManager.PlayerSelection> selectionOpt = selectionManager.getSelection(player.getUniqueId());
 
         if (selectionOpt.isEmpty() || !selectionOpt.get().isComplete()) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Selection incomplete");
+            Mint.sendMessage(player, "<error>Selection incomplete</error>");
             return true;
         }
 
@@ -185,9 +184,9 @@ public class RegionSelectionComponent {
 
         if (result.success()) {
             var region = result.region();
-            Messages.send(player, MessageKey.REGION_CREATED, pending.name(), region.getVolume());
+            Mint.sendMessage(player, String.format("<success>Region <secondary>%s</secondary> created! Volume: <secondary>%d</secondary></success>", pending.name(), region.getVolume()));
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, result.errorMessage());
+            Mint.sendMessage(player, String.format("<error>%s</error>", result.errorMessage()));
         }
 
         // Clear selection state

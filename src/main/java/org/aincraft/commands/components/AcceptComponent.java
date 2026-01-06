@@ -6,8 +6,7 @@ import org.aincraft.AcceptInviteResult;
 import org.aincraft.Guild;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildLifecycleService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -29,13 +28,13 @@ public class AcceptComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         // Check permission
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have <accent>permission</accent> to accept invites</error>");
             return true;
         }
 
@@ -47,7 +46,7 @@ public class AcceptComponent implements GuildCommand {
 
         // Validate args
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: <accent>/g accept <guild|usage></accent></error>");
             return true;
         }
 
@@ -55,7 +54,7 @@ public class AcceptComponent implements GuildCommand {
         String guildName = args[1];
         Guild guild = lifecycleService.getGuildByName(guildName);
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(player, "<error>Guild not found: <secondary>" + guildName + "</secondary></error>");
             return true;
         }
 
@@ -64,20 +63,20 @@ public class AcceptComponent implements GuildCommand {
 
         // Handle result
         switch (result.getStatus()) {
-            case SUCCESS -> Messages.send(player, MessageKey.INVITE_ACCEPTED, guild.getName());
-            case EXPIRED -> Messages.send(player, MessageKey.INVITE_EXPIRED, guild.getName());
-            case NOT_FOUND -> Messages.send(player, MessageKey.INVITE_NOT_FOUND, guild.getName());
-            case ALREADY_IN_GUILD -> Messages.send(player, MessageKey.ERROR_ALREADY_IN_GUILD);
-            case GUILD_FULL -> Messages.send(player, MessageKey.ERROR_GUILD_FULL);
-            case GUILD_NOT_FOUND -> Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, guild.getName());
-            case FAILURE -> Messages.send(player, MessageKey.ERROR_NO_PERMISSION, result.getReason());
+            case SUCCESS -> Mint.sendMessage(player, "<success>You joined <secondary>" + guild.getName() + "</secondary>!</success>");
+            case EXPIRED -> Mint.sendMessage(player, "<warning>That invite has expired</warning>");
+            case NOT_FOUND -> Mint.sendMessage(player, "<error>No invite found from <secondary>" + guildName + "</secondary></error>");
+            case ALREADY_IN_GUILD -> Mint.sendMessage(player, "<error>You are already in a <secondary>guild</secondary></error>");
+            case GUILD_FULL -> Mint.sendMessage(player, "<error>Guild is full (reached <accent>max members</accent>)</error>");
+            case GUILD_NOT_FOUND -> Mint.sendMessage(player, "<error>Guild not found: <secondary>" + guildName + "</secondary></error>");
+            case FAILURE -> Mint.sendMessage(player, "<error>" + result.getReason() + "</error>");
         }
 
         return true;
     }
 
     private void showUsage(Player player) {
-        player.sendMessage(Messages.get(MessageKey.INFO_HEADER));
+        Mint.sendMessage(player, "<info>Accept Invite Commands</info>");
     }
 
     @Override

@@ -4,8 +4,7 @@ import com.google.inject.Inject;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
@@ -46,48 +45,48 @@ public class TransferComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to transfer ownership</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: /g transfer <player-name></error>");
             return false;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         if (!guild.isOwner(player.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
+            Mint.sendMessage(player, "<error>Only guild owner can do this</error>");
             return true;
         }
 
         OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
 
         if (target == null) {
-            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Player not found</error>");
             return true;
         }
 
         // Check if trying to transfer to yourself
         if (player.getUniqueId().equals(target.getUniqueId())) {
-            Messages.send(player, MessageKey.GUILD_TRANSFER_CONFIRM, "cannot transfer to yourself");
+            Mint.sendMessage(player, "<error>You cannot transfer ownership to yourself</error>");
             return true;
         }
 
         // Check if target is a guild member
         if (!guild.isMember(target.getUniqueId())) {
-            Messages.send(player, MessageKey.GUILD_TRANSFER_CONFIRM, "target player is not a guild member");
+            Mint.sendMessage(player, "<error>Target player is not a guild member</error>");
             return true;
         }
 
@@ -96,12 +95,12 @@ public class TransferComponent implements GuildCommand {
             lifecycleService.save(guild);
 
             // Notify old owner
-            Messages.send(player, MessageKey.GUILD_TRANSFER_SUCCESS, target.getName());
+            Mint.sendMessage(player, "<success>Guild ownership transferred to <secondary>" + target.getName() + "</secondary></success>");
 
             // Notify new owner if online
             Player newOwner = Bukkit.getPlayer(target.getUniqueId());
             if (newOwner != null && newOwner.isOnline()) {
-                Messages.send(newOwner, MessageKey.GUILD_TRANSFER_SUCCESS, guild.getName());
+                Mint.sendMessage(newOwner, "<success>You are now the owner of <secondary>" + guild.getName() + "</secondary></success>");
             }
 
             // Broadcast to guild members
@@ -120,7 +119,7 @@ public class TransferComponent implements GuildCommand {
             return true;
         }
 
-        Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+        Mint.sendMessage(player, "<error>Usage: /g transfer <player-name></error>");
         return true;
     }
 }

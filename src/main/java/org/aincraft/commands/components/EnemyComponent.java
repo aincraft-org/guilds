@@ -1,13 +1,12 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.List;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
@@ -47,28 +46,28 @@ public class EnemyComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(sender, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(sender, "<error>You don't have <accent>permission</accent> to use this command.</error>");
             return true;
         }
 
         Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
         if (playerGuild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild.</error>");
             return true;
         }
 
         if (!playerGuild.isOwner(player.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
+            Mint.sendMessage(player, "<error>Only the <secondary>guild owner</secondary> can use this command.</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
             return true;
         }
 
@@ -78,7 +77,7 @@ public class EnemyComponent implements GuildCommand {
             case "declare" -> handleDeclare(player, playerGuild, args);
             case "list" -> handleList(player, playerGuild);
             default -> {
-                Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+                Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
                 yield true;
             }
         };
@@ -86,7 +85,7 @@ public class EnemyComponent implements GuildCommand {
 
     private boolean handleDeclare(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g enemy declare <guild-name>");
+            Mint.sendMessage(player, "<error>Usage: /g enemy declare <guild-name></error>");
             return true;
         }
 
@@ -94,12 +93,12 @@ public class EnemyComponent implements GuildCommand {
         Guild targetGuild = lifecycleService.getGuildByName(targetGuildName);
 
         if (targetGuild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, targetGuildName);
+            Mint.sendMessage(player, "<error>Guild '" + targetGuildName + "' not found.</error>");
             return true;
         }
 
         if (targetGuild.getId().equals(guild.getId())) {
-            Messages.send(player, MessageKey.ALLY_CANNOT_SELF);
+            Mint.sendMessage(player, "<error>You cannot declare war on your own guild.</error>");
             return true;
         }
 
@@ -108,29 +107,27 @@ public class EnemyComponent implements GuildCommand {
         );
 
         if (relationship == null) {
-            Messages.send(player, MessageKey.ENEMY_ALREADY_EXISTS);
+            Mint.sendMessage(player, "<error>Enemy relationship already exists.</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ENEMY_DECLARED, targetGuild.getName());
+        Mint.sendMessage(player, "<warning>Declared war on <secondary>" + targetGuild.getName() + "</secondary>.</warning>");
         return true;
     }
 
     private boolean handleList(Player player, Guild guild) {
         List<UUID> enemies = relationshipService.getEnemies(guild.getId());
 
-        Messages.send(player, MessageKey.ENEMY_DECLARED);
+        Mint.sendMessage(player, "<secondary>=== <accent>Enemies</accent> ===</secondary>");
 
         if (enemies.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
         } else {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<yellow>Enemies<reset>:"));
+            Mint.sendMessage(player, "<warning><accent>Enemies</accent>:");
             for (UUID enemyId : enemies) {
                 Guild enemy = lifecycleService.getGuildById(enemyId);
                 if (enemy != null) {
-                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("  <red>⚔</red> <white>" + enemy.getName()));
+                    Mint.sendMessage(player, "  <error>⚔</error> <primary>" + enemy.getName() + "</primary>");
                 }
             }
         }

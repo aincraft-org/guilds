@@ -6,8 +6,7 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -34,19 +33,19 @@ public class WebCommand implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         Guild guild = guildMemberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Check permission
         if (!player.hasPermission("guilds.skills")) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use this command</error>");
             return true;
         }
 
@@ -62,7 +61,7 @@ public class WebCommand implements GuildCommand {
      * Handles /g web - creates a new editing session.
      */
     private boolean handleCreateSession(Player player, Guild guild) {
-        Messages.send(player, MessageKey.SKILL_UNLOCKED, "Skill tree editor session created");
+        Mint.sendMessage(player, "<success>Skill tree editor session created</success>");
         return true;
     }
 
@@ -71,13 +70,13 @@ public class WebCommand implements GuildCommand {
      */
     private boolean handleApplySession(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g web apply <session-key>");
+            Mint.sendMessage(player, "<error>Usage: /g web apply <session-key></error>");
             return true;
         }
 
         String sessionKey = args[2];
 
-        Messages.send(player, MessageKey.SKILL_UNLOCKED, "Skill tree changes applied");
+        Mint.sendMessage(player, "<success>Skill tree changes applied</success>");
         return true;
     }
 

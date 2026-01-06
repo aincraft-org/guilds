@@ -6,8 +6,7 @@ import org.aincraft.Guild;
 import org.aincraft.InviteResult;
 import org.aincraft.InviteService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -31,26 +30,26 @@ public class InviteComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         // Check permission
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have <accent>permission</accent> to invite players</error>");
             return true;
         }
 
         // Validate args
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: <accent>/g invite <player></accent></error>");
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
@@ -70,19 +69,19 @@ public class InviteComponent implements GuildCommand {
         // Handle result
         switch (result.getStatus()) {
             case SUCCESS -> {
-                Messages.send(player, MessageKey.INVITE_SENT, target.getName());
+                Mint.sendMessage(player, "<success>Invite sent to <secondary>" + target.getName() + "</secondary></success>");
                 // Notify target if online
                 if (onlineTarget != null) {
-                    Messages.send(onlineTarget, MessageKey.INVITE_RECEIVED, guild.getName());
+                    Mint.sendMessage(onlineTarget, "<info><secondary>" + player.getName() + "</secondary> invited you to join <secondary>" + guild.getName() + "</secondary></info>");
                 }
             }
-            case NO_PERMISSION -> Messages.send(player, MessageKey.INVITE_NO_PERMISSION);
-            case ALREADY_INVITED -> Messages.send(player, MessageKey.INVITE_ALREADY_PENDING, target.getName());
-            case INVITEE_IN_GUILD -> Messages.send(player, MessageKey.INVITE_TARGET_IN_GUILD, target.getName());
-            case GUILD_FULL -> Messages.send(player, MessageKey.ERROR_GUILD_FULL);
-            case INVITE_LIMIT_REACHED -> Messages.send(player, MessageKey.INVITE_MAX_PENDING);
-            case TARGET_NOT_FOUND -> Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, targetName);
-            case FAILURE -> Messages.send(player, MessageKey.ERROR_NO_PERMISSION, result.getReason());
+            case NO_PERMISSION -> Mint.sendMessage(player, "<error>You don't have <accent>permission</accent> to invite players</error>");
+            case ALREADY_INVITED -> Mint.sendMessage(player, "<warning><secondary>" + target.getName() + "</secondary> already has a pending invite to your guild</warning>");
+            case INVITEE_IN_GUILD -> Mint.sendMessage(player, "<warning><secondary>" + target.getName() + "</secondary> is already in a guild</warning>");
+            case GUILD_FULL -> Mint.sendMessage(player, "<error>Guild is full (reached <accent>max members</accent>)</error>");
+            case INVITE_LIMIT_REACHED -> Mint.sendMessage(player, "<warning>Your guild has reached the <accent>maximum</accent> number of pending invites (<accent>10</accent>)</warning>");
+            case TARGET_NOT_FOUND -> Mint.sendMessage(player, "<error>Player not found: <secondary>" + targetName + "</secondary></error>");
+            case FAILURE -> Mint.sendMessage(player, "<error>" + result.getReason() + "</error>");
         }
 
         return true;

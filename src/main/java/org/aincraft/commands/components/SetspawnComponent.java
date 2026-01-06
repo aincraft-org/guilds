@@ -4,8 +4,7 @@ import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.service.SpawnService;
@@ -46,31 +45,31 @@ public class SetspawnComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to set spawn</error>");
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Check if player has MANAGE_SPAWN permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_SPAWN)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to set spawn</error>");
             return true;
         }
 
         // Check if guild has homeblock before attempting to set spawn
         if (!guild.hasHomeblock()) {
-            Messages.send(player, MessageKey.SPAWN_NO_HOMEBLOCK);
+            Mint.sendMessage(player, "<error>Your guild must claim a homeblock first</error>");
             return true;
         }
 
@@ -80,14 +79,14 @@ public class SetspawnComponent implements GuildCommand {
             // Check if location was adjusted
             org.bukkit.Location actual = spawnService.getGuildSpawnLocation(guild.getId());
             if (actual != null && !isSameLocation(originalLoc, actual)) {
-                Messages.send(player, MessageKey.SPAWN_SET);
+                Mint.sendMessage(player, "<success>Guild spawn set!</success>");
             } else {
-                Messages.send(player, MessageKey.SPAWN_SET);
+                Mint.sendMessage(player, "<success>Guild spawn set!</success>");
             }
             return true;
         }
 
-        Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+        Mint.sendMessage(player, "<error>You don't have permission to set spawn</error>");
         return true;
     }
 

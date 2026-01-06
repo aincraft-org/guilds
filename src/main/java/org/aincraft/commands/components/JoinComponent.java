@@ -3,8 +3,7 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
@@ -41,17 +40,17 @@ public class JoinComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have <accent>permission</accent> to join guilds</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: <accent>/g join <guild-name></accent></error>");
             return false;
         }
 
@@ -59,22 +58,22 @@ public class JoinComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(player, "<error>Guild not found: <secondary>" + guildName + "</secondary></error>");
             return true;
         }
 
         // Check if guild is private
         if (!guild.isPublic()) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to join this guild</error>");
             return true;
         }
 
         if (memberService.joinGuild(guild.getId(), player.getUniqueId())) {
-            Messages.send(player, MessageKey.GUILD_JOINED, guild.getName());
+            Mint.sendMessage(player, "<success>You joined <secondary>" + guild.getName() + "</secondary>!</success>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+        Mint.sendMessage(player, "<error>You don't have permission to join this guild</error>");
         return true;
     }
 }

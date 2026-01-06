@@ -1,13 +1,12 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.project.*;
 import org.aincraft.project.gui.BuffStatusGUI;
 import org.aincraft.project.gui.ProjectDetailsGUI;
@@ -46,13 +45,13 @@ public class ProjectComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
@@ -71,7 +70,7 @@ public class ProjectComponent implements GuildCommand {
             case "buffs", "buff" -> handleBuffs(player, guild);
             case "debug" -> handleDebug(player, guild);
             default -> {
-                Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+                Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
                 yield true;
             }
         };
@@ -86,7 +85,7 @@ public class ProjectComponent implements GuildCommand {
 
     private boolean handleStart(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g project start <project_id>");
+            Mint.sendMessage(player, "<error>Usage: /g project start <project_id></error>");
             return true;
         }
 
@@ -94,7 +93,7 @@ public class ProjectComponent implements GuildCommand {
         ProjectService.ProjectStartResult result = projectService.startProject(guild.getId(), player.getUniqueId(), projectId);
 
         if (result.success()) {
-            Messages.send(player, MessageKey.PROJECT_STARTED, projectId);
+            Mint.sendMessage(player, "<success>Project started: <primary>" + projectId + "</primary></success>");
 
             // Open details GUI
             Optional<ProjectDefinition> def = registry.getProject(projectId);
@@ -104,7 +103,7 @@ public class ProjectComponent implements GuildCommand {
                 gui.open();
             }
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, result.errorMessage());
+            Mint.sendMessage(player, "<error>" + result.errorMessage() + "</error>");
         }
 
         return true;
@@ -113,14 +112,14 @@ public class ProjectComponent implements GuildCommand {
     private boolean handleProgress(Player player, Guild guild) {
         Optional<GuildProject> projectOpt = projectService.getActiveProject(guild.getId());
         if (projectOpt.isEmpty()) {
-            Messages.send(player, MessageKey.PROJECT_NO_ACTIVE);
+            Mint.sendMessage(player, "<warning>No active project</warning>");
             return true;
         }
 
         GuildProject project = projectOpt.get();
         Optional<ProjectDefinition> defOpt = registry.getProject(project.getProjectDefinitionId());
         if (defOpt.isEmpty()) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Project definition not found");
+            Mint.sendMessage(player, "<error>Project definition not found</error>");
             return true;
         }
 
@@ -136,11 +135,11 @@ public class ProjectComponent implements GuildCommand {
         ProjectService.ProjectCompletionResult result = projectService.completeProject(guild.getId(), player.getUniqueId());
 
         if (result.success()) {
-            Messages.send(player, MessageKey.PROJECT_COMPLETED, result.buff().categoryId(), formatDuration(result.buff().getRemainingMillis()));
+            Mint.sendMessage(player, "<success>Project completed! Buff <primary>" + result.buff().categoryId() + "</primary> active for " + formatDuration(result.buff().getRemainingMillis()) + "</success>");
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, result.errorMessage());
+            Mint.sendMessage(player, "<error>" + result.errorMessage() + "</error>");
             if (result.progress() > 0 && result.progress() < 1.0) {
-                Messages.send(player, MessageKey.PROJECT_PROGRESS, String.format("%.1f%%", result.progress() * 100));
+                Mint.sendMessage(player, "<info>Progress: <primary>" + String.format("%.1f%%", result.progress() * 100) + "</primary></info>");
             }
         }
 
@@ -150,16 +149,16 @@ public class ProjectComponent implements GuildCommand {
     private boolean handleAbandon(Player player, Guild guild) {
         // Check permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_PROJECTS)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
         boolean abandoned = projectService.abandonProject(guild.getId(), player.getUniqueId());
 
         if (abandoned) {
-            Messages.send(player, MessageKey.PROJECT_ABANDONED);
+            Mint.sendMessage(player, "<success>Project abandoned</success>");
         } else {
-            Messages.send(player, MessageKey.PROJECT_NO_ACTIVE);
+            Mint.sendMessage(player, "<warning>No active project</warning>");
         }
 
         return true;
@@ -174,22 +173,22 @@ public class ProjectComponent implements GuildCommand {
     }
 
     private boolean handleDebug(Player player, Guild guild) {
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "PROJECT DEBUG INFO"));
+        Mint.sendMessage(player, "<primary>=== PROJECT DEBUG INFO ===</primary>");
 
         // Get active project
         Optional<GuildProject> projectOpt = projectService.getActiveProject(guild.getId());
         if (projectOpt.isEmpty()) {
-            Messages.send(player, MessageKey.PROJECT_NO_ACTIVE);
+            Mint.sendMessage(player, "<warning>No active project</warning>");
             return true;
         }
 
         GuildProject project = projectOpt.get();
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Active Project: " + project.getProjectDefinitionId()));
+        Mint.sendMessage(player, "<primary>=== Active Project: " + project.getProjectDefinitionId() + " ===</primary>");
 
         // Get project definition
         Optional<ProjectDefinition> defOpt = registry.getProject(project.getProjectDefinitionId());
         if (defOpt.isEmpty()) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Project definition not found");
+            Mint.sendMessage(player, "<error>Project definition not found</error>");
             return true;
         }
 
@@ -198,15 +197,15 @@ public class ProjectComponent implements GuildCommand {
         // Get vault
         Optional<Vault> vaultOpt = vaultRepository.findByGuildId(guild.getId());
         if (vaultOpt.isEmpty()) {
-            Messages.send(player, MessageKey.VAULT_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Vault not found</error>");
             return true;
         }
 
         Vault vault = vaultOpt.get();
         ItemStack[] contents = vaultRepository.getFreshContents(vault.getId());
 
-        player.sendMessage("");
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Material Requirements"));
+        Mint.sendMessage(player, "");
+        Mint.sendMessage(player, "<primary>=== Material Requirements ===</primary>");
 
         // Check each material
         for (Map.Entry<Material, Integer> entry : definition.materials().entrySet()) {
@@ -215,37 +214,37 @@ public class ProjectComponent implements GuildCommand {
             int inVault = countMaterialInVault(contents, material);
             boolean complete = inVault >= required;
 
-            String status = complete ? "<green>COMPLETE</green>" : "<red>INCOMPLETE</red>";
+            String status = complete ? "<success>COMPLETE</success>" : "<error>INCOMPLETE</error>";
             String materialName = material.name();
 
-            player.sendMessage(Messages.get(MessageKey.PROJECT_PROGRESS,
-                String.format("  %s %s: %d/%d %s",
+            Mint.sendMessage(player,
+                String.format("  %s <secondary>%s</secondary>: %d/%d %s",
                     status,
                     materialName,
                     inVault,
                     required,
-                    complete ? "" : "<red>(need " + (required - inVault) + " more)</red>")
-            ));
+                    complete ? "" : "<error>(need " + (required - inVault) + " more)</error>")
+            );
         }
 
-        player.sendMessage("");
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Vault Contents (all items)"));
+        Mint.sendMessage(player, "");
+        Mint.sendMessage(player, "<primary>=== Vault Contents (all items) ===</primary>");
 
         // Show all non-null items in vault for debugging
         int itemCount = 0;
         for (ItemStack stack : contents) {
             if (stack != null && !stack.getType().isAir()) {
                 itemCount++;
-                player.sendMessage(Messages.get(MessageKey.PROJECT_PROGRESS,
-                    String.format("  <gray>- %s x%d</gray>",
+                Mint.sendMessage(player,
+                    String.format("  <neutral>- %s x%d</neutral>",
                         stack.getType().name(),
                         stack.getAmount())
-                ));
+                );
             }
         }
 
         if (itemCount == 0) {
-            Messages.send(player, MessageKey.VAULT_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Vault not found</error>");
         }
 
         return true;

@@ -5,10 +5,8 @@ import java.util.Date;
 import java.util.UUID;
 import java.util.List;
 import java.util.Objects;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.aincraft.claim.ChunkClaimLog;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.TerritoryService;
 import org.bukkit.entity.Player;
@@ -32,7 +30,7 @@ public class ClaimLogSubcomponent {
     public boolean execute(Player player, String[] args) {
         org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
@@ -51,11 +49,11 @@ public class ClaimLogSubcomponent {
         List<ChunkClaimLog> logs = territoryService.getGuildClaimLogs(guildId, LOG_PAGE_SIZE * page);
 
         if (logs.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Claim History (Page " + page + ")"));
+        Mint.sendMessage(player, "<info>Claim History (Page <primary>" + page + "</primary>)</info>");
 
         int shown = 0;
         for (int i = offset; i < logs.size() && shown < LOG_PAGE_SIZE; i++) {
@@ -63,18 +61,16 @@ public class ClaimLogSubcomponent {
             String playerName = org.bukkit.Bukkit.getOfflinePlayer(log.playerId()).getName();
             if (playerName == null) playerName = log.playerId().toString().substring(0, UUID_DISPLAY_LENGTH);
 
-            String action = log.action() == ChunkClaimLog.ActionType.CLAIM ? "<green>+</green>" : "<red>-</red>";
+            String action = log.action() == ChunkClaimLog.ActionType.CLAIM ? "<success>+</success>" : "<error>-</error>";
             String time = DATE_FORMAT.format(new Date(log.timestamp()));
             String location = "[" + log.chunk().world() + "] " + log.chunk().x() + "/" + log.chunk().z();
 
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    "<gray>" + time + " " + action + " <gold>" + location + "</gold> by " + playerName + "</gray>"));
+            Mint.sendMessage(player, "<neutral>" + time + " " + action + " <secondary>" + location + "</secondary> by " + playerName + "</neutral>");
             shown++;
         }
 
         if (logs.size() > page * LOG_PAGE_SIZE) {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    "<gray>Use <yellow>/g log claim " + (page + 1) + "</yellow> for more</gray>"));
+            Mint.sendMessage(player, "<neutral>Use <secondary>/g log claim " + (page + 1) + "</secondary> for more</neutral>");
         }
 
         return true;

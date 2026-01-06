@@ -7,8 +7,7 @@ import org.aincraft.ChunkKey;
 import org.aincraft.ClaimResult;
 import org.aincraft.Guild;
 import org.aincraft.claim.events.PlayerEnterClaimEvent;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.TerritoryService;
 import org.aincraft.subregion.Subregion;
@@ -49,7 +48,7 @@ public class AutoClaimListener implements Listener {
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
             autoClaimManager.disable(player.getUniqueId());
-            Messages.send(player, MessageKey.AUTO_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You must be in a guild to use auto-claim</error>");
             return;
         }
 
@@ -66,11 +65,11 @@ public class AutoClaimListener implements Listener {
         ClaimResult result = territoryService.claimChunk(guild.getId(), player.getUniqueId(), chunk);
 
         switch (result.getStatus()) {
-            case SUCCESS -> Messages.send(player, MessageKey.CLAIM_SUCCESS, chunk.x(), chunk.z());
+            case SUCCESS -> Mint.sendMessage(player, "<success><accent>Claimed</accent> chunk <accent>" + chunk.x() + "</accent>, <accent>" + chunk.z() + "</accent></success>");
             case ALREADY_OWNED -> {} // Silently continue
             default -> {
                 autoClaimManager.disable(player.getUniqueId());
-                Messages.send(player, MessageKey.AUTO_DISABLED);
+                Mint.sendMessage(player, "<warning>Auto-claim <accent>disabled</accent></warning>");
             }
         }
     }
@@ -84,15 +83,15 @@ public class AutoClaimListener implements Listener {
         List<Subregion> subregions = subregionService.getSubregionsInChunk(chunk);
         if (!subregions.isEmpty()) {
             autoClaimManager.disable(player.getUniqueId());
-            Messages.send(player, MessageKey.AUTO_DISABLED);
+            Mint.sendMessage(player, "<warning>Auto-claim <accent>disabled</accent></warning>");
             return;
         }
 
         if (territoryService.unclaimChunk(guild.getId(), player.getUniqueId(), chunk)) {
-            Messages.send(player, MessageKey.CLAIM_UNCLAIMED, chunk.x(), chunk.z());
+            Mint.sendMessage(player, "<warning><accent>Unclaimed</accent> chunk <accent>" + chunk.x() + "</accent>, <accent>" + chunk.z() + "</accent></warning>");
         } else {
             autoClaimManager.disable(player.getUniqueId());
-            Messages.send(player, MessageKey.AUTO_DISABLED);
+            Mint.sendMessage(player, "<warning>Auto-claim <accent>disabled</accent></warning>");
         }
     }
 

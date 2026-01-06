@@ -1,13 +1,12 @@
 package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.subregion.RegionPermission;
 import org.aincraft.subregion.RegionPermissionService;
 import org.aincraft.subregion.RegionRole;
@@ -42,7 +41,7 @@ public class RegionPermissionComponent {
      */
     public boolean handleSetPerm(Player player, String[] args) {
         if (args.length < 6) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region setperm <region> <player|role> <target> <permissions>");
+            Mint.sendMessage(player, "<error>Usage: /g region setperm <region> <player|role> <target> <permissions></error>");
             return true;
         }
 
@@ -70,7 +69,7 @@ public class RegionPermissionComponent {
         try {
             permissions = Integer.parseInt(permString);
         } catch (NumberFormatException e) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Invalid permission value. Use an integer (e.g., " + GuildPermission.BUILD.getBit() + " for BUILD)");
+            Mint.sendMessage(player, String.format("<error>Invalid permission value. Use an integer (e.g., <accent>%d</accent> for BUILD)</error>", GuildPermission.BUILD.getBit()));
             return true;
         }
 
@@ -81,14 +80,14 @@ public class RegionPermissionComponent {
                     return true;
                 }
                 permissionService.setPlayerPermission(region.getId(), target.getUniqueId(), permissions, player.getUniqueId());
-                Messages.send(player, MessageKey.REGION_PERMISSION_ADDED, target.getName(), regionName);
+                Mint.sendMessage(player, String.format("<success>Permissions set for <secondary>%s</secondary> in region <secondary>%s</secondary></success>", target.getName(), regionName));
             }
             case "role" -> {
                 permissionService.setRolePermission(region.getId(), targetIdentifier, permissions, player.getUniqueId());
-                Messages.send(player, MessageKey.REGION_PERMISSION_ADDED, targetIdentifier, regionName);
+                Mint.sendMessage(player, String.format("<success>Permissions set for role <secondary>%s</secondary> in region <secondary>%s</secondary></success>", targetIdentifier, regionName));
             }
             default -> {
-                Messages.send(player, MessageKey.ERROR_USAGE, "Subject type must be 'player' or 'role'");
+                Mint.sendMessage(player, "<error>Subject type must be 'player' or 'role'</error>");
                 return true;
             }
         }
@@ -105,7 +104,7 @@ public class RegionPermissionComponent {
      */
     public boolean handleRemovePerm(Player player, String[] args) {
         if (args.length < 5) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region removeperm <region> <player|role> <target>");
+            Mint.sendMessage(player, "<error>Usage: /g region removeperm <region> <player|role> <target></error>");
             return true;
         }
 
@@ -136,21 +135,21 @@ public class RegionPermissionComponent {
                 }
                 removed = permissionService.removePlayerPermission(region.getId(), target.getUniqueId());
                 if (removed) {
-                    Messages.send(player, MessageKey.REGION_PERMISSION_REMOVED, target.getName(), regionName);
+                    Mint.sendMessage(player, String.format("<success>Permissions removed for <secondary>%s</secondary> in region <secondary>%s</secondary></success>", target.getName(), regionName));
                 } else {
-                    Messages.send(player, MessageKey.ERROR_USAGE, "No permissions found for that player");
+                    Mint.sendMessage(player, "<error>No permissions found for that player</error>");
                 }
             }
             case "role" -> {
                 removed = permissionService.removeRolePermission(region.getId(), targetIdentifier);
                 if (removed) {
-                    Messages.send(player, MessageKey.REGION_PERMISSION_REMOVED, targetIdentifier, regionName);
+                    Mint.sendMessage(player, String.format("<success>Permissions removed for role <secondary>%s</secondary> in region <secondary>%s</secondary></success>", targetIdentifier, regionName));
                 } else {
-                    Messages.send(player, MessageKey.ERROR_USAGE, "No permissions found for that role");
+                    Mint.sendMessage(player, "<error>No permissions found for that role</error>");
                 }
             }
             default -> {
-                Messages.send(player, MessageKey.ERROR_USAGE, "Subject type must be 'player' or 'role'");
+                Mint.sendMessage(player, "<error>Subject type must be 'player' or 'role'</error>");
                 return true;
             }
         }
@@ -167,7 +166,7 @@ public class RegionPermissionComponent {
      */
     public boolean handleListPerms(Player player, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region listperms <region>");
+            Mint.sendMessage(player, "<error>Usage: /g region listperms <region></error>");
             return true;
         }
 
@@ -185,36 +184,33 @@ public class RegionPermissionComponent {
 
         List<RegionPermission> permissions = permissionService.getRegionPermissions(region.getId());
 
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, String.format("<primary>=== %s <accent>Permissions</accent> ===</primary>", regionName));
 
         if (region.getPermissions() != 0) {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("Default: " + region.getPermissions()));
+            Mint.sendMessage(player, "Default: <accent>" + region.getPermissions() + "</accent>");
         }
 
         List<RegionPermission> playerPerms = permissionService.getPlayerPermissions(region.getId());
         if (!playerPerms.isEmpty()) {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("<yellow>Player Permissions:</yellow>"));
+            Mint.sendMessage(player, "<accent>Player Permissions:</accent>");
             for (RegionPermission perm : playerPerms) {
                 String playerName = Bukkit.getOfflinePlayer(UUID.fromString(perm.getSubjectId())).getName();
-                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("<gray>  • <gold>" + (playerName != null ? playerName : perm.getSubjectId()) + "</gold>: " + perm.getPermissions() + "</gray>"));
+                Mint.sendMessage(player,
+                        "<neutral>  • <secondary>" + (playerName != null ? playerName : perm.getSubjectId()) + "</secondary>: <accent>" + perm.getPermissions() + "</accent></neutral>");
             }
         }
 
         List<RegionPermission> rolePerms = permissionService.getRolePermissions(region.getId());
         if (!rolePerms.isEmpty()) {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("<yellow>Role Permissions:</yellow>"));
+            Mint.sendMessage(player, "<accent>Role Permissions:</accent>");
             for (RegionPermission perm : rolePerms) {
-                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("<gray>  • <gold>" + perm.getSubjectId() + "</gold>: " + perm.getPermissions() + "</gray>"));
+                Mint.sendMessage(player,
+                        "<neutral>  • <secondary>" + perm.getSubjectId() + "</secondary>: <accent>" + perm.getPermissions() + "</accent></neutral>");
             }
         }
 
         if (permissions.isEmpty() && region.getPermissions() == 0) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
         }
 
         return true;
@@ -230,7 +226,7 @@ public class RegionPermissionComponent {
      */
     public boolean handleRole(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region role <create|delete|list|assign|unassign|members> ...");
+            Mint.sendMessage(player, "<error>Usage: /g region role <create|delete|list|assign|unassign|members> ...</error>");
             return true;
         }
 
@@ -244,7 +240,7 @@ public class RegionPermissionComponent {
             case "unassign" -> handleRoleUnassign(player, guild, args);
             case "members" -> handleRoleMembers(player, guild, args);
             default -> {
-                Messages.send(player, MessageKey.ERROR_USAGE, "Unknown role subcommand: " + roleSubCommand);
+                Mint.sendMessage(player, String.format("<error>Unknown role subcommand: <accent>%s</accent></error>", roleSubCommand));
                 yield true;
             }
         };
@@ -255,7 +251,7 @@ public class RegionPermissionComponent {
      */
     private boolean handleRoleCreate(Player player, Guild guild, String[] args) {
         if (args.length < 6) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region role create <region> <name> <permissions>");
+            Mint.sendMessage(player, "<error>Usage: /g region role create <region> <name> <permissions></error>");
             return true;
         }
 
@@ -276,17 +272,17 @@ public class RegionPermissionComponent {
         try {
             permissions = Integer.parseInt(permString);
         } catch (NumberFormatException e) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Invalid permission value. Use an integer (e.g., " + GuildPermission.BUILD.getBit() + " for BUILD)");
+            Mint.sendMessage(player, String.format("<error>Invalid permission value. Use an integer (e.g., <accent>%d</accent> for BUILD)</error>", GuildPermission.BUILD.getBit()));
             return true;
         }
 
         RegionRole role = permissionService.createRegionRole(region.getId(), roleName, permissions, player.getUniqueId());
         if (role == null) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "A role with that name already exists in this region");
+            Mint.sendMessage(player, "<error>A role with that name already exists in this region</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ROLE_CREATED, roleName);
+        Mint.sendMessage(player, String.format("<success>Role <secondary>%s</secondary> created!</success>", roleName));
         return true;
     }
 
@@ -295,7 +291,7 @@ public class RegionPermissionComponent {
      */
     private boolean handleRoleDelete(Player player, Guild guild, String[] args) {
         if (args.length < 5) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region role delete <region> <name>");
+            Mint.sendMessage(player, "<error>Usage: /g region role delete <region> <name></error>");
             return true;
         }
 
@@ -312,9 +308,9 @@ public class RegionPermissionComponent {
         }
 
         if (permissionService.deleteRegionRole(region.getId(), roleName)) {
-            Messages.send(player, MessageKey.ROLE_DELETED, roleName);
+            Mint.sendMessage(player, String.format("<warning>Role <secondary>%s</secondary> deleted</warning>", roleName));
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Role not found: " + roleName);
+            Mint.sendMessage(player, String.format("<error>Role not found: %s</error>", roleName));
         }
 
         return true;
@@ -325,7 +321,7 @@ public class RegionPermissionComponent {
      */
     private boolean handleRoleList(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region role list <region>");
+            Mint.sendMessage(player, "<error>Usage: /g region role list <region></error>");
             return true;
         }
 
@@ -339,15 +335,15 @@ public class RegionPermissionComponent {
         List<RegionRole> roles = permissionService.getRegionRoles(region.getId());
 
         if (roles.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, String.format("<primary>=== %s Roles ===</primary>", regionName));
         for (RegionRole role : roles) {
             int memberCount = permissionService.getMembersWithRegionRole(region.getId(), role.getName()).size();
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("<gray>• <gold>" + role.getName() + "</gold> - perms: " + role.getPermissions() + ", members: " + memberCount + "</gray>"));
+            Mint.sendMessage(player,
+                    "<neutral>• <secondary>" + role.getName() + "</secondary> - perms: " + role.getPermissions() + ", members: " + memberCount + "</neutral>");
         }
 
         return true;
@@ -358,7 +354,7 @@ public class RegionPermissionComponent {
      */
     private boolean handleRoleAssign(Player player, Guild guild, String[] args) {
         if (args.length < 6) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region role assign <region> <role> <player>");
+            Mint.sendMessage(player, "<error>Usage: /g region role assign <region> <role> <player></error>");
             return true;
         }
 
@@ -381,9 +377,9 @@ public class RegionPermissionComponent {
         }
 
         if (permissionService.assignRegionRole(region.getId(), roleName, target.getUniqueId())) {
-            Messages.send(player, MessageKey.ROLE_ASSIGNED, target.getName(), roleName);
+            Mint.sendMessage(player, String.format("<success><secondary>%s</secondary> assigned to role <secondary>%s</secondary></success>", target.getName(), roleName));
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Role not found: " + roleName);
+            Mint.sendMessage(player, String.format("<error>Role not found: %s</error>", roleName));
         }
 
         return true;
@@ -394,7 +390,7 @@ public class RegionPermissionComponent {
      */
     private boolean handleRoleUnassign(Player player, Guild guild, String[] args) {
         if (args.length < 6) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region role unassign <region> <role> <player>");
+            Mint.sendMessage(player, "<error>Usage: /g region role unassign <region> <role> <player></error>");
             return true;
         }
 
@@ -417,9 +413,9 @@ public class RegionPermissionComponent {
         }
 
         if (permissionService.unassignRegionRole(region.getId(), roleName, target.getUniqueId())) {
-            Messages.send(player, MessageKey.ROLE_UNASSIGNED, target.getName(), roleName);
+            Mint.sendMessage(player, String.format("<success><secondary>%s</secondary> unassigned from role <secondary>%s</secondary></success>", target.getName(), roleName));
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Role not found: " + roleName);
+            Mint.sendMessage(player, String.format("<error>Role not found: %s</error>", roleName));
         }
 
         return true;
@@ -430,7 +426,7 @@ public class RegionPermissionComponent {
      */
     private boolean handleRoleMembers(Player player, Guild guild, String[] args) {
         if (args.length < 5) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region role members <region> <role>");
+            Mint.sendMessage(player, "<error>Usage: /g region role members <region> <role></error>");
             return true;
         }
 
@@ -444,22 +440,22 @@ public class RegionPermissionComponent {
 
         Optional<RegionRole> roleOpt = permissionService.getRegionRole(region.getId(), roleName);
         if (roleOpt.isEmpty()) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Role not found: " + roleName);
+            Mint.sendMessage(player, String.format("<error>Role not found: %s</error>", roleName));
             return true;
         }
 
         List<UUID> members = permissionService.getMembersWithRegionRole(region.getId(), roleName);
 
         if (members.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, String.format("<primary>=== %s Role Members ===</primary>", roleName));
         for (UUID memberId : members) {
             String memberName = Bukkit.getOfflinePlayer(memberId).getName();
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("<gray>• <gold>" + (memberName != null ? memberName : memberId.toString()) + "</gold></gray>"));
+            Mint.sendMessage(player,
+                    "<neutral>• <secondary>" + (memberName != null ? memberName : memberId.toString()) + "</secondary></neutral>");
         }
 
         return true;

@@ -4,8 +4,7 @@ import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.LeaveResult;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -39,26 +38,26 @@ public class LeaveComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, "leave guilds");
+            Mint.sendMessage(player, "<error>You don't have permission to leave guilds</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         LeaveResult result = memberService.leaveGuild(guild.getId(), player.getUniqueId());
 
         if (result.isSuccess()) {
-            Messages.send(player, MessageKey.GUILD_LEFT, guild.getName());
+            Mint.sendMessage(player, "<success>You have left <secondary>" + guild.getName() + "</secondary></success>");
             return true;
         }
 
@@ -70,7 +69,7 @@ public class LeaveComponent implements GuildCommand {
             default -> "Failed to leave guild";
         };
 
-        Messages.send(player, MessageKey.ERROR_NO_PERMISSION, "leave guilds");
+        Mint.sendMessage(player, "<error>You don't have permission to leave guilds</error>");
         return true;
     }
 }

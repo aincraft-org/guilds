@@ -1,13 +1,12 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.chat.ChatModeService;
 import org.aincraft.chat.ChatModeService.ChatMode;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.command.CommandSender;
@@ -49,25 +48,25 @@ public class GuildChatComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.CHAT_NO_PERMISSION, "guild");
+            Mint.sendMessage(player, "<error>You don't have permission to use guild chat</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Check CHAT_GUILD permission (owners bypass)
         if (!guild.isOwner(player.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.CHAT_GUILD)) {
-            Messages.send(player, MessageKey.CHAT_NO_PERMISSION, "guild");
+            Mint.sendMessage(player, "<error>You don't have permission to use guild chat</error>");
             return true;
         }
 
@@ -76,9 +75,9 @@ public class GuildChatComponent implements GuildCommand {
             ChatMode newMode = chatModeService.toggleMode(player.getUniqueId(), ChatMode.GUILD);
 
             if (newMode == ChatMode.GUILD) {
-                Messages.send(player, MessageKey.CHAT_GUILD_ENABLED);
+                Mint.sendMessage(player, "<success>Guild chat enabled</success>");
             } else {
-                Messages.send(player, MessageKey.CHAT_GUILD_DISABLED);
+                Mint.sendMessage(player, "<warning>Guild chat disabled</warning>");
             }
             return true;
         }

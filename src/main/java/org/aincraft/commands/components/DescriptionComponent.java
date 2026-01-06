@@ -4,8 +4,7 @@ import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
@@ -47,30 +46,30 @@ public class DescriptionComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to change guild description</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: /g description <description> or /g description clear</error>");
             return false;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Check if player has EDIT_GUILD_INFO permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.EDIT_GUILD_INFO)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to change guild description</error>");
             return true;
         }
 
@@ -80,7 +79,7 @@ public class DescriptionComponent implements GuildCommand {
         if (descriptionInput.equals("clear")) {
             guild.setDescription(null);
             lifecycleService.save(guild);
-            Messages.send(player, MessageKey.GUILD_DESCRIPTION_CLEARED);
+            Mint.sendMessage(player, "<success>Guild description cleared</success>");
             return true;
         }
 
@@ -95,7 +94,7 @@ public class DescriptionComponent implements GuildCommand {
 
         guild.setDescription(description.toString());
         lifecycleService.save(guild);
-        Messages.send(player, MessageKey.GUILD_DESCRIPTION_SET, description.toString());
+        Mint.sendMessage(player, "<success>Guild description updated</success>");
         return true;
     }
 }

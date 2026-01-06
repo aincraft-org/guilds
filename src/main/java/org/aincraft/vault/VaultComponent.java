@@ -3,8 +3,7 @@ package org.aincraft.vault;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Optional;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.vault.gui.SharedVaultInventoryManager;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
@@ -29,7 +28,7 @@ public class VaultComponent {
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Player only</error>");
             return true;
         }
 
@@ -52,18 +51,18 @@ public class VaultComponent {
     }
 
     private void showHelp(Player player) {
-        Messages.send(player, MessageKey.LIST_HEADER, "Vault Commands");
-        Messages.send(player, MessageKey.INFO_HEADER, "/g vault - Open the guild vault");
-        Messages.send(player, MessageKey.INFO_HEADER, "/g vault info - Show vault information");
-        Messages.send(player, MessageKey.INFO_HEADER, "/g vault destroy confirm - Destroy the vault (owner only)");
-        Messages.send(player, MessageKey.INFO_HEADER, "/g log vault [page] - View vault transaction history");
+        Mint.sendMessage(player, "<primary>=== Vault Commands ===</primary>");
+        Mint.sendMessage(player, "<info>/g vault - Open the guild vault</info>");
+        Mint.sendMessage(player, "<info>/g vault info - Show vault information</info>");
+        Mint.sendMessage(player, "<info>/g vault destroy confirm - Destroy the vault (owner only)</info>");
+        Mint.sendMessage(player, "<info>/g log vault [page] - View vault transaction history</info>");
     }
 
     private boolean handleOpen(Player player) {
         VaultService.VaultAccessResult result = vaultService.openVault(player);
 
         if (!result.success()) {
-            Messages.send(player, MessageKey.VAULT_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Vault not found</error>");
             return true;
         }
 
@@ -72,7 +71,7 @@ public class VaultComponent {
                 result.vault(), result.canDeposit(), result.canWithdraw());
         player.openInventory(shared.getInventory());
 
-        Messages.send(player, MessageKey.VAULT_OPENED);
+        Mint.sendMessage(player, "<success>Vault opened</success>");
 
         return true;
     }
@@ -81,17 +80,16 @@ public class VaultComponent {
         Optional<Vault> vaultOpt = vaultService.getGuildVault(player.getUniqueId());
 
         if (vaultOpt.isEmpty()) {
-            Messages.send(player, MessageKey.VAULT_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Vault not found</error>");
             return true;
         }
 
         Vault vault = vaultOpt.get();
 
-        Messages.send(player, MessageKey.LIST_HEADER, "Guild Vault");
-        Messages.send(player, MessageKey.INFO_HEADER, "Location: " +
-                vault.getWorld() + " at " + vault.getOriginX() + ", " + vault.getOriginY() + ", " + vault.getOriginZ());
-        Messages.send(player, MessageKey.INFO_HEADER, "Created: " + new Date(vault.getCreatedAt()).toString());
-        Messages.send(player, MessageKey.INFO_HEADER, "Storage: " + Vault.STORAGE_SIZE + " slots");
+        Mint.sendMessage(player, "<primary>=== Guild Vault ===</primary>");
+        Mint.sendMessage(player, "<info>Location: <secondary>" + vault.getWorld() + "</secondary> at <accent>" + vault.getOriginX() + "</accent>, <accent>" + vault.getOriginY() + "</accent>, <accent>" + vault.getOriginZ() + "</accent></info>");
+        Mint.sendMessage(player, "<info>Created: <secondary>" + new Date(vault.getCreatedAt()).toString() + "</secondary></info>");
+        Mint.sendMessage(player, "<info>Storage: <accent>" + Vault.STORAGE_SIZE + "</accent> slots</info>");
 
         // Count items in vault
         int itemCount = 0;
@@ -102,7 +100,7 @@ public class VaultComponent {
                 }
             }
         }
-        Messages.send(player, MessageKey.INFO_HEADER, "Used Slots: " + itemCount + "/" + Vault.STORAGE_SIZE);
+        Mint.sendMessage(player, "<info>Used Slots: <primary>" + itemCount + "</primary>/<accent>" + Vault.STORAGE_SIZE + "</accent></info>");
 
         return true;
     }
@@ -111,20 +109,20 @@ public class VaultComponent {
         Optional<Vault> vaultOpt = vaultService.getGuildVault(player.getUniqueId());
 
         if (vaultOpt.isEmpty()) {
-            Messages.send(player, MessageKey.VAULT_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Vault not found</error>");
             return true;
         }
 
         Vault vault = vaultOpt.get();
 
         if (!vaultService.canDestroyVault(player.getUniqueId(), vault)) {
-            Messages.send(player, MessageKey.VAULT_OWNER_ONLY);
+            Mint.sendMessage(player, "<warning>Only the vault owner can destroy it</warning>");
             return true;
         }
 
         // Require confirmation
         if (args.length < 3 || !args[2].equalsIgnoreCase("confirm")) {
-            Messages.send(player, MessageKey.VAULT_CONFIRM_DESTROY);
+            Mint.sendMessage(player, "<warning>Use /g vault destroy confirm to destroy the vault</warning>");
             return true;
         }
 
@@ -145,7 +143,7 @@ public class VaultComponent {
         }
 
         vaultService.destroyVault(vault);
-        Messages.send(player, MessageKey.VAULT_DESTROYED);
+        Mint.sendMessage(player, "<success>Vault destroyed</success>");
 
         return true;
     }

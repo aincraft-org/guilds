@@ -1,14 +1,13 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.List;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.GuildRelationship;
 import org.aincraft.RelationshipService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
@@ -49,28 +48,28 @@ public class AllyComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(sender, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(sender, "<error>You don't have permission to use this command.</error>");
             return true;
         }
 
         Guild playerGuild = memberService.getPlayerGuild(player.getUniqueId());
         if (playerGuild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild.</error>");
             return true;
         }
 
         if (!playerGuild.isOwner(player.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
+            Mint.sendMessage(player, "<error>Only the guild owner can use this command.</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
             return true;
         }
 
@@ -82,7 +81,6 @@ public class AllyComponent implements GuildCommand {
             case "break" -> handleBreak(player, playerGuild, args);
             case "list" -> handleList(player, playerGuild);
             default -> {
-                // Default: treat first arg as guild name for proposing alliance
                 handlePropose(player, playerGuild, args);
                 yield true;
             }
@@ -91,7 +89,7 @@ public class AllyComponent implements GuildCommand {
 
     private boolean handlePropose(Player player, Guild guild, String[] args) {
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g ally <guild-name>");
+            Mint.sendMessage(player, "<error>Usage: /g ally <guild-name></error>");
             return true;
         }
 
@@ -99,12 +97,12 @@ public class AllyComponent implements GuildCommand {
         Guild targetGuild = lifecycleService.getGuildByName(targetGuildName);
 
         if (targetGuild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, targetGuildName);
+            Mint.sendMessage(player, "<error>Guild '" + targetGuildName + "' not found.</error>");
             return true;
         }
 
         if (targetGuild.getId().equals(guild.getId())) {
-            Messages.send(player, MessageKey.ALLY_CANNOT_SELF);
+            Mint.sendMessage(player, "<error>You cannot ally with your own guild.</error>");
             return true;
         }
 
@@ -113,13 +111,12 @@ public class AllyComponent implements GuildCommand {
         );
 
         if (relationship == null) {
-            Messages.send(player, MessageKey.ALLY_ALREADY_EXISTS);
+            Mint.sendMessage(player, "<error>Alliance already exists or pending.</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ALLY_REQUEST_SENT, targetGuild.getName());
+        Mint.sendMessage(player, "<success>Ally request sent to <secondary>" + targetGuild.getName() + "</secondary>.</success>");
 
-        // Notify all online members of the target guild
         notifyTargetGuildMembers(targetGuild, guild);
 
         return true;
@@ -127,7 +124,7 @@ public class AllyComponent implements GuildCommand {
 
     private boolean handleAccept(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g ally accept <guild-name>");
+            Mint.sendMessage(player, "<error>Usage: /g ally accept <guild-name></error>");
             return true;
         }
 
@@ -135,7 +132,7 @@ public class AllyComponent implements GuildCommand {
         Guild sourceGuild = lifecycleService.getGuildByName(sourceGuildName);
 
         if (sourceGuild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, sourceGuildName);
+            Mint.sendMessage(player, "<error>Guild '" + sourceGuildName + "' not found.</error>");
             return true;
         }
 
@@ -144,17 +141,17 @@ public class AllyComponent implements GuildCommand {
         );
 
         if (!accepted) {
-            Messages.send(player, MessageKey.ALLY_NO_PENDING);
+            Mint.sendMessage(player, "<error>No pending alliance request from that guild.</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ALLY_ACCEPTED, sourceGuild.getName());
+        Mint.sendMessage(player, "<success>Accepted alliance with <secondary>" + sourceGuild.getName() + "</secondary>.</success>");
         return true;
     }
 
     private boolean handleReject(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g ally reject <guild-name>");
+            Mint.sendMessage(player, "<error>Usage: /g ally reject <guild-name></error>");
             return true;
         }
 
@@ -162,7 +159,7 @@ public class AllyComponent implements GuildCommand {
         Guild sourceGuild = lifecycleService.getGuildByName(sourceGuildName);
 
         if (sourceGuild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, sourceGuildName);
+            Mint.sendMessage(player, "<error>Guild '" + sourceGuildName + "' not found.</error>");
             return true;
         }
 
@@ -171,17 +168,17 @@ public class AllyComponent implements GuildCommand {
         );
 
         if (!rejected) {
-            Messages.send(player, MessageKey.ALLY_NO_PENDING);
+            Mint.sendMessage(player, "<error>No pending alliance request from that guild.</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ALLY_REJECTED, sourceGuild.getName());
+        Mint.sendMessage(player, "<neutral>Rejected alliance request from <secondary>" + sourceGuild.getName() + "</secondary>.</neutral>");
         return true;
     }
 
     private boolean handleBreak(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g ally break <guild-name>");
+            Mint.sendMessage(player, "<error>Usage: /g ally break <guild-name></error>");
             return true;
         }
 
@@ -189,7 +186,7 @@ public class AllyComponent implements GuildCommand {
         Guild allyGuild = lifecycleService.getGuildByName(allyGuildName);
 
         if (allyGuild == null) {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, allyGuildName);
+            Mint.sendMessage(player, "<error>Guild '" + allyGuildName + "' not found.</error>");
             return true;
         }
 
@@ -198,11 +195,11 @@ public class AllyComponent implements GuildCommand {
         );
 
         if (!broken) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild.</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ALLY_BROKEN, allyGuild.getName());
+        Mint.sendMessage(player, "<warning>Broke alliance with <secondary>" + allyGuild.getName() + "</secondary>.</warning>");
         return true;
     }
 
@@ -211,41 +208,35 @@ public class AllyComponent implements GuildCommand {
         List<GuildRelationship> pendingRequests = relationshipService.getPendingAllyRequests(guild.getId());
         List<GuildRelationship> sentRequests = relationshipService.getSentAllyRequests(guild.getId());
 
-        Messages.send(player, MessageKey.ALLY_LIST_HEADER);
+        Mint.sendMessage(player, "<secondary>=== Allies ===</secondary>");
 
         if (allies.isEmpty()) {
-            Messages.send(player, MessageKey.ALLY_LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>No allies found.</neutral>");
         } else {
-            player.sendMessage(Messages.get(MessageKey.ALLY_LIST_HEADER));
             for (UUID allyId : allies) {
                 Guild ally = lifecycleService.getGuildById(allyId);
                 if (ally != null) {
-                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("  <green>•</green> <white>" + ally.getName()));
+                    Mint.sendMessage(player, "  <success>•</success> <primary>" + ally.getName() + "</primary>");
                 }
             }
         }
 
         if (!pendingRequests.isEmpty()) {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<yellow>Incoming Requests<reset>:"));
+            Mint.sendMessage(player, "<warning>Incoming Requests:");
             for (GuildRelationship request : pendingRequests) {
                 Guild source = lifecycleService.getGuildById(request.getSourceGuildId());
                 if (source != null) {
-                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("  <aqua>↓</aqua> <white>" + source.getName()));
+                    Mint.sendMessage(player, "  <info>↓</info> <primary>" + source.getName() + "</primary>");
                 }
             }
         }
 
         if (!sentRequests.isEmpty()) {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<yellow>Sent Requests<reset>:"));
+            Mint.sendMessage(player, "<warning>Sent Requests:");
             for (GuildRelationship request : sentRequests) {
                 Guild target = lifecycleService.getGuildById(request.getTargetGuildId());
                 if (target != null) {
-                    player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("  <gray>↑</gray> <white>" + target.getName()));
+                    Mint.sendMessage(player, "  <neutral>↑</neutral> <primary>" + target.getName() + "</primary>");
                 }
             }
         }
@@ -253,22 +244,15 @@ public class AllyComponent implements GuildCommand {
         return true;
     }
 
-    /**
-     * Notifies all online members of the target guild about the alliance proposal.
-     *
-     * @param targetGuild the guild receiving the alliance proposal
-     * @param sourceGuild the guild sending the alliance proposal
-     */
     private void notifyTargetGuildMembers(Guild targetGuild, Guild sourceGuild) {
         Bukkit.getOnlinePlayers().stream()
             .filter(p -> {
                 Guild playerGuild = memberService.getPlayerGuild(p.getUniqueId());
                 return playerGuild != null && playerGuild.getId().equals(targetGuild.getId());
             })
-            .forEach(p -> p.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize(
-                    "<aqua>✉ Alliance request from <gold>" + sourceGuild.getName() +
-                    "</gold>. Use <white>/g ally accept " + sourceGuild.getName() + "</white> to accept.</aqua>"
-                )));
+            .forEach(p -> Mint.sendMessage(p,
+                "<info>✉ Alliance request from <secondary>" + sourceGuild.getName() +
+                "</secondary>. Use <primary>/g ally accept " + sourceGuild.getName() + "</primary> to accept.</info>"
+            ));
     }
 }

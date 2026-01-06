@@ -16,8 +16,7 @@ import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.RelationshipService;
 import org.aincraft.chat.ChatModeService.ChatMode;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.Bukkit;
@@ -61,7 +60,7 @@ public class GuildChatListener implements Listener {
         // Get sender's guild
         Guild guild = memberService.getPlayerGuild(sender.getUniqueId());
         if (guild == null) {
-            Messages.send(sender, MessageKey.CHAT_NO_GUILD_RESET);
+            Mint.sendMessage(sender, "<warning>You are not in a guild. Chat mode reset to public.</warning>");
             chatModeService.setMode(sender.getUniqueId(), ChatMode.PUBLIC);
             return;
         }
@@ -73,7 +72,7 @@ public class GuildChatListener implements Listener {
 
         if (!guild.isOwner(sender.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), sender.getUniqueId(), requiredPermission)) {
-            Messages.send(sender, MessageKey.CHAT_NO_PERMISSION);
+            Mint.sendMessage(sender, "<error>You don't have permission to use {0} chat</error>");
             event.setCancelled(true);
             return;
         }
@@ -163,8 +162,8 @@ public class GuildChatListener implements Listener {
     private Component formatGuildChatMessage(Player sender, Guild guild, String message) {
         Component prefix = Component.text("[G] ", NamedTextColor.GREEN);
         Component guildTag = Component.text("[" + guild.getName() + "]", NamedTextColor.GOLD)
-            .hoverEvent(HoverEvent.showText(Component.text("Guild: " + guild.getName(), NamedTextColor.YELLOW)));
-        Component playerName = Component.text(sender.getName() + ": ", NamedTextColor.WHITE);
+            .hoverEvent(HoverEvent.showText(Mint.parse("<secondary>Guild: " + guild.getName() + "</secondary>")));
+        Component playerName = Mint.parse("<primary>" + sender.getName() + "</primary>: ");
         Component msg = Component.text(message, NamedTextColor.GRAY);
 
         return Component.empty()
@@ -182,8 +181,8 @@ public class GuildChatListener implements Listener {
     private Component formatAllyChatMessage(Player sender, Guild guild, String message) {
         Component prefix = Component.text("[A] ", NamedTextColor.AQUA);
         Component guildTag = Component.text("[" + guild.getName() + "]", NamedTextColor.GOLD)
-            .hoverEvent(HoverEvent.showText(Component.text("Guild: " + guild.getName(), NamedTextColor.YELLOW)));
-        Component playerName = Component.text(sender.getName() + ": ", NamedTextColor.WHITE);
+            .hoverEvent(HoverEvent.showText(Mint.parse("<secondary>Guild: " + guild.getName() + "</secondary>")));
+        Component playerName = Mint.parse("<primary>" + sender.getName() + "</primary>: ");
         Component msg = Component.text(message, NamedTextColor.GRAY);
 
         return Component.empty()
@@ -201,8 +200,8 @@ public class GuildChatListener implements Listener {
     private Component formatOfficerChatMessage(Player sender, Guild guild, String message) {
         Component prefix = Component.text("[O] ", NamedTextColor.GOLD);
         Component guildTag = Component.text("[" + guild.getName() + "]", NamedTextColor.YELLOW)
-            .hoverEvent(HoverEvent.showText(Component.text("Officer Chat", NamedTextColor.GOLD)));
-        Component playerName = Component.text(sender.getName() + ": ", NamedTextColor.WHITE);
+            .hoverEvent(HoverEvent.showText(Mint.parse("<accent>Officer Chat</accent>")));
+        Component playerName = Mint.parse("<primary>" + sender.getName() + "</primary>: ");
         Component msg = Component.text(message, NamedTextColor.GRAY);
 
         return Component.empty()

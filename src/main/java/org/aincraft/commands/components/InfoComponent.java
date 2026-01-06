@@ -1,6 +1,7 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -16,8 +17,6 @@ import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.TerritoryService;
 import org.aincraft.service.SpawnService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.progression.GuildProgression;
 import org.aincraft.progression.ProgressionConfig;
 import org.aincraft.progression.ProgressionService;
@@ -71,12 +70,17 @@ public class InfoComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(sender, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(sender, "<error>You don't have permission to use this command</error>");
+            return true;
+        }
+
+        if (!player.hasPermission(getPermission())) {
+            Mint.sendMessage(sender, "<error>You don't have permission to use this command</error>");
             return true;
         }
 
@@ -92,9 +96,9 @@ public class InfoComponent implements GuildCommand {
 
         if (guild == null) {
             if (args.length >= 2) {
-                Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, args[1]);
+                Mint.sendMessage(player, "<error>Guild not found: <secondary>" + args[1] + "</secondary></error>");
             } else {
-                Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+                Mint.sendMessage(player, "<error>You are not in a guild</error>");
             }
             return true;
         }
@@ -141,14 +145,13 @@ public class InfoComponent implements GuildCommand {
             .append(Component.text("o", NamedTextColor.DARK_GRAY));
 
         player.sendMessage(headerBuilder.build());
-        player.sendMessage(Component.newline());
+        Mint.sendMessage(player, "");
 
         // Description if exists
         if (guild.getDescription() != null && !guild.getDescription().isEmpty()) {
-            player.sendMessage(Component.empty());
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("  <gray>\"" + guild.getDescription() + "\""));
-            player.sendMessage(Component.empty());
+            Mint.sendMessage(player, "");
+            Mint.sendMessage(player, "  <neutral>\"" + guild.getDescription() + "\"</neutral>");
+            Mint.sendMessage(player, "");
         }
 
         // Owner with hover
@@ -188,37 +191,32 @@ public class InfoComponent implements GuildCommand {
             .build();
         player.sendMessage(createdLine);
 
-        player.sendMessage(Component.empty());
+        Mint.sendMessage(player, "");
 
         // Level and progression section
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("  <yellow>Progression"));
+        Mint.sendMessage(player, "  <secondary>Progression</secondary>");
         displayLevelProgress(player, guild);
 
-        player.sendMessage(Component.empty());
+        Mint.sendMessage(player, "");
 
         // Statistics section
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("  <yellow>Statistics"));
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("  <dark_gray>• <gray>Members: <white>" +
-                guild.getMemberCount() + "<dark_gray>/<white>" + guild.getMaxMembers()));
+        Mint.sendMessage(player, "  <secondary>Statistics</secondary>");
+        Mint.sendMessage(player, "  <neutral>• <neutral>Members: <primary>" +
+                guild.getMemberCount() + "<neutral>/<primary>" + guild.getMaxMembers() + "</neutral></neutral>");
 
         int claimedChunks = territoryService.getGuildChunks(guild.getId()).size();
         int maxChunks = guild.getMaxChunks();
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("  <dark_gray>• <gray>Chunks: <white>" +
-                claimedChunks + "<dark_gray>/<white>" + maxChunks));
+        Mint.sendMessage(player, "  <neutral>• <neutral>Chunks: <primary>" +
+                claimedChunks + "<neutral>/<primary>" + maxChunks + "</neutral></neutral>");
 
         // Display toggles inline
-        String explosions = guild.isExplosionsAllowed() ? "<green>✓" : "<red>✗";
-        String fire = guild.isFireAllowed() ? "<green>✓" : "<red>✗";
-        String isPublic = guild.isPublic() ? "<green>Public" : "<red>Private";
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("  <dark_gray>• <gray>Explosions: " + explosions +
-                "  <dark_gray>• <gray>Fire: " + fire + "  <dark_gray>• <gray>Access: " + isPublic));
+        String explosions = guild.isExplosionsAllowed() ? "<success>✓" : "<error>✗";
+        String fire = guild.isFireAllowed() ? "<success>✓" : "<error>✗";
+        String isPublic = guild.isPublic() ? "<success>Public" : "<error>Private";
+        Mint.sendMessage(player, "  <neutral>• <neutral>Explosions: " + explosions +
+                "  <neutral>• <neutral>Fire: " + fire + "  <neutral>• <neutral>Access: " + isPublic + "</neutral></neutral></neutral>");
 
-        player.sendMessage(Component.empty());
+        Mint.sendMessage(player, "");
 
         // Relationships
         displayRelationships(player, guild);
@@ -242,36 +240,31 @@ public class InfoComponent implements GuildCommand {
 
         // Only show section if there are relationships
         if (!allies.isEmpty() || !enemies.isEmpty()) {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("  <yellow>Relationships"));
+            Mint.sendMessage(player, "  <secondary>Relationships</secondary>");
 
             // Display allies
             if (!allies.isEmpty()) {
-                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("  <dark_gray>• <gray>Allies <green>(" + allies.size() + ")<gray>:"));
+                Mint.sendMessage(player, "  <neutral>• <neutral>Allies <success>(" + allies.size() + ")<neutral>:</neutral></neutral>");
                 for (UUID ally : allies) {
                     Guild allyGuild = lifecycleService.getGuildById(ally);
                     if (allyGuild != null) {
-                        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                            .deserialize("    <green>• " + allyGuild.getName()));
+                        Mint.sendMessage(player, "    <success>• <secondary>" + allyGuild.getName() + "</secondary></success>");
                     }
                 }
             }
 
             // Display enemies
             if (!enemies.isEmpty()) {
-                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("  <dark_gray>• <gray>Enemies <red>(" + enemies.size() + ")<gray>:"));
+                Mint.sendMessage(player, "  <neutral>• <neutral>Enemies <error>(" + enemies.size() + ")<neutral>:</neutral></neutral>");
                 for (UUID enemy : enemies) {
                     Guild enemyGuild = lifecycleService.getGuildById(enemy);
                     if (enemyGuild != null) {
-                        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                            .deserialize("    <red>• " + enemyGuild.getName()));
+                        Mint.sendMessage(player, "    <error>• <secondary>" + enemyGuild.getName() + "</secondary></error>");
                     }
                 }
             }
 
-            player.sendMessage(Component.empty());
+            Mint.sendMessage(player, "");
         }
     }
 
@@ -284,8 +277,7 @@ public class InfoComponent implements GuildCommand {
             return;
         }
 
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("  <yellow>Region Limits"));
+        Mint.sendMessage(player, "  <secondary>Region Limits</secondary>");
         for (RegionTypeLimit limit : limits) {
             long usage = subregionService.getTypeUsage(guild.getId(), limit.typeId());
             long max = limit.maxTotalVolume();
@@ -295,14 +287,13 @@ public class InfoComponent implements GuildCommand {
                     .map(SubregionType::getDisplayName)
                     .orElse(limit.typeId());
 
-            String color = percent >= 90 ? "<red>" : percent >= 70 ? "<yellow>" : "<green>";
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize(
-                    "  <dark_gray>• <gray>" + displayName + ": " + color +
-                    formatNumber(usage) + "<dark_gray>/<white>" + formatNumber(max) +
-                    " <dark_gray>(" + String.format("%.0f", percent) + "%)"));
+            String color = percent >= 90 ? "<error>" : percent >= 70 ? "<warning>" : "<success>";
+            Mint.sendMessage(player,
+                    "  <neutral>• <neutral>" + displayName + ": " + color +
+                    formatNumber(usage) + "<neutral>/<primary>" + formatNumber(max) + "</neutral>" +
+                    " <neutral>(" + String.format("%.0f", percent) + "%)</neutral></neutral>");
         }
-        player.sendMessage(Component.empty());
+        Mint.sendMessage(player, "");
     }
 
     private String formatNumber(long number) {
@@ -330,10 +321,9 @@ public class InfoComponent implements GuildCommand {
 
         // Build level line
         String levelText = level >= maxLevel
-            ? String.format("  <dark_gray>• <gray>Level: <gold>%d <dark_gray>(MAX)", level)
-            : String.format("  <dark_gray>• <gray>Level: <gold>%d <dark_gray>/ <gold>%d", level, maxLevel);
-        player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize(levelText));
+            ? String.format("  <neutral>• <neutral>Level: <secondary>%d <neutral>(MAX)</neutral></neutral>", level)
+            : String.format("  <neutral>• <neutral>Level: <secondary>%d <neutral>/ <secondary>%d</neutral></neutral>", level, maxLevel);
+        Mint.sendMessage(player, levelText);
 
         // Build XP progress bar only if not at max level
         if (level < maxLevel) {
@@ -342,28 +332,27 @@ public class InfoComponent implements GuildCommand {
             int filledBars = (int) (progress * barLength);
 
             StringBuilder progressBar = new StringBuilder();
-            progressBar.append("  <dark_gray>• <gray>XP: <gray>[");
+            progressBar.append("  <neutral>• <neutral>XP: <neutral>[</neutral>");
 
             // Add filled portion in green
             for (int i = 0; i < filledBars; i++) {
-                progressBar.append("<green>|");
+                progressBar.append("<success>|");
             }
 
             // Add empty portion in dark gray
             for (int i = filledBars; i < barLength; i++) {
-                progressBar.append("<dark_gray>|");
+                progressBar.append("<neutral>|");
             }
 
-            progressBar.append("<gray>] ");
-            progressBar.append(String.format("<yellow>%.0f%%", progress * 100));
-            progressBar.append(" <dark_gray>(<white>");
+            progressBar.append("<neutral>] </neutral>");
+            progressBar.append(String.format("<info>%.0f%%</info>", progress * 100));
+            progressBar.append(" <neutral>(<primary>");
             progressBar.append(String.format("%,d", currentXp));
-            progressBar.append("<dark_gray>/<white>");
+            progressBar.append("<neutral>/<primary>");
             progressBar.append(String.format("%,d", xpRequired));
-            progressBar.append("<dark_gray>)");
+            progressBar.append("<neutral>)</neutral>");
 
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize(progressBar.toString()));
+            Mint.sendMessage(player, progressBar.toString());
         }
     }
 

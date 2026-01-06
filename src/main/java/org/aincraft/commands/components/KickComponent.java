@@ -3,8 +3,7 @@ package org.aincraft.commands.components;
 import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.Bukkit;
@@ -43,71 +42,71 @@ public class KickComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to kick members</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: /g kick <player-name></error>");
             return false;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         if (!guild.isOwner(player.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
+            Mint.sendMessage(player, "<error>Only the guild owner can do this</error>");
             return true;
         }
 
         OfflinePlayer target = org.bukkit.Bukkit.getOfflinePlayer(args[1]);
 
         if (target == null) {
-            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, args[1]);
+            Mint.sendMessage(player, "<error>Player not found: <secondary>" + args[1] + "</secondary></error>");
             return true;
         }
 
         // Check if trying to kick yourself
         if (player.getUniqueId().equals(target.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You cannot kick yourself</error>");
             return true;
         }
 
         // Check if target is guild owner
         if (guild.isOwner(target.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You cannot kick the guild owner</error>");
             return true;
         }
 
         // Check if target has ADMIN permission (only owner can kick admins)
         if (!guild.isOwner(player.getUniqueId()) &&
             permissionService.hasPermission(guild.getId(), target.getUniqueId(), org.aincraft.GuildPermission.ADMIN)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You cannot kick this member</error>");
             return true;
         }
 
         if (memberService.kickMember(guild.getId(), player.getUniqueId(), target.getUniqueId())) {
-            Messages.send(player, MessageKey.GUILD_KICKED, target.getName());
+            Mint.sendMessage(player, "<success><secondary>" + target.getName() + "</secondary> has been kicked from the guild</success>");
 
             // Notify the kicked player if they are online
             Player onlineTarget = Bukkit.getPlayer(target.getUniqueId());
             if (onlineTarget != null) {
-                Messages.send(onlineTarget, MessageKey.GUILD_KICKED, guild.getName());
+                Mint.sendMessage(onlineTarget, "<warning>You have been kicked from <secondary>" + guild.getName() + "</secondary></warning>");
             }
 
             return true;
         }
 
-        Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+        Mint.sendMessage(player, "<error>You don't have permission to kick this member</error>");
         return true;
     }
 }

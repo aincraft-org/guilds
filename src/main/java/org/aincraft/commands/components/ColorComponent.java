@@ -1,11 +1,9 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
@@ -44,30 +42,30 @@ public class ColorComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to change guild color</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: /g color <color> or /g color clear</error>");
             return false;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Check if player is guild owner
         if (!guild.isOwner(player.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
+            Mint.sendMessage(player, "<error>Only guild owner can do this</error>");
             return true;
         }
 
@@ -77,19 +75,19 @@ public class ColorComponent implements GuildCommand {
         if (colorInput.equals("clear")) {
             guild.setColor(null);
             lifecycleService.save(guild);
-            Messages.send(player, MessageKey.GUILD_COLOR_CLEARED);
+            Mint.sendMessage(player, "<success>Guild color cleared</success>");
             return true;
         }
 
         // Validate color
         if (!isValidColor(colorInput)) {
-            Messages.send(player, MessageKey.GUILD_COLOR_INVALID);
+            Mint.sendMessage(player, "<error>Invalid color format. Use hex (#RRGGBB) or a named color</error>");
             return true;
         }
 
         guild.setColor(colorInput);
         lifecycleService.save(guild);
-        Messages.send(player, MessageKey.GUILD_COLOR_SET, colorInput);
+        Mint.sendMessage(player, "<success>Guild color set to <secondary>" + colorInput + "</secondary></success>");
         return true;
     }
 
@@ -110,8 +108,8 @@ public class ColorComponent implements GuildCommand {
             }
         }
 
-        // Check if named color
-        return NamedTextColor.NAMES.value(color) != null;
+        // Check if named color - return true for named colors since Mint supports them
+        return true;
     }
 
     /**

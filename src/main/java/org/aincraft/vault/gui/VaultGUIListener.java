@@ -2,8 +2,7 @@ package org.aincraft.vault.gui;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransaction;
 import org.bukkit.Material;
@@ -53,7 +52,7 @@ public class VaultGUIListener implements Listener {
                 // Taking from vault = withdraw
                 if (isVaultInventory && !shared.canWithdraw()) {
                     event.setCancelled(true);
-                    Messages.send(player, MessageKey.VAULT_WITHDRAW_DENIED);
+                    Mint.sendMessage(player, "<error>You don't have permission to withdraw from this vault</error>");
                     return;
                 }
                 if (isVaultInventory) {
@@ -64,7 +63,7 @@ public class VaultGUIListener implements Listener {
                 // Placing in vault = deposit
                 if (isVaultInventory && !shared.canDeposit()) {
                     event.setCancelled(true);
-                    Messages.send(player, MessageKey.VAULT_DEPOSIT_DENIED);
+                    Mint.sendMessage(player, "<error>You don't have permission to deposit to this vault</error>");
                     return;
                 }
                 if (isVaultInventory) {
@@ -77,7 +76,7 @@ public class VaultGUIListener implements Listener {
                     // Shift-click from player inventory = deposit
                     if (!shared.canDeposit()) {
                         event.setCancelled(true);
-                        Messages.send(player, MessageKey.VAULT_DEPOSIT_DENIED);
+                        Mint.sendMessage(player, "<error>You don't have permission to deposit to this vault</error>");
                         return;
                     }
                     logDeposit(shared, player, event.getCurrentItem());
@@ -85,7 +84,7 @@ public class VaultGUIListener implements Listener {
                     // Shift-click from vault = withdraw
                     if (!shared.canWithdraw()) {
                         event.setCancelled(true);
-                        Messages.send(player, MessageKey.VAULT_WITHDRAW_DENIED);
+                        Mint.sendMessage(player, "<error>You don't have permission to withdraw from this vault</error>");
                         return;
                     }
                     logWithdraw(shared, player, event.getCurrentItem(), event);
@@ -96,7 +95,7 @@ public class VaultGUIListener implements Listener {
                     // Swapping requires both permissions
                     if (!shared.canDeposit() || !shared.canWithdraw()) {
                         event.setCancelled(true);
-                        Messages.send(player, MessageKey.VAULT_NO_PERMISSION);
+                        Mint.sendMessage(player, "<error>You don't have permission to use this vault</error>");
                         return;
                     }
                     logDeposit(shared, player, event.getCursor());
@@ -108,7 +107,7 @@ public class VaultGUIListener implements Listener {
                     // Hotbar swap also requires both permissions
                     if (!shared.canDeposit() || !shared.canWithdraw()) {
                         event.setCancelled(true);
-                        Messages.send(player, MessageKey.VAULT_NO_PERMISSION);
+                        Mint.sendMessage(player, "<error>You don't have permission to use this vault</error>");
                         return;
                     }
                     // Log both transactions
@@ -144,7 +143,7 @@ public class VaultGUIListener implements Listener {
 
         if (affectsVault && !shared.canDeposit()) {
             event.setCancelled(true);
-            Messages.send(player, MessageKey.VAULT_DEPOSIT_DENIED);
+            Mint.sendMessage(player, "<error>You don't have permission to deposit to this vault</error>");
         } else if (affectsVault) {
             // Log deposit for dragged items
             ItemStack newItems = event.getOldCursor().clone();
@@ -191,7 +190,7 @@ public class VaultGUIListener implements Listener {
         event.setCancelled(true);
 
         if (!result.success()) {
-            Messages.send(event.getPlayer(), MessageKey.VAULT_NOT_FOUND);
+            Mint.sendMessage(event.getPlayer(), "<error>Vault not found</error>");
             return;
         }
 

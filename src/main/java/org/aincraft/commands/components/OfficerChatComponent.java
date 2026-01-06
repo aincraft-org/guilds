@@ -1,13 +1,12 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.chat.ChatModeService;
 import org.aincraft.chat.ChatModeService.ChatMode;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.command.CommandSender;
@@ -52,51 +51,45 @@ public class OfficerChatComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.CHAT_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use officer chat</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
-        // Check CHAT_OFFICER permission (owners bypass)
         if (!guild.isOwner(player.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.CHAT_OFFICER)) {
-            Messages.send(player, MessageKey.CHAT_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use officer chat</error>");
             return true;
         }
 
-        // No message - toggle mode
         if (args.length == 0) {
             ChatMode newMode = chatModeService.toggleMode(player.getUniqueId(), ChatMode.OFFICER);
 
             if (newMode == ChatMode.OFFICER) {
-                Messages.send(player, MessageKey.CHAT_OFFICER_ENABLED);
+                Mint.sendMessage(player, "<success>Officer chat enabled</success>");
             } else {
-                Messages.send(player, MessageKey.CHAT_OFFICER_DISABLED);
+                Mint.sendMessage(player, "<info>Officer chat disabled</info>");
             }
             return true;
         }
 
-        // Has message - send one-time message without toggling
         String message = String.join(" ", args);
 
-        // Temporarily set mode to OFFICER
         ChatMode originalMode = chatModeService.getMode(player.getUniqueId());
         chatModeService.setMode(player.getUniqueId(), ChatMode.OFFICER);
 
-        // Trigger chat event
         player.chat(message);
 
-        // Restore original mode
         chatModeService.setMode(player.getUniqueId(), originalMode);
 
         return true;

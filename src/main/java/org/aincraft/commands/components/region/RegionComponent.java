@@ -1,10 +1,9 @@
 package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -52,7 +51,7 @@ public class RegionComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players</error>");
             return true;
         }
 
@@ -92,7 +91,7 @@ public class RegionComponent implements GuildCommand {
             case "role" -> {
                 Guild guild = memberService.getPlayerGuild(player.getUniqueId());
                 if (guild == null) {
-                    Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+                    Mint.sendMessage(player, "<error>You must be in a guild to use this command</error>");
                     yield true;
                 }
                 yield permissionComponent.handleRole(player, guild, args);
@@ -109,6 +108,6 @@ public class RegionComponent implements GuildCommand {
      * Displays help information for region commands.
      */
     private void showHelp(Player player) {
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, "<primary>=== Region Commands ===</primary>");
     }
 }

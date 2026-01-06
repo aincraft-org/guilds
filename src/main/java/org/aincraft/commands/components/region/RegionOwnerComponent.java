@@ -1,9 +1,8 @@
 package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.bukkit.entity.Player;
@@ -31,7 +30,7 @@ public class RegionOwnerComponent {
      */
     public boolean handleAddOwner(Player player, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region addowner <region> <player>");
+            Mint.sendMessage(player, "<error>Usage: /g region addowner <region> <player></error>");
             return true;
         }
 
@@ -54,9 +53,9 @@ public class RegionOwnerComponent {
         }
 
         if (subregionService.addSubregionOwner(guild.getId(), player.getUniqueId(), regionName, target.getUniqueId())) {
-            Messages.send(player, MessageKey.REGION_OWNER_ADDED, target.getName(), regionName);
+            Mint.sendMessage(player, String.format("<success><secondary>%s</secondary> added as owner of region <secondary>%s</secondary></success>", target.getName(), regionName));
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to add owner. Region may not exist or you lack permission.");
+            Mint.sendMessage(player, "<error>Failed to add owner. Region may not exist or you lack permission.</error>");
         }
 
         return true;
@@ -71,7 +70,7 @@ public class RegionOwnerComponent {
      */
     public boolean handleRemoveOwner(Player player, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region removeowner <region> <player>");
+            Mint.sendMessage(player, "<error>Usage: /g region removeowner <region> <player></error>");
             return true;
         }
 
@@ -94,9 +93,9 @@ public class RegionOwnerComponent {
         }
 
         if (subregionService.removeSubregionOwner(guild.getId(), player.getUniqueId(), regionName, target.getUniqueId())) {
-            Messages.send(player, MessageKey.REGION_OWNER_REMOVED, target.getName(), regionName);
+            Mint.sendMessage(player, String.format("<success><secondary>%s</secondary> removed as owner of region <secondary>%s</secondary></success>", target.getName(), regionName));
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to remove owner. Region may not exist, you lack permission, or can't remove the creator.");
+            Mint.sendMessage(player, "<error>Failed to remove owner. Region may not exist, you lack permission, or can't remove the creator.</error>");
         }
 
         return true;

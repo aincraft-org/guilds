@@ -148,9 +148,6 @@ public class GuildsPlugin extends JavaPlugin {
         // Initialize database schema (must be first)
         injector.getInstance(SchemaManager.class);
 
-        // Initialize message system for i18n
-        org.aincraft.messages.Messages.init(injector.getInstance(org.aincraft.messages.MessageProvider.class));
-
         // Initialize core services
         this.guildService = injector.getInstance(GuildService.class);
         this.relationshipService = injector.getInstance(RelationshipService.class);

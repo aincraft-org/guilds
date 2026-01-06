@@ -1,13 +1,12 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -43,28 +42,28 @@ public class ToggleComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
             return false;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         if (!guild.isOwner(player.getUniqueId())) {
-            Messages.send(player, MessageKey.ERROR_NOT_GUILD_OWNER);
+            Mint.sendMessage(player, "<error>You are not the guild owner</error>");
             return true;
         }
 
@@ -74,7 +73,7 @@ public class ToggleComponent implements GuildCommand {
             case "fire" -> toggleFire(player, guild);
             case "public" -> togglePublic(player, guild);
             default -> {
-                Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+                Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
                 yield true;
             }
         };
@@ -85,7 +84,7 @@ public class ToggleComponent implements GuildCommand {
         guild.setExplosionsAllowed(newValue);
         lifecycleService.save(guild);
 
-        player.sendMessage(Messages.get(MessageKey.GUILD_COLOR_SET, "Explosions " + (newValue ? "enabled" : "disabled")));
+        Mint.sendMessage(player, "<info>Explosions " + (newValue ? "enabled" : "disabled") + "</info>");
         return true;
     }
 
@@ -94,7 +93,7 @@ public class ToggleComponent implements GuildCommand {
         guild.setFireAllowed(newValue);
         lifecycleService.save(guild);
 
-        player.sendMessage(Messages.get(MessageKey.GUILD_COLOR_SET, "Fire spread " + (newValue ? "enabled" : "disabled")));
+        Mint.sendMessage(player, "<info>Fire spread " + (newValue ? "enabled" : "disabled") + "</info>");
         return true;
     }
 
@@ -103,7 +102,7 @@ public class ToggleComponent implements GuildCommand {
         guild.setPublic(newValue);
         lifecycleService.save(guild);
 
-        player.sendMessage(Messages.get(MessageKey.GUILD_COLOR_SET, "Guild is now " + (newValue ? "public" : "private")));
+        Mint.sendMessage(player, "<info>Guild is now " + (newValue ? "public" : "private") + "</info>");
         return true;
     }
 }

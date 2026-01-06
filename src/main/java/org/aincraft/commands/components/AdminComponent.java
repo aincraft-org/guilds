@@ -1,11 +1,10 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.ChunkKey;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.progression.GuildProgression;
 import org.aincraft.progression.ProgressionService;
 import org.aincraft.service.GuildLifecycleService;
@@ -52,12 +51,12 @@ public class AdminComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!sender.hasPermission(getPermission())) {
-            Messages.send(sender, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(sender, "<error>You don't have <accent>permission</accent> to use this command.</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: " + getUsage());
+            Mint.sendMessage(sender, "<error>Usage: " + getUsage() + "</error>");
             return false;
         }
 
@@ -73,9 +72,17 @@ public class AdminComponent implements GuildCommand {
             case "add" -> executeAdd(sender, args);
             case "remove" -> executeRemove(sender, args);
             case "reset" -> executeReset(sender, args);
+            case "addchunk" -> executeAddChunk(sender, args);
+            case "removechunk" -> executeRemoveChunk(sender, args);
+            case "setowner" -> executeSetOwner(sender, args);
+            case "bypass" -> executeBypass(sender, args);
+            case "set" -> executeSet(sender, args);
+            case "add" -> executeAdd(sender, args);
+            case "remove" -> executeRemove(sender, args);
+            case "reset" -> executeReset(sender, args);
             default -> {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Unknown admin command: " + subCommand);
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: " + getUsage());
+                Mint.sendMessage(sender, "<error>Unknown admin command: <accent>" + subCommand + "</accent></error>");
+                Mint.sendMessage(sender, "<error>Usage: " + getUsage() + "</error>");
                 yield false;
             }
         };
@@ -83,7 +90,7 @@ public class AdminComponent implements GuildCommand {
 
     private boolean executeDisband(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin disband <guild>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin disband <guild></error>");
             return false;
         }
 
@@ -91,15 +98,15 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
         boolean deleted = lifecycleService.deleteGuild(guild.getId(), guild.getOwnerId());
         if (deleted) {
-            Messages.send(sender, MessageKey.ADMIN_FORCE_DISBAND, guild.getName());
+            Mint.sendMessage(sender, "<success>Force disbanded guild <secondary>" + guild.getName() + "</secondary>.</success>");
         } else {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Failed to disband guild");
+            Mint.sendMessage(sender, "<error>Failed to disband guild</error>");
         }
 
         return true;
@@ -107,12 +114,12 @@ public class AdminComponent implements GuildCommand {
 
     private boolean executeAddChunk(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 3) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin addchunk <guild>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin addchunk <guild></error>");
             return false;
         }
 
@@ -120,23 +127,22 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
         ChunkKey chunk = ChunkKey.from(player.getLocation().getChunk());
 
-        // Admin claim - bypass all checks
         territoryService.adminClaimChunk(guild.getId(), chunk);
 
-        Messages.send(player, MessageKey.ADMIN_FORCE_CLAIM, chunk.x(), chunk.z(), guild.getName());
+        Mint.sendMessage(player, "<success>Force claimed chunk at <primary>(" + chunk.x() + ", " + chunk.z() + ")</primary> for guild <secondary>" + guild.getName() + "</secondary>.</success>");
 
         return true;
     }
 
     private boolean executeRemoveChunk(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
@@ -144,20 +150,20 @@ public class AdminComponent implements GuildCommand {
         Guild owner = territoryService.getChunkOwner(chunk);
 
         if (owner == null) {
-            Messages.send(sender, MessageKey.CLAIM_NOT_OWNED);
+            Mint.sendMessage(sender, "<neutral>Chunk is not claimed by any guild.</neutral>");
             return true;
         }
 
         territoryService.unclaimChunk(owner.getId(), player.getUniqueId(), chunk);
 
-        Messages.send(player, MessageKey.ADMIN_FORCE_UNCLAIM, chunk.x(), chunk.z(), owner.getName());
+        Mint.sendMessage(player, "<success>Force unclaimed chunk at <primary>(" + chunk.x() + ", " + chunk.z() + ")</primary> from guild <secondary>" + owner.getName() + "</secondary>.</success>");
 
         return true;
     }
 
     private boolean executeSetOwner(CommandSender sender, String[] args) {
         if (args.length < 4) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin setowner <guild> <player>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin setowner <guild> <player></error>");
             return false;
         }
 
@@ -166,7 +172,7 @@ public class AdminComponent implements GuildCommand {
 
         Guild guild = lifecycleService.getGuildByName(guildName);
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -174,30 +180,30 @@ public class AdminComponent implements GuildCommand {
         UUID targetId = targetPlayer.getUniqueId();
 
         if (!guild.isMember(targetId)) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, playerName + " is not a member of " + guildName);
+            Mint.sendMessage(sender, "<error>" + playerName + " is not a member of " + guildName + "</error>");
             return true;
         }
 
         guild.transferOwnership(targetId);
         lifecycleService.save(guild);
 
-        Messages.send(sender, MessageKey.GUILD_TRANSFER_SUCCESS, guild.getName(), playerName);
+        Mint.sendMessage(sender, "<success>Transferred ownership of guild <secondary>" + guild.getName() + "</secondary> to <secondary>" + playerName + "</secondary>.</success>");
 
         return true;
     }
 
     private boolean executeBypass(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         boolean currentBypass = player.hasPermission("guilds.admin.bypass");
 
         if (currentBypass) {
-            Messages.send(sender, MessageKey.INFO_HEADER, "Admin bypass is ENABLED");
+            Mint.sendMessage(sender, "<primary>Admin bypass is <accent>ENABLED</accent></primary>");
         } else {
-            Messages.send(sender, MessageKey.INFO_HEADER, "Admin bypass is DISABLED");
+            Mint.sendMessage(sender, "<primary>Admin bypass is <accent>DISABLED</accent></primary>");
         }
 
         return true;
@@ -205,7 +211,7 @@ public class AdminComponent implements GuildCommand {
 
     private boolean executeSet(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin set <level|xp> <guild> <value>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin set <level|xp> <guild> <value></error>");
             return false;
         }
 
@@ -215,7 +221,7 @@ public class AdminComponent implements GuildCommand {
             case "level" -> executeSetLevel(sender, args);
             case "xp" -> executeSetXp(sender, args);
             default -> {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin set <level|xp> <guild> <value>");
+                Mint.sendMessage(sender, "<error>Usage: /g admin set <level|xp> <guild> <value></error>");
                 yield false;
             }
         };
@@ -223,7 +229,7 @@ public class AdminComponent implements GuildCommand {
 
     private boolean executeAdd(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin add <level|xp> <guild> <amount>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin add <level|xp> <guild> <amount></error>");
             return false;
         }
 
@@ -233,7 +239,7 @@ public class AdminComponent implements GuildCommand {
             case "level" -> executeAddLevel(sender, args);
             case "xp" -> executeAddXp(sender, args);
             default -> {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin add <level|xp> <guild> <amount>");
+                Mint.sendMessage(sender, "<error>Usage: /g admin add <level|xp> <guild> <amount></error>");
                 yield false;
             }
         };
@@ -241,7 +247,7 @@ public class AdminComponent implements GuildCommand {
 
     private boolean executeRemove(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin remove <level|xp> <guild> <amount>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin remove <level|xp> <guild> <amount></error>");
             return false;
         }
 
@@ -251,7 +257,7 @@ public class AdminComponent implements GuildCommand {
             case "level" -> executeRemoveLevel(sender, args);
             case "xp" -> executeRemoveXp(sender, args);
             default -> {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin remove <level|xp> <guild> <amount>");
+                Mint.sendMessage(sender, "<error>Usage: /g admin remove <level|xp> <guild> <amount></error>");
                 yield false;
             }
         };
@@ -259,7 +265,7 @@ public class AdminComponent implements GuildCommand {
 
     private boolean executeReset(CommandSender sender, String[] args) {
         if (args.length < 3) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin reset <level|xp> <guild>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin reset <level|xp> <guild></error>");
             return false;
         }
 
@@ -269,7 +275,7 @@ public class AdminComponent implements GuildCommand {
             case "level" -> executeResetLevel(sender, args);
             case "xp" -> executeResetXp(sender, args);
             default -> {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin reset <level|xp> <guild>");
+                Mint.sendMessage(sender, "<error>Usage: /g admin reset <level|xp> <guild></error>");
                 yield false;
             }
         };
@@ -277,12 +283,12 @@ public class AdminComponent implements GuildCommand {
 
     private boolean executeSetLevel(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 5) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin set level <guild> <level>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin set level <guild> <level></error>");
             return false;
         }
 
@@ -290,7 +296,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -298,11 +304,11 @@ public class AdminComponent implements GuildCommand {
         try {
             level = Integer.parseInt(args[4]);
             if (level < 1) {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Level must be at least 1");
+                Mint.sendMessage(sender, "<error>Level must be at least 1</error>");
                 return true;
             }
         } catch (NumberFormatException e) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Invalid level: " + args[4]);
+            Mint.sendMessage(sender, "<error>Invalid level: " + args[4] + "</error>");
             return true;
         }
 
@@ -310,19 +316,19 @@ public class AdminComponent implements GuildCommand {
         int oldLevel = (progression != null) ? progression.getLevel() : 1;
         progressionService.setLevel(guild.getId(), level, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), level);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }
 
     private boolean executeSetXp(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 5) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin set xp <guild> <amount>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin set xp <guild> <amount></error>");
             return false;
         }
 
@@ -330,7 +336,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -338,11 +344,11 @@ public class AdminComponent implements GuildCommand {
         try {
             amount = Long.parseLong(args[4]);
             if (amount < 0) {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Amount cannot be negative");
+                Mint.sendMessage(sender, "<error>Amount cannot be negative</error>");
                 return true;
             }
         } catch (NumberFormatException e) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Invalid amount: " + args[4]);
+            Mint.sendMessage(sender, "<error>Invalid amount: " + args[4] + "</error>");
             return true;
         }
 
@@ -350,19 +356,19 @@ public class AdminComponent implements GuildCommand {
         long oldXp = (progression != null) ? progression.getCurrentXp() : 0;
         progressionService.setXp(guild.getId(), amount, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), amount);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }
 
     private boolean executeAddLevel(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 5) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin add level <guild> <levels>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin add level <guild> <levels></error>");
             return false;
         }
 
@@ -370,7 +376,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -378,11 +384,11 @@ public class AdminComponent implements GuildCommand {
         try {
             levels = Integer.parseInt(args[4]);
             if (levels <= 0) {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Levels must be positive");
+                Mint.sendMessage(sender, "<error>Levels must be positive</error>");
                 return true;
             }
         } catch (NumberFormatException e) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Invalid levels: " + args[4]);
+            Mint.sendMessage(sender, "<error>Invalid levels: " + args[4] + "</error>");
             return true;
         }
 
@@ -391,19 +397,19 @@ public class AdminComponent implements GuildCommand {
         int newLevel = oldLevel + levels;
         progressionService.setLevel(guild.getId(), newLevel, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), newLevel);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }
 
     private boolean executeAddXp(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 5) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin add xp <guild> <amount>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin add xp <guild> <amount></error>");
             return false;
         }
 
@@ -411,7 +417,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -419,11 +425,11 @@ public class AdminComponent implements GuildCommand {
         try {
             amount = Long.parseLong(args[4]);
             if (amount <= 0) {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Amount must be positive");
+                Mint.sendMessage(sender, "<error>Amount must be positive</error>");
                 return true;
             }
         } catch (NumberFormatException e) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Invalid amount: " + args[4]);
+            Mint.sendMessage(sender, "<error>Invalid amount: " + args[4] + "</error>");
             return true;
         }
 
@@ -431,19 +437,19 @@ public class AdminComponent implements GuildCommand {
         long oldXp = (progression != null) ? progression.getCurrentXp() : 0;
         progressionService.addXp(guild.getId(), amount, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), amount);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }
 
     private boolean executeRemoveXp(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 5) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin remove xp <guild> <amount>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin remove xp <guild> <amount></error>");
             return false;
         }
 
@@ -451,7 +457,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -459,11 +465,11 @@ public class AdminComponent implements GuildCommand {
         try {
             amount = Long.parseLong(args[4]);
             if (amount <= 0) {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Amount must be positive");
+                Mint.sendMessage(sender, "<error>Amount must be positive</error>");
                 return true;
             }
         } catch (NumberFormatException e) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Invalid amount: " + args[4]);
+            Mint.sendMessage(sender, "<error>Invalid amount: " + args[4] + "</error>");
             return true;
         }
 
@@ -472,19 +478,19 @@ public class AdminComponent implements GuildCommand {
         long newXp = Math.max(0, oldXp - amount);
         progressionService.setXp(guild.getId(), newXp, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), newXp);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }
 
     private boolean executeRemoveLevel(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 5) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin remove level <guild> <levels>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin remove level <guild> <levels></error>");
             return false;
         }
 
@@ -492,7 +498,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -500,11 +506,11 @@ public class AdminComponent implements GuildCommand {
         try {
             levels = Integer.parseInt(args[4]);
             if (levels <= 0) {
-                Messages.send(sender, MessageKey.ERROR_USAGE, "Levels must be positive");
+                Mint.sendMessage(sender, "<error>Levels must be positive</error>");
                 return true;
             }
         } catch (NumberFormatException e) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Invalid levels: " + args[4]);
+            Mint.sendMessage(sender, "<error>Invalid levels: " + args[4] + "</error>");
             return true;
         }
 
@@ -513,19 +519,19 @@ public class AdminComponent implements GuildCommand {
         int newLevel = Math.max(1, oldLevel - levels);
         progressionService.setLevel(guild.getId(), newLevel, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), newLevel);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }
 
     private boolean executeResetLevel(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 4) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin reset level <guild>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin reset level <guild></error>");
             return false;
         }
 
@@ -533,7 +539,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -541,19 +547,19 @@ public class AdminComponent implements GuildCommand {
         int oldLevel = (progression != null) ? progression.getLevel() : 1;
         progressionService.setLevel(guild.getId(), 1, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), 1);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }
 
     private boolean executeResetXp(CommandSender sender, String[] args) {
         if (!(sender instanceof org.bukkit.entity.Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (args.length < 4) {
-            Messages.send(sender, MessageKey.ERROR_USAGE, "Usage: /g admin reset xp <guild>");
+            Mint.sendMessage(sender, "<error>Usage: /g admin reset xp <guild></error>");
             return false;
         }
 
@@ -561,7 +567,7 @@ public class AdminComponent implements GuildCommand {
         Guild guild = lifecycleService.getGuildByName(guildName);
 
         if (guild == null) {
-            Messages.send(sender, MessageKey.ERROR_GUILD_NOT_FOUND, guildName);
+            Mint.sendMessage(sender, "<error>Guild '" + guildName + "' not found.</error>");
             return true;
         }
 
@@ -569,7 +575,7 @@ public class AdminComponent implements GuildCommand {
         long oldXp = (progression != null) ? progression.getCurrentXp() : 0;
         progressionService.setXp(guild.getId(), 0L, player.getUniqueId());
 
-        Messages.send(sender, MessageKey.ADMIN_RELOAD_SUCCESS, guild.getName(), 0);
+        Mint.sendMessage(sender, "<primary>Guild <secondary>" + guild.getName() + "</secondary> reloaded successfully.</primary>");
 
         return true;
     }

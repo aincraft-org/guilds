@@ -9,8 +9,7 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.Guild;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.subregion.Subregion;
 import org.aincraft.subregion.SubregionService;
 import org.aincraft.subregion.SubregionTypeRegistry;
@@ -45,7 +44,7 @@ public class RegionBasicComponent {
      */
     public boolean handleDelete(Player player, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region delete <name>");
+            Mint.sendMessage(player, "<error>Usage: /g region delete <name></error>");
             return true;
         }
 
@@ -56,9 +55,9 @@ public class RegionBasicComponent {
 
         String name = args[2];
         if (subregionService.deleteSubregion(guild.getId(), player.getUniqueId(), name)) {
-            Messages.send(player, MessageKey.REGION_DELETED, name);
+            Mint.sendMessage(player, "<success>Region <secondary>" + name + "</secondary> deleted</success>");
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to delete region. It may not exist or you lack permission.");
+            Mint.sendMessage(player, "<error>Failed to delete region. It may not exist or you lack permission.</error>");
         }
 
         return true;
@@ -79,11 +78,11 @@ public class RegionBasicComponent {
         List<Subregion> regions = subregionService.getGuildSubregions(guild.getId());
 
         if (regions.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, "<info>=== List ===</info>");
 
         for (Subregion region : regions) {
             Component regionLine = buildRegionListItem(region);
@@ -113,7 +112,7 @@ public class RegionBasicComponent {
             // Try to find region at player's location
             Optional<Subregion> atLocation = subregionService.getSubregionAt(player.getLocation());
             if (atLocation.isEmpty()) {
-                Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region info <name> or stand inside a region");
+                Mint.sendMessage(player, "<error>Usage: /g region info <name> or stand inside a region</error>");
                 return true;
             }
             name = atLocation.get().getName();
@@ -124,7 +123,7 @@ public class RegionBasicComponent {
             return true;
         }
 
-        Messages.send(player, MessageKey.INFO_HEADER, "Region: " + region.getName());
+        Mint.sendMessage(player, "<info>Region: <secondary>" + region.getName() + "</secondary></info>");
 
         // Type info
         if (region.getType() != null) {
@@ -132,22 +131,22 @@ public class RegionBasicComponent {
             var typeOpt = typeRegistry.getType(region.getType());
             if (typeOpt.isPresent()) {
                 var type = typeOpt.get();
-                Messages.send(player, MessageKey.INFO_HEADER, "Type: " + displayName + " - " + type.getDescription());
+                Mint.sendMessage(player, "<info>Type: <secondary>" + displayName + "</secondary> - " + type.getDescription() + "</info>");
             } else {
-                Messages.send(player, MessageKey.INFO_HEADER, "Type: " + region.getType());
+                Mint.sendMessage(player, "<info>Type: <secondary>" + region.getType() + "</secondary></info>");
             }
         }
 
-        Messages.send(player, MessageKey.INFO_HEADER, "World: " + region.getWorld());
-        Messages.send(player, MessageKey.INFO_HEADER, "Bounds: " +
-                region.getMinX() + "," + region.getMinY() + "," + region.getMinZ() + " to " +
-                region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ());
-        Messages.send(player, MessageKey.INFO_HEADER, "Volume: " + region.getVolume() + " blocks");
-        Messages.send(player, MessageKey.INFO_HEADER, "Created: " + new Date(region.getCreatedAt()).toString());
-        Messages.send(player, MessageKey.INFO_HEADER, "Owners: " + region.getOwners().size() + " player(s)");
+        Mint.sendMessage(player, "<info>World: <secondary>" + region.getWorld() + "</secondary></info>");
+        Mint.sendMessage(player, "<info>Bounds: <primary>" +
+                region.getMinX() + "," + region.getMinY() + "," + region.getMinZ() + "</primary> to <primary>" +
+                region.getMaxX() + "," + region.getMaxY() + "," + region.getMaxZ() + "</primary></info>");
+        Mint.sendMessage(player, "<info>Volume: <primary>" + region.getVolume() + "</primary> blocks</info>");
+        Mint.sendMessage(player, "<info>Created: <primary>" + new Date(region.getCreatedAt()).toString() + "</primary></info>");
+        Mint.sendMessage(player, "<info>Owners: <primary>" + region.getOwners().size() + "</primary> player(s)</info>");
 
         if (region.getPermissions() != 0) {
-            Messages.send(player, MessageKey.INFO_HEADER, "Custom Permissions: " + region.getPermissions());
+            Mint.sendMessage(player, "<info>Custom Permissions: <primary>" + region.getPermissions() + "</primary></info>");
         }
 
         return true;
@@ -162,7 +161,7 @@ public class RegionBasicComponent {
      */
     public boolean handleVisualize(Player player, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region visualize <name>");
+            Mint.sendMessage(player, "<error>Usage: /g region visualize <name></error>");
             return true;
         }
 
@@ -180,7 +179,7 @@ public class RegionBasicComponent {
         // Start visualization
         visualizer.visualizeRegion(player, region);
 
-        Messages.send(player, MessageKey.INFO_HEADER, regionName);
+        Mint.sendMessage(player, "<info>" + regionName + "</info>");
 
         return true;
     }

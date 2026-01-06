@@ -1,14 +1,13 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.progression.*;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
@@ -44,20 +43,20 @@ public class LevelUpComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Check permission
         if (!guild.isOwner(player.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.LEVEL_UP)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to level up the guild</error>");
             return true;
         }
 
@@ -74,7 +73,7 @@ public class LevelUpComponent implements GuildCommand {
         GuildProgression progression = progressionService.getOrCreateProgression(guild.getId());
 
         if (progression.getLevel() >= config.getMaxLevel()) {
-            Messages.send(player, MessageKey.LEVEL_UP_MAX_LEVEL);
+            Mint.sendMessage(player, "<warning>Guild is already at max level</warning>");
             return true;
         }
 
@@ -154,13 +153,13 @@ public class LevelUpComponent implements GuildCommand {
             for (UUID memberId : guild.getMembers()) {
                 Player member = player.getServer().getPlayer(memberId);
                 if (member != null && member.isOnline()) {
-                    Messages.send(member, MessageKey.LEVEL_UP_SUCCESS, result.getNewLevel());
+                    Mint.sendMessage(member, "<success>Guild leveled up to level <secondary>" + result.getNewLevel() + "</secondary>!</success>");
                 }
             }
 
             return true;
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, result.getErrorMessage());
+            Mint.sendMessage(player, "<error>" + result.getErrorMessage() + "</error>");
             return true;
         }
     }

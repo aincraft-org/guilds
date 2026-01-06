@@ -10,6 +10,7 @@ version = "1.0.0"
 repositories {
     gradlePluginPortal()
     mavenCentral()
+    maven("https://gitlab.com/api/v4/projects/77453344/packages/maven")
     maven("https://repo.papermc.io/repository/maven-public")
     maven("https://oss.sonatype.org/content/repositories/snapshots")
     maven {
@@ -18,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.aincraft:mint-api:1.0.0-SNAPSHOT")
+    compileOnly("dev.mintychochip:mint-api:1.3")
     compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
 
     // Guice DI

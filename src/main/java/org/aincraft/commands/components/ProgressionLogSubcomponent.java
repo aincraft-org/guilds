@@ -1,8 +1,7 @@
 package org.aincraft.commands.components;
 
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+
+import dev.mintychochip.mint.Mint;
 import org.aincraft.progression.ProgressionLog;
 import org.aincraft.progression.storage.ProgressionLogRepository;
 import org.aincraft.service.GuildMemberService;
@@ -35,7 +34,7 @@ public class ProgressionLogSubcomponent {
         org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
 
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
@@ -53,11 +52,11 @@ public class ProgressionLogSubcomponent {
         List<ProgressionLog> logs = logRepository.findByGuild(guild.getId(), LOG_PAGE_SIZE * page);
 
         if (logs.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Progression History (Page " + page + ")"));
+        Mint.sendMessage(player, "<info>Progression History (Page <primary>" + page + "</primary>)</info>");
 
         int shown = 0;
         for (int i = offset; i < logs.size() && shown < LOG_PAGE_SIZE; i++) {
@@ -65,14 +64,14 @@ public class ProgressionLogSubcomponent {
             String time = DATE_FORMAT.format(new Date(log.timestamp()));
             String message = formatLogEntry(log);
 
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    "<gray>" + time + " " + message + "</gray>"));
+            Mint.sendMessage(player,
+                    "<neutral>" + time + " " + message + "</neutral>");
             shown++;
         }
 
         if (logs.size() > page * LOG_PAGE_SIZE) {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    "<gray>Use <yellow>/g log progression " + (page + 1) + "</yellow> for more</gray>"));
+            Mint.sendMessage(player,
+                    "<neutral>Use <secondary>/g log progression " + (page + 1) + "</secondary> for more</neutral>");
         }
 
         return true;
@@ -86,24 +85,24 @@ public class ProgressionLogSubcomponent {
         }
 
         return switch (log.action()) {
-            case XP_GAIN -> String.format("<green>+%,d XP</green> from %s <dark_gray>(%s)</dark_gray>",
+            case XP_GAIN -> String.format("<success>+%,d XP</success> from %s <neutral>(%s)</neutral>",
                     log.amount(), log.details(), playerName);
 
-            case LEVEL_UP -> String.format("<gold>★ Level Up!</gold> Level <yellow>%d</yellow> <dark_gray>%s</dark_gray>",
+            case LEVEL_UP -> String.format("<secondary>★ Level Up!</secondary> Level <primary>%d</primary> <neutral>%s</neutral>",
                     log.amount(), log.details() != null ? log.details() : "");
 
-            case ADMIN_SET_LEVEL -> String.format("<red>[ADMIN]</red> Set level to <yellow>%d</yellow> by %s",
+            case ADMIN_SET_LEVEL -> String.format("<error>[ADMIN]</error> Set level to <primary>%d</primary> by %s",
                     log.amount(), playerName);
 
-            case ADMIN_ADD_XP -> String.format("<red>[ADMIN]</red> <green>+%,d XP</green> added by %s",
+            case ADMIN_ADD_XP -> String.format("<error>[ADMIN]</error> <success>+%,d XP</success> added by %s",
                     log.amount(), playerName);
 
-            case ADMIN_SET_XP -> String.format("<red>[ADMIN]</red> Set XP to <green>%,d</green> by %s",
+            case ADMIN_SET_XP -> String.format("<error>[ADMIN]</error> Set XP to <success>%,d</success> by %s",
                     log.amount(), playerName);
 
-            case ADMIN_RESET_LEVEL -> String.format("<red>[ADMIN]</red> Level reset to 1 by %s", playerName);
+            case ADMIN_RESET_LEVEL -> String.format("<error>[ADMIN]</error> Level reset to 1 by %s", playerName);
 
-            case ADMIN_RESET_XP -> String.format("<red>[ADMIN]</red> XP reset to 0 by %s", playerName);
+            case ADMIN_RESET_XP -> String.format("<error>[ADMIN]</error> XP reset to 0 by %s", playerName);
         };
     }
 }

@@ -8,7 +8,7 @@ import org.aincraft.project.storage.GuildProjectPoolRepository;
 import org.aincraft.storage.*;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import dev.mintychochip.mint.Mint;
 
 import java.util.List;
 import java.util.Objects;
@@ -138,13 +138,12 @@ public class GuildLifecycleService {
      * @param guild the guild being disbanded
      */
     private void notifyMembersOfDisband(Guild guild) {
-        MiniMessage mm = MiniMessage.miniMessage();
-        String disbandMessage = "<red>✗ Guild '<gold>" + guild.getName() + "</gold>' has been disbanded by the owner</red>";
+        String disbandMessage = "<error>✗ Guild '<secondary>" + guild.getName() + "</secondary>' has been disbanded by the owner</error>";
 
         for (UUID memberId : guild.getMembers()) {
             Player player = Bukkit.getPlayer(memberId);
             if (player != null && player.isOnline()) {
-                player.sendMessage(mm.deserialize(disbandMessage));
+                Mint.sendMessage(player, disbandMessage);
             }
         }
     }

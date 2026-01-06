@@ -2,8 +2,7 @@ package org.aincraft.vault;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.multiblock.MultiblockInstance;
 import org.aincraft.multiblock.events.MultiblockBreakEvent;
 import org.aincraft.multiblock.events.MultiblockFormEvent;
@@ -39,9 +38,9 @@ public class VaultHandler implements Listener {
         VaultService.VaultCreationResult result = vaultService.createVault(player, instance);
 
         if (result.success()) {
-            Messages.send(player, MessageKey.VAULT_OPENED);
+            Mint.sendMessage(player, "<success>Vault <accent>opened</accent></success>");
         } else {
-            Messages.send(player, MessageKey.ERROR_GUILD_NOT_FOUND, result.errorMessage());
+            Mint.sendMessage(player, "<error>Guild not found: <accent>" + result.errorMessage() + "</accent></error>");
             event.setCancelled(true);
         }
     }
@@ -65,7 +64,7 @@ public class VaultHandler implements Listener {
         ).ifPresent(vault -> {
             // Check if player can destroy the vault
             if (!vaultService.canDestroyVault(player.getUniqueId(), vault)) {
-                Messages.send(player, MessageKey.VAULT_OWNER_ONLY);
+                Mint.sendMessage(player, "<error>Only vault owners can destroy this vault</error>");
                 event.setCancelled(true);
                 return;
             }
@@ -82,7 +81,7 @@ public class VaultHandler implements Listener {
 
             // Delete the vault
             vaultService.destroyVault(vault);
-            Messages.send(player, MessageKey.VAULT_ITEMS_DROPPED);
+            Mint.sendMessage(player, "<warning>Vault items dropped</warning>");
         });
     }
 }

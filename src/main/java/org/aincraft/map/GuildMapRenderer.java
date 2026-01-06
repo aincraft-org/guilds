@@ -1,6 +1,7 @@
 package org.aincraft.map;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -121,48 +122,33 @@ public class GuildMapRenderer {
      * Sends compass footer with E/W indicators for columns.
      */
     private void sendCompassFooter(Player player, int radius) {
-        TextComponent.Builder footer = Component.text();
-        footer.append(Component.text("W ").color(NamedTextColor.GOLD));
+        StringBuilder footer = new StringBuilder("<secondary>W</secondary> ");
 
         for (int x = -radius; x <= radius; x++) {
             if (x == -radius) {
-                footer.append(Component.text("  "));
+                footer.append("  ");
             } else if (x == 0) {
-                footer.append(Component.text("* ").color(NamedTextColor.AQUA));
+                footer.append("<info>*</info> ");
             } else if (x == radius) {
-                footer.append(Component.text("  "));
+                footer.append("  ");
             } else {
-                footer.append(Component.text("  "));
+                footer.append("  ");
             }
         }
 
-        footer.append(Component.text("E").color(NamedTextColor.GOLD));
-        player.sendMessage(footer.build());
+        footer.append("<secondary>E</secondary>");
+        Mint.sendMessage(player, footer.toString());
     }
 
     /**
      * Sends legend showing symbol meanings.
      */
     private void sendLegend(Player player) {
-        Component legend = Component.text()
-            .append(Component.text("└─ "))
-            .color(NamedTextColor.GOLD)
-            .append(Component.text(MapSymbols.PLAYER).color(NamedTextColor.AQUA))
-            .append(Component.text("=You  "))
-            .color(NamedTextColor.GRAY)
-            .append(Component.text(MapSymbols.OWN_GUILD).color(NamedTextColor.GREEN))
-            .append(Component.text("=Guild  "))
-            .color(NamedTextColor.GRAY)
-            .append(Component.text(MapSymbols.OTHER_GUILD).color(NamedTextColor.YELLOW))
-            .append(Component.text("=Other  "))
-            .color(NamedTextColor.GRAY)
-            .append(Component.text(MapSymbols.WILDERNESS).color(NamedTextColor.DARK_GRAY))
-            .append(Component.text("=Wild  "))
-            .color(NamedTextColor.GRAY)
-            .append(Component.text("*=Center"))
-            .color(NamedTextColor.GRAY)
-            .build();
-        player.sendMessage(legend);
+        String legend = "<secondary>└─ </secondary><info>" + MapSymbols.PLAYER + "=You  </info>" +
+            "<success>" + MapSymbols.OWN_GUILD + "=Guild  </success>" +
+            "<warning>" + MapSymbols.OTHER_GUILD + "=Other  </warning>" +
+            "<neutral>" + MapSymbols.WILDERNESS + "=Wild  *=Center</neutral>";
+        Mint.sendMessage(player, legend);
     }
 
     /**
@@ -187,18 +173,9 @@ public class GuildMapRenderer {
      * Sends header with map title and player coordinates.
      */
     private void sendHeader(Player player, int playerChunkX, int playerChunkZ) {
-        // Get player direction
         String direction = getCompassDirection(player.getYaw());
-
-        Component header = Component.text()
-            .append(Component.text("┌─ Guild Map "))
-            .color(NamedTextColor.GOLD)
-            .append(Component.text(String.format("[%s | %d, %d] ", direction, playerChunkX, playerChunkZ)))
-            .color(NamedTextColor.AQUA)
-            .append(Component.text("─┐"))
-            .color(NamedTextColor.GOLD)
-            .build();
-        player.sendMessage(header);
+        String header = "<secondary>┌─ Guild Map <info>[" + direction + " | " + playerChunkX + ", " + playerChunkZ + "] </info>─┐</secondary>";
+        Mint.sendMessage(player, header);
     }
 
     /**

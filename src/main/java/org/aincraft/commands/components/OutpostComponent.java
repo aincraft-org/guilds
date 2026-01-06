@@ -5,11 +5,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.outpost.Outpost;
 import org.aincraft.outpost.OutpostService;
 import org.aincraft.service.GuildMemberService;
@@ -51,14 +50,14 @@ public class OutpostComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
@@ -86,7 +85,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleCreate(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost create <name>");
+            Mint.sendMessage(player, "<error>Usage: /g outpost create <name></error>");
             return true;
         }
 
@@ -98,9 +97,9 @@ public class OutpostComponent implements GuildCommand {
 
         if (result.isSuccess()) {
             Outpost outpost = result.getOutpost();
-            Messages.send(player, MessageKey.OUTPOST_CREATED, name);
+            Mint.sendMessage(player, "<success>Outpost <secondary>" + name + "</secondary> created!</success>");
         } else {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(result.getMessage()));
+            Mint.sendMessage(player, result.getMessage());
         }
 
         return true;
@@ -111,16 +110,16 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleDelete(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost delete <name>");
+            Mint.sendMessage(player, "<error>Usage: /g outpost delete <name></error>");
             return true;
         }
 
         String name = args[2];
 
         if (outpostService.deleteOutpost(guild.getId(), player.getUniqueId(), name)) {
-            Messages.send(player, MessageKey.OUTPOST_DELETED, name);
+            Mint.sendMessage(player, "<success>Outpost <secondary>" + name + "</secondary> deleted</success>");
         } else {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to manage outposts</error>");
         }
 
         return true;
@@ -133,16 +132,16 @@ public class OutpostComponent implements GuildCommand {
         List<Outpost> outposts = outpostService.getOutposts(guild.getId());
 
         if (outposts.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Outposts"));
+        Mint.sendMessage(player, "<info>=== List ===</info>");
         for (Outpost outpost : outposts) {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                "<yellow>  " + outpost.getName() + "</yellow> <gray>at " +
-                outpost.getLocation() + "</gray>"
-            ));
+            Mint.sendMessage(player,
+                "<secondary>  " + outpost.getName() + "</secondary> <neutral>at " +
+                outpost.getLocation() + "</neutral>"
+            );
         }
 
         return true;
@@ -153,7 +152,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleTeleport(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost tp <name>");
+            Mint.sendMessage(player, "<error>Usage: /g outpost tp <name></error>");
             return true;
         }
 
@@ -161,7 +160,7 @@ public class OutpostComponent implements GuildCommand {
         Optional<Outpost> outpostOpt = outpostService.getOutpost(guild.getId(), name);
 
         if (outpostOpt.isEmpty()) {
-            Messages.send(player, MessageKey.OUTPOST_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Outpost not found: <secondary>" + name + "</secondary></error>");
             return true;
         }
 
@@ -169,12 +168,12 @@ public class OutpostComponent implements GuildCommand {
         Location spawnLoc = outpostService.getOutpostSpawnLocation(outpost);
 
         if (spawnLoc == null) {
-            Messages.send(player, MessageKey.OUTPOST_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Outpost not found: <secondary>" + name + "</secondary></error>");
             return true;
         }
 
         player.teleport(spawnLoc);
-        Messages.send(player, MessageKey.OUTPOST_TELEPORTED, outpost.getName());
+        Mint.sendMessage(player, "<success>Teleported to outpost <secondary>" + outpost.getName() + "</secondary></success>");
 
         return true;
     }
@@ -184,7 +183,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleSetspawn(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost setspawn <name>");
+            Mint.sendMessage(player, "<error>Usage: /g outpost setspawn <name></error>");
             return true;
         }
 
@@ -195,9 +194,9 @@ public class OutpostComponent implements GuildCommand {
             guild.getId(), player.getUniqueId(), name, location);
 
         if (result.isSuccess()) {
-            Messages.send(player, MessageKey.OUTPOST_SPAWN_SET);
+            Mint.sendMessage(player, "<success>Outpost spawn set!</success>");
         } else {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(result.getMessage()));
+            Mint.sendMessage(player, result.getMessage());
         }
 
         return true;
@@ -208,7 +207,7 @@ public class OutpostComponent implements GuildCommand {
      */
     private boolean handleRename(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g outpost rename <old> <new>");
+            Mint.sendMessage(player, "<error>Usage: /g outpost rename <old> <new></error>");
             return true;
         }
 
@@ -219,12 +218,12 @@ public class OutpostComponent implements GuildCommand {
             guild.getId(), player.getUniqueId(), oldName, newName);
 
         if (result.isSuccess()) {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                "<green>✓ Outpost renamed from <gold>" + oldName +
-                "</gold> to <gold>" + newName + "</gold></green>"
-            ));
+            Mint.sendMessage(player,
+                "<success>✓ Outpost renamed from <secondary>" + oldName +
+                "</secondary> to <secondary>" + newName + "</secondary></success>"
+            );
         } else {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(result.getMessage()));
+            Mint.sendMessage(player, result.getMessage());
         }
 
         return true;
@@ -234,24 +233,24 @@ public class OutpostComponent implements GuildCommand {
      * Sends usage information to the player.
      */
     private void sendUsage(Player player) {
-        player.sendMessage(Messages.get(MessageKey.INFO_HEADER, "Outpost Commands"));
-        player.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<gray>/g outpost create <name> <dark_gray>- Create outpost at current location</dark_gray></gray>"
-        ));
-        player.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<gray>/g outpost delete <name> <dark_gray>- Delete an outpost</dark_gray></gray>"
-        ));
-        player.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<gray>/g outpost list <dark_gray>- List all guild outposts</dark_gray></gray>"
-        ));
-        player.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<gray>/g outpost tp <name> <dark_gray>- Teleport to outpost spawn</dark_gray></gray>"
-        ));
-        player.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<gray>/g outpost setspawn <name> <dark_gray>- Update outpost spawn location</dark_gray></gray>"
-        ));
-        player.sendMessage(MiniMessage.miniMessage().deserialize(
-            "<gray>/g outpost rename <old> <new> <dark_gray>- Rename an outpost</dark_gray></gray>"
-        ));
+        Mint.sendMessage(player, "<info>Outpost Commands</info>");
+        Mint.sendMessage(player,
+            "<neutral>/g outpost create <name> <neutral>- Create outpost at current location</neutral></neutral>"
+        );
+        Mint.sendMessage(player,
+            "<neutral>/g outpost delete <name> <neutral>- Delete an outpost</neutral></neutral>"
+        );
+        Mint.sendMessage(player,
+            "<neutral>/g outpost list <neutral>- List all guild outposts</neutral></neutral>"
+        );
+        Mint.sendMessage(player,
+            "<neutral>/g outpost tp <name> <neutral>- Teleport to outpost spawn</neutral></neutral>"
+        );
+        Mint.sendMessage(player,
+            "<neutral>/g outpost setspawn <name> <neutral>- Update outpost spawn location</neutral></neutral>"
+        );
+        Mint.sendMessage(player,
+            "<neutral>/g outpost rename <old> <new> <neutral>- Rename an outpost</neutral></neutral>"
+        );
     }
 }

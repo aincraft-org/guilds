@@ -1,9 +1,8 @@
 package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.subregion.SubregionService;
 import org.aincraft.subregion.SubregionType;
 import org.aincraft.subregion.SubregionTypeRegistry;
@@ -37,15 +36,13 @@ public class RegionTypeComponent {
      * @return true if handled
      */
     public boolean handleTypes(Player player) {
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, "<primary>=== Region Types ===</primary>");
 
         for (SubregionType type : typeRegistry.getAllTypes()) {
             String builtIn = typeRegistry.isBuiltIn(type.getId()) ? " (built-in)" : "";
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("<gray>• <gold>" + type.getId() + "</gold> - " + type.getDisplayName() + builtIn));
+            Mint.sendMessage(player, "<neutral>• <secondary>" + type.getId() + "</secondary> - " + type.getDisplayName() + builtIn + "</neutral>");
             if (!type.getDescription().isEmpty()) {
-                player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("  <dark_gray>" + type.getDescription() + "</dark_gray>"));
+                Mint.sendMessage(player, "<neutral>  " + type.getDescription() + "</neutral>");
             }
         }
 
@@ -61,7 +58,7 @@ public class RegionTypeComponent {
      */
     public boolean handleSetType(Player player, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Usage: /g region settype <name> <type>");
+            Mint.sendMessage(player, "<error>Usage: /g region settype <name> <type></error>");
             return true;
         }
 
@@ -76,9 +73,9 @@ public class RegionTypeComponent {
         // Special cases: "none" or "clear" removes the type
         if (typeId.equals("none") || typeId.equals("clear")) {
             if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, null)) {
-                Messages.send(player, MessageKey.REGION_TYPE_UNKNOWN, "None");
+                Mint.sendMessage(player, "<success>Region type cleared (set to None)</success>");
             } else {
-                Messages.send(player, MessageKey.ERROR_USAGE, "Failed to update region type. Region may not exist or you lack permission.");
+                Mint.sendMessage(player, "<error>Failed to update region type. Region may not exist or you lack permission.</error>");
             }
             return true;
         }
@@ -90,9 +87,9 @@ public class RegionTypeComponent {
 
         if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, typeId)) {
             String displayName = helper.formatTypeDisplayName(typeId);
-            Messages.send(player, MessageKey.INFO_HEADER, regionName, displayName);
+            Mint.sendMessage(player, String.format("<info>Region <secondary>%s</secondary> type set to <secondary>%s</secondary></info>", regionName, displayName));
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to update region type. Region may not exist or you lack permission.");
+            Mint.sendMessage(player, "<error>Failed to update region type. Region may not exist or you lack permission.</error>");
         }
 
         return true;
@@ -123,7 +120,7 @@ public class RegionTypeComponent {
 
         // Set or remove limit (op only)
         if (!player.isOp()) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to do that</error>");
             return true;
         }
 
@@ -131,7 +128,7 @@ public class RegionTypeComponent {
 
         if (action.equals("remove")) {
             limitRepository.delete(typeId);
-            Messages.send(player, MessageKey.REGION_TYPE_LIMIT_SET, typeId, "removed");
+            Mint.sendMessage(player, String.format("<success>Limit for <secondary>%s</secondary> removed</success>", typeId));
             return true;
         }
 
@@ -140,12 +137,12 @@ public class RegionTypeComponent {
         try {
             volume = Long.parseLong(action);
         } catch (NumberFormatException e) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Invalid volume. Use a number or 'remove'.");
+            Mint.sendMessage(player, "<error>Invalid volume. Use a number or 'remove'.</error>");
             return true;
         }
 
         if (volume <= 0) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Volume must be positive");
+            Mint.sendMessage(player, "<error>Volume must be positive</error>");
             return true;
         }
 
@@ -153,7 +150,7 @@ public class RegionTypeComponent {
         limitRepository.save(limit);
 
         String displayName = helper.formatTypeDisplayName(typeId);
-        Messages.send(player, MessageKey.REGION_TYPE_LIMIT_SET, displayName, volume);
+        Mint.sendMessage(player, String.format("<success>Limit for <secondary>%s</secondary> set to <secondary>%s</secondary></success>", displayName, helper.formatNumber(volume)));
 
         return true;
     }
@@ -164,16 +161,15 @@ public class RegionTypeComponent {
     private boolean listAllLimits(Player player) {
         var limits = limitRepository.findAll();
         if (limits.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, "<primary>=== Type Limits ===</primary>");
         for (RegionTypeLimit limit : limits) {
             String displayName = helper.formatTypeDisplayName(limit.typeId());
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                    .deserialize("<gray>• <gold>" + limit.typeId() + "</gold> (" + displayName + "): <yellow>" +
-                    helper.formatNumber(limit.maxTotalVolume()) + "</yellow> blocks max</gray>"));
+            Mint.sendMessage(player, String.format("<neutral>• <secondary>%s</secondary> (%s): <warning>%s</warning> blocks max</neutral>",
+                    limit.typeId(), displayName, helper.formatNumber(limit.maxTotalVolume())));
         }
         return true;
     }
@@ -185,12 +181,12 @@ public class RegionTypeComponent {
         var limitOpt = limitRepository.findByTypeId(typeId);
         String displayName = helper.formatTypeDisplayName(typeId);
 
-        Messages.send(player, MessageKey.INFO_HEADER, displayName);
+        Mint.sendMessage(player, String.format("<info>%s</info>", displayName));
 
         if (limitOpt.isEmpty()) {
-            Messages.send(player, MessageKey.INFO_HEADER, "No limit configured");
+            Mint.sendMessage(player, "<info>No limit configured</info>");
         } else {
-            Messages.send(player, MessageKey.INFO_HEADER, "Max Volume: " + helper.formatNumber(limitOpt.get().maxTotalVolume()) + " blocks");
+            Mint.sendMessage(player, String.format("<info>Max Volume: %s blocks</info>", helper.formatNumber(limitOpt.get().maxTotalVolume())));
         }
 
         return true;

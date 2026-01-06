@@ -1,11 +1,10 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.UUID;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -41,28 +40,26 @@ public class OwnerComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use this command</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
-        // Get the owner's UUID
         UUID ownerId = guild.getOwnerId();
         OfflinePlayer owner = Bukkit.getOfflinePlayer(ownerId);
 
-        // Display owner information
-        Messages.send(player, MessageKey.LIST_HEADER, "Guild Owner");
-        Messages.send(player, MessageKey.INFO_HEADER, owner.getName());
+        Mint.sendMessage(player, "<primary>=== Guild Owner ===</primary>");
+        Mint.sendMessage(player, "<info>=== " + owner.getName() + " ===</info>");
 
         return true;
     }

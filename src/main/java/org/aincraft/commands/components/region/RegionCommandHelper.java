@@ -1,10 +1,9 @@
 package org.aincraft.commands.components.region;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.UUID;
 import org.aincraft.Guild;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.subregion.RegionPermissionService;
 import org.aincraft.subregion.Subregion;
@@ -42,7 +41,7 @@ public class RegionCommandHelper {
     public Guild requireGuild(Player player) {
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You must be in a guild to use this command</error>");
         }
         return guild;
     }
@@ -58,7 +57,7 @@ public class RegionCommandHelper {
     public Subregion requireRegion(Guild guild, String regionName, Player player) {
         var regionOpt = subregionService.getSubregionByName(guild.getId(), regionName);
         if (regionOpt.isEmpty()) {
-            Messages.send(player, MessageKey.REGION_NOT_FOUND, regionName);
+            Mint.sendMessage(player, String.format("<error>Region not found: <secondary>%s</secondary></error>", regionName));
             return null;
         }
         return regionOpt.get();
@@ -74,7 +73,7 @@ public class RegionCommandHelper {
     public Player requirePlayer(String playerName, Player sender) {
         Player player = Bukkit.getPlayer(playerName);
         if (player == null) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_NOT_FOUND);
+            Mint.sendMessage(sender, "<error>Player not found</error>");
         }
         return player;
     }
@@ -89,7 +88,7 @@ public class RegionCommandHelper {
      */
     public boolean requireModifyPermission(Subregion region, UUID playerId, Player player) {
         if (!permissionService.canModifyPermissions(region, playerId)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to do that</error>");
             return false;
         }
         return true;
@@ -119,7 +118,7 @@ public class RegionCommandHelper {
      */
     public boolean validateRegionType(String typeId, Player player) {
         if (!typeRegistry.isRegistered(typeId)) {
-            Messages.send(player, MessageKey.REGION_TYPE_UNKNOWN, typeId);
+            Mint.sendMessage(player, String.format("<error>Unknown region type: <secondary>%s</secondary></error>", typeId));
             return false;
         }
         return true;

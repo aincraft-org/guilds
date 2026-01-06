@@ -1,12 +1,11 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.claim.AutoClaimManager;
 import org.aincraft.claim.AutoClaimMode;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -43,45 +42,43 @@ public class AutoComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.CLAIM_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have <accent>permission</accent> to claim chunks.</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild.</error>");
             return true;
         }
 
-        // No subcommand - show current mode
         if (args.length == 1) {
             AutoClaimMode currentMode = autoClaimManager.getMode(player.getUniqueId());
-            Messages.send(player, MessageKey.AUTO_CURRENT_MODE);
+            Mint.sendMessage(player, "<primary>Current auto-claim mode: <accent>" + currentMode + "</accent></primary>");
             return true;
         }
 
-        // Parse subcommand
         String subcommand = args[1].toLowerCase();
         switch (subcommand) {
             case "claim" -> {
                 autoClaimManager.setMode(player.getUniqueId(), AutoClaimMode.AUTO_CLAIM);
-                Messages.send(player, MessageKey.AUTO_ENABLED_CLAIM);
+                Mint.sendMessage(player, "<success>Auto-claim enabled.</success>");
             }
             case "unclaim" -> {
                 autoClaimManager.setMode(player.getUniqueId(), AutoClaimMode.AUTO_UNCLAIM);
-                Messages.send(player, MessageKey.AUTO_ENABLED_UNCLAIM);
+                Mint.sendMessage(player, "<success>Auto-unclaim enabled.</success>");
             }
             case "off" -> {
                 autoClaimManager.setMode(player.getUniqueId(), AutoClaimMode.OFF);
-                Messages.send(player, MessageKey.AUTO_DISABLED);
+                Mint.sendMessage(player, "<neutral>Auto-claim disabled.</neutral>");
             }
             default -> {
-                Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+                Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
             }
         }
 

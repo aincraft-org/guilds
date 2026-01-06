@@ -1,6 +1,7 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -8,14 +9,10 @@ import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.role.gui.RoleCreationGUI;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.GuildRoleService;
@@ -72,18 +69,18 @@ public final class RoleComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
@@ -113,7 +110,7 @@ public final class RoleComponent implements GuildCommand {
     }
 
     private void showRoleUsage(Player player) {
-        Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+        Mint.sendMessage(player, "<error>Usage: " + getUsage() + "</error>");
     }
 
     /**
@@ -121,7 +118,7 @@ public final class RoleComponent implements GuildCommand {
      */
     private boolean handleEditor(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role editor <name>");
+            Mint.sendMessage(player, "<error>Usage: /g role editor <name></error>");
             return true;
         }
 
@@ -129,7 +126,7 @@ public final class RoleComponent implements GuildCommand {
 
         // Check MANAGE_ROLES permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
@@ -144,7 +141,7 @@ public final class RoleComponent implements GuildCommand {
      */
     private boolean handleCreate(Player player, Guild guild, String[] args) {
         if (args.length < 5) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role create <name> <perms> <priority>");
+            Mint.sendMessage(player, "<error>Usage: /g role create <name> <perms> <priority></error>");
             return true;
         }
 
@@ -152,19 +149,19 @@ public final class RoleComponent implements GuildCommand {
 
         // Check if role name already exists
         if (roleService.getRoleByName(guild.getId(), name) != null) {
-            Messages.send(player, MessageKey.ROLE_ALREADY_EXISTS, name);
+            Mint.sendMessage(player, "<error>Role <secondary>" + name + "</secondary> already exists</error>");
             return true;
         }
 
         // Check MANAGE_ROLES permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
         int permissions = parsePermissions(args[3]);
         if (permissions == -1) {
-            Messages.send(player, MessageKey.ROLE_INVALID_PERMISSIONS);
+            Mint.sendMessage(player, "<error>Invalid permissions</error>");
             return true;
         }
 
@@ -172,17 +169,17 @@ public final class RoleComponent implements GuildCommand {
         try {
             priority = Integer.parseInt(args[4]);
         } catch (NumberFormatException e) {
-            Messages.send(player, MessageKey.ROLE_INVALID_PRIORITY);
+            Mint.sendMessage(player, "<error>Invalid priority</error>");
             return true;
         }
 
         GuildRole role = roleService.createRole(guild.getId(), player.getUniqueId(), name, permissions, priority);
         if (role == null) {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ROLE_CREATED, name);
+        Mint.sendMessage(player, "<success>Role <secondary>" + name + "</secondary> created</success>");
         return true;
     }
 
@@ -191,7 +188,7 @@ public final class RoleComponent implements GuildCommand {
      */
     private boolean handleCopy(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role copy <source_role> <new_role_name>");
+            Mint.sendMessage(player, "<error>Usage: /g role copy <source_role> <new_role_name></error>");
             return true;
         }
 
@@ -200,37 +197,37 @@ public final class RoleComponent implements GuildCommand {
 
         // Validate that source and target names are different
         if (sourceName.equalsIgnoreCase(newName)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>Names must be different</error>");
             return true;
         }
 
         // Check if source role exists
         GuildRole sourceRole = roleService.getRoleByName(guild.getId(), sourceName);
         if (sourceRole == null) {
-            Messages.send(player, MessageKey.ROLE_NOT_FOUND, sourceName);
+            Mint.sendMessage(player, "<error>Role <secondary>" + sourceName + "</secondary> not found</error>");
             return true;
         }
 
         // Check if target role name already exists
         if (roleService.getRoleByName(guild.getId(), newName) != null) {
-            Messages.send(player, MessageKey.ROLE_ALREADY_EXISTS, newName);
+            Mint.sendMessage(player, "<error>Role <secondary>" + newName + "</secondary> already exists</error>");
             return true;
         }
 
         // Check MANAGE_ROLES permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
         // Perform the copy
         GuildRole copiedRole = roleService.copyRole(guild.getId(), player.getUniqueId(), sourceName, newName);
         if (copiedRole == null) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>Failed to copy role</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.ROLE_COPIED, sourceName, newName);
+        Mint.sendMessage(player, "<success>Role <secondary>" + sourceName + "</secondary> copied to <secondary>" + newName + "</secondary></success>");
         return true;
     }
 
@@ -238,13 +235,13 @@ public final class RoleComponent implements GuildCommand {
         List<GuildRole> roles = roleService.getGuildRoles(guild.getId());
 
         // Send header
-        player.sendMessage(Component.text("Guild Roles (sorted by priority)", NamedTextColor.GOLD));
+        Mint.sendMessage(player, "<primary>=== Guild Roles (sorted by priority) ===</primary>");
         if (roles.isEmpty()) {
-            player.sendMessage(Component.text("No roles defined", NamedTextColor.GRAY));
+            Mint.sendMessage(player, "<neutral>No roles defined</neutral>");
         } else {
             for (GuildRole role : roles) {
                 String priorityBadge = role.getPriority() > 0 ? "[" + role.getPriority() + "] " : "";
-                player.sendMessage(Component.text(priorityBadge + role.getName() + " [" + role.getPermissions() + "]", NamedTextColor.YELLOW));
+                Mint.sendMessage(player, "<secondary>" + priorityBadge + role.getName() + "</secondary> [" + role.getPermissions() + "]");
             }
         }
         return true;
@@ -252,14 +249,14 @@ public final class RoleComponent implements GuildCommand {
 
     private boolean handleInfo(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role info <name>");
+            Mint.sendMessage(player, "<error>Usage: /g role info <name></error>");
             return true;
         }
 
         String name = args[2];
         GuildRole role = roleService.getRoleByName(guild.getId(), name);
         if (role == null) {
-            Messages.send(player, MessageKey.ROLE_NOT_FOUND, name);
+            Mint.sendMessage(player, "<error>Role <secondary>" + name + "</secondary> not found</error>");
             return true;
         }
 
@@ -269,28 +266,28 @@ public final class RoleComponent implements GuildCommand {
 
     private boolean handleDelete(Player player, Guild guild, String[] args) {
         if (args.length < 3) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role delete <name>");
+            Mint.sendMessage(player, "<error>Usage: /g role delete <name></error>");
             return true;
         }
 
         String name = args[2];
         GuildRole role = roleService.getRoleByName(guild.getId(), name);
         if (role == null) {
-            Messages.send(player, MessageKey.ROLE_NOT_FOUND, name);
+            Mint.sendMessage(player, "<error>Role <secondary>" + name + "</secondary> not found</error>");
             return true;
         }
 
         if (roleService.deleteRole(guild.getId(), player.getUniqueId(), role.getId())) {
-            Messages.send(player, MessageKey.ROLE_DELETED, name);
+            Mint.sendMessage(player, "<success>Role <secondary>" + name + "</secondary> deleted</success>");
         } else {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
         }
         return true;
     }
 
     private boolean handleSetPerm(Player player, Guild guild, String[] args) {
         if (args.length < 5) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role perm <role> <permission> <true|false>");
+            Mint.sendMessage(player, "<error>Usage: /g role perm <role> <permission> <true|false></error>");
             return true;
         }
 
@@ -300,7 +297,7 @@ public final class RoleComponent implements GuildCommand {
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
+            Mint.sendMessage(player, "<error>Role <secondary>" + roleName + "</secondary> not found</error>");
             return true;
         }
 
@@ -308,7 +305,7 @@ public final class RoleComponent implements GuildCommand {
         try {
             perm = GuildPermission.valueOf(permName);
         } catch (IllegalArgumentException e) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>Invalid permission</error>");
             return true;
         }
 
@@ -320,16 +317,20 @@ public final class RoleComponent implements GuildCommand {
         }
 
         if (roleService.updateRolePermissions(guild.getId(), player.getUniqueId(), role.getId(), newPermissions)) {
-            Messages.send(player, grant ? MessageKey.ROLE_PERMISSION_ADDED : MessageKey.ROLE_PERMISSION_REMOVED, permName, roleName);
+            if (grant) {
+                Mint.sendMessage(player, "<success>Permission <primary>" + permName + "</primary> added to role <secondary>" + roleName + "</secondary></success>");
+            } else {
+                Mint.sendMessage(player, "<success>Permission <primary>" + permName + "</primary> removed from role <secondary>" + roleName + "</secondary></success>");
+            }
         } else {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
         }
         return true;
     }
 
     private boolean handleSetPriority(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role priority <role> <priority>");
+            Mint.sendMessage(player, "<error>Usage: /g role priority <role> <priority></error>");
             return true;
         }
 
@@ -339,32 +340,32 @@ public final class RoleComponent implements GuildCommand {
         try {
             priority = Integer.parseInt(args[3]);
         } catch (NumberFormatException e) {
-            Messages.send(player, MessageKey.ROLE_INVALID_PRIORITY);
+            Mint.sendMessage(player, "<error>Invalid priority</error>");
             return true;
         }
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
+            Mint.sendMessage(player, "<error>Role <secondary>" + roleName + "</secondary> not found</error>");
             return true;
         }
 
         // Check permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.MANAGE_ROLES)) {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
         role.setPriority(priority);
         roleService.saveRole(role);
 
-        Messages.send(player, MessageKey.ROLE_PRIORITY_SET, roleName, priority);
+        Mint.sendMessage(player, "<success>Role <secondary>" + roleName + "</secondary> priority set to " + priority + "</success>");
         return true;
     }
 
     private boolean handleAssign(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role assign <player> <role>");
+            Mint.sendMessage(player, "<error>Usage: /g role assign <player> <role></error>");
             return true;
         }
 
@@ -373,28 +374,28 @@ public final class RoleComponent implements GuildCommand {
 
         Player target = Bukkit.getPlayer(targetName);
         if (target == null) {
-            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, targetName);
+            Mint.sendMessage(player, "<error>Player <primary>" + targetName + "</primary> not found</error>");
             return true;
         }
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
+            Mint.sendMessage(player, "<error>Role <secondary>" + roleName + "</secondary> not found</error>");
             return true;
         }
 
         if (roleService.assignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
-            Messages.send(player, MessageKey.ROLE_ASSIGNED, roleName, target.getName());
-            Messages.send(target, MessageKey.ROLE_ASSIGNED, roleName, guild.getName());
+            Mint.sendMessage(player, "<success>Role <secondary>" + roleName + "</secondary> assigned to <primary>" + target.getName() + "</primary></success>");
+            Mint.sendMessage(target, "<success>Role <secondary>" + roleName + "</secondary> assigned in guild <primary>" + guild.getName() + "</primary></success>");
         } else {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
         }
         return true;
     }
 
     private boolean handleUnassign(Player player, Guild guild, String[] args) {
         if (args.length < 4) {
-            Messages.send(player, MessageKey.ERROR_USAGE, "/g role unassign <player> <role>");
+            Mint.sendMessage(player, "<error>Usage: /g role unassign <player> <role></error>");
             return true;
         }
 
@@ -403,21 +404,21 @@ public final class RoleComponent implements GuildCommand {
 
         Player target = Bukkit.getPlayer(targetName);
         if (target == null) {
-            Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, targetName);
+            Mint.sendMessage(player, "<error>Player <primary>" + targetName + "</primary> not found</error>");
             return true;
         }
 
         GuildRole role = roleService.getRoleByName(guild.getId(), roleName);
         if (role == null) {
-            Messages.send(player, MessageKey.ROLE_NOT_FOUND, roleName);
+            Mint.sendMessage(player, "<error>Role <secondary>" + roleName + "</secondary> not found</error>");
             return true;
         }
 
         if (roleService.unassignRole(guild.getId(), player.getUniqueId(), target.getUniqueId(), role.getId())) {
-            Messages.send(player, MessageKey.ROLE_UNASSIGNED, roleName, target.getName());
-            Messages.send(target, MessageKey.ROLE_UNASSIGNED, roleName, guild.getName());
+            Mint.sendMessage(player, "<success>Role <secondary>" + roleName + "</secondary> unassigned from <primary>" + target.getName() + "</primary></success>");
+            Mint.sendMessage(target, "<success>Role <secondary>" + roleName + "</secondary> unassigned from guild <primary>" + guild.getName() + "</primary></success>");
         } else {
-            Messages.send(player, MessageKey.ROLE_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
         }
         return true;
     }
@@ -433,18 +434,6 @@ public final class RoleComponent implements GuildCommand {
         }
     }
 
-    // Format strings for role info display
-    private static final String ROLE_HEADER = "  <dark_gray>o<gold>0<yellow>o<gold>.<left_underline><dark_gray>[ <white><role_name></white> <dark_gray>]<right_underline><yellow>o<gold>0<dark_gray>o";
-    private static final String ROLE_PRIORITY_WITH_VALUE = "  <yellow>Priority: <dark_gray>[<gold><priority></gold>]</dark_gray>";
-    private static final String ROLE_PRIORITY_DEFAULT = "  <yellow>Priority: <gray>0 (default)";
-    private static final String ROLE_PERMISSIONS_HEADER = "  <yellow>Permissions:";
-    private static final String ROLE_PERMISSIONS_NONE = "    <dark_gray>• <gray>None";
-    private static final String ROLE_PERMISSION_ITEM = "    <dark_gray>• <green><permission>";
-    private static final String ROLE_MEMBERS_HEADER = "  <yellow>Members <dark_gray>(<white><member_count></white>):";
-    private static final String ROLE_MEMBERS_NONE = "    <gray>No members assigned";
-    private static final String ROLE_MEMBER_ITEM = "    <dark_gray>• <<status_color>><member_name>";
-    private static final String ROLE_MEMBERS_MORE = "    <dark_gray>...and <white><more_count></white> more";
-
     /**
      * Displays enhanced role information with rich formatting.
      */
@@ -455,28 +444,24 @@ public final class RoleComponent implements GuildCommand {
         int sideLength = (totalWidth - roleName.length() - 4) / 2;
         String underline = "_".repeat(Math.max(0, sideLength - 4));
 
-        player.sendMessage(Messages.provider().getWithResolvers(MessageKey.LIST_HEADER,
-                Placeholder.component("role_name", Component.text(roleName)),
-                Placeholder.component("left_underline", Component.text(underline)),
-                Placeholder.component("right_underline", Component.text(underline))));
-        player.sendMessage(Component.empty());
+        Mint.sendMessage(player, "<primary>=== " + roleName + " ===</primary>");
+        Mint.sendMessage(player, "<neutral></neutral>");
 
         // Priority
         if (role.getPriority() > 0) {
-            player.sendMessage(Messages.provider().getWithResolvers(MessageKey.ROLE_PRIORITY_SET,
-                    Placeholder.component("priority", Component.text(role.getPriority()))));
+            Mint.sendMessage(player, "<warning>Priority: " + role.getPriority() + "</warning>");
         } else {
-            player.sendMessage(Component.text("Priority: 0 (default)", NamedTextColor.YELLOW));
+            Mint.sendMessage(player, "<warning>Priority: 0 (default)</warning>");
         }
 
         // Permissions
-        player.sendMessage(Component.text("Permissions:", NamedTextColor.YELLOW));
+        Mint.sendMessage(player, "<warning>Permissions:</warning>");
         if (role.getPermissions() == 0) {
-            player.sendMessage(Component.text("  • None", NamedTextColor.DARK_GRAY));
+            Mint.sendMessage(player, "<neutral>  • None</neutral>");
         } else {
             for (GuildPermission perm : GuildPermission.values()) {
                 if (role.hasPermission(perm)) {
-                    player.sendMessage(Component.text("  • " + perm.name(), NamedTextColor.GREEN));
+                    Mint.sendMessage(player, "<success>  • " + perm.name() + "</success>");
                 }
             }
         }
@@ -493,30 +478,32 @@ public final class RoleComponent implements GuildCommand {
                                 .build())))
                 .build();
         player.sendMessage(bitfieldLine);
-        player.sendMessage(Component.empty());
+        Mint.sendMessage(player, "<neutral></neutral>");
 
         // Members
         List<UUID> memberIds = memberRoleRepository.getMembersWithRole(role.getId());
-        player.sendMessage(Component.text("Members (" + memberIds.size() + "):", NamedTextColor.YELLOW));
+        Mint.sendMessage(player, "<warning>Members (" + memberIds.size() + "):</warning>");
 
         if (memberIds.isEmpty()) {
-            player.sendMessage(Component.text("No members assigned", NamedTextColor.GRAY));
+            Mint.sendMessage(player, "<neutral>No members assigned</neutral>");
         } else {
             int displayLimit = 10;
             for (int i = 0; i < Math.min(displayLimit, memberIds.size()); i++) {
                 UUID memberId = memberIds.get(i);
                 var offlinePlayer = Bukkit.getOfflinePlayer(memberId);
                 String memberName = offlinePlayer.getName() != null ? offlinePlayer.getName() : "Unknown";
-                NamedTextColor statusColor = offlinePlayer.isOnline() ? NamedTextColor.GREEN : NamedTextColor.GRAY;
-
-                player.sendMessage(Component.text("  • " + memberName, statusColor));
+                if (offlinePlayer.isOnline()) {
+                    Mint.sendMessage(player, "<success>  • " + memberName + "</success>");
+                } else {
+                    Mint.sendMessage(player, "<neutral>  • " + memberName + "</neutral>");
+                }
             }
             if (memberIds.size() > displayLimit) {
-                player.sendMessage(Component.text("  ...and " + (memberIds.size() - displayLimit) + " more", NamedTextColor.DARK_GRAY));
+                Mint.sendMessage(player, "<neutral>  ...and " + (memberIds.size() - displayLimit) + " more</neutral>");
             }
         }
 
-        player.sendMessage(Component.empty());
+        Mint.sendMessage(player, "<neutral></neutral>");
 
         // 6. Creation metadata with hover (only if non-null)
         if (role.getCreatedBy() != null && role.getCreatedAt() != null) {
@@ -553,7 +540,7 @@ public final class RoleComponent implements GuildCommand {
                 .build();
             player.sendMessage(createdAtLine);
 
-            player.sendMessage(Component.empty());
+            Mint.sendMessage(player, "<neutral></neutral>");
         }
     }
 

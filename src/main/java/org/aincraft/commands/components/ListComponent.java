@@ -1,12 +1,11 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.List;
 import org.aincraft.Guild;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -40,19 +39,19 @@ public class ListComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use this command</error>");
             return true;
         }
 
         List<Guild> allGuilds = lifecycleService.listAllGuilds();
 
         if (allGuilds.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
@@ -64,7 +63,7 @@ public class ListComponent implements GuildCommand {
                     page = 1;
                 }
             } catch (NumberFormatException e) {
-                Messages.send(player, MessageKey.LIST_INVALID_PAGE);
+                Mint.sendMessage(player, "<error>Invalid page number</error>");
                 return true;
             }
         }
@@ -90,7 +89,7 @@ public class ListComponent implements GuildCommand {
         int startIndex = (page - 1) * GUILDS_PER_PAGE;
         int endIndex = Math.min(startIndex + GUILDS_PER_PAGE, guilds.size());
 
-        Messages.send(player, MessageKey.LIST_HEADER, page, totalPages);
+        Mint.sendMessage(player, "<primary>=== List (" + page + "/" + totalPages + ") ===</primary>");
 
         for (int i = startIndex; i < endIndex; i++) {
             Guild guild = guilds.get(i);
@@ -99,15 +98,13 @@ public class ListComponent implements GuildCommand {
                 ownerName = guild.getOwnerId().toString();
             }
 
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<yellow>" + (i + 1) + ". <gold>" + guild.getName() +
-                    "<gray> [" + guild.getMemberCount() + "/" + guild.getMaxMembers() + "] " +
-                    "<white>Owner: " + ownerName));
+            Mint.sendMessage(player, "<info>" + (i + 1) + ". <secondary>" + guild.getName() +
+                    "</secondary> <neutral>[" + guild.getMemberCount() + "/" + guild.getMaxMembers() + "] " +
+                    "<neutral>Owner: <primary>" + ownerName + "</primary></neutral>");
         }
 
         if (totalPages > 1) {
-            player.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<gray>Use /g list " + (page + 1) + " for next page"));
+            Mint.sendMessage(player, "<neutral>Use /g list " + (page + 1) + " for next page</neutral>");
         }
     }
 }

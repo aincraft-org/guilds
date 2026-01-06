@@ -1,13 +1,12 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.chat.ChatModeService;
 import org.aincraft.chat.ChatModeService.ChatMode;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.command.CommandSender;
@@ -49,51 +48,45 @@ public class AllyChatComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players.</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.CHAT_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use guild chat.</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild.</error>");
             return true;
         }
 
-        // Check CHAT_GUILD permission (owners bypass)
         if (!guild.isOwner(player.getUniqueId()) &&
             !permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.CHAT_GUILD)) {
-            Messages.send(player, MessageKey.CHAT_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use guild chat.</error>");
             return true;
         }
 
-        // No message - toggle mode
         if (args.length == 0) {
             ChatMode newMode = chatModeService.toggleMode(player.getUniqueId(), ChatMode.ALLY);
 
             if (newMode == ChatMode.ALLY) {
-                Messages.send(player, MessageKey.CHAT_ALLY_ENABLED);
+                Mint.sendMessage(player, "<success>Ally chat enabled.</success>");
             } else {
-                Messages.send(player, MessageKey.CHAT_ALLY_DISABLED);
+                Mint.sendMessage(player, "<neutral>Ally chat disabled.</neutral>");
             }
             return true;
         }
 
-        // Has message - send one-time message without toggling
         String message = String.join(" ", args);
 
-        // Temporarily set mode to ALLY
         ChatMode originalMode = chatModeService.getMode(player.getUniqueId());
         chatModeService.setMode(player.getUniqueId(), ChatMode.ALLY);
 
-        // Trigger chat event
         player.chat(message);
 
-        // Restore original mode
         chatModeService.setMode(player.getUniqueId(), originalMode);
 
         return true;

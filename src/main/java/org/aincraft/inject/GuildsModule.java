@@ -150,8 +150,6 @@ import org.aincraft.skilltree.SkillTreeRegistry;
 import org.aincraft.skilltree.SkillTreeService;
 import org.aincraft.skilltree.SkillBuffProvider;
 import org.aincraft.commands.components.SkillsComponent;
-import org.aincraft.messages.MessageProvider;
-import org.aincraft.messages.YamlMessageProvider;
 import org.bukkit.plugin.Plugin;
 
 public class GuildsModule extends AbstractModule {
@@ -166,9 +164,6 @@ public class GuildsModule extends AbstractModule {
         bind(GuildsPlugin.class).toInstance(plugin);
         bind(Plugin.class).toInstance(plugin);
         bind(Logger.class).annotatedWith(com.google.inject.name.Names.named("guilds")).toInstance(plugin.getLogger());
-
-        // Message system for i18n support
-        bind(MessageProvider.class).to(YamlMessageProvider.class).in(Singleton.class);
 
         // Database abstraction layer - repositories using JDBC
         bind(GuildRepository.class).to(JdbcGuildRepository.class).in(Singleton.class);

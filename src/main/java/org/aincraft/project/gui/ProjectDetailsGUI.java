@@ -5,10 +5,9 @@ import dev.triumphteam.gui.guis.Gui;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+
 import org.aincraft.Guild;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.project.*;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -117,10 +116,10 @@ public class ProjectDetailsGUI {
                                     projectService.completeProject(guild.getId(), viewer.getUniqueId());
 
                             if (result.success()) {
-                                Messages.send(viewer, MessageKey.PROJECT_COMPLETED);
+                                Mint.sendMessage(viewer, "<success>Project completed!</success>");
                                 viewer.closeInventory();
                             } else {
-                                viewer.sendMessage(MiniMessage.miniMessage().deserialize(result.errorMessage()));
+                                Mint.sendMessage(viewer, result.errorMessage());
                             }
                         }));
             } else {
@@ -136,10 +135,10 @@ public class ProjectDetailsGUI {
                         boolean abandoned = projectService.abandonProject(guild.getId(), viewer.getUniqueId());
 
                         if (abandoned) {
-                            Messages.send(viewer, MessageKey.PROJECT_ABANDONED);
+                            Mint.sendMessage(viewer, "<warning>Project abandoned</warning>");
                             viewer.closeInventory();
                         } else {
-                            Messages.send(viewer, MessageKey.ERROR_NO_PERMISSION);
+                            Mint.sendMessage(viewer, "<error>You don't have permission to abandon this project</error>");
                         }
                     }));
         } else {
@@ -151,14 +150,14 @@ public class ProjectDetailsGUI {
                                 projectService.startProject(guild.getId(), viewer.getUniqueId(), definition.id());
 
                         if (result.success()) {
-                            Messages.send(viewer, MessageKey.PROJECT_STARTED, definition.name());
+                            Mint.sendMessage(viewer, "<success>Project <secondary>" + definition.name() + "</secondary> started!</success>");
 
                             // Open updated details GUI
                             ProjectDetailsGUI newGUI = new ProjectDetailsGUI(
                                     guild, viewer, projectService, registry, definition, result.project(), guildLevel);
                             newGUI.open();
                         } else {
-                            viewer.sendMessage(MiniMessage.miniMessage().deserialize(result.errorMessage()));
+                            Mint.sendMessage(viewer, result.errorMessage());
                         }
                     }));
         }

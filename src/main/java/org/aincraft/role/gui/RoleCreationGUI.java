@@ -11,8 +11,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildRoleService;
 import org.aincraft.service.PermissionService;
 import org.bukkit.Material;
@@ -206,7 +205,7 @@ public class RoleCreationGUI {
                 .name(Component.text("Cancel").color(NamedTextColor.RED))
                 .asGuiItem(event -> {
                     creator.closeInventory();
-                    Messages.send(creator, MessageKey.ACTION_CANCELLED);
+                    Mint.sendMessage(creator, "<neutral>Action cancelled</neutral>");
                 }));
 
         gui.setItem(6, 9, ItemBuilder.from(Material.EMERALD)
@@ -401,12 +400,12 @@ public class RoleCreationGUI {
                     if (role != null) {
                         creator.closeInventory();
                         if (isEdit) {
-                            Messages.send(creator, MessageKey.ROLE_UPDATED);
+                            Mint.sendMessage(creator, "<success>Role updated!</success>");
                         } else {
-                            Messages.send(creator, MessageKey.ROLE_CREATED);
+                            Mint.sendMessage(creator, "<success>Role created!</success>");
                         }
                     } else {
-                        Messages.send(creator, MessageKey.ERROR_NO_PERMISSION);
+                        Mint.sendMessage(creator, "<error>You don't have permission to manage roles</error>");
                     }
                 }));
 

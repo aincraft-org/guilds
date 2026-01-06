@@ -5,9 +5,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+
+import dev.mintychochip.mint.Mint;
 import org.aincraft.vault.Vault;
 import org.aincraft.vault.VaultService;
 import org.aincraft.vault.VaultTransaction;
@@ -32,7 +31,7 @@ public class VaultLogSubcomponent {
         Optional<Vault> vaultOpt = vaultService.getGuildVault(player.getUniqueId());
 
         if (vaultOpt.isEmpty()) {
-            Messages.send(player, MessageKey.VAULT_NOT_FOUND);
+            Mint.sendMessage(player, "<error>Vault not found</error>");
             return true;
         }
 
@@ -51,11 +50,11 @@ public class VaultLogSubcomponent {
         List<VaultTransaction> transactions = vaultService.getRecentTransactions(vault.getId(), TRANSACTION_PAGE_SIZE * page);
 
         if (transactions.isEmpty()) {
-            Messages.send(player, MessageKey.LIST_EMPTY);
+            Mint.sendMessage(player, "<neutral>List is empty</neutral>");
             return true;
         }
 
-        player.sendMessage(Messages.get(MessageKey.LIST_HEADER, "Vault Transactions (Page " + page + ")"));
+        Mint.sendMessage(player, "<info>Vault Transactions (Page <primary>" + page + "</primary>)</info>");
 
         int shown = 0;
         for (int i = offset; i < transactions.size() && shown < TRANSACTION_PAGE_SIZE; i++) {
@@ -63,18 +62,16 @@ public class VaultLogSubcomponent {
             String playerName = org.bukkit.Bukkit.getOfflinePlayer(tx.playerId()).getName();
             if (playerName == null) playerName = tx.playerId().toString().substring(0, UUID_DISPLAY_LENGTH);
 
-            String action = tx.action() == VaultTransaction.TransactionType.DEPOSIT ? "<green>+</green>" : "<red>-</red>";
+            String action = tx.action() == VaultTransaction.TransactionType.DEPOSIT ? "<success>+</success>" : "<error>-</error>";
             String itemName = tx.itemType().name().toLowerCase().replace("_", " ");
             String time = DATE_FORMAT.format(new Date(tx.timestamp()));
 
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    "<gray>" + time + " " + action + " <gold>" + tx.amount() + "x " + itemName + "</gold> by " + playerName + "</gray>"));
+            Mint.sendMessage(player, "<neutral>" + time + " " + action + " <secondary>" + tx.amount() + "x " + itemName + "</secondary> by " + playerName + "</neutral>");
             shown++;
         }
 
         if (transactions.size() > page * TRANSACTION_PAGE_SIZE) {
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    "<gray>Use <yellow>/g log vault " + (page + 1) + "</yellow> for more</gray>"));
+            Mint.sendMessage(player, "<neutral>Use <secondary>/g log vault " + (page + 1) + "</secondary> for more</neutral>");
         }
 
         return true;

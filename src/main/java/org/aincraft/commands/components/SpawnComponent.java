@@ -1,10 +1,9 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.Guild;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.SpawnService;
 import org.bukkit.Location;
@@ -43,32 +42,32 @@ public class SpawnComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>No permission</error>");
             return true;
         }
 
         // Get player's guild
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Get spawn location
         Location spawnLocation = spawnService.getGuildSpawnLocation(guild.getId());
         if (spawnLocation == null) {
-            Messages.send(player, MessageKey.SPAWN_NO_SPAWN);
+            Mint.sendMessage(player, "<error>No guild spawn set</error>");
             return true;
         }
 
         // Teleport player
         player.teleport(spawnLocation);
-        Messages.send(player, MessageKey.SPAWN_TELEPORTED, guild.getName());
+        Mint.sendMessage(player, "<success>Teleported to guild spawn</success>");
         return true;
     }
 }

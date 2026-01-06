@@ -1,6 +1,7 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -12,8 +13,6 @@ import org.aincraft.Guild;
 import org.aincraft.GuildPermission;
 import org.aincraft.GuildRole;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.GuildRoleService;
 import org.aincraft.storage.MemberRoleRepository;
@@ -55,37 +54,35 @@ public class MemberComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command can only be used by players</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to use this command</error>");
             return true;
         }
 
         Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         UUID targetId = player.getUniqueId();
 
-        // If a player name is provided, look them up
         if (args.length >= 2) {
             Player target = Bukkit.getPlayer(args[1]);
             if (target == null) {
-                Messages.send(player, MessageKey.ERROR_PLAYER_NOT_FOUND, args[1]);
+                Mint.sendMessage(player, "<error>Player not found: <secondary>" + args[1] + "</secondary></error>");
                 return true;
             }
 
             targetId = target.getUniqueId();
 
-            // Check if target is in the same guild
             Guild targetGuild = memberService.getPlayerGuild(targetId);
             if (targetGuild == null || !targetGuild.getId().equals(guild.getId())) {
-                Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+                Mint.sendMessage(player, "<error>You are not in a guild</error>");
                 return true;
             }
         }
@@ -100,22 +97,20 @@ public class MemberComponent implements GuildCommand {
             targetName = targetId.toString();
         }
 
-        Messages.send(sender, MessageKey.INFO_HEADER, targetName);
+        Mint.sendMessage(sender, "<info>=== " + targetName + " ===</info>");
 
         // Show owner status
         if (guild.isOwner(targetId)) {
-            sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<gold>★ Guild Owner <gray>(Full permissions)"));
+            Mint.sendMessage(sender, "<secondary>★ Guild Owner <neutral>(Full permissions)");
             return;
         }
 
         // Show online/offline status
         var offlinePlayer = Bukkit.getOfflinePlayer(targetId);
         boolean isOnline = offlinePlayer.isOnline();
-        String statusColor = isOnline ? "<green>" : "<gray>";
+        String statusColor = isOnline ? "<success>" : "<neutral>";
         String statusText = isOnline ? "Online" : "Offline";
-        sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("<yellow>Status<reset>: " + statusColor + statusText));
+        Mint.sendMessage(sender, "<neutral>Status<reset>: " + statusColor + statusText);
 
         // Show join date
         Optional<Long> joinDateOpt = memberService.getMemberJoinDate(guild.getId(), targetId);
@@ -127,8 +122,7 @@ public class MemberComponent implements GuildCommand {
                 .build();
             sender.sendMessage(joinDateLine);
         } else {
-            sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<yellow>Joined<reset>: <gray>Unknown"));
+            Mint.sendMessage(sender, "<neutral>Joined<reset>: <neutral>Unknown");
         }
 
         sender.sendMessage(Component.empty()); // Spacing
@@ -137,17 +131,14 @@ public class MemberComponent implements GuildCommand {
         List<String> roleIds = memberRoleRepository.getMemberRoleIds(guild.getId(), targetId);
 
         if (roleIds.isEmpty()) {
-            sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<gray>No roles assigned"));
+            Mint.sendMessage(sender, "<neutral>No roles assigned");
         } else {
-            sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("<yellow>Roles:"));
+            Mint.sendMessage(sender, "<warning>Roles:");
             for (String roleId : roleIds) {
                 GuildRole role = roleService.getRoleByIdAndGuild(roleId, guild.getId()).orElse(null);
                 if (role != null) {
-                    String priorityBadge = role.getPriority() > 0 ? "<dark_gray>[<gold>" + role.getPriority() + "</gold>]</dark_gray> " : "";
-                    sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize(priorityBadge + "  <gray>• <yellow>" + role.getName()));
+                    String priorityBadge = role.getPriority() > 0 ? "<neutral>[<secondary>" + role.getPriority() + "</secondary>]</neutral> " : "";
+                    Mint.sendMessage(sender, priorityBadge + "  <neutral>• <warning>" + role.getName());
                 }
             }
         }
@@ -161,16 +152,13 @@ public class MemberComponent implements GuildCommand {
             }
         }
 
-        sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-            .deserialize("<yellow>Permissions:"));
+        Mint.sendMessage(sender, "<warning>Permissions:");
         if (effectivePermissions == 0) {
-            sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                .deserialize("  <gray>None"));
+            Mint.sendMessage(sender, "  <neutral>None");
         } else {
             for (GuildPermission perm : GuildPermission.values()) {
                 if ((effectivePermissions & perm.getBit()) != 0) {
-                    sender.sendMessage(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage()
-                        .deserialize("  <gray>• <green>" + perm.name()));
+                    Mint.sendMessage(sender, "  <neutral>• <success>" + perm.name());
                 }
             }
         }

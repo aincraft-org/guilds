@@ -1,10 +1,9 @@
 package org.aincraft.commands.components;
 
 import com.google.inject.Inject;
+import dev.mintychochip.mint.Mint;
 import java.util.Objects;
 import org.aincraft.GuildPermission;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
 import org.aincraft.progression.storage.ProgressionLogRepository;
 import org.aincraft.service.GuildMemberService;
 import org.aincraft.service.PermissionService;
@@ -36,7 +35,7 @@ public class LogComponent {
 
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>This command is for players only</error>");
             return true;
         }
 
@@ -48,13 +47,13 @@ public class LogComponent {
         // Check if player is in a guild
         org.aincraft.Guild guild = memberService.getPlayerGuild(player.getUniqueId());
         if (guild == null) {
-            Messages.send(player, MessageKey.ERROR_NOT_IN_GUILD);
+            Mint.sendMessage(player, "<error>You are not in a guild</error>");
             return true;
         }
 
         // Check VIEW_LOGS permission
         if (!permissionService.hasPermission(guild.getId(), player.getUniqueId(), GuildPermission.VIEW_LOGS)) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have permission to view logs</error>");
             return true;
         }
 
@@ -72,6 +71,6 @@ public class LogComponent {
     }
 
     private void showHelp(Player player) {
-        Messages.send(player, MessageKey.LIST_HEADER);
+        Mint.sendMessage(player, "<primary>=== Guild Logs ===</primary>");
     }
 }

@@ -4,8 +4,7 @@ import com.google.inject.Inject;
 import org.aincraft.Guild;
 import org.aincraft.GuildService;
 import org.aincraft.commands.GuildCommand;
-import org.aincraft.messages.MessageKey;
-import org.aincraft.messages.Messages;
+import dev.mintychochip.mint.Mint;
 import org.aincraft.service.GuildLifecycleService;
 import org.aincraft.service.TerritoryService;
 import org.bukkit.command.CommandSender;
@@ -45,17 +44,17 @@ public class CreateComponent implements GuildCommand {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         if (!(sender instanceof Player player)) {
-            Messages.send(sender, MessageKey.ERROR_PLAYER_ONLY);
+            Mint.sendMessage(sender, "<error>Only players can use this command</error>");
             return true;
         }
 
         if (!player.hasPermission(getPermission())) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
+            Mint.sendMessage(player, "<error>You don't have <accent>permission</accent> to create guilds</error>");
             return true;
         }
 
         if (args.length < 2) {
-            Messages.send(player, MessageKey.ERROR_USAGE, getUsage());
+            Mint.sendMessage(player, "<error>Usage: /g create <name> [description]</error>");
             return false;
         }
 
@@ -69,7 +68,7 @@ public class CreateComponent implements GuildCommand {
         // This ensures we don't create a guild in the database if chunk claim would fail
         org.aincraft.ClaimResult preValidation = validateChunkClaimForNewGuild(chunk, player.getUniqueId());
         if (!preValidation.isSuccess()) {
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, preValidation.getReason());
+            Mint.sendMessage(player, "<error>" + preValidation.getReason() + "</error>");
             return true;
         }
 
@@ -77,21 +76,21 @@ public class CreateComponent implements GuildCommand {
         Guild guild = lifecycleService.createGuild(name, description, player.getUniqueId());
 
         if (guild == null) {
-            Messages.send(player, MessageKey.GUILD_NAME_TAKEN);
+            Mint.sendMessage(player, "<error>A guild with that name already exists</error>");
             return true;
         }
 
-        Messages.send(player, MessageKey.GUILD_CREATED, guild.getName());
+        Mint.sendMessage(player, "<success>Guild <secondary>" + guild.getName() + "</secondary> created successfully!</success>");
 
         // CLAIM PHASE: Guild created successfully, now claim the chunk
         // This should succeed given our pre-validation, but we still check the result
         org.aincraft.ClaimResult claimResult = claimInitialChunk(guild.getId(), player.getUniqueId(), chunk);
         if (claimResult.isSuccess()) {
-            Messages.send(player, MessageKey.CLAIM_SUCCESS, chunk.x(), chunk.z());
+            Mint.sendMessage(player, "<success>Claimed chunk at <primary>" + chunk.x() + "</primary>, <primary>" + chunk.z() + "</primary></success>");
         } else {
             // This is a fallback - should not happen after pre-validation
             // Log a warning as this indicates an unexpected state
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, claimResult.getReason());
+            Mint.sendMessage(player, "<error>" + claimResult.getReason() + "</error>");
         }
 
         // SPAWN PHASE: Set spawn location to player's current location
@@ -99,11 +98,11 @@ public class CreateComponent implements GuildCommand {
         Location playerLocation = player.getLocation();
         boolean spawnSet = guildService.setGuildSpawn(guild.getId(), player.getUniqueId(), playerLocation);
         if (spawnSet) {
-            Messages.send(player, MessageKey.SPAWN_SET);
+            Mint.sendMessage(player, "<success>Guild spawn set!</success>");
         } else {
             // This should not happen since guild was just created with a claimed chunk
             // But log a warning if spawn setting fails for any reason
-            Messages.send(player, MessageKey.ERROR_NO_PERMISSION, "Could not set guild spawn");
+            Mint.sendMessage(player, "<error>Could not set guild spawn</error>");
         }
 
         return true;
