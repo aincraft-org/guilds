@@ -324,6 +324,44 @@ public class JdbcSubregionRepository implements SubregionRepository {
         return 0;
     }
 
+    @Override
+    public List<Subregion> findOverlapping(UUID guildId, String world,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(world, "World cannot be null");
+
+        String sql = """
+            SELECT * FROM subregions
+            WHERE guild_id = ? AND world = ?
+            AND min_x <= ? AND max_x >= ?
+            AND min_y <= ? AND max_y >= ?
+            AND min_z <= ? AND max_z >= ?
+            """;
+
+        List<Subregion> regions = new ArrayList<>();
+
+        try (Connection conn = connectionProvider.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, guildId.toString());
+            ps.setString(2, world);
+            ps.setInt(3, maxX);
+            ps.setInt(4, minX);
+            ps.setInt(5, maxY);
+            ps.setInt(6, minY);
+            ps.setInt(7, maxZ);
+            ps.setInt(8, minZ);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                regions.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to find overlapping regions", e);
+        }
+
+        return regions;
+    }
+
     private Subregion mapResultSet(ResultSet rs) throws SQLException {
         return new Subregion(
             UUID.fromString(rs.getString("id")),
@@ -351,11 +389,21 @@ public class JdbcSubregionRepository implements SubregionRepository {
     }
 
     private Set<UUID> deserializeOwners(String ownersStr) {
-        if (ownersStr == null || ownersStr.isEmpty()) {
+        if (ownersStr == null || ownersStr.isBlank()) {
             return new HashSet<>();
         }
-        return Arrays.stream(ownersStr.split(","))
-            .map(UUID::fromString)
-            .collect(Collectors.toSet());
+
+        Set<UUID> owners = new HashSet<>();
+        for (String part : ownersStr.split(",")) {
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) continue;
+
+            try {
+                owners.add(UUID.fromString(trimmed));
+            } catch (IllegalArgumentException e) {
+                // Skip invalid UUIDs instead of failing completely
+            }
+        }
+        return owners;
     }
 }

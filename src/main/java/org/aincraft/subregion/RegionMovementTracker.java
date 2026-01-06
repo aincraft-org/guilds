@@ -48,7 +48,6 @@ public class RegionMovementTracker implements Listener {
     private void handleMovement(Player player, Location from, Location to) {
         if (to == null) return;
 
-        // Only check on block-level changes (performance optimization)
         if (from.getBlockX() == to.getBlockX() &&
             from.getBlockY() == to.getBlockY() &&
             from.getBlockZ() == to.getBlockZ()) {
@@ -56,34 +55,29 @@ public class RegionMovementTracker implements Listener {
         }
 
         UUID playerId = player.getUniqueId();
-        UUID previousRegionId = playerCurrentRegion.get(playerId);
-
-        // Get current region at new location
         Optional<Subregion> currentRegionOpt = subregionService.getSubregionAt(to);
-        UUID currentRegionId = currentRegionOpt.map(Subregion::getId).orElse(null);
+        UUID newRegionId = currentRegionOpt.map(Subregion::getId).orElse(null);
 
-        // No change in region
-        if (java.util.Objects.equals(previousRegionId, currentRegionId)) {
-            return;
-        }
+        playerCurrentRegion.compute(playerId, (id, previousRegionId) -> {
+            if (java.util.Objects.equals(previousRegionId, newRegionId)) {
+                return previousRegionId;
+            }
 
-        // Player exited a region
-        if (previousRegionId != null) {
-            subregionService.getSubregionById(previousRegionId).ifPresent(region -> {
-                PlayerExitSubregionEvent exitEvent = new PlayerExitSubregionEvent(player, region, from, to);
-                Bukkit.getPluginManager().callEvent(exitEvent);
-            });
-        }
+            if (previousRegionId != null) {
+                subregionService.getSubregionById(previousRegionId).ifPresent(region -> {
+                    PlayerExitSubregionEvent exitEvent = new PlayerExitSubregionEvent(player, region, from, to);
+                    Bukkit.getPluginManager().callEvent(exitEvent);
+                });
+            }
 
-        // Player entered a new region
-        if (currentRegionOpt.isPresent()) {
-            Subregion region = currentRegionOpt.get();
-            PlayerEnterSubregionEvent enterEvent = new PlayerEnterSubregionEvent(player, region, from, to);
-            Bukkit.getPluginManager().callEvent(enterEvent);
-            playerCurrentRegion.put(playerId, region.getId());
-        } else {
-            playerCurrentRegion.remove(playerId);
-        }
+            if (currentRegionOpt.isPresent()) {
+                Subregion region = currentRegionOpt.get();
+                PlayerEnterSubregionEvent enterEvent = new PlayerEnterSubregionEvent(player, region, from, to);
+                Bukkit.getPluginManager().callEvent(enterEvent);
+            }
+
+            return newRegionId;
+        });
     }
 
     /**

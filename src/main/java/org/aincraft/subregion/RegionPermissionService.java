@@ -291,15 +291,36 @@ public class RegionPermissionService {
 
     /**
      * Clears all permissions for a region (when region is deleted).
+     * Deletes in order: role assignments -> roles -> permissions to maintain referential integrity.
      *
      * @param regionId the region ID
      */
     public void clearRegionPermissions(UUID regionId) {
         Objects.requireNonNull(regionId, "Region ID cannot be null");
-        permissionRepository.deleteAllByRegion(regionId);
-        // Also clear region roles and their assignments
-        memberRegionRoleRepository.removeAllByRegion(regionId);
-        regionRoleRepository.deleteAllByRegion(regionId);
+
+        RuntimeException firstError = null;
+
+        try {
+            memberRegionRoleRepository.removeAllByRegion(regionId);
+        } catch (RuntimeException e) {
+            firstError = e;
+        }
+
+        try {
+            regionRoleRepository.deleteAllByRegion(regionId);
+        } catch (RuntimeException e) {
+            if (firstError == null) firstError = e;
+        }
+
+        try {
+            permissionRepository.deleteAllByRegion(regionId);
+        } catch (RuntimeException e) {
+            if (firstError == null) firstError = e;
+        }
+
+        if (firstError != null) {
+            throw new RuntimeException("Failed to fully clear region permissions for " + regionId, firstError);
+        }
     }
 
     // ==================== Region Role Management ====================

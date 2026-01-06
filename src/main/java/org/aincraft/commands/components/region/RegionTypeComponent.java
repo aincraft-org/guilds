@@ -5,6 +5,7 @@ import org.aincraft.Guild;
 import org.aincraft.messages.MessageKey;
 import org.aincraft.messages.Messages;
 import org.aincraft.subregion.SubregionService;
+import org.aincraft.subregion.SubregionService.SetTypeResult;
 import org.aincraft.subregion.SubregionType;
 import org.aincraft.subregion.SubregionTypeRegistry;
 import org.aincraft.subregion.RegionTypeLimit;
@@ -16,6 +17,8 @@ import org.bukkit.entity.Player;
  * Single Responsibility: Manages region type assignments and type limits.
  */
 public class RegionTypeComponent {
+    private static final String PERMISSION_MANAGE_TYPE_LIMITS = "guilds.admin.typelimits";
+
     private final SubregionService subregionService;
     private final SubregionTypeRegistry typeRegistry;
     private final RegionTypeLimitRepository limitRepository;
@@ -73,26 +76,26 @@ public class RegionTypeComponent {
         String regionName = args[2];
         String typeId = args[3].toLowerCase();
 
-        // Special cases: "none" or "clear" removes the type
         if (typeId.equals("none") || typeId.equals("clear")) {
-            if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, null)) {
+            SetTypeResult result = subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, null);
+            if (result.successful()) {
                 Messages.send(player, MessageKey.REGION_TYPE_UNKNOWN, "None");
             } else {
-                Messages.send(player, MessageKey.ERROR_USAGE, "Failed to update region type. Region may not exist or you lack permission.");
+                Messages.send(player, MessageKey.ERROR_USAGE, result.errorMessage());
             }
             return true;
         }
 
-        // Validate type exists
         if (!helper.validateRegionType(typeId, player)) {
             return true;
         }
 
-        if (subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, typeId)) {
+        SetTypeResult result = subregionService.setSubregionType(guild.getId(), player.getUniqueId(), regionName, typeId);
+        if (result.successful()) {
             String displayName = helper.formatTypeDisplayName(typeId);
             Messages.send(player, MessageKey.INFO_HEADER, regionName, displayName);
         } else {
-            Messages.send(player, MessageKey.ERROR_USAGE, "Failed to update region type. Region may not exist or you lack permission.");
+            Messages.send(player, MessageKey.ERROR_USAGE, result.errorMessage());
         }
 
         return true;
@@ -121,8 +124,7 @@ public class RegionTypeComponent {
             return showTypeLimit(player, typeId);
         }
 
-        // Set or remove limit (op only)
-        if (!player.isOp()) {
+        if (!player.hasPermission(PERMISSION_MANAGE_TYPE_LIMITS)) {
             Messages.send(player, MessageKey.ERROR_NO_PERMISSION);
             return true;
         }

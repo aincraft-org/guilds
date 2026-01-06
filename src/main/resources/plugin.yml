@@ -9,69 +9,105 @@ website: https://github.com/aincraft
 permissions:
   guilds.use:
     description: Allow use of guild commands
-    default: true
+    default: false
   guilds.create:
     description: Allow creating guilds
-    default: true
+    default: false
   guilds.join:
     description: Allow joining guilds
-    default: true
+    default: false
   guilds.leave:
     description: Allow leaving guilds
-    default: true
+    default: false
   guilds.delete:
     description: Allow deleting guilds
-    default: true
+    default: false
+  guilds.disband:
+    description: Allow disbanding guilds
+    default: false
   guilds.info:
     description: Allow viewing guild info
-    default: true
+    default: false
   guilds.list:
     description: Allow listing all guilds
-    default: true
+    default: false
   guilds.claim:
     description: Allow claiming chunks
-    default: true
+    default: false
   guilds.unclaim:
     description: Allow unclaiming chunks
-    default: true
+    default: false
   guilds.kick:
     description: Allow kicking guild members
-    default: true
+    default: false
+  guilds.invite:
+    description: Allow inviting players to guild
+    default: false
   guilds.role:
     description: Allow managing guild roles
-    default: true
+    default: false
   guilds.map:
     description: Allow viewing guild map
-    default: true
+    default: false
   guilds.spawn:
     description: Allow teleporting to guild spawn
-    default: true
+    default: false
   guilds.setspawn:
     description: Allow setting guild spawn
-    default: true
+    default: false
   guilds.ally:
     description: Allow managing alliances
-    default: true
+    default: false
   guilds.enemy:
     description: Allow managing enemies
-    default: true
+    default: false
   guilds.neutral:
     description: Allow declaring neutral status
-    default: true
+    default: false
   guilds.description:
     description: Allow changing guild description
-    default: true
+    default: false
   guilds.name:
     description: Allow changing guild name
-    default: true
+    default: false
+  guilds.color:
+    description: Allow changing guild color
+    default: false
   guilds.chat:
     description: Allow using guild and ally chat
-    default: true
-  guilds.levelup:
+    default: false
+  guilds.upgrade:
     description: Allow leveling up the guild
-    default: true
+    default: false
+  guilds.owner:
+    description: Allow viewing guild owner
+    default: false
+  guilds.member:
+    description: Allow viewing member information
+    default: false
+  guilds.toggle:
+    description: Allow toggling guild settings
+    default: false
+  guilds.transfer:
+    description: Allow transferring guild ownership
+    default: false
+  guilds.outpost:
+    description: Allow managing guild outposts
+    default: false
+  guilds.skills:
+    description: Allow managing guild skills
+    default: false
+  guilds.project:
+    description: Allow managing guild projects
+    default: false
+  guilds.region:
+    description: Allow managing guild regions
+    default: false
   guilds.admin.bypass:
     description: Bypass all guild claim protections
+    default: op
+  guilds.admin.typelimits:
+    description: Allow managing region type volume limits
     default: op
   guilds.admin:
     description: All guild permissions
@@ -81,7 +117,9 @@ permissions:
       - guilds.join
       - guilds.leave
       - guilds.delete
+      - guilds.disband
       - guilds.kick
+      - guilds.invite
       - guilds.info
       - guilds.list
       - guilds.claim
@@ -95,7 +133,17 @@ permissions:
       - guilds.neutral
       - guilds.description
       - guilds.name
+      - guilds.color
       - guilds.chat
-      - guilds.levelup
+      - guilds.upgrade
+      - guilds.owner
+      - guilds.member
+      - guilds.toggle
+      - guilds.transfer
+      - guilds.outpost
+      - guilds.skills
+      - guilds.project
+      - guilds.region
       - guilds.admin.bypass
+      - guilds.admin.typelimits
     default: op

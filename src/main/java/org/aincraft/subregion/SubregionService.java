@@ -155,6 +155,19 @@ public class SubregionService {
                     "Multi-chunk regions must use contiguous (adjacent) chunks");
         }
 
+        // Check for overlapping regions
+        List<Subregion> overlapping = subregionRepository.findOverlapping(
+            guildId, temp.getWorld(),
+            temp.getMinX(), temp.getMinY(), temp.getMinZ(),
+            temp.getMaxX(), temp.getMaxY(), temp.getMaxZ()
+        );
+        if (!overlapping.isEmpty()) {
+            String names = overlapping.stream()
+                .map(Subregion::getName)
+                .collect(java.util.stream.Collectors.joining(", "));
+            return SubregionCreationResult.failure("Region overlaps with: " + names);
+        }
+
         // All validations passed, save the region
         Subregion region = Subregion.fromLocations(guildId, name, pos1, pos2, playerId, type);
         subregionRepository.save(region);
@@ -323,36 +336,62 @@ public class SubregionService {
      * @param requesterId the requesting player's ID
      * @param regionName  the region name
      * @param typeId      the new type ID (null to remove type)
-     * @return true if updated successfully
+     * @return result with success/failure and error message
      */
-    public boolean setSubregionType(UUID guildId, UUID requesterId, String regionName, String typeId) {
+    public SetTypeResult setSubregionType(UUID guildId, UUID requesterId, String regionName, String typeId) {
         Objects.requireNonNull(guildId, "Guild ID cannot be null");
         Objects.requireNonNull(requesterId, "Requester ID cannot be null");
         Objects.requireNonNull(regionName, "Region name cannot be null");
 
-        // Validate type if specified
         if (typeId != null && !typeRegistry.isRegistered(typeId)) {
-            return false;
+            return SetTypeResult.fail("Unknown region type: " + typeId);
         }
 
         Optional<Subregion> regionOpt = subregionRepository.findByGuildAndName(guildId, regionName);
         if (regionOpt.isEmpty()) {
-            return false;
+            return SetTypeResult.fail("Region not found");
         }
 
         Subregion region = regionOpt.get();
 
-        // Check permission: must have MANAGE_REGIONS or be a region owner
         boolean hasPermission = permissionService.hasPermission(guildId, requesterId, GuildPermission.MANAGE_REGIONS);
         boolean isOwner = region.isOwner(requesterId);
 
         if (!hasPermission && !isOwner) {
-            return false;
+            return SetTypeResult.fail("No permission to modify region");
+        }
+
+        if (typeId != null) {
+            Optional<RegionTypeLimit> limitOpt = limitRepository.findByTypeId(typeId);
+            if (limitOpt.isPresent()) {
+                RegionTypeLimit limit = limitOpt.get();
+                long currentUsage = subregionRepository.getTotalVolumeByGuildAndType(guildId, typeId);
+                long regionVolume = region.getVolume();
+
+                if (typeId.equals(region.getType())) {
+                    currentUsage -= regionVolume;
+                }
+
+                if (currentUsage + regionVolume > limit.maxTotalVolume()) {
+                    return SetTypeResult.fail("Type volume limit exceeded. Current: " + currentUsage +
+                        ", Region: " + regionVolume + ", Max: " + limit.maxTotalVolume());
+                }
+            }
         }
 
         region.setType(typeId);
         subregionRepository.save(region);
-        return true;
+        return SetTypeResult.ok();
+    }
+
+    public record SetTypeResult(boolean successful, String errorMessage) {
+        public static SetTypeResult ok() {
+            return new SetTypeResult(true, null);
+        }
+
+        public static SetTypeResult fail(String errorMessage) {
+            return new SetTypeResult(false, errorMessage);
+        }
     }
 
     /**

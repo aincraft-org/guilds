@@ -346,6 +346,44 @@ public class SQLiteSubregionRepository implements SubregionRepository {
         return 0;
     }
 
+    @Override
+    public List<Subregion> findOverlapping(UUID guildId, String world,
+            int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+        Objects.requireNonNull(guildId, "Guild ID cannot be null");
+        Objects.requireNonNull(world, "World cannot be null");
+
+        String selectSQL = """
+            SELECT * FROM subregions
+            WHERE guild_id = ? AND world = ?
+            AND min_x <= ? AND max_x >= ?
+            AND min_y <= ? AND max_y >= ?
+            AND min_z <= ? AND max_z >= ?
+            """;
+
+        List<Subregion> regions = new ArrayList<>();
+
+        try (Connection conn = DriverManager.getConnection(connectionString);
+             PreparedStatement pstmt = conn.prepareStatement(selectSQL)) {
+            pstmt.setString(1, guildId.toString());
+            pstmt.setString(2, world);
+            pstmt.setInt(3, maxX);
+            pstmt.setInt(4, minX);
+            pstmt.setInt(5, maxY);
+            pstmt.setInt(6, minY);
+            pstmt.setInt(7, maxZ);
+            pstmt.setInt(8, minZ);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                regions.add(mapResultSet(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to find overlapping regions", e);
+        }
+
+        return regions;
+    }
+
     private Subregion mapResultSet(ResultSet rs) throws SQLException {
         return new Subregion(
                 UUID.fromString(rs.getString("id")),

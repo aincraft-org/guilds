@@ -21,7 +21,12 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:search.maven.org)",
       "Bash(cat:*)",
-      "Bash(gradle build:*)"
+      "Bash(gradle build:*)",
+      "Bash(mcp__claude-context__search_code \"run configuration test server\")",
+      "Bash(git ls-tree:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []

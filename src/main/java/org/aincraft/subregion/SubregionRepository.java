@@ -70,4 +70,20 @@ public interface SubregionRepository {
      * @return total volume in blocks, or 0 if none found
      */
     long getTotalVolumeByGuildAndType(UUID guildId, String typeId);
+
+    /**
+     * Finds all subregions that overlap with the given bounding box.
+     *
+     * @param guildId the guild ID
+     * @param world   the world name
+     * @param minX    minimum X coordinate
+     * @param minY    minimum Y coordinate
+     * @param minZ    minimum Z coordinate
+     * @param maxX    maximum X coordinate
+     * @param maxY    maximum Y coordinate
+     * @param maxZ    maximum Z coordinate
+     * @return list of overlapping subregions
+     */
+    List<Subregion> findOverlapping(UUID guildId, String world,
+        int minX, int minY, int minZ, int maxX, int maxY, int maxZ);
 }
