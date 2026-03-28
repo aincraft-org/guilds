@@ -137,6 +137,7 @@ public class PermCommand implements CommandExecutor {
 
     private void testPlotPermission(Player player, UUID playerUuid, String[] args) {
         int flag = Permission.Flag.BUILD; // default
+        String flagName = "BUILD";
 
         if (args.length > 1) {
             flag = getFlagFromName(args[1]);
@@ -145,10 +146,18 @@ public class PermCommand implements CommandExecutor {
                 player.sendMessage(ChatColor.YELLOW + "Use /perm flags to see available flags");
                 return;
             }
+            flagName = args[1].toUpperCase();
         }
 
-        testBuildPermission(player, playerUuid); // reuse for now
-        player.sendMessage(ChatColor.YELLOW + "Testing plot permission: " + args[1]);
+        int x = player.getLocation().getBlockX();
+        int z = player.getLocation().getBlockZ();
+        String world = player.getLocation().getWorld().getName();
+
+        player.sendMessage(ChatColor.GOLD + "Plot Permission Test:");
+        player.sendMessage(ChatColor.WHITE + "Flag: " + flagName);
+        player.sendMessage(ChatColor.WHITE + "Location: " + x + ", " + z + " in " + world);
+
+        showDetailedPermissionInfo(player, playerUuid, x, z, world, flag);
     }
 
     private void testTownPermission(Player player, UUID playerUuid, String[] args) {
