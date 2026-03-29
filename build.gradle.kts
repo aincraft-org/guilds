@@ -12,10 +12,12 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public")
     maven("https://oss.sonatype.org/content/repositories/snapshots")
+    maven("https://jitpack.io")
 }
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
 
     // Guice DI
     implementation("com.google.inject:guice:7.0.0")

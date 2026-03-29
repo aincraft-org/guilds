@@ -57,6 +57,7 @@ public class SchemaInitializer {
 
         // Add tech tree system
         migrations.add(new AddTechTreeSystemMigration());
+        migrations.add(new AddEconomyMigration());
 
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
