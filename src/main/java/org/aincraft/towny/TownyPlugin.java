@@ -172,6 +172,9 @@ public class TownyPlugin extends JavaPlugin implements Listener {
         // Register town chat listener
         getServer().getPluginManager().registerEvents(injector.getInstance(org.aincraft.towny.listeners.TownChatListener.class), this);
 
+        // Register nation listener
+        getServer().getPluginManager().registerEvents(injector.getInstance(org.aincraft.towny.listeners.NationListener.class), this);
+
         // Register events
         getServer().getPluginManager().registerEvents(playerMovementListener, this);
         getServer().getPluginManager().registerEvents(townToggleListener, this);

@@ -127,7 +127,11 @@ public class TownyModule extends AbstractModule {
         bind(TownToggleListener.class).asEagerSingleton();
         bind(TownPublicAccessListener.class).asEagerSingleton();
         bind(TownBroadcastListener.class).asEagerSingleton();
-    }
+
+        // Bind nation system
+        bind(org.aincraft.towny.services.NationService.class).to(org.aincraft.towny.services.impl.NationServiceImpl.class).asEagerSingleton();
+        bind(org.aincraft.towny.listeners.NationListener.class).asEagerSingleton();
+        bind(org.aincraft.towny.commands.brigadier.NationBrigadierCommand.class).asEagerSingleton();
 
   
     /**
