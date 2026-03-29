@@ -141,6 +141,8 @@ public class TownyModule extends AbstractModule {
         // Bind quest system
         bind(org.aincraft.towny.services.QuestService.class).to(org.aincraft.towny.services.impl.QuestServiceImpl.class).asEagerSingleton();
         bind(org.aincraft.towny.commands.brigadier.QuestBrigadierCommand.class).asEagerSingleton();
+        bind(org.aincraft.towny.services.BlueprintService.class).to(org.aincraft.towny.services.impl.BlueprintServiceImpl.class).asEagerSingleton();
+        bind(org.aincraft.towny.commands.brigadier.BlueprintBrigadierCommand.class).asEagerSingleton();
 
   
     /**

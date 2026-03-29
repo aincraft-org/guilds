@@ -38,6 +38,7 @@ public class BrigadierCommandRegistry {
     private NationBrigadierCommand nationCommand;
     private SpecializationBrigadierCommand specializationCommand;
     private QuestBrigadierCommand questCommand;
+    private BlueprintBrigadierCommand blueprintCommand;
 
     @Inject
     public BrigadierCommandRegistry(TownyPlugin plugin, Injector injector) {
@@ -62,6 +63,7 @@ public class BrigadierCommandRegistry {
         this.nationCommand = injector.getInstance(NationBrigadierCommand.class);
         this.specializationCommand = injector.getInstance(SpecializationBrigadierCommand.class);
         this.questCommand = injector.getInstance(QuestBrigadierCommand.class);
+        this.blueprintCommand = injector.getInstance(BlueprintBrigadierCommand.class);
     }
 
     public void registerCommands() {
@@ -113,7 +115,10 @@ public class BrigadierCommandRegistry {
             // Register new town perm command
             commands.register(townPermCommand.buildCommand());
 
-        // Register tech tree command with alias
+        // Register blueprint
+            commands.register(blueprintCommand.buildCommand());
+
+ command with alias
         commands.register(techTreeCommand.buildCommand());
         commands.register(Commands.literal("tt")
                 .redirect(techTreeCommand.buildCommand())
@@ -138,6 +143,9 @@ public class BrigadierCommandRegistry {
 
         // Register quest command with alias
         commands.register(questCommand.buildCommand());
+            commands.register(Commands.literal("bp")
+                .redirect(blueprintCommand.buildCommand())
+                .build());
         commands.register(Commands.literal("tq")
             .redirect(questCommand.buildCommand())
             .build());

@@ -67,6 +67,7 @@ public class SchemaInitializer {
 
         // Add town quest system
         migrations.add(new AddQuestMigration());
+        migrations.add(new AddBlueprintMigration());
 
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
