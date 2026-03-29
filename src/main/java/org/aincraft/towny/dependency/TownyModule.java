@@ -138,6 +138,10 @@ public class TownyModule extends AbstractModule {
         bind(org.aincraft.towny.listeners.NationListener.class).asEagerSingleton();
         bind(org.aincraft.towny.commands.brigadier.NationBrigadierCommand.class).asEagerSingleton();
 
+        // Bind quest system
+        bind(org.aincraft.towny.services.QuestService.class).to(org.aincraft.towny.services.impl.QuestServiceImpl.class).asEagerSingleton();
+        bind(org.aincraft.towny.commands.brigadier.QuestBrigadierCommand.class).asEagerSingleton();
+
   
     /**
      * Provides the data directory for the plugin

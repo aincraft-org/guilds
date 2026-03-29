@@ -65,6 +65,9 @@ public class SchemaInitializer {
         // Add town specialization system
         migrations.add(new AddSpecializationMigration());
 
+        // Add town quest system
+        migrations.add(new AddQuestMigration());
+
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
     }
