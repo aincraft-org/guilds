@@ -81,6 +81,10 @@ public class TownyModule extends AbstractModule {
         bind(TechTreeService.class).to(org.aincraft.towny.services.impl.TechTreeServiceImpl.class).asEagerSingleton();
         bind(EconomyService.class).to(org.aincraft.towny.services.impl.EconomyServiceImpl.class).asEagerSingleton();
 
+        // Bind specialization system services
+        bind(org.aincraft.towny.services.SpecializationService.class)
+                .to(org.aincraft.towny.services.impl.SpecializationServiceImpl.class).asEagerSingleton();
+
         // Bind broadcast service
         bind(BroadcastService.class).to(org.aincraft.towny.services.impl.BroadcastServiceImpl.class).asEagerSingleton();
 
@@ -114,6 +118,7 @@ public class TownyModule extends AbstractModule {
         bind(TownPermBrigadierCommand.class).asEagerSingleton();
         bind(TechTreeBrigadierCommand.class).asEagerSingleton();
         bind(org.aincraft.towny.commands.brigadier.ChatBrigadierCommand.class).asEagerSingleton();
+        bind(org.aincraft.towny.commands.brigadier.SpecializationBrigadierCommand.class).asEagerSingleton();
 
         // Bind GUI classes
         bind(TechTreeGUI.class).asEagerSingleton();

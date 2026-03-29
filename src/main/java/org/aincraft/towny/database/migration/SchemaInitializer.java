@@ -62,6 +62,9 @@ public class SchemaInitializer {
         // Add nation system
         migrations.add(new AddNationMigration());
 
+        // Add town specialization system
+        migrations.add(new AddSpecializationMigration());
+
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
     }
