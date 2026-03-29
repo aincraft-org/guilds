@@ -34,6 +34,8 @@ public class TownyPlugin extends JavaPlugin implements Listener {
     private TownToggleListener townToggleListener;
     private TownPublicAccessListener townPublicAccessListener;
     private TownBroadcastListener townBroadcastListener;
+    @Inject
+    private org.aincraft.towny.web.WebServer webServer;
 
     @Override
     public void onEnable() {
@@ -59,6 +61,8 @@ public class TownyPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        // Stop web server
+        webServer.stop();
         // Cleanup resources
         getLogger().info("Towny has been disabled.");
     }
@@ -87,6 +91,12 @@ public class TownyPlugin extends JavaPlugin implements Listener {
             // Create Guice module and injector
             TownyModule module = new TownyModule(this);
             injector = Guice.createInjector(module);
+
+            // Inject plugin-level dependencies
+            injector.injectMembers(this);
+
+            // Start web server for tech tree web interface
+            webServer.start();
 
             getLogger().info("Dependency injection initialized successfully.");
         } catch (Exception e) {

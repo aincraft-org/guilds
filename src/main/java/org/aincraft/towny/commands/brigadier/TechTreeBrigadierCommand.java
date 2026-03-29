@@ -13,6 +13,11 @@ import org.aincraft.towny.models.TechTreeNode;
 import org.aincraft.towny.models.TechTreeBranch;
 import org.aincraft.towny.models.Town;
 import org.aincraft.towny.services.*;
+import org.aincraft.towny.web.SessionManager;
+import org.aincraft.towny.web.WebServerConfig;
+import org.aincraft.towny.web.TechTreeSession;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 
 import java.util.*;
 
@@ -30,16 +35,21 @@ public class TechTreeBrigadierCommand {
     private final TownService townService;
     private final ResidentService residentService;
     private final TechTreeGUI techTreeGUI;
+    private final SessionManager sessionManager;
+    private final WebServerConfig webServerConfig;
 
     @Inject
     public TechTreeBrigadierCommand(TownyPlugin plugin, TechTreeService techTreeService,
                                     TownService townService, ResidentService residentService,
-                                    TechTreeGUI techTreeGUI) {
+                                    TechTreeGUI techTreeGUI, SessionManager sessionManager,
+                                    WebServerConfig webServerConfig) {
         this.plugin = plugin;
         this.techTreeService = techTreeService;
         this.townService = townService;
         this.residentService = residentService;
         this.techTreeGUI = techTreeGUI;
+        this.sessionManager = sessionManager;
+        this.webServerConfig = webServerConfig;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -84,6 +94,8 @@ public class TechTreeBrigadierCommand {
                         return builder.buildFuture();
                     })
                     .executes(this::handleListBranch)))
+            .then(Commands.literal("web")
+                .executes(this::handleWeb))
             .build();
     }
 
@@ -280,5 +292,36 @@ public class TechTreeBrigadierCommand {
                 .map(org.aincraft.towny.models.Resident::getTown)
                 .flatMap(townName -> townService.getTown(townName))
                 .orElse(null);
+    }
+
+    private int handleWeb(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(net.kyori.adventure.text.Component.text("This command can only be used by players.",
+                    net.kyori.adventure.text.format.NamedTextColor.RED));
+            return 0;
+        }
+
+        Town town = getPlayerTown(sender);
+        if (town == null) {
+            player.sendMessage(net.kyori.adventure.text.Component.text("You must be in a town to use the web tech tree.",
+                    net.kyori.adventure.text.format.NamedTextColor.RED));
+            return 0;
+        }
+
+        TechTreeSession session = sessionManager.createSession(player, town);
+        String host = plugin.getServer().getIp().isEmpty() ? "localhost" : plugin.getServer().getIp();
+        String port = String.valueOf(webServerConfig.getPort());
+        String url = "https://guilds-techtree.vercel.app/s/" + session.getSessionId() + "?host=" + host + ":" + port;
+
+        player.sendMessage(net.kyori.adventure.text.Component.text("🌿 Tech Tree Web Interface", net.kyori.adventure.text.format.NamedTextColor.GREEN));
+        player.sendMessage(net.kyori.adventure.text.Component.text("Click to open: ", net.kyori.adventure.text.format.NamedTextColor.GRAY)
+                .append(net.kyori.adventure.text.Component.text("[Open Tech Tree]", net.kyori.adventure.text.format.NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
+                        .clickEvent(ClickEvent.openUrl(url))
+                        .hoverEvent(HoverEvent.showText(net.kyori.adventure.text.Component.text("Opens in your browser", net.kyori.adventure.text.format.NamedTextColor.GRAY)))));
+        player.sendMessage(net.kyori.adventure.text.Component.text("Session expires in " + webServerConfig.getSessionTimeoutMinutes() + " minutes.",
+                net.kyori.adventure.text.format.NamedTextColor.DARK_GRAY));
+
+        return Command.SINGLE_SUCCESS;
     }
 }

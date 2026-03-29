@@ -144,6 +144,11 @@ public class TownyModule extends AbstractModule {
         bind(org.aincraft.towny.services.BlueprintService.class).to(org.aincraft.towny.services.impl.BlueprintServiceImpl.class).asEagerSingleton();
         bind(org.aincraft.towny.commands.brigadier.BlueprintBrigadierCommand.class).asEagerSingleton();
 
+        // Web server
+        bind(org.aincraft.towny.web.WebServer.class).asEagerSingleton();
+        bind(org.aincraft.towny.web.SessionManager.class).asEagerSingleton();
+        bind(org.aincraft.towny.web.WebServerConfig.class).toInstance(org.aincraft.towny.web.WebServerConfig.loadFromConfig(plugin));
+
   
     /**
      * Provides the data directory for the plugin
