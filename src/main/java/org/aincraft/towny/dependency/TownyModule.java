@@ -113,9 +113,14 @@ public class TownyModule extends AbstractModule {
         bind(TownBroadcastBrigadierCommand.class).asEagerSingleton();
         bind(TownPermBrigadierCommand.class).asEagerSingleton();
         bind(TechTreeBrigadierCommand.class).asEagerSingleton();
+        bind(org.aincraft.towny.commands.brigadier.ChatBrigadierCommand.class).asEagerSingleton();
 
         // Bind GUI classes
         bind(TechTreeGUI.class).asEagerSingleton();
+
+        // Bind chat system
+        bind(ChatService.class).to(org.aincraft.towny.services.impl.ChatServiceImpl.class).asEagerSingleton();
+        bind(TownChatListener.class).asEagerSingleton();
 
         // Bind listener classes
         bind(PlayerMovementListener.class).asEagerSingleton();
