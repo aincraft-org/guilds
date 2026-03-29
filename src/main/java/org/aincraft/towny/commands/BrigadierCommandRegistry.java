@@ -33,6 +33,7 @@ public class BrigadierCommandRegistry {
     private PlotTypeBrigadierCommand plotTypeCommand;
     private TownBroadcastBrigadierCommand townBroadcastCommand;
     private TownPermBrigadierCommand townPermCommand;
+    private TechTreeBrigadierCommand techTreeCommand;
 
     @Inject
     public BrigadierCommandRegistry(TownyPlugin plugin, Injector injector) {
@@ -52,6 +53,7 @@ public class BrigadierCommandRegistry {
         this.plotTypeCommand = injector.getInstance(PlotTypeBrigadierCommand.class);
         this.townBroadcastCommand = injector.getInstance(TownBroadcastBrigadierCommand.class);
         this.townPermCommand = injector.getInstance(TownPermBrigadierCommand.class);
+        this.techTreeCommand = injector.getInstance(TechTreeBrigadierCommand.class);
     }
 
     public void registerCommands() {
@@ -102,6 +104,12 @@ public class BrigadierCommandRegistry {
 
             // Register new town perm command
             commands.register(townPermCommand.buildCommand());
+
+            // Register tech tree command with alias
+            commands.register(techTreeCommand.buildCommand());
+            commands.register(Commands.literal("tt")
+                .redirect(techTreeCommand.buildCommand())
+                .build());
 
             plugin.getLogger().info("All Brigadier commands registered successfully!");
         });
