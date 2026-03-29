@@ -17,9 +17,14 @@ Towny is a comprehensive Minecraft plugin that enables players to create towns, 
 - 🗺️ **Land Claiming** - Claim and protect land chunks for your town
 - 🔐 **Advanced Permissions** - Granular permission system for plots, towns, and residents
 - 🏪 **Plot Types** - Configurable plot types (residential, commercial, farm, etc.)
-- 🌳 **Tech Trees** - Unlock upgrades and features through tech tree progression
+- 🌳 **Tech Trees** - Unlock upgrades across 4 branches (Infrastructure, Defense, Commerce, Culture)
+- 🏰 **Nation System** - Form alliances, declare enemies, manage diplomacy between towns
+- 💬 **Town Chat** - Private chat channels with admin spy mode
+- 💰 **Vault Economy** - Full economy integration with town banking and transaction logging
+- 🎯 **Town Specializations** - Choose MINING, TRADE_HUB, MILITARY, ARCANE, or AGRICULTURAL perks
+- 📋 **Weekly Quests** - Rotating town challenges with tech point rewards
+- 📐 **Blueprints** - Save and paste building templates (WorldEdit integration)
 - 📢 **Broadcast System** - Town-wide announcements and communication
-- 🗣️ **Town Chat** - Private chat channels for town members
 - 📊 **Town Levels** - Leveling system with configurable benefits
 - 💾 **SQLite Database** - Persistent storage with HikariCP connection pooling
 - ⚡ **High Performance** - Caffeine caching for optimal performance
@@ -98,6 +103,69 @@ cd guilds
 | `/map` | View town map | `towny.map` |
 | `/townlevel` | View town level info | `towny.level` |
 | `/towny reload` | Reload configuration | `towny.admin.reload` |
+
+### Tech Tree Commands
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/techtree` | Open tech tree GUI | `towny.techtree.view` |
+| `/techtree info <node>` | Show node details | `towny.techtree.view` |
+| `/techtree unlock <node>` | Unlock a tech node | `towny.techtree.unlock` |
+| `/techtree list [branch]` | List nodes by branch | `towny.techtree.view` |
+| `/tt` | Alias for /techtree | `towny.techtree.view` |
+
+### Nation Commands
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/nation create <name>` | Create a nation | `towny.nation.create` |
+| `/nation invite <town>` | Invite a town | `towny.nation.invite` |
+| `/nation join <nation>` | Join a nation | `towny.nation.join` |
+| `/nation leave` | Leave nation | `towny.nation.leave` |
+| `/nation list` | List all nations | `towny.commands.nation` |
+| `/nation info [nation]` | Show nation details | `towny.commands.nation` |
+| `/nation ally <nation>` | Form alliance | `towny.nation.ally` |
+| `/nation enemy <nation>` | Declare enemy | `towny.nation.enemy` |
+| `/nation kick <town>` | Kick a town | `towny.nation.kick` |
+| `/nation set king <player>` | Transfer kingship | `towny.nation.set` |
+| `/nation set tax <rate>` | Set tax rate | `towny.nation.set` |
+| `/nation set open <true/false>` | Toggle open/closed | `towny.nation.set` |
+| `/n` | Alias for /nation | `towny.commands.nation` |
+
+### Chat Commands
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/tc <message>` | Send town chat message | `towny.chat.town` |
+| `/tc` | Toggle town chat channel | `towny.chat.town` |
+| `/townchat` | Alias for /tc | `towny.chat.town` |
+
+### Specialization Commands
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/town specialize` | View specializations | `towny.town.specialize` |
+| `/town specialize <type>` | Choose specialization | `towny.town.specialize` |
+| `/town specialize reset` | Remove specialization | `towny.town.specialize` |
+
+### Quest Commands
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/town quests` | List active quests | `towny.commands.nation` |
+| `/town quest progress` | Show quest progress | `towny.commands.nation` |
+| `/town quest refresh` | Regenerate quests (admin) | `towny.admin.quest` |
+
+### Blueprint Commands
+
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/blueprint save <name>` | Save selection | `towny.commands.blueprint` |
+| `/blueprint list` | List town blueprints | `towny.commands.blueprint` |
+| `/blueprint load <name>` | View blueprint info | `towny.commands.blueprint` |
+| `/blueprint apply <name>` | Paste at location | `towny.commands.blueprint` |
+| `/blueprint delete <name>` | Delete blueprint | `towny.commands.blueprint` |
+| `/bp` | Alias for /blueprint | `towny.commands.blueprint` |
 
 ## 🔐 Permission System
 
@@ -251,6 +319,13 @@ src/
 - **ResidentService** - Player data management
 - **BroadcastService** - Town announcements
 - **TownLevelService** - Level progression system
+- **TechTreeService** - Tech node unlocking and effects
+- **EconomyService** - Vault economy integration with town banking
+- **ChatService** - Town chat channels and admin spy
+- **NationService** - Nation management and diplomacy
+- **SpecializationService** - Town specialization perks
+- **QuestService** - Weekly quest generation and tracking
+- **BlueprintService** - Building template save/load/apply
 
 #### Dependency Injection
 
