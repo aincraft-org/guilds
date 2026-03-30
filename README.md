@@ -169,26 +169,170 @@ cd guilds
 
 ## 🔐 Permission System
 
-Towny features a comprehensive permission system with multiple layers:
+Towny uses standard Bukkit permission nodes (`towny.*`). These work with LuckPerms, PermissionsEx, or any Bukkit-compatible permission plugin. Nodes marked `default: op` require operator status; `default: true` are available to all players.
 
-### Permission Flags
+### Wildcard Permissions
+
+| Node | Description |
+|------|-------------|
+| `towny.*` | Grants ALL permissions |
+| `towny.admin.*` | Grants all admin permissions |
+| `towny.town.*` | Grants all town permissions |
+| `towny.resident.*` | Grants all resident permissions |
+| `towny.plot.*` | Grants all plot permissions |
+| `towny.general.*` | Grants all general permissions |
+| `towny.broadcast.*` | Grants all broadcast permissions |
+| `towny.nation.*` | Grants all nation permissions |
+| `towny.chat.*` | Grants all chat permissions |
+| `towny.techtree.*` | Grants all tech tree permissions |
+| `towny.blueprint.*` | Grants all blueprint permissions |
+
+### Town Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.town.create` | true | Create a new town |
+| `towny.town.delete` | true | Delete your town |
+| `towny.town.join` | true | Join a town |
+| `towny.town.leave` | true | Leave your town |
+| `towny.town.claim` | true | Claim land for your town |
+| `towny.town.unclaim` | true | Unclaim land |
+| `towny.town.spawn` | true | Teleport to town spawn |
+| `towny.town.set` | true | Configure town settings |
+| `towny.town.kick` | true | Kick a player from town |
+| `towny.town.invite` | true | Invite a player to town |
+| `towny.town.mayor` | true | Mayor-only actions |
+| `towny.town.assistant` | true | Assistant actions |
+| `towny.town.specialize` | true | Set town specialization |
+
+### Plot Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.plot.claim` | true | Claim a plot |
+| `towny.plot.unclaim` | true | Unclaim a plot |
+| `towny.plot.info` | true | View plot information |
+| `towny.plot.set` | true | Set plot type |
+| `towny.plot.perms` | true | View/modify plot permissions |
+| `towny.plot.toggle` | true | Toggle plot settings |
+| `towny.plot.buy` | true | Buy plots for sale |
+| `towny.plot.forsale` | true | Put plot up for sale |
+| `towny.plot.list` | true | List town plots |
+| `towny.plot.perm` | true | Set specific plot flags |
+
+### Nation Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.commands.nation` | true | Base nation command access |
+| `towny.nation.create` | true | Create a nation |
+| `towny.nation.invite` | true | Invite a town to nation |
+| `towny.nation.join` | true | Join a nation |
+| `towny.nation.leave` | true | Leave nation |
+| `towny.nation.kick` | true | Kick a town from nation |
+| `towny.nation.ally` | true | Form alliance |
+| `towny.nation.enemy` | true | Declare enemy |
+| `towny.nation.set` | true | Configure nation settings |
+
+### Chat Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.chat.town` | true | Send/receive town chat |
+| `towny.chat.spy` | op | Spy on any town's chat |
+
+### Tech Tree Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.techtree.view` | true | View the tech tree |
+| `towny.techtree.unlock` | true | Unlock tech nodes |
+
+### Blueprint Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.commands.blueprint` | true | Base blueprint command access |
+
+### Quest Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.quest` | true | View town quests |
+| `towny.admin.quest` | op | Refresh/regenerate quests |
+
+### General Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.general.info` | true | View plugin info |
+| `towny.general.chat` | true | Use general chat |
+| `towny.general.top` | true | View town rankings |
+| `towny.general.prices` | true | View prices |
+| `towny.general.time` | true | View server time |
+| `towny.general.universe` | true | View universe info |
+| `towny.general.version` | true | View plugin version |
+| `towny.map` | true | View town map |
+| `towny.level` | true | View town level info |
+
+### Admin Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.admin.reload` | op | Reload config |
+| `towny.admin.backup` | op | Backup database |
+| `towny.admin.purge` | op | Purge data |
+| `towny.admin.town` | op | Admin town management |
+| `towny.admin.resident` | op | Admin resident management |
+| `towny.admin.plot` | op | Admin plot management |
+| `towny.admin.plottype` | op | Manage plot types |
+| `towny.admin.unclaim` | op | Force unclaim |
+| `towny.admin.claim` | op | Force claim |
+| `towny.admin.bypass` | op | Bypass all restrictions |
+| `towny.admin.nation` | op | Admin nation management |
+| `towny.admin.blueprint` | op | Admin blueprint management |
+| `towny.admin.quest` | op | Admin quest management |
+| `towny.admin.perm` | op | Debug permissions |
+| `towny.admin.specialize` | op | Force specialization change |
+
+### Broadcast Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.broadcast` | true | Base broadcast access |
+| `towny.broadcast.create` | true | Create broadcasts |
+| `towny.broadcast.read` | true | Read broadcasts |
+| `towny.broadcast.manage` | true | Manage broadcasts |
+
+### Resident Permissions
+
+| Node | Default | Description |
+|------|---------|-------------|
+| `towny.resident.info` | true | View resident info |
+| `towny.resident.list` | true | List residents |
+| `towny.resident.friend` | true | Manage friends |
+| `towny.resident.town` | true | View resident's town |
+
+### In-Game Plot Flags
+
+These are set per-plot via `/plot perms` and control who can do what on a specific plot:
 
 - **BUILD** - Can place blocks
 - **DESTROY** - Can break blocks
 - **SWITCH** - Can use doors, levers, buttons
 - **ITEM_USE** - Can use items
-- **CLAIM** - Can claim land
-- **UNCLAIM** - Can unclaim land
-- **SPAWN** - Can teleport to town
-- **SET_SPAWN** - Can set town spawn
+- **CLAIM** - Can claim the plot
+- **UNCLAIM** - Can unclaim the plot
+- **SPAWN** - Can teleport to plot
+- **SET_SPAWN** - Can set plot spawn
 - **INVITE** - Can invite players
 - **KICK** - Can kick players
 - **PROMOTE** - Can promote players
 - **DEMOTE** - Can demote players
 - **ADMIN** - Administrative access
-- **BYPASS** - Bypass permissions
+- **BYPASS** - Bypass plot restrictions
 
-### Permission Hierarchy
+### Permission Evaluation Order
 
 1. **Plot Owner** - Highest priority on owned plots
 2. **Town Rank** - Mayor, Assistant, etc.
