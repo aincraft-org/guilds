@@ -1,5 +1,7 @@
 package com.azoth.territory.model;
 
+import com.azoth.territory.decree.DecreeEffects;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -235,7 +237,7 @@ public final class Territory {
     }
 
     /**
-     * Propose a policy under this territory's government (proposer must be eligible).
+     * Propose a policy without structured effects (delegates with empty effects).
      */
     public Territory proposePolicy(
             String policyId,
@@ -244,7 +246,21 @@ public final class Territory {
             String proposerId,
             long nowEpochMs
     ) {
-        Policy p = PolicyRules.propose(government, policyId, title, body, proposerId, nowEpochMs);
+        return proposePolicy(policyId, title, body, proposerId, nowEpochMs, DecreeEffects.empty());
+    }
+
+    /**
+     * Propose a policy under this territory's government (proposer must be eligible).
+     */
+    public Territory proposePolicy(
+            String policyId,
+            String title,
+            String body,
+            String proposerId,
+            long nowEpochMs,
+            DecreeEffects effects
+    ) {
+        Policy p = PolicyRules.propose(government, policyId, title, body, proposerId, nowEpochMs, effects);
         if (policies.containsKey(p.id())) {
             throw new IllegalArgumentException("policy already exists: " + p.id());
         }

@@ -1,5 +1,7 @@
 package com.azoth.territory.model;
 
+import com.azoth.territory.decree.DecreeEffects;
+
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -69,6 +71,10 @@ public final class PolicyRules {
     /**
      * Create a proposed policy under the government. Proposer must be in the electorate.
      */
+    /**
+     * Create a proposed policy under the government (no structured effects).
+     * Proposer must be in the electorate.
+     */
     public static Policy propose(
             Government government,
             String id,
@@ -76,6 +82,22 @@ public final class PolicyRules {
             String body,
             String proposerId,
             long nowEpochMs
+    ) {
+        return propose(government, id, title, body, proposerId, nowEpochMs, DecreeEffects.empty());
+    }
+
+    /**
+     * Create a proposed policy under the government with structured decree effects.
+     * Proposer must be in the electorate.
+     */
+    public static Policy propose(
+            Government government,
+            String id,
+            String title,
+            String body,
+            String proposerId,
+            long nowEpochMs,
+            DecreeEffects effects
     ) {
         Objects.requireNonNull(government, "government");
         if (!government.isAssigned()) {
@@ -86,7 +108,14 @@ public final class PolicyRules {
                     "proposer '" + proposerId + "' is not eligible under " + government.form()
             );
         }
-        return Policy.propose(id, title, body, proposerId, nowEpochMs);
+        Policy p = Policy.propose(id, title, body, proposerId, nowEpochMs);
+        if (effects == null || effects.isEmpty()) {
+            return p;
+        }
+        return new Policy(
+                p.id(), p.title(), p.body(), p.proposerId(), PolicyStatus.PROPOSED,
+                p.votes(), null, nowEpochMs, effects
+        );
     }
 
     /**

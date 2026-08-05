@@ -1,5 +1,7 @@
 package com.azoth.territory.model;
 
+import com.azoth.territory.decree.DecreeEffects;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -23,6 +25,7 @@ public final class Policy {
     private final Map<String, PolicyVote> votesByVoter;
     private final Long resolvedAtEpochMs;
     private final Long proposedAtEpochMs;
+    private final DecreeEffects effects;
 
     public Policy(
             String id,
@@ -33,6 +36,20 @@ public final class Policy {
             List<PolicyVote> votes,
             Long resolvedAtEpochMs,
             Long proposedAtEpochMs
+    ) {
+        this(id, title, body, proposerId, status, votes, resolvedAtEpochMs, proposedAtEpochMs, DecreeEffects.empty());
+    }
+
+    public Policy(
+            String id,
+            String title,
+            String body,
+            String proposerId,
+            PolicyStatus status,
+            List<PolicyVote> votes,
+            Long resolvedAtEpochMs,
+            Long proposedAtEpochMs,
+            DecreeEffects effects
     ) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("policy id is required");
@@ -54,6 +71,7 @@ public final class Policy {
         this.votesByVoter = Collections.unmodifiableMap(map);
         this.resolvedAtEpochMs = resolvedAtEpochMs;
         this.proposedAtEpochMs = proposedAtEpochMs;
+        this.effects = effects == null ? DecreeEffects.empty() : effects;
     }
 
     public static Policy propose(
@@ -65,7 +83,7 @@ public final class Policy {
     ) {
         return new Policy(
                 id, title, body, proposerId,
-                PolicyStatus.PROPOSED, List.of(), null, proposedAtEpochMs
+                PolicyStatus.PROPOSED, List.of(), null, proposedAtEpochMs, DecreeEffects.empty()
         );
     }
 
@@ -108,6 +126,10 @@ public final class Policy {
         return Optional.ofNullable(proposedAtEpochMs);
     }
 
+    public DecreeEffects effects() {
+        return effects;
+    }
+
     public int yesCount() {
         return count(VoteChoice.YES);
     }
@@ -139,7 +161,7 @@ public final class Policy {
         next.put(vote.voterId(), vote);
         return new Policy(
                 id, title, body, proposerId, status,
-                new ArrayList<>(next.values()), resolvedAtEpochMs, proposedAtEpochMs
+                new ArrayList<>(next.values()), resolvedAtEpochMs, proposedAtEpochMs, effects
         );
     }
 
@@ -149,7 +171,8 @@ public final class Policy {
                 id, title, body, proposerId, newStatus,
                 new ArrayList<>(votesByVoter.values()),
                 newStatus.isTerminal() ? resolvedAt : resolvedAtEpochMs,
-                proposedAtEpochMs
+                proposedAtEpochMs,
+                effects
         );
     }
 
@@ -168,13 +191,14 @@ public final class Policy {
                 && status == that.status
                 && votesByVoter.equals(that.votesByVoter)
                 && Objects.equals(resolvedAtEpochMs, that.resolvedAtEpochMs)
-                && Objects.equals(proposedAtEpochMs, that.proposedAtEpochMs);
+                && Objects.equals(proposedAtEpochMs, that.proposedAtEpochMs)
+                && effects.equals(that.effects);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id, title, body, proposerId, status, votesByVoter,
-                resolvedAtEpochMs, proposedAtEpochMs);
+                resolvedAtEpochMs, proposedAtEpochMs, effects);
     }
 
     @Override
