@@ -117,7 +117,7 @@ public class SpecializationBrigadierCommand {
             return 0;
         }
 
-        if (!townOpt.get().getMayor().equals(player.getUniqueId()) && !player.hasPermission("towny.admin.specialize")) {
+        if (!townOpt.get().getMayorUuid().equals(player.getUniqueId()) && !player.hasPermission("towny.admin.specialize")) {
             player.sendMessage(Component.text("Only the town mayor can reset specializations!", NamedTextColor.RED));
             return 0;
         }
@@ -152,7 +152,7 @@ public class SpecializationBrigadierCommand {
             return 0;
         }
 
-        if (!townOpt.get().getMayor().equals(player.getUniqueId()) && !player.hasPermission("towny.admin.specialize")) {
+        if (!townOpt.get().getMayorUuid().equals(player.getUniqueId()) && !player.hasPermission("towny.admin.specialize")) {
             player.sendMessage(Component.text("Only the town mayor can set specializations!", NamedTextColor.RED));
             return 0;
         }

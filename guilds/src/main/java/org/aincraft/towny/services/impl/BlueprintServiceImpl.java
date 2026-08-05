@@ -39,7 +39,7 @@ public class BlueprintServiceImpl implements BlueprintService {
             return Optional.of(cached);
         }
 
-        return databaseManager.executeTransaction(connection -> {
+        return databaseManager.executeTransactionWithResult(connection -> {
             String sql = "SELECT * FROM blueprints WHERE name = ?";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 ps.setString(1, name);
@@ -47,17 +47,17 @@ public class BlueprintServiceImpl implements BlueprintService {
                     if (rs.next()) {
                         Blueprint blueprint = mapResultSetToBlueprint(rs);
                         blueprintCache.put(name, blueprint);
-                        return Optional.of(blueprint);
+                        return blueprint;
                     }
                 }
             }
-            return Optional.empty();
+            return null;
         });
     }
 
     @Override
     public List<Blueprint> getTownBlueprints(String townId) {
-        return databaseManager.executeTransaction(connection -> {
+        return databaseManager.executeTransactionWithResult(connection -> {
             List<Blueprint> blueprints = new ArrayList<>();
             String sql = "SELECT * FROM blueprints WHERE town_id = ? ORDER BY created_at DESC";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -71,7 +71,7 @@ public class BlueprintServiceImpl implements BlueprintService {
                 }
             }
             return blueprints;
-        });
+        }).orElseGet(List::of);
     }
 
     @Override
@@ -92,7 +92,6 @@ public class BlueprintServiceImpl implements BlueprintService {
                 Blueprint blueprint = new Blueprint(id, name, author, townId, schematicData, LocalDateTime.now());
                 blueprintCache.put(name, blueprint);
             }
-            return null;
         });
     }
 
@@ -105,7 +104,6 @@ public class BlueprintServiceImpl implements BlueprintService {
                 ps.executeUpdate();
                 blueprintCache.remove(name);
             }
-            return null;
         });
     }
 

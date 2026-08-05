@@ -18,6 +18,7 @@ import org.aincraft.towny.web.WebServerConfig;
 import org.aincraft.towny.web.TechTreeSession;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
+import org.bukkit.entity.Player;
 
 import java.util.*;
 

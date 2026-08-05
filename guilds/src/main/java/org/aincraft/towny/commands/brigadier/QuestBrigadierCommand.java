@@ -2,27 +2,26 @@ package org.aincraft.towny.commands.brigadier;
 
 import com.google.inject.Inject;
 import com.mojang.brigadier.Command;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.towny.TownyPlugin;
-import org.aincraft.towny.commands.CommandSender;
-import org.aincraft.towny.models.Town;
+import org.aincraft.towny.models.Resident;
 import org.aincraft.towny.models.TownQuest;
-import org.aincraft.towny.models.TownResident;
 import org.aincraft.towny.services.QuestService;
 import org.aincraft.towny.services.ResidentService;
 import org.aincraft.towny.services.TownService;
+import org.bukkit.command.CommandSender;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.string;
-import static org.aincraft.towny.commands.CommandHelper.sender;
 
-public class QuestBrigadierCommand implements BrigadierCommand {
+public class QuestBrigadierCommand {
 
     private final TownyPlugin plugin;
     private final QuestService questService;
@@ -37,29 +36,29 @@ public class QuestBrigadierCommand implements BrigadierCommand {
         this.residentService = residentService;
     }
 
-    @Override
-    public LiteralCommandNode<CommandSender> buildCommand() {
-        return LiteralArgumentBuilder.<CommandSender>literal("quest")
-                .requires(source -> sender(source).hasPermission("towny.quest"))
+    public LiteralCommandNode<CommandSourceStack> buildCommand() {
+        return LiteralArgumentBuilder.<CommandSourceStack>literal("quest")
+                .requires(source -> source.getSender().hasPermission("towny.quest"))
                 .executes(this::handleQuestList)
-                .then(LiteralArgumentBuilder.<CommandSender>literal("progress")
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("progress")
                         .executes(this::handleProgressDetail))
-                .then(LiteralArgumentBuilder.<CommandSender>literal("refresh")
-                        .requires(source -> sender(source).hasPermission("towny.quest.admin"))
+                .then(LiteralArgumentBuilder.<CommandSourceStack>literal("refresh")
+                        .requires(source -> source.getSender().hasPermission("towny.quest.admin"))
                         .executes(this::handleRefresh))
                 .build();
     }
 
-    private int handleQuestList(CommandContext<CommandSender> context) {
-        CommandSender sender = sender(context);
-        TownResident resident = residentService.getResident(sender.getName());
-        
-        if (resident == null || resident.getTown() == null) {
+    private int handleQuestList(CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        Optional<Resident> residentOpt = residentService.getResident(sender.getName());
+
+        if (residentOpt.isEmpty() || residentOpt.get().getTown() == null) {
             sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
-        String townId = resident.getTown().getName();
+        Resident resident = residentOpt.get();
+        String townId = resident.getTown();
         List<TownQuest> activeQuests = questService.getActiveQuests(townId);
 
         if (activeQuests.isEmpty()) {
@@ -75,16 +74,17 @@ public class QuestBrigadierCommand implements BrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleProgressDetail(CommandContext<CommandSender> context) {
-        CommandSender sender = sender(context);
-        TownResident resident = residentService.getResident(sender.getName());
-        
-        if (resident == null || resident.getTown() == null) {
+    private int handleProgressDetail(CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        Optional<Resident> residentOpt = residentService.getResident(sender.getName());
+
+        if (residentOpt.isEmpty() || residentOpt.get().getTown() == null) {
             sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
-        String townId = resident.getTown().getName();
+        Resident resident = residentOpt.get();
+        String townId = resident.getTown();
         List<TownQuest> activeQuests = questService.getActiveQuests(townId);
 
         if (activeQuests.isEmpty()) {
@@ -100,18 +100,19 @@ public class QuestBrigadierCommand implements BrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleRefresh(CommandContext<CommandSender> context) {
-        CommandSender sender = sender(context);
-        TownResident resident = residentService.getResident(sender.getName());
-        
-        if (resident == null || resident.getTown() == null) {
+    private int handleRefresh(CommandContext<CommandSourceStack> context) {
+        CommandSender sender = context.getSource().getSender();
+        Optional<Resident> residentOpt = residentService.getResident(sender.getName());
+
+        if (residentOpt.isEmpty() || residentOpt.get().getTown() == null) {
             sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
-        String townId = resident.getTown().getName();
+        Resident resident = residentOpt.get();
+        String townId = resident.getTown();
         questService.generateWeeklyQuests(townId);
-        
+
         List<TownQuest> newQuests = questService.getActiveQuests(townId);
         sender.sendMessage(Component.text("Refreshed weekly quests!").color(NamedTextColor.GREEN));
         if (!newQuests.isEmpty()) {

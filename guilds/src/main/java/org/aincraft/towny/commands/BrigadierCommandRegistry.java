@@ -115,11 +115,11 @@ public class BrigadierCommandRegistry {
             // Register new town perm command
             commands.register(townPermCommand.buildCommand());
 
-        // Register blueprint
+            // Register blueprint
             commands.register(blueprintCommand.buildCommand());
 
- command with alias
-        commands.register(techTreeCommand.buildCommand());
+            // Register tech tree command with alias
+            commands.register(techTreeCommand.buildCommand());
         commands.register(Commands.literal("tt")
                 .redirect(techTreeCommand.buildCommand())
                 .build());

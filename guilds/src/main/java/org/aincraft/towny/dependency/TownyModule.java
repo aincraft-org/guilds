@@ -22,6 +22,7 @@ import org.aincraft.towny.listeners.PlayerMovementListener;
 import org.aincraft.towny.listeners.TownToggleListener;
 import org.aincraft.towny.listeners.TownPublicAccessListener;
 import org.aincraft.towny.listeners.TownBroadcastListener;
+import org.aincraft.towny.listeners.TownChatListener;
 import org.aincraft.towny.config.DatabaseConfig;
 import org.aincraft.towny.config.TownyConfig;
 import org.aincraft.towny.config.TownLevelConfigLoader;
@@ -148,8 +149,8 @@ public class TownyModule extends AbstractModule {
         bind(org.aincraft.towny.web.WebServer.class).asEagerSingleton();
         bind(org.aincraft.towny.web.SessionManager.class).asEagerSingleton();
         bind(org.aincraft.towny.web.WebServerConfig.class).toInstance(org.aincraft.towny.web.WebServerConfig.loadFromConfig(plugin));
+    }
 
-  
     /**
      * Provides the data directory for the plugin
      * @return Plugin data directory

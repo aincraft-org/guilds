@@ -258,7 +258,7 @@ public class DatabaseManager {
             try {
                 T result = transaction.execute(connection);
                 connection.commit();
-                return Optional.of(result);
+                return Optional.ofNullable(result);
             } catch (SQLException e) {
                 connection.rollback();
                 plugin.getLogger().log(Level.WARNING, "Transaction rolled back: " + e.getMessage(), e);

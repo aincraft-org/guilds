@@ -1,6 +1,7 @@
 package org.aincraft.towny;
 
 import com.google.inject.Guice;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
 import org.aincraft.towny.commands.BrigadierCommandRegistry;
 import org.aincraft.towny.commands.TownCommand;

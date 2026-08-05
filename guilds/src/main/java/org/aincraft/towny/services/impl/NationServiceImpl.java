@@ -151,9 +151,9 @@ public class NationServiceImpl implements NationService {
         if (getNation(name).isPresent()) {
             throw new IllegalArgumentException("Nation already exists: " + name);
         }
+        Nation nation = new Nation(name, capitalTown.getId(), kingUuid);
 
         databaseManager.executeTransaction(connection -> {
-            Nation nation = new Nation(name, capitalTown.getId(), kingUuid);
 
             // Insert nation
             String nationSql = """

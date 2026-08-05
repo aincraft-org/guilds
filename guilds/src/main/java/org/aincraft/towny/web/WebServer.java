@@ -8,6 +8,7 @@ import io.javalin.http.HttpStatus;
 import io.javalin.json.JavalinGson;
 import io.javalin.websocket.WsConfig;
 import io.javalin.websocket.WsContext;
+import io.javalin.websocket.WsMessageContext;
 import org.aincraft.towny.TownyPlugin;
 import org.aincraft.towny.models.TechTreeNode;
 import org.aincraft.towny.models.Town;
@@ -65,18 +66,9 @@ public class WebServer {
         try {
             app = Javalin.create(config -> {
                 // Set up Gson for JSON serialization
-                config.jsonMapper(new JavalinGson(gson));
-                
-                // Configure CORS
-                config.plugins.enableCors(cors -> {
-                    if (config.getCorsOrigins() != null && !config.getCorsOrigins().isEmpty()) {
-                        cors.add(it -> it.anyHost()
-                                .allowedOrigins(config.getCorsOrigins().toArray(new String[0]))
-                                .allowCredentials(true));
-                    } else {
-                        cors.add(it -> it.anyHost().allowCredentials(true));
-                    }
-                });
+                config.jsonMapper(new JavalinGson(gson, true));
+                // No CORS policy is configured by the plugin; leave Javalin's
+                // default (no CORS headers) rather than broadening access.
             });
 
             setupRoutes();
@@ -190,7 +182,7 @@ public class WebServer {
         ctx.send(buildTreeStateJson(session, town));
     }
 
-    private void handleWebSocketMessage(WsContext ctx) {
+    private void handleWebSocketMessage(WsMessageContext ctx) {
         String message = ctx.message();
         String sessionId = ctx.pathParam("sessionId");
         
@@ -273,7 +265,10 @@ public class WebServer {
         
         int totalCost = 0;
         for (String nodeId : pending) {
-            techTreeService.getNode(nodeId).ifPresent(node -> totalCost += node.getCost());
+            Optional<TechTreeNode> nodeOpt = techTreeService.getNode(nodeId);
+            if (nodeOpt.isPresent()) {
+                totalCost += nodeOpt.get().getCost();
+            }
         }
         
         if (town.getTechPoints() < totalCost) {

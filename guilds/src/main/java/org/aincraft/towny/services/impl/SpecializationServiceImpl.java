@@ -48,7 +48,7 @@ public class SpecializationServiceImpl implements SpecializationService {
         if (town.isEmpty()) {
             return false;
         }
-        return town.get().getLevel() >= 10;
+        return town.get().getTownLevel() >= 10;
     }
 
     @Override
@@ -127,7 +127,7 @@ public class SpecializationServiceImpl implements SpecializationService {
 
     private int getTownLevel(String townId) {
         return townService.getTown(townId)
-                .map(Town::getLevel)
+                .map(Town::getTownLevel)
                 .orElse(0);
     }
 }
