@@ -9,15 +9,18 @@ import java.util.Objects;
  * Non-monetary, in-memory treasury ledger for development and tests. Copy-on-write:
  * every credit/debit returns a new instance and leaves the original untouched.
  */
-public final class SimulationTreasury {
+public final class SimulationTreasury implements PaymentRail {
     private final Map<String, Double> balances;
+    private volatile SimulationTreasury state;
 
     public SimulationTreasury() {
         this.balances = Map.of();
+        this.state = this;
     }
 
     private SimulationTreasury(Map<String, Double> balances) {
         this.balances = Collections.unmodifiableMap(balances);
+        this.state = this;
     }
 
     public Map<String, Double> balances() {
@@ -44,6 +47,23 @@ public final class SimulationTreasury {
         }
         return update(territoryId, current - amount);
     }
+
+    @Override
+    public synchronized SettlementResult settle(java.util.UUID payerId, String territoryId, double amount) {
+        state = state.credit(territoryId, amount);
+        return new SettlementResult(PaymentRail.SettlementStatus.SETTLED);
+    }
+
+    @Override
+    public boolean available() {
+        return true;
+    }
+
+    /** Balance of the active ledger after payment-rail settlements. */
+    public double activeBalanceOf(String territoryId) {
+        return state.balanceOf(territoryId);
+    }
+
 
     private double get(String territoryId) {
         return balances.getOrDefault(Objects.requireNonNull(territoryId, "territoryId").trim(), 0.0);
