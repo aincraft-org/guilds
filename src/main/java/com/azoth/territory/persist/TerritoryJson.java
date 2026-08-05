@@ -1,5 +1,7 @@
 package com.azoth.territory.persist;
 
+import com.azoth.territory.decree.DecreeEffects;
+import com.azoth.territory.decree.DecreeEffectsCodec;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.ChunkPos;
@@ -132,6 +134,7 @@ public final class TerritoryJson {
             votes.add(vo);
         }
         o.add("votes", votes);
+        o.add("effects", DecreeEffectsCodec.toJson(p.effects()));
         return o;
     }
 
@@ -156,7 +159,10 @@ public final class TerritoryJson {
                 ));
             }
         }
-        return new Policy(id, title, body, proposer, status, votes, resolved, proposed);
+        DecreeEffects effects = o.has("effects") && o.get("effects").isJsonObject()
+                ? DecreeEffectsCodec.fromJson(o.getAsJsonObject("effects"))
+                : DecreeEffects.empty();
+        return new Policy(id, title, body, proposer, status, votes, resolved, proposed, effects);
     }
 
     public JsonObject governmentToJson(Government g) {
