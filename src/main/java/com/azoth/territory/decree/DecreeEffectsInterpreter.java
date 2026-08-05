@@ -57,13 +57,16 @@ public final class DecreeEffectsInterpreter {
         if (policies == null || policies.isEmpty()) {
             return Map.of();
         }
+        Map<String, Double> merged = new LinkedHashMap<>();
         for (Policy p : policies) {
             Objects.requireNonNull(p, "policy");
-            // Future: merge taxRatesByGoodId(p.effects()) for PASSED policies.
             if (p.status() != PolicyStatus.PASSED) {
                 continue;
             }
+            for (Map.Entry<String, Double> e : taxRatesByGoodId(p.effects()).entrySet()) {
+                merged.merge(e.getKey(), e.getValue(), Double::sum);
+            }
         }
-        return Map.of();
+        return Collections.unmodifiableMap(merged);
     }
 }
