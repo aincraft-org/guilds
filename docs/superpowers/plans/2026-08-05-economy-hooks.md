@@ -937,6 +937,7 @@ public interface PaymentRail {
     enum SettlementStatus {
         INSUFFICIENT_FUNDS,   // payer can't cover the amount; nothing moved
         PAYER_UNAVAILABLE,    // payer has no account; nothing moved
+        VAULT_UNAVAILABLE,    // Vault absent, bank-less, or territory bank not provisioned; nothing moved
         SETTLED,              // payer charged AND treasury credited
         COMPENSATED_FAILURE,  // payer charged, deposit failed, refund succeeded (net-zero)
         RECONCILIATION_REQUIRED  // payer charged, deposit+refund failed (stranded)
@@ -1387,11 +1388,13 @@ class VaultTreasuryTest {
         public boolean hasAccount(OfflinePlayer player, String worldName) { return true; }
 
         @Override
-        public boolean withdrawPlayer(OfflinePlayer player, double amount) {
+        public EconomyResponse withdrawPlayer(OfflinePlayer player, double amount) {
             withdrawCalls++;
-            if (!withdrawOk || payerBalance < amount) return false;
+            if (!withdrawOk || payerBalance < amount) {
+                return new EconomyResponse(0, payerBalance, EconomyResponse.ResponseType.FAILURE, "withdraw failed");
+            }
             payerBalance -= amount;
-            return true;
+            return new EconomyResponse(amount, payerBalance, EconomyResponse.ResponseType.SUCCESS, null);
         }
         @Override
         public EconomyResponse depositPlayer(OfflinePlayer player, double amount) {
@@ -1530,12 +1533,18 @@ import java.util.UUID;
 
 /**
  * Vault-backed {@link PaymentRail}. Territory balances live in Vault bank
- * accounts (bank id = territory id); the payer is charged from their player
- * account. Compensation sequence: withdraw payer → deposit bank → on deposit
- * failure refund payer; if the refund also fails the charge is stranded
- * (RECONCILIATION_REQUIRED). Low-level Vault calls are private to this class.
+ * accounts (bank id = territory id), provisioned at startup by
+ * {@link #provisionTerritories(java.util.Collection)} with a stable Azoth
+ * service owner (never a sale payer). The payer is charged from their player
+ * account. Compensation sequence: ensure bank exists (VAULT_UNAVAILABLE if
+ * not) → withdraw payer → deposit bank → on deposit failure refund payer; if
+ * the refund also fails the charge is stranded (RECONCILIATION_REQUIRED).
+ * Low-level Vault calls are private to this class.
  */
 public final class VaultTreasury implements PaymentRail {
+
+    private static final String SERVICE_OWNER = "AzothTerritory-Service";
+    private static final UUID SERVICE_OWNER_ID = UUID.nameUUIDFromBytes(SERVICE_OWNER.getBytes());
 
     private final Economy economy;
 
@@ -1543,10 +1552,43 @@ public final class VaultTreasury implements PaymentRail {
         this.economy = economy;
     }
 
+    /**
+     * Provision a Vault bank account for each territory id, owned by the stable
+     * Azoth service account. Call once at startup (and after new territories are
+     * registered). Idempotent: existing banks are left untouched. Returns the
+     * number of territories whose bank could NOT be provisioned.
+     */
+    public int provisionTerritories(java.util.Collection<String> territoryIds) {
+        if (economy == null || !economy.hasBankSupport()) {
+            return territoryIds == null ? 0 : territoryIds.size();
+        }
+        OfflinePlayer serviceOwner = serviceOwner();
+        int failed = 0;
+        for (String id : territoryIds) {
+            if (id == null) {
+                failed++;
+                continue;
+            }
+            EconomyResponse exists = economy.bankBalance(id);
+            if (exists != null && exists.transactionSuccess()) {
+                continue;
+            }
+            EconomyResponse created = economy.createBank(id, serviceOwner.getName());
+            if (created == null || !created.transactionSuccess()) {
+                failed++;
+            }
+        }
+        return failed;
+    }
+
     @Override
     public SettlementResult settle(UUID payerId, String territoryId, double amount) {
         if (economy == null || !economy.hasBankSupport()) {
             return new SettlementResult(SettlementStatus.PAYER_UNAVAILABLE);
+        }
+        // Bank must already exist (startup-provided); never create with the payer.
+        if (!bankExists(territoryId)) {
+            return new SettlementResult(SettlementStatus.VAULT_UNAVAILABLE);
         }
         OfflinePlayer payer = Bukkit.getOfflinePlayer(payerId);
         if (!economy.hasAccount(payer)) {
@@ -1556,10 +1598,11 @@ public final class VaultTreasury implements PaymentRail {
             return new SettlementResult(SettlementStatus.INSUFFICIENT_FUNDS);
         }
         // Withdraw payer first, so a failure can always be unwound back to the payer.
-        if (!economy.withdrawPlayer(payer, amount)) {
+        EconomyResponse withdrawal = economy.withdrawPlayer(payer, amount);
+        if (withdrawal == null || !withdrawal.transactionSuccess()) {
             return new SettlementResult(SettlementStatus.PAYER_UNAVAILABLE);
         }
-        EconomyResponse deposit = economy.bankDeposit(territoryId, payer.getName(), amount);
+        EconomyResponse deposit = economy.bankDeposit(territoryId, amount);
         if (deposit != null && deposit.transactionSuccess()) {
             return new SettlementResult(SettlementStatus.SETTLED);
         }
@@ -1569,6 +1612,23 @@ public final class VaultTreasury implements PaymentRail {
             return new SettlementResult(SettlementStatus.COMPENSATED_FAILURE);
         }
         return new SettlementResult(SettlementStatus.RECONCILIATION_REQUIRED);
+    }
+
+    private boolean bankExists(String territoryId) {
+        if (economy == null) {
+            return false;
+        }
+        EconomyResponse r = economy.bankBalance(territoryId);
+        return r != null && r.transactionSuccess();
+    }
+
+    private static OfflinePlayer serviceOwner() {
+        OfflinePlayer op = Bukkit.getOfflinePlayer(SERVICE_OWNER_ID);
+        // getName() can be null for an unknown offline player; fall back to the id string.
+        if (op.getName() == null) {
+            op = Bukkit.getOfflinePlayer(SERVICE_OWNER);
+        }
+        return op;
     }
 
     @Override
