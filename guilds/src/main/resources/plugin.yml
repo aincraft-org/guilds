@@ -1,0 +1,166 @@
+name: Towny
+version: 1.0.0
+main: org.aincraft.towny.TownyPlugin
+api-version: 1.21
+author: Aincraft
+description: Enhanced town and nation management plugin
+website: https://github.com/aincraft/towny
+
+depend: []
+softdepend: [Vault, WorldEdit, WorldGuard, triumph-gui]
+
+# Command registrations are handled by Brigadier dynamically
+# No command definitions needed here - Brigadier manages registration
+
+permissions:
+  towny.*:
+    description: All Towny permissions
+    children:
+      towny.town.*: true
+      towny.resident.*: true
+      towny.plot.*: true
+      towny.general.*: true
+      towny.map: true
+      towny.admin.*: true
+      towny.nation.*: true
+      towny.chat.*: true
+      towny.techtree.*: true
+      towny.blueprint.*: true
+
+  # ── Town ──────────────────────────────────────────────────
+  towny.town.*:
+    description: All town-related permissions
+    children:
+      towny.town.create: true
+      towny.town.delete: true
+      towny.town.join: true
+      towny.town.leave: true
+      towny.town.claim: true
+      towny.town.unclaim: true
+      towny.town.spawn: true
+      towny.town.set: true
+      towny.town.kick: true
+      towny.town.invite: true
+      towny.town.mayor: true
+      towny.town.assistant: true
+      towny.town.specialize: true
+
+  # ── Resident ──────────────────────────────────────────────
+  towny.resident.*:
+    description: All resident-related permissions
+    children:
+      towny.resident.info: true
+      towny.resident.list: true
+      towny.resident.friend: true
+      towny.resident.town: true
+
+  # ── Plot ──────────────────────────────────────────────────
+  towny.plot.*:
+    description: All plot-related permissions
+    children:
+      towny.plot.claim: true
+      towny.plot.unclaim: true
+      towny.plot.info: true
+      towny.plot.set: true
+      towny.plot.perms: true
+      towny.plot.toggle: true
+
+  # ── Broadcast ─────────────────────────────────────────────
+  towny.broadcast:
+    description: Permission to use town broadcast commands
+    default: true
+
+  towny.broadcast.*:
+    description: All broadcast permissions
+    children:
+      towny.broadcast.create: true
+      towny.broadcast.read: true
+      towny.broadcast.manage: true
+
+  # ── General ───────────────────────────────────────────────
+  towny.general.*:
+    description: General towny permissions
+    children:
+      towny.general.info: true
+      towny.general.chat: true
+      towny.general.top: true
+      towny.general.prices: true
+      towny.general.time: true
+      towny.general.universe: true
+      towny.general.version: true
+
+  # ── Town Chat ─────────────────────────────────────────────
+  towny.chat.town:
+    description: Permission to use town chat
+    default: true
+
+  towny.chat.spy:
+    description: Permission to spy on town chat
+    default: op
+
+  # ── Tech Tree ─────────────────────────────────────────────
+  towny.techtree.view:
+    description: Permission to view the tech tree
+    default: true
+
+  towny.techtree.unlock:
+    description: Permission to unlock tech nodes
+    default: true
+
+  # ── Nation ────────────────────────────────────────────────
+  towny.commands.nation:
+    description: Permission to use nation commands
+    default: true
+
+  towny.nation.*:
+    description: All nation permissions
+    children:
+      towny.nation.create: true
+      towny.nation.invite: true
+      towny.nation.join: true
+      towny.nation.leave: true
+      towny.nation.kick: true
+      towny.nation.ally: true
+      towny.nation.enemy: true
+      towny.nation.set: true
+
+  # ── Blueprint ─────────────────────────────────────────────
+  towny.commands.blueprint:
+    description: Permission to use blueprint commands
+    default: true
+
+  # ── Map ───────────────────────────────────────────────────
+  towny.map:
+    description: Permission to use towny map commands
+    default: true
+
+  # ── Level ─────────────────────────────────────────────────
+  towny.level:
+    description: Permission to use town level commands
+    default: true
+
+  # ── Admin ─────────────────────────────────────────────────
+  towny.admin.perm:
+    description: Permission to use permission debugging commands
+    default: op
+
+  towny.admin.*:
+    description: All admin permissions
+    children:
+      towny.admin.reload: true
+      towny.admin.backup: true
+      towny.admin.purge: true
+      towny.admin.town: true
+      towny.admin.resident: true
+      towny.admin.plot: true
+      towny.admin.plottype: true
+      towny.admin.unclaim: true
+      towny.admin.claim: true
+      towny.admin.bypass: true
+      towny.admin.nation: true
+      towny.admin.blueprint: true
+      towny.admin.quest: true
+
+  towny.admin.plottype:
+    description: Permission to use plot type management commands
+    default: op

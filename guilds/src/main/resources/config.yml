@@ -1,0 +1,111 @@
+# Towny Plugin Configuration
+# This file contains default settings for the Towny plugin
+
+# General Settings
+language: en
+debug: false
+
+# Town Settings
+town:
+  default_tax: 0.0
+  max_name_length: 20
+  min_name_length: 3
+  max_residents: 50
+  creation_cost: 0.0
+  deletion_refund: 0.0
+
+# Plot Settings
+plot:
+  size: 16
+  claim_cost: 0.0
+  unclaim_refund: 0.0
+
+# Permission Settings
+permissions:
+  default_build: false
+  default_destroy: false
+  default_switch: false
+  default_item_use: false
+
+# Database Settings
+database:
+  auto_backup: true
+  backup_interval: 3600  # seconds
+
+# Message Settings
+messages:
+  prefix: "&6[Towny]&r "
+  success_color: "&a"
+  error_color: "&c"
+  info_color: "&e"
+
+# Economic Settings (for future integration)
+economy:
+  enabled: false
+  starting_balance: 100.0
+  daily_upkeep: true
+  upkeep_cost: 10.0
+
+# Town Level System Configuration
+town_levels:
+  max_level: 150
+
+  # Define requirements and benefits for each level
+  # Level 1 has no requirements (starting level)
+  # Material names must match Bukkit Material enum (DIAMOND, GOLD_INGOT, IRON_INGOT, NETHERITE_INGOT, etc.)
+  levels:
+    2:
+      requirements:
+        DIAMOND: 50
+        GOLD_INGOT: 100
+      benefits:
+        tech_points: 1
+        claim_limit_bonus: 2
+        assistant_slots_bonus: 0
+        daily_income_bonus: 0.5
+        unlocked_plot_types: []
+    3:
+      requirements:
+        DIAMOND: 75
+        GOLD_INGOT: 150
+        IRON_INGOT: 50
+      benefits:
+        tech_points: 1
+        claim_limit_bonus: 2
+        assistant_slots_bonus: 0
+        daily_income_bonus: 0.5
+        unlocked_plot_types: []
+    4:
+      requirements:
+        DIAMOND: 100
+        GOLD_INGOT: 200
+        IRON_INGOT: 75
+      benefits:
+        tech_points: 1
+        claim_limit_bonus: 2
+        assistant_slots_bonus: 0
+        daily_income_bonus: 0.5
+        unlocked_plot_types: []
+    5:
+      requirements:
+        DIAMOND: 150
+        GOLD_INGOT: 300
+        IRON_INGOT: 100
+      benefits:
+        tech_points: 1
+        claim_limit_bonus: 2
+        assistant_slots_bonus: 0
+        daily_income_bonus: 0.5
+        unlocked_plot_types: []
+    10:
+      requirements:
+        DIAMOND: 500
+        GOLD_INGOT: 1000
+        IRON_INGOT: 500
+        EMERALD: 50
+      benefits:
+        tech_points: 2
+        claim_limit_bonus: 2
+        assistant_slots_bonus: 1
+        daily_income_bonus: 0.5
+        unlocked_plot_types: ["BANK"]
