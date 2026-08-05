@@ -86,12 +86,12 @@ In-memory wiring via `GovernanceRegistry` + form-based `PermissionRules` / `Bloc
 - Holder → first guild that lists them as a member
 - World location → spatial `TerritoryRegistry.resolve` then territory resolution above
 
-**Formal authority** (`SovereignAction`: `MANAGE_MEMBERSHIP`, `SET_POLICY`, `BREAK_BLOCK`, `PLACE_BLOCK`)
+**Formal authority** (`SovereignAction`: `MANAGE_MEMBERSHIP`, `SET_POLICY`, `BREAK_BLOCK`, `PLACE_BLOCK`, `INTERACT`)
 - `ANARCHY` — no formal grants
 - `MONARCHY` — filled sovereign seat only
 - `OLIGARCHY` / `DEMOCRACY` — each filled authority-role seat holder
 
-**Block protection** (`BlockProtection.canBreak` / `canPlace`)
+**Block protection** (`BlockProtection.canBreak` / `canPlace` / `canInteract` / `canInteractWithEntity` / `allowsPvp` / `canTeleportInto` / `crossesBoundary`)
 - Uncontained wilderness → allow
 - Assigned government → only formal authority holders; outsiders denied
 - Local `ANARCHY` → no seat-based lockdown (allow); still no formal policy authority
@@ -105,16 +105,25 @@ blocks.canBreak("world", x, z, "king:1");   // true
 blocks.canBreak("world", x, z, "outsider"); // false
 ```
 
-Paper listeners are wired on enable (`ProtectionListener`):
+Paper listeners are wired on enable (`ProtectionListener` + `InteractionProtectionListener`):
 
 | Concern | Domain API | Notes |
 |---------|------------|--------|
 | Block break/place | `canBreak` / `canPlace` | Actor = player UUID string |
+| Block interact (chests, doors, buttons, levers, beds, furnaces, hoppers) | `canInteract` | Includes container open (InventoryOpen). Right-click on blocks |
+| Entity interact (item frames, armor stands, paintings, vehicles, leash) | `canInteractWithEntity` | Place + break + rotate + equip |
 | Fire burn/spread/ignite, explosions | `isEnvironmentallyProtected` | Assigned non-anarchy only |
+| Piston push / fluid flow into claims | `crossesBoundary` | Blocked crossing in/out of governed land |
+| Hopper / dropper steals, item pickup | (environmental) | Mechanical actors have no authority → denied in governed land |
 | Natural/hostile mob spawn | `blocksMobSpawn` | Eggs/spawners/commands unrestricted |
 | Entity block change, crop trample | `blocksEntityGrief` | Enderman/wither/farmland |
+| Player PvP / friendly-fire | `allowsPvp` | Denied inside governed land for non-authority attackers; uncontained/anarchy unrestricted |
+| Animal kill / pet damage | `canInteract` on victim | Animals/tameables/villagers/armor stands only; hostile mobs stay killable |
+| Forced teleport / spawn / home-setting into claims | `canTeleportInto` | COMMAND/PLUGIN/portal/pearl causes; owners exempt; respawn-to-bed never fires this event |
 
-Uncontained wilderness and anarchy-governed land stay unrestricted for environmental flags.
+Uncontained wilderness and anarchy-governed land stay unrestricted for environmental flags, block interaction, PvP, and teleport gates.
+
+Company-level friendly fire and per-player home registration are **not expressible in the current model** (no company identity or home store); those remain future work.
 
 ## Data format (sketch)
 
