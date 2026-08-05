@@ -54,6 +54,15 @@ implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
     // H2 in-memory database for testing
     testImplementation("com.h2database:h2:2.2.224")
 }
+sourceSets {
+    test {
+        java {
+            // These examples/tests are intentionally disabled and reference
+            // removed APIs; keep them in the imported history without compiling.
+            exclude("**/commands.disabled/**", "**/examples.disabled/**")
+        }
+    }
+}
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(26))
