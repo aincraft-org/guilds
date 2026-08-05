@@ -1065,7 +1065,7 @@ import java.util.UUID;
  * owning settlement's tax (PASSED policy rates) and settles it through the
  * active {@link PaymentRail}. Pure domain — no Bukkit, no Vault.
  */
-public class EconomyBridge {
+public final class EconomyBridge {
 
     public record UnresolvedTransaction(
             String territoryId,
@@ -1336,13 +1336,11 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 
 **Interfaces:**
 - Consumes: `PaymentRail`, `SettlementStatus`, `SettlementResult` (Task 5); `net.milkbowl.vault.economy.Economy` (compileOnly from Task 6).
-- Produces: `class VaultTreasury implements PaymentRail` with ctor `VaultTreasury(Economy economy, java.util.function.Function<UUID, OfflinePlayer> offlinePlayerLookup)`; encapsulates withdraw → deposit → compensating-refund with strict ordering; low-level Vault calls PRIVATE; `int provisionTerritories(Collection<String> territoryIds)` provisions a Vault bank per territory id with the stable Azoth service owner and returns the count of failures.
-- Test plan: Vault `Economy` is a ~30-method interface with several overload families that all return `EconomyResponse` (`withdrawPlayer(OfflinePlayer, double)`, the world-specific overloads, `bankDeposit(String, double)`, `depositPlayer(OfflinePlayer, double)`). Hand-implementing it in the test is error-prone, so **mock it with Mockito** — stub only the methods `VaultTreasury` calls and verify the called methods. `VaultTreasury` takes an injected `Function<UUID, OfflinePlayer>` so tests never touch `Bukkit`.
+- Produces: `class VaultTreasury implements PaymentRail` with ctor `VaultTreasury(Economy economy)`; encapsulates withdraw → deposit → compensating-refund with strict ordering; low-level Vault calls PRIVATE.
+- Test plan: Vault `Economy` is an interface. Use a hand-rolled stub implementing `Economy` (it has ~25 methods; implement the used ones and no-ops for the rest). `withdrawPlayer(OfflinePlayer, double)` returns `boolean`; `bankDeposit(String bankName, String playerName, double)` returns `EconomyResponse` (has `transactionSuccess()` and `balance`/`amount`).
 
 - [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/economy/VaultTreasuryTest.java`:
 
-```java
-package com.azoth.territory.economy;
 ```java
 package com.azoth.territory.economy;
 
@@ -1357,141 +1355,162 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** VaultTreasury: withdraw-first ordering, refund-on-deposit-failure, reconciliation flag. */
 class VaultTreasuryTest {
 
     private static final UUID P = UUID.randomUUID();
-    private static final OfflinePlayer PLAYER = mock(OfflinePlayer.class);
 
-    private static EconomyResponse ok(double amount) {
-        return new EconomyResponse(amount, amount, EconomyResponse.ResponseType.SUCCESS, null);
-    }
+    private static final class StubEconomy implements Economy {
+        double payerBalance = 100.0;
+        boolean withdrawOk = true;
+        boolean depositOk = true;
+        boolean refundOk = true;
+        double bankBalance;
+        int withdrawCalls;
+        int depositCalls;
+        int refundCalls;
 
-    private static EconomyResponse fail() {
-        return new EconomyResponse(0, 0, EconomyResponse.ResponseType.FAILURE, "failed");
-    }
+        @Override
+        public boolean isEnabled() { return true; }
+        @Override
+        public String getName() { return "stub"; }
+        @Override
+        public boolean hasBankSupport() { return true; }
+        @Override
+        public boolean hasAccount(String playerName) { return true; }
+        @Override
+        public boolean hasAccount(OfflinePlayer player) { return true; }
+        @Override
+        public boolean hasAccount(String playerName, String worldName) { return true; }
+        @Override
+        public boolean hasAccount(OfflinePlayer player, String worldName) { return true; }
 
-    private static VaultTreasury treasury(Economy e, boolean bankExists) {
-        when(e.hasBankSupport()).thenReturn(true);
-        when(e.bankBalance(eq("terr"))).thenReturn(
-                bankExists ? ok(0) : fail());
-        return new VaultTreasury(e, id -> PLAYER);
+        @Override
+        public EconomyResponse withdrawPlayer(OfflinePlayer player, double amount) {
+            withdrawCalls++;
+            if (!withdrawOk || payerBalance < amount) {
+                return new EconomyResponse(0, payerBalance, EconomyResponse.ResponseType.FAILURE, "withdraw failed");
+            }
+            payerBalance -= amount;
+            return new EconomyResponse(amount, payerBalance, EconomyResponse.ResponseType.SUCCESS, null);
+        }
+        @Override
+        public EconomyResponse depositPlayer(OfflinePlayer player, double amount) {
+            refundCalls++;
+            if (!refundOk) return new EconomyResponse(0, 0, EconomyResponse.ResponseType.FAILURE, "refund failed");
+            payerBalance += amount;
+            return new EconomyResponse(amount, payerBalance, EconomyResponse.ResponseType.SUCCESS, null);
+        }
+        @Override
+        public EconomyResponse bankDeposit(String bankName, String playerName, double amount) {
+            depositCalls++;
+            if (!depositOk) return new EconomyResponse(0, 0, EconomyResponse.ResponseType.FAILURE, "deposit failed");
+            bankBalance += amount;
+            return new EconomyResponse(amount, bankBalance, EconomyResponse.ResponseType.SUCCESS, null);
+        }
+        @Override
+        public EconomyResponse bankWithdraw(String bankName, String playerName, double amount) {
+            return new EconomyResponse(amount, bankBalance, EconomyResponse.ResponseType.FAILURE, "not used");
+        }
+        @Override
+        public double getBalance(OfflinePlayer player) { return payerBalance; }
+        @Override
+        public double getBalance(String playerName) { return payerBalance; }
+        @Override
+        public boolean has(OfflinePlayer player, double amount) { return payerBalance >= amount; }
+        @Override
+        public boolean has(String playerName, double amount) { return payerBalance >= amount; }
+
+        // --- remaining Economy methods: no-ops / reasonable defaults ---
+        @Override public boolean createPlayerAccount(OfflinePlayer player) { return true; }
+        @Override public boolean createPlayerAccount(String playerName) { return true; }
+        @Override public boolean createPlayerAccount(OfflinePlayer player, String worldName) { return true; }
+        @Override public boolean createPlayerAccount(String playerName, String worldName) { return true; }
+        @Override public double getBalance(OfflinePlayer player, String worldName) { return payerBalance; }
+        @Override public double getBalance(String playerName, String worldName) { return payerBalance; }
+        @Override public boolean has(OfflinePlayer player, String worldName, double amount) { return payerBalance >= amount; }
+        @Override public boolean has(String playerName, String worldName, double amount) { return payerBalance >= amount; }
+        @Override public boolean withdrawPlayer(OfflinePlayer player, String worldName, double amount) { return withdrawPlayer(player, amount); }
+        @Override public boolean withdrawPlayer(String playerName, String worldName, double amount) { return withdrawPlayer(playerName, amount); }
+        @Override public boolean withdrawPlayer(String playerName, double amount) { return withdrawPlayer((OfflinePlayer) null, amount); }
+        @Override public EconomyResponse depositPlayer(String playerName, double amount) { return depositPlayer((OfflinePlayer) null, amount); }
+        @Override public EconomyResponse depositPlayer(String playerName, String worldName, double amount) { return depositPlayer((OfflinePlayer) null, amount); }
+        @Override public EconomyResponse createBank(String name, String owner) { return new EconomyResponse(0, 0, EconomyResponse.ResponseType.SUCCESS, null); }
+        @Override public EconomyResponse deleteBank(String name) { return new EconomyResponse(0, 0, EconomyResponse.ResponseType.SUCCESS, null); }
+        @Override public EconomyResponse bankBalance(String name) { return new EconomyResponse(0, bankBalance, EconomyResponse.ResponseType.SUCCESS, null); }
+        @Override public EconomyResponse bankHas(String name, double amount) { return new EconomyResponse(amount, bankBalance, EconomyResponse.ResponseType.SUCCESS, null); }
+        @Override public EconomyResponse bankWithdraw(String name, double amount) { return bankWithdraw(name, "", amount); }
+        @Override public EconomyResponse bankDeposit(String name, double amount) { return bankDeposit(name, "", amount); }
+        @Override public List<String> getBanks() { return List.of(); }
+        @Override public String format(double amount) { return String.valueOf(amount); }
+        @Override public String currencyNamePlural() { return "coins"; }
+        @Override public String currencyNameSingular() { return "coin"; }
     }
 
     @Test
     void settledWhenBothLegsSucceed() {
-        Economy e = mock(Economy.class);
-        when(e.hasAccount(PLAYER)).thenReturn(true);
-        when(e.has(PLAYER, 10.0)).thenReturn(true);
-        when(e.withdrawPlayer(PLAYER, 10.0)).thenReturn(ok(10.0));
-        when(e.bankDeposit("terr", 10.0)).thenReturn(ok(10.0));
-        VaultTreasury v = treasury(e, true);
-
-        assertEquals(SettlementStatus.SETTLED, v.settle(P, "terr", 10.0).status());
-        verify(e).withdrawPlayer(PLAYER, 10.0);
-        verify(e).bankDeposit("terr", 10.0);
-        verify(e).bankBalance("terr");
+        StubEconomy e = new StubEconomy();
+        VaultTreasury v = new VaultTreasury(e);
+        SettlementResult r = v.settle(P, "terr", 10.0);
+        assertEquals(SettlementStatus.SETTLED, r.status());
+        assertEquals(90.0, e.payerBalance, 1e-9);
+        assertEquals(10.0, e.bankBalance, 1e-9);
+        assertEquals(1, e.withdrawCalls);
+        assertEquals(1, e.depositCalls);
     }
 
     @Test
     void insufficientFundsMovesNothing() {
-        Economy e = mock(Economy.class);
-        when(e.hasAccount(PLAYER)).thenReturn(true);
-        when(e.has(PLAYER, 10.0)).thenReturn(false);
-        VaultTreasury v = treasury(e, true);
-
+        StubEconomy e = new StubEconomy();
+        e.payerBalance = 5.0;
+        VaultTreasury v = new VaultTreasury(e);
         assertEquals(SettlementStatus.INSUFFICIENT_FUNDS, v.settle(P, "terr", 10.0).status());
-        verify(e).has(PLAYER, 10.0);
+        assertEquals(5.0, e.payerBalance, 1e-9);
+        assertEquals(0.0, e.bankBalance, 1e-9);
+        assertEquals(0, e.depositCalls);
     }
 
     @Test
     void withdrawFailureMovesNothing() {
-        Economy e = mock(Economy.class);
-        when(e.hasAccount(PLAYER)).thenReturn(true);
-        when(e.has(PLAYER, 10.0)).thenReturn(true);
-        when(e.withdrawPlayer(PLAYER, 10.0)).thenReturn(fail());
-        VaultTreasury v = treasury(e, true);
-
+        StubEconomy e = new StubEconomy();
+        e.withdrawOk = false;
+        VaultTreasury v = new VaultTreasury(e);
         assertEquals(SettlementStatus.PAYER_UNAVAILABLE, v.settle(P, "terr", 10.0).status());
-        verify(e).bankDeposit(eq("terr"), anyDouble());
+        assertEquals(100.0, e.payerBalance, 1e-9);
+        assertEquals(0.0, e.bankBalance, 1e-9);
+        assertEquals(0, e.depositCalls);
     }
 
     @Test
     void depositFailureTriggersRefundNetZero() {
-        Economy e = mock(Economy.class);
-        when(e.hasAccount(PLAYER)).thenReturn(true);
-        when(e.has(PLAYER, 10.0)).thenReturn(true);
-        when(e.withdrawPlayer(PLAYER, 10.0)).thenReturn(ok(10.0));
-        when(e.bankDeposit("terr", 10.0)).thenReturn(fail());
-        when(e.depositPlayer(PLAYER, 10.0)).thenReturn(ok(10.0));
-        VaultTreasury v = treasury(e, true);
-
+        StubEconomy e = new StubEconomy();
+        e.depositOk = false;
+        VaultTreasury v = new VaultTreasury(e);
         assertEquals(SettlementStatus.COMPENSATED_FAILURE, v.settle(P, "terr", 10.0).status());
-        verify(e).withdrawPlayer(PLAYER, 10.0);
-        verify(e).bankDeposit("terr", 10.0);
+        assertEquals(100.0, e.payerBalance, 1e-9);  // withdrawn 10 then refunded 10
+        assertEquals(0.0, e.bankBalance, 1e-9);
     }
 
     @Test
     void refundFailureFlagsReconciliation() {
-        Economy e = mock(Economy.class);
-        when(e.hasAccount(PLAYER)).thenReturn(true);
-        when(e.has(PLAYER, 10.0)).thenReturn(true);
-        when(e.withdrawPlayer(PLAYER, 10.0)).thenReturn(ok(10.0));
-        when(e.bankDeposit("terr", 10.0)).thenReturn(fail());
-        when(e.depositPlayer(PLAYER, 10.0)).thenReturn(fail());
-        VaultTreasury v = treasury(e, true);
-
+        StubEconomy e = new StubEconomy();
+        e.depositOk = false;
+        e.refundOk = false;
+        VaultTreasury v = new VaultTreasury(e);
         assertEquals(SettlementStatus.RECONCILIATION_REQUIRED, v.settle(P, "terr", 10.0).status());
-        verify(e).withdrawPlayer(PLAYER, 10.0);
-        verify(e).bankDeposit("terr", 10.0);
-    }
-
-    @Test
-    void bankNotProvisionedIsVaultUnavailable() {
-        Economy e = mock(Economy.class);
-        VaultTreasury v = treasury(e, false);
-        assertEquals(SettlementStatus.VAULT_UNAVAILABLE, v.settle(P, "terr", 10.0).status());
-    }
-
-    @Test
-    void provisionTerritoriesCreatesMissingBanks() {
-        Economy e = mock(Economy.class);
-        when(e.hasBankSupport()).thenReturn(true);
-        when(e.bankBalance("terr")).thenReturn(fail());  // absent
-        when(e.createBank("terr", "AzothTerritory-Service")).thenReturn(ok(0));
-        VaultTreasury v = new VaultTreasury(e, id -> PLAYER);
-
-        assertEquals(0, v.provisionTerritories(List.of("terr")));
-        verify(e).createBank("terr", "AzothTerritory-Service");
-    }
-
-    @Test
-    void provisionFailureCountsUnprovisioned() {
-        Economy e = mock(Economy.class);
-        when(e.hasBankSupport()).thenReturn(true);
-        when(e.bankBalance("terr")).thenReturn(fail());
-        when(e.createBank(eq("terr"), any())).thenReturn(fail());
-        VaultTreasury v = new VaultTreasury(e, id -> PLAYER);
-
-        assertEquals(1, v.provisionTerritories(List.of("terr")));
+        assertEquals(90.0, e.payerBalance, 1e-9);  // charged, refund failed
+        assertEquals(0.0, e.bankBalance, 1e-9);
     }
 
     @Test
     void unavailableWhenVaultEconomyMissing() {
-        VaultTreasury v = new VaultTreasury(null, id -> PLAYER);
+        VaultTreasury v = new VaultTreasury(null);
         assertFalse(v.available());
     }
 }
 ```
-
-Note: `VaultTreasury` now takes a second ctor arg `Function<UUID, OfflinePlayer> offlinePlayerLookup` so tests never touch `Bukkit`. The production plugin passes `Bukkit::getOfflinePlayer` (Task 8).
 
 Note: if the compiler reports a missing abstract method on `StubEconomy`, add a trivial no-op returning `null`/`false`/`0.0`/`List.of()` as appropriate.
 
