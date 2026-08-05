@@ -125,6 +125,10 @@ class InteractionProtectionListenerTest {
                 "teleport/spawn path must call domain canTeleportInto");
         assertTrue(source.contains("protection.isEnvironmentallyProtected("),
                 "mechanical hopper path must use environmental eligibility");
+        assertTrue(source.contains("event.getSource()"),
+                "hopper move must inspect the source inventory");
+        assertTrue(source.contains("event.getDestination()"),
+                "hopper move must inspect the destination inventory");
         assertTrue(source.contains("event.setCancelled(true)"),
                 "must cancel denied interactions");
     }

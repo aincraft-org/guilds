@@ -101,7 +101,8 @@ public final class InteractionProtectionListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInventoryMoveItem(InventoryMoveItemEvent event) {
-        if (denyMechanicalMove(event.getSource())) {
+        if (denyMechanicalMove(event.getSource())
+                || denyMechanicalMove(event.getDestination())) {
             event.setCancelled(true);
         }
     }
