@@ -13,6 +13,7 @@ import com.azoth.territory.listener.ProtectionListener;
 import com.azoth.territory.permission.BlockProtection;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.persist.TerritoryStore;
+import com.azoth.territory.persist.ReconciliationStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
@@ -33,6 +34,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private WebConfig webConfig;
     private EconomyBridge economyBridge;
     private BukkitEconomyBridge bukkitEconomyBridge;
+    private ReconciliationStore reconciliationStore;
 
     @Override
     public void onEnable() {
@@ -43,6 +45,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
         this.registry = new TerritoryRegistry();
         Path dataFile = getDataFolder().toPath().resolve(TerritoryStore.DEFAULT_FILE_NAME);
+        this.reconciliationStore = new ReconciliationStore(
+                getDataFolder().toPath().resolve(ReconciliationStore.DEFAULT_FILE_NAME));
         this.store = new TerritoryStore(dataFile);
         try {
             store.loadInto(registry);
@@ -84,6 +88,23 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.economyBridge = new EconomyBridge(
                     registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(), rail, simulation);
             this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge);
+            try {
+                economyBridge.loadUnresolvedTransactions(reconciliationStore.load());
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to load reconciliation queue", e);
+            }
+            economyBridge.setUnresolvedTransactionSink(entries -> {
+                if (!entries.isEmpty()) {
+                    getLogger().log(Level.SEVERE, "Settlement reconciliation required; "
+                            + entries.size() + " unresolved transaction(s) persisted to "
+                            + reconciliationStore.file());
+                }
+                try {
+                    reconciliationStore.save(entries);
+                } catch (IOException e) {
+                    getLogger().log(Level.SEVERE, "Failed to persist reconciliation queue", e);
+                }
+            });
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Failed to wire economy — settlement disabled", e);
             this.economyBridge = null;
@@ -114,6 +135,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         stopWeb();
+        if (reconciliationStore != null && economyBridge != null) {
+            try {
+                reconciliationStore.save(economyBridge.unresolvedTransactions());
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to save reconciliation queue", e);
+            }
+        }
         if (store != null && registry != null) {
             try {
                 store.save(registry);

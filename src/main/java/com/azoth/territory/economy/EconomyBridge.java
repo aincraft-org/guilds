@@ -6,12 +6,13 @@ import com.azoth.territory.model.LookupResult;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
-
+import java.util.function.Consumer;
 /**
  * Public transaction API: other plugins report sales here; Azoth applies PASSED
  * policy tax rates and settles through the active payment rail.
@@ -35,6 +36,8 @@ public class EconomyBridge {
     private final PaymentRail rail;
     private final boolean simulationMode;
     private final List<UnresolvedTransaction> unresolved = new CopyOnWriteArrayList<>();
+    private volatile Consumer<List<UnresolvedTransaction>> unresolvedSink = ignored -> {
+    };
 
     public EconomyBridge(
             TerritoryRegistry territories,
@@ -43,11 +46,24 @@ public class EconomyBridge {
             PaymentRail rail,
             boolean simulationMode
     ) {
+        this(territories, governance, goods, rail, simulationMode, ignored -> {
+        });
+    }
+
+    public EconomyBridge(
+            TerritoryRegistry territories,
+            GovernanceRegistry governance,
+            GoodsCatalog goods,
+            PaymentRail rail,
+            boolean simulationMode,
+            Consumer<List<UnresolvedTransaction>> unresolvedSink
+    ) {
         this.territories = Objects.requireNonNull(territories, "territories");
         this.governance = Objects.requireNonNull(governance, "governance");
         this.goods = Objects.requireNonNull(goods, "goods");
         this.rail = Objects.requireNonNull(rail, "rail");
         this.simulationMode = simulationMode;
+        this.unresolvedSink = Objects.requireNonNull(unresolvedSink, "unresolvedSink");
     }
 
     public TaxReport reportSale(
@@ -127,8 +143,10 @@ public class EconomyBridge {
             case VAULT_UNAVAILABLE -> report(TaxOutcome.VAULT_UNAVAILABLE, territoryId, goodId, rate, 0.0);
             case COMPENSATED_FAILURE -> report(TaxOutcome.SETTLEMENT_FAILED, territoryId, goodId, rate, 0.0);
             case RECONCILIATION_REQUIRED -> {
-                unresolved.add(new UnresolvedTransaction(
-                        territoryId, payerId, taxAmount, System.currentTimeMillis(), "refund failed after charge"));
+                UnresolvedTransaction entry = new UnresolvedTransaction(
+                        territoryId, payerId, taxAmount, System.currentTimeMillis(), "refund failed after charge");
+                unresolved.add(entry);
+                unresolvedSink.accept(List.copyOf(unresolved));
                 yield report(TaxOutcome.SETTLEMENT_RECONCILIATION_REQUIRED, territoryId, goodId, rate, 0.0);
             }
         };
@@ -136,6 +154,18 @@ public class EconomyBridge {
 
     public List<UnresolvedTransaction> unresolvedTransactions() {
         return List.copyOf(unresolved);
+    }
+
+    public void loadUnresolvedTransactions(Collection<UnresolvedTransaction> entries) {
+        unresolved.clear();
+        if (entries != null) {
+            unresolved.addAll(entries);
+        }
+        unresolvedSink.accept(List.copyOf(unresolved));
+    }
+
+    public void setUnresolvedTransactionSink(Consumer<List<UnresolvedTransaction>> sink) {
+        unresolvedSink = Objects.requireNonNull(sink, "sink");
     }
 
     private static TaxReport report(

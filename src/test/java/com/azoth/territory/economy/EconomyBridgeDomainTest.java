@@ -200,4 +200,29 @@ class EconomyBridgeDomainTest {
         assertEquals(PaymentRail.SettlementStatus.SETTLED, result.status());
         assertEquals(2.5, treasury.activeBalanceOf("t1"), 1e-9);
     }
+
+    @Test
+    void unresolvedQueueLoadsAndNotifiesPersistenceSink() {
+        RecordingRail rail = new RecordingRail();
+        rail.result = new SettlementResult(PaymentRail.SettlementStatus.RECONCILIATION_REQUIRED);
+        TerritoryRegistry registry = new TerritoryRegistry();
+        registry.register(taxedTerritory());
+        List<List<EconomyBridge.UnresolvedTransaction>> snapshots = new java.util.ArrayList<>();
+        EconomyBridge b = new EconomyBridge(
+                registry,
+                new GovernanceRegistry(registry),
+                GoodsCatalog.defaultCatalog(),
+                rail,
+                false,
+                snapshots::add);
+        EconomyBridge.UnresolvedTransaction existing = new EconomyBridge.UnresolvedTransaction(
+                "old", PAYER, 1.0, NOW, "previous");
+        b.loadUnresolvedTransactions(List.of(existing));
+
+        b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
+
+        assertEquals(List.of(existing), snapshots.get(0));
+        assertEquals(2, snapshots.get(1).size());
+        assertEquals(2, b.unresolvedTransactions().size());
+    }
 }
