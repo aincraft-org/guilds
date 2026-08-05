@@ -28,6 +28,22 @@ Produces `build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`.
 ./gradlew test
 ```
 
+### Merged Guilds plugin
+
+The repository also contains the `guilds` Gradle subproject, a separately packaged
+Paper plugin for Towny-style towns, nations, plots, permissions, quests, and tech
+trees. Its source and full git history are under `guilds/`.
+
+```bash
+./gradlew :guilds:compileJava
+./gradlew :guilds:shadowJar
+```
+
+The packaged artifact is `guilds/build/libs/Towny.jar`. The merged build uses the
+Foojay toolchain resolver to provision Java 26 for Guilds while Azoth Territory
+continues to target Java 21. The imported Guilds test sources include stale tests
+against removed APIs; production compilation and packaging are verified separately.
+
 ## Spatial rules
 
 1. **Territories must not overlap** in the same world (register/API/load reject with an error). Sharing an edge or corner is OK (adjacent is fine). Different worlds may use the same coordinates.
