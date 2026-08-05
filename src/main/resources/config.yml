@@ -1,0 +1,27 @@
+# Azoth Territory configuration
+
+# Embedded web submodule (map UI + REST API).
+# Typical production: leave tls.enabled=false and terminate HTTPS on nginx/Caddy,
+# then reverse-proxy to this port with trust-proxy: true.
+web:
+  enabled: true
+  # Bind address — use 127.0.0.1 if only reverse-proxy should reach the server
+  bind: 0.0.0.0
+  port: 8765
+  # Public origin as clients see it (optional). Example: https://map.example.com
+  # When set, /api/meta and link generation prefer this over Host headers.
+  public-base-url: ""
+  # Honour X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-For, X-Real-IP
+  trust-proxy: true
+  # If non-empty, API calls (except /api/health and /api/meta) require
+  # header X-Api-Token or Authorization: Bearer <token>
+  api-token: ""
+  cors: true
+  # Optional direct TLS on the embedded server (PKCS12 or JKS keystore).
+  # Prefer reverse-proxy TLS in production unless you have a reason not to.
+  tls:
+    enabled: false
+    keystore: keystore.p12
+    keystore-type: PKCS12
+    password: changeit
+    key-password: changeit
