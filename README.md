@@ -72,30 +72,32 @@ docs/plans under `docs/archived-guilds/docs/` for reference.
 
 ## Government / sovereignty
 
-Governments are first-class through the guilds subsystem: **towns are the local
-governments** and **nations are the alliance entities**. The territory layer
-records only an optional binding (`governedByGuildId`); all governance data
-lives in the guilds database (`guilds.db`).
+Governments are first-class through the guilds subsystem: **guilds are the
+local/regional governments** and **alliances are the alliance entities** (a
+guild may be a member of one alliance). The territory layer records only an
+optional binding (`governedByGuildId`); all governance data lives in the
+guilds database (`guilds.db`). The "nation" vocabulary is retired — the
+entities are guilds and alliances.
 
 Resolution (via `GovernanceRegistry` + `GovernanceSource`, implemented by
 `GuildsGovernanceSource`):
 
-- Territory → the bound town's **nation** if the town is a nation member, else
-  the **town** itself, else the territory-local government attachment.
-- Holder → the first guild (town) listing them as a resident.
+- Territory → the bound guild's **alliance** if the guild is an alliance
+  member, else the **guild** itself, else the territory-local government
+  attachment.
+- Holder → the first guild listing them as a resident.
 - World location → spatial `TerritoryRegistry.resolve` then territory resolution above.
 
-Each guild (town) and alliance (nation) picks a **governance form** (`/town
-government <form>`, `/nation government <form>`, mayor/king only). Seats are
-derived live from role holders — the governance form IS the permission
-structure:
+Each guild and alliance picks a **governance form** (`/town government
+<form>`, `/alliance government <form>`, mayor/king only). Seats are derived
+live from role holders — the governance form IS the permission structure:
 
-| Form | Town (guild) seats | Nation (alliance) seats |
-|------|--------------------|-------------------------|
+| Form | Guild seats | Alliance seats |
+|------|-------------|----------------|
 | `ANARCHY` | none | none |
 | `MONARCHY` | mayor → `SOVEREIGN` | king → `SOVEREIGN` |
 | `OLIGARCHY` | mayor + assistants → `COUNCILOR` | king + ministers → `COUNCILOR` |
-| `DEMOCRACY` | every resident → `REPRESENTATIVE` | every member-town mayor → `REPRESENTATIVE` |
+| `DEMOCRACY` | every resident → `REPRESENTATIVE` | every member-guild mayor → `REPRESENTATIVE` |
 
 ### Policies (propose → vote/decree → PASSED/REJECTED)
 
@@ -109,11 +111,11 @@ t = t.decreePolicy("tax", "player:uuid", true, System.currentTimeMillis());
 ```
 
 For guild/alliance-bound territories, policy operations go through the
-governance registry so the **derived** government (town/nation form + roles)
-gates proposals, votes, and decrees:
+governance registry so the **derived** government (guild/alliance form +
+roles) gates proposals, votes, and decrees:
 
 ```java
-// Town picks MONARCHY → the mayor is the sovereign and may decree;
+// Guild picks MONARCHY → the mayor is the sovereign and may decree;
 // /territory govern everfall everfall-town binds the territory.
 governance.proposePolicy("everfall", "tax", "Tax Reform", "…", "mayor-uuid", now);
 Policy passed = governance.decreePolicy("everfall", "tax", "mayor-uuid", true, now);
@@ -129,8 +131,8 @@ Persisted in `territories.json` as `"government"` + `"policies"` + optional
 The standalone in-memory `RegionGuild`/`TerritoryAlliance` models are gone.
 The territory layer consumes DTO snapshots (`GuildBody`, `AllianceBody`) via
 `GovernanceSource`; the guilds subsystem materializes them from
-`TownService`/`NationService` + the permissions table. There is one source of
-truth: the guilds database.
+`GuildService`/`AllianceService` + the permissions table. There is one source
+of truth: the guilds database.
 
 **Formal authority** (`SovereignAction`: `MANAGE_MEMBERSHIP`, `SET_POLICY`, `BREAK_BLOCK`, `PLACE_BLOCK`, `INTERACT`)
 - `ANARCHY` — no formal grants
@@ -152,11 +154,16 @@ truth: the guilds database.
     resident build default applies; switch/item-use defaults stay under every
     form so towns remain usable. This is how a monarch builds their own
     permission system: the form sets the default, `/perm` grants customize it;
+  - **alliance-governed land follows the alliance's form** — when the
+    governing guild belongs to an alliance, the alliance's form decides
+    (anarchy alliance = wild; democracy alliance = member-guild residents
+    share the commons; monarchy/oligarchy alliance = government-controlled),
+    and residents of every member guild count as members;
   - **plot ownership is honored under every form** — a resident who claimed or
     bought a plot has absolute rights on it;
   - territory chunks inside a guild-governed territory that have no plot rows
     follow the same form policy (fallback through the territory registry);
-  - members (residents of the governing town; for nations, any member-town
+  - members (residents of the governing guild; for alliances, any member-guild
     resident) are evaluated by their effective permissions — global `bypass`,
     explicit town-context grants, then the form-gated role default;
   - outsiders are denied unless the town is **public**, in which case they may
@@ -171,7 +178,7 @@ crossings, entity grief) still gates on assigned government alone. PvP follows
 the town's `pvp` toggle, with authority holders always able to defend.
 
 ```java
-GovernanceSource source = guilds.getGovernanceSource(); // towns + nations
+GovernanceSource source = guilds.getGovernanceSource(); // guilds + alliances
 GovernanceRegistry gov = new GovernanceRegistry(registry, source);
 BlockProtection blocks = new BlockProtection(gov);
 blocks.canBreak("world", x, z, "resident-uuid"); // true for town members
