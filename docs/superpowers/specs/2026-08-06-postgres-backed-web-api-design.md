@@ -5,7 +5,7 @@ Status: Approved
 
 ## Background
 
-The territory web submodule (`common/.../web/`) serves the map UI at `/` and a
+The territory web submodule (`web/...` / `com.azoth.territory.web`) serves the map UI at `/` and a
 REST API under `/api/*`. Today its data source is the plugin's in-memory
 `TerritoryRegistry`, persisted to a local `territories.json` file via
 `TerritoryStore`. That couples the map/API to a single Minecraft server's disk.

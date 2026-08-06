@@ -24,19 +24,24 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 ./gradlew build
 ```
 
-Multi-module Gradle layout (`api` / `common` / `paper`):
+Multi-module Gradle layout (`api` / `common` / `web` / `paper`):
 
-- **`api/`** — public API: value models (`com.azoth.territory.model`), decree
-  effects (`…decree`), registries (`…registry`), and contracts
-  (`…permission` / `…economy` interfaces and DTOs). Pure Java; no Bukkit types.
+- **`api/`** — public **domain** API (not HTTP): value models
+  (`com.azoth.territory.model`), decree effects (`…decree`), registries
+  (`…registry`), and contracts (`…permission` / `…economy` interfaces and
+  DTOs). Pure Java; no Bukkit types.
 - **`common/`** — Paper-free shared implementation: persistence
-  (`…persist`), economy (`…economy`), governance logic (`…permission`),
-  and the JDK HTTP web submodule (`…web`, with its map UI under
-  `common/src/main/resources/web/`).
+  (`…persist`), economy (`…economy`), influence engine, and governance
+  logic (`…permission`).
+- **`web/`** — embedded map UI + territory REST (`com.azoth.territory.web`,
+  static assets under `web/src/main/resources/web/`). JDK `HttpServer` only;
+  depends on `common` for registry/repository types. Still embedded in the
+  plugin process (not a standalone service).
 - **`paper/`** — the single Paper plugin: main class, listeners, commands,
   Vault/economy bridges, and the integrated Guilds subsystem
   (`org.aincraft.guilds`, including `plugin.yml` / `config.yml` /
-  `guilds-config.yml` / `techtree.yml`).
+  `guilds-config.yml` / `techtree.yml`). Guilds keeps its own Javalin tech-tree
+  web server under `org.aincraft.guilds.web`.
 
 Produces the single Paper plugin JAR:
 `paper/build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
@@ -230,7 +235,7 @@ if (r.isContained()) {
 }
 ```
 
-Domain packages under `com.azoth.territory.model` / `registry` / `persist` are free of Bukkit types for unit testing. The web package (`com.azoth.territory.web`) uses only the JDK HTTP server + domain types (plus Gson).
+Domain packages under `com.azoth.territory.model` / `registry` / `persist` are free of Bukkit types for unit testing. The web module (`com.azoth.territory.web` in `:web`) uses only the JDK HTTP server + domain types (plus Gson).
 
 ## Web submodule
 
