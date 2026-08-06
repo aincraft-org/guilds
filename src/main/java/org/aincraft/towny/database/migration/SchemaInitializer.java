@@ -615,7 +615,7 @@ public class SchemaInitializer {
 
         @Override
         public String getDescription() {
-            return "Convert TownBlock permissions to bitwise system using existing Permission.Flag constants";
+            return "Convert TownBlock permissions to bitwise system using TownyPermission flag values";
         }
 
         @Override

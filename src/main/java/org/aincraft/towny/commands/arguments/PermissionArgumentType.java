@@ -10,7 +10,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.CustomArgumentType;
-import org.aincraft.towny.models.Permission;
+import org.aincraft.towny.models.TownyPermission;
 import org.bukkit.ChatColor;
 
 import java.util.Arrays;
@@ -107,25 +107,25 @@ public class PermissionArgumentType implements CustomArgumentType<String, String
      */
     public static int getFlagFromName(String permissionName) {
         switch (permissionName.toLowerCase().replace("_", "")) {
-            case "build": return Permission.Flag.BUILD;
-            case "destroy": return Permission.Flag.DESTROY;
-            case "switch": return Permission.Flag.SWITCH;
-            case "itemuse": case "item_use": return Permission.Flag.ITEM_USE;
-            case "claim": return Permission.Flag.CLAIM;
-            case "unclaim": return Permission.Flag.UNCLAIM;
-            case "spawn": return Permission.Flag.SPAWN;
-            case "setspawn": case "set_spawn": return Permission.Flag.SET_SPAWN;
-            case "invite": return Permission.Flag.INVITE;
-            case "kick": return Permission.Flag.KICK;
-            case "promote": return Permission.Flag.PROMOTE;
-            case "demote": return Permission.Flag.DEMOTE;
-            case "withdraw": return Permission.Flag.WITHDRAW;
-            case "deposit": return Permission.Flag.DEPOSIT;
-            case "plotperm": case "plot_perm": return Permission.Flag.PLOT_PERM;
-            case "plotset": case "plot_set": return Permission.Flag.PLOT_SET;
-            case "plotowner": case "plot_owner": return Permission.Flag.PLOT_OWNER;
-            case "admin": return Permission.Flag.ADMIN;
-            case "bypass": return Permission.Flag.BYPASS;
+            case "build": return TownyPermission.BUILD.getLegacyBitwiseValue();
+            case "destroy": return TownyPermission.DESTROY.getLegacyBitwiseValue();
+            case "switch": return TownyPermission.SWITCH.getLegacyBitwiseValue();
+            case "itemuse": case "item_use": return TownyPermission.ITEM_USE.getLegacyBitwiseValue();
+            case "claim": return TownyPermission.CLAIM.getLegacyBitwiseValue();
+            case "unclaim": return TownyPermission.UNCLAIM.getLegacyBitwiseValue();
+            case "spawn": return TownyPermission.SPAWN.getLegacyBitwiseValue();
+            case "setspawn": case "set_spawn": return TownyPermission.SET_SPAWN.getLegacyBitwiseValue();
+            case "invite": return TownyPermission.INVITE.getLegacyBitwiseValue();
+            case "kick": return TownyPermission.KICK.getLegacyBitwiseValue();
+            case "promote": return TownyPermission.PROMOTE.getLegacyBitwiseValue();
+            case "demote": return TownyPermission.DEMOTE.getLegacyBitwiseValue();
+            case "withdraw": return TownyPermission.WITHDRAW.getLegacyBitwiseValue();
+            case "deposit": return TownyPermission.DEPOSIT.getLegacyBitwiseValue();
+            case "plotperm": case "plot_perm": return TownyPermission.PLOT_PERM.getLegacyBitwiseValue();
+            case "plotset": case "plot_set": return TownyPermission.PLOT_SET.getLegacyBitwiseValue();
+            case "plotowner": case "plot_owner": return TownyPermission.PLOT_OWNER.getLegacyBitwiseValue();
+            case "admin": return TownyPermission.ADMIN.getLegacyBitwiseValue();
+            case "bypass": return TownyPermission.BYPASS.getLegacyBitwiseValue();
             default: return -1;
         }
     }

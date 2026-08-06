@@ -4,6 +4,7 @@ package org.aincraft.towny.models;
  * Utility class for plot type constants and categorization logic
  * Extracted from TownBlock.java to improve readability and maintainability
  */
+
 public class PlotTypes {
 
     // Built-in plot type constants
@@ -152,17 +153,17 @@ public class PlotTypes {
      */
     public static int getDefaultPermissions(String plotType) {
         if (plotType == null) {
-            return Permission.Flag.DEFAULT_PLOT;
+            return PermissionSet.createDefaultPlot().toLegacyFlags();
         }
 
         switch (plotType) {
             case SHOP:
-                return Permission.Flag.BUILD | Permission.Flag.SWITCH | Permission.Flag.ITEM_USE;
+                return PermissionSet.createDefaultPlot().toLegacyFlags();
             case FARM:
-                return Permission.Flag.BUILD_ALL;
+                return TownyPermission.BUILD_ALL;
             case DEFAULT:
             default:
-                return Permission.Flag.DEFAULT_PLOT;
+                return PermissionSet.createDefaultPlot().toLegacyFlags();
         }
     }
 

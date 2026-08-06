@@ -279,29 +279,29 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
 
     @Override
     public boolean canBuild(UUID residentUuid, int x, int z, String world) {
-        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.BUILD);
+        return checkLocationPermission(residentUuid, x, z, world, TownyPermission.BUILD.getLegacyBitwiseValue());
     }
 
     @Override
     public boolean canDestroy(UUID residentUuid, int x, int z, String world) {
-        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.DESTROY);
+        return checkLocationPermission(residentUuid, x, z, world, TownyPermission.DESTROY.getLegacyBitwiseValue());
     }
 
     @Override
     public boolean canSwitch(UUID residentUuid, int x, int z, String world) {
-        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.SWITCH);
+        return checkLocationPermission(residentUuid, x, z, world, TownyPermission.SWITCH.getLegacyBitwiseValue());
     }
 
     @Override
     public boolean canUseItems(UUID residentUuid, int x, int z, String world) {
-        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.ITEM_USE);
+        return checkLocationPermission(residentUuid, x, z, world, TownyPermission.ITEM_USE.getLegacyBitwiseValue());
     }
 
     @Override
     public boolean canInteractWithEntity(UUID residentUuid, int x, int z, String world) {
         // Entity interaction uses same permission hierarchy as destroy
         // This ensures item frames, armor stands, etc. follow plot ownership rules
-        return checkLocationPermission(residentUuid, x, z, world, Permission.Flag.DESTROY);
+        return checkLocationPermission(residentUuid, x, z, world, TownyPermission.DESTROY.getLegacyBitwiseValue());
     }
 
     /**
@@ -399,7 +399,7 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
 
         // Create default town permissions with bitwise flags
         Permission residentPerms = new Permission(
-            Permission.Flag.RESIDENT_PERMS,
+            PermissionSet.createResident().toLegacyFlags(),
             Permission.Context.TOWN,
             "default",
             Permission.Target.RESIDENT,
@@ -407,7 +407,7 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
         );
 
         Permission assistantPerms = new Permission(
-            Permission.Flag.ASSISTANT_PERMS,
+            PermissionSet.createAssistant().toLegacyFlags(),
             Permission.Context.TOWN,
             "default",
             Permission.Target.ASSISTANT,
@@ -415,7 +415,7 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
         );
 
         Permission mayorPerms = new Permission(
-            Permission.Flag.MAYOR_PERMS,
+            PermissionSet.createMayor().toLegacyFlags(),
             Permission.Context.TOWN,
             "default",
             Permission.Target.MAYOR,
@@ -434,7 +434,7 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
         List<Permission> permissions = new ArrayList<>();
 
         Permission defaultPlotPerms = new Permission(
-            Permission.Flag.DEFAULT_PLOT,
+            PermissionSet.createDefaultPlot().toLegacyFlags(),
             Permission.Context.PLOT,
             "default",
             Permission.Target.ALL,
@@ -606,28 +606,28 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
      */
     private boolean hasPermissionFlag(int flags, String permission) {
         switch (permission.toLowerCase()) {
-            case "build": return (flags & Permission.Flag.BUILD) != 0;
-            case "destroy": return (flags & Permission.Flag.DESTROY) != 0;
-            case "switch": return (flags & Permission.Flag.SWITCH) != 0;
-            case "item_use": return (flags & Permission.Flag.ITEM_USE) != 0;
-            case "claim": return (flags & Permission.Flag.CLAIM) != 0;
-            case "unclaim": return (flags & Permission.Flag.UNCLAIM) != 0;
-            case "spawn": return (flags & Permission.Flag.SPAWN) != 0;
-            case "set_spawn": return (flags & Permission.Flag.SET_SPAWN) != 0;
-            case "invite": return (flags & Permission.Flag.INVITE) != 0;
-            case "kick": return (flags & Permission.Flag.KICK) != 0;
-            case "promote": return (flags & Permission.Flag.PROMOTE) != 0;
-            case "demote": return (flags & Permission.Flag.DEMOTE) != 0;
-            case "withdraw": return (flags & Permission.Flag.WITHDRAW) != 0;
-            case "deposit": return (flags & Permission.Flag.DEPOSIT) != 0;
-            case "plot_perm": return (flags & Permission.Flag.PLOT_PERM) != 0;
-            case "plot_set": return (flags & Permission.Flag.PLOT_SET) != 0;
-            case "plot_owner": return (flags & Permission.Flag.PLOT_OWNER) != 0;
-            case "admin": return (flags & Permission.Flag.ADMIN) != 0;
-            case "admin_town": return (flags & Permission.Flag.ADMIN_TOWN) != 0;
-            case "admin_plot": return (flags & Permission.Flag.ADMIN_PLOT) != 0;
-            case "admin_resident": return (flags & Permission.Flag.ADMIN_RESIDENT) != 0;
-            case "bypass": return (flags & Permission.Flag.BYPASS) != 0;
+            case "build": return (flags & TownyPermission.BUILD.getLegacyBitwiseValue()) != 0;
+            case "destroy": return (flags & TownyPermission.DESTROY.getLegacyBitwiseValue()) != 0;
+            case "switch": return (flags & TownyPermission.SWITCH.getLegacyBitwiseValue()) != 0;
+            case "item_use": return (flags & TownyPermission.ITEM_USE.getLegacyBitwiseValue()) != 0;
+            case "claim": return (flags & TownyPermission.CLAIM.getLegacyBitwiseValue()) != 0;
+            case "unclaim": return (flags & TownyPermission.UNCLAIM.getLegacyBitwiseValue()) != 0;
+            case "spawn": return (flags & TownyPermission.SPAWN.getLegacyBitwiseValue()) != 0;
+            case "set_spawn": return (flags & TownyPermission.SET_SPAWN.getLegacyBitwiseValue()) != 0;
+            case "invite": return (flags & TownyPermission.INVITE.getLegacyBitwiseValue()) != 0;
+            case "kick": return (flags & TownyPermission.KICK.getLegacyBitwiseValue()) != 0;
+            case "promote": return (flags & TownyPermission.PROMOTE.getLegacyBitwiseValue()) != 0;
+            case "demote": return (flags & TownyPermission.DEMOTE.getLegacyBitwiseValue()) != 0;
+            case "withdraw": return (flags & TownyPermission.WITHDRAW.getLegacyBitwiseValue()) != 0;
+            case "deposit": return (flags & TownyPermission.DEPOSIT.getLegacyBitwiseValue()) != 0;
+            case "plot_perm": return (flags & TownyPermission.PLOT_PERM.getLegacyBitwiseValue()) != 0;
+            case "plot_set": return (flags & TownyPermission.PLOT_SET.getLegacyBitwiseValue()) != 0;
+            case "plot_owner": return (flags & TownyPermission.PLOT_OWNER.getLegacyBitwiseValue()) != 0;
+            case "admin": return (flags & TownyPermission.ADMIN.getLegacyBitwiseValue()) != 0;
+            case "admin_town": return (flags & TownyPermission.ADMIN_TOWN.getLegacyBitwiseValue()) != 0;
+            case "admin_plot": return (flags & TownyPermission.ADMIN_PLOT.getLegacyBitwiseValue()) != 0;
+            case "admin_resident": return (flags & TownyPermission.ADMIN_RESIDENT.getLegacyBitwiseValue()) != 0;
+            case "bypass": return (flags & TownyPermission.BYPASS.getLegacyBitwiseValue()) != 0;
             default: return false;
         }
     }
@@ -790,28 +790,28 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
         if (!value) return 0; // No flag for false permissions
 
         switch (permission.toLowerCase()) {
-            case "build": return Permission.Flag.BUILD;
-            case "destroy": return Permission.Flag.DESTROY;
-            case "switch": return Permission.Flag.SWITCH;
-            case "item_use": return Permission.Flag.ITEM_USE;
-            case "claim": return Permission.Flag.CLAIM;
-            case "unclaim": return Permission.Flag.UNCLAIM;
-            case "spawn": return Permission.Flag.SPAWN;
-            case "set_spawn": return Permission.Flag.SET_SPAWN;
-            case "invite": return Permission.Flag.INVITE;
-            case "kick": return Permission.Flag.KICK;
-            case "promote": return Permission.Flag.PROMOTE;
-            case "demote": return Permission.Flag.DEMOTE;
-            case "withdraw": return Permission.Flag.WITHDRAW;
-            case "deposit": return Permission.Flag.DEPOSIT;
-            case "plot_perm": return Permission.Flag.PLOT_PERM;
-            case "plot_set": return Permission.Flag.PLOT_SET;
-            case "plot_owner": return Permission.Flag.PLOT_OWNER;
-            case "admin": return Permission.Flag.ADMIN;
-            case "admin_town": return Permission.Flag.ADMIN_TOWN;
-            case "admin_plot": return Permission.Flag.ADMIN_PLOT;
-            case "admin_resident": return Permission.Flag.ADMIN_RESIDENT;
-            case "bypass": return Permission.Flag.BYPASS;
+            case "build": return TownyPermission.BUILD.getLegacyBitwiseValue();
+            case "destroy": return TownyPermission.DESTROY.getLegacyBitwiseValue();
+            case "switch": return TownyPermission.SWITCH.getLegacyBitwiseValue();
+            case "item_use": return TownyPermission.ITEM_USE.getLegacyBitwiseValue();
+            case "claim": return TownyPermission.CLAIM.getLegacyBitwiseValue();
+            case "unclaim": return TownyPermission.UNCLAIM.getLegacyBitwiseValue();
+            case "spawn": return TownyPermission.SPAWN.getLegacyBitwiseValue();
+            case "set_spawn": return TownyPermission.SET_SPAWN.getLegacyBitwiseValue();
+            case "invite": return TownyPermission.INVITE.getLegacyBitwiseValue();
+            case "kick": return TownyPermission.KICK.getLegacyBitwiseValue();
+            case "promote": return TownyPermission.PROMOTE.getLegacyBitwiseValue();
+            case "demote": return TownyPermission.DEMOTE.getLegacyBitwiseValue();
+            case "withdraw": return TownyPermission.WITHDRAW.getLegacyBitwiseValue();
+            case "deposit": return TownyPermission.DEPOSIT.getLegacyBitwiseValue();
+            case "plot_perm": return TownyPermission.PLOT_PERM.getLegacyBitwiseValue();
+            case "plot_set": return TownyPermission.PLOT_SET.getLegacyBitwiseValue();
+            case "plot_owner": return TownyPermission.PLOT_OWNER.getLegacyBitwiseValue();
+            case "admin": return TownyPermission.ADMIN.getLegacyBitwiseValue();
+            case "admin_town": return TownyPermission.ADMIN_TOWN.getLegacyBitwiseValue();
+            case "admin_plot": return TownyPermission.ADMIN_PLOT.getLegacyBitwiseValue();
+            case "admin_resident": return TownyPermission.ADMIN_RESIDENT.getLegacyBitwiseValue();
+            case "bypass": return TownyPermission.BYPASS.getLegacyBitwiseValue();
             default: return 0;
         }
     }
@@ -918,16 +918,16 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
 
                 // Check default town permissions based on resident's role
                 if (isTownMayor(residentUuid, townName)) {
-                    if (Permission.Flag.MAYOR_PERMS != 0 && (Permission.Flag.MAYOR_PERMS & permissionFlag) != 0) {
+                    if ((PermissionSet.createMayor().toLegacyFlags() & permissionFlag) != 0) {
                         return new PermissionEvaluationResult(true, "town", "Default mayor permissions");
                     }
                 } else if (isTownAssistant(residentUuid, townName)) {
-                    if (Permission.Flag.ASSISTANT_PERMS != 0 && (Permission.Flag.ASSISTANT_PERMS & permissionFlag) != 0) {
+                    if ((PermissionSet.createAssistant().toLegacyFlags() & permissionFlag) != 0) {
                         return new PermissionEvaluationResult(true, "town", "Default assistant permissions");
                     }
                 } else {
                     // Regular town resident
-                    if (Permission.Flag.RESIDENT_PERMS != 0 && (Permission.Flag.RESIDENT_PERMS & permissionFlag) != 0) {
+                    if ((PermissionSet.createResident().toLegacyFlags() & permissionFlag) != 0) {
                         return new PermissionEvaluationResult(true, "town", "Default resident permissions");
                     }
                 }
@@ -935,7 +935,7 @@ public class PermissionServiceImpl implements org.aincraft.towny.services.Permis
 
             // Check if plot is town-owned and apply default plot permissions
             if (block.getOwnerId() == null) {
-                if (Permission.Flag.DEFAULT_PLOT != 0 && (Permission.Flag.DEFAULT_PLOT & permissionFlag) != 0) {
+                if ((PermissionSet.createDefaultPlot().toLegacyFlags() & permissionFlag) != 0) {
                     return new PermissionEvaluationResult(true, "plot", "Default town plot permissions");
                 }
             }

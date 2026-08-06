@@ -177,7 +177,7 @@ public interface PermissionService {
      * Grant a specific permission flag to a resident in a town
      * @param residentUuid Resident UUID (null for all residents)
      * @param townName Town name
-     * @param permissionFlag Permission flag (e.g., Permission.Flag.SET_SPAWN)
+     * @param permissionFlag Permission flag (e.g., TownyPermission.SET_SPAWN.getLegacyBitwiseValue())
      * @return True if granted successfully
      */
     boolean grantTownPermission(UUID residentUuid, String townName, int permissionFlag);

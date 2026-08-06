@@ -12,9 +12,8 @@ import java.util.UUID;
  *
  * <p><b>Migration Guide:</b></p>
  * <ul>
- *   <li>Replace {@code Permission.Flag} constants with {@link TownyPermission} enum values</li>
- *   <li>Use {@link PermissionSet} instead of manual bitwise flag manipulation</li>
- *   <li>Example: {@code hasFlag(Permission.Flag.BUILD)} → {@code permSet.hasPermission(TownyPermission.BUILD)}</li>
+ *   <li>Use {@link TownyPermission} enum values and {@link PermissionSet} instead of manual bitwise flag manipulation</li>
+ *   <li>Example: {@code hasFlag(TownyPermission.BUILD.getLegacyBitwiseValue())} → {@code permSet.hasPermission(TownyPermission.BUILD)}</li>
  * </ul>
  *
  * @see TownyPermission
@@ -44,65 +43,6 @@ public class Permission {
         public static final String PLOT = "plot";
         public static final String RESIDENT = "resident";
         public static final String WORLD = "world";
-    }
-
-    /**
-     * Permission flags using bitwise operations
-     * Each permission is a power of 2, allowing combinations in a single integer
-     *
-     * @deprecated Use {@link TownyPermission} enum instead for type-safe permissions
-     */
-    @Deprecated
-    public static class Flag {
-        // Build permissions (bits 0-3)
-        public static final int BUILD = 1 << 0;      // 1
-        public static final int DESTROY = 1 << 1;    // 2
-        public static final int SWITCH = 1 << 2;     // 4
-        public static final int ITEM_USE = 1 << 3;   // 8
-
-        // Town permissions (bits 4-7)
-        public static final int CLAIM = 1 << 4;      // 16
-        public static final int UNCLAIM = 1 << 5;    // 32
-        public static final int SPAWN = 1 << 6;      // 64
-        public static final int SET_SPAWN = 1 << 7;  // 128
-
-        // Management permissions (bits 8-11)
-        public static final int INVITE = 1 << 8;     // 256
-        public static final int KICK = 1 << 9;       // 512
-        public static final int PROMOTE = 1 << 10;   // 1024
-        public static final int DEMOTE = 1 << 11;    // 2048
-
-        // Economic permissions (bits 12-13)
-        public static final int WITHDRAW = 1 << 12;  // 4096
-        public static final int DEPOSIT = 1 << 13;   // 8192
-
-        // Plot permissions (bits 14-16)
-        public static final int PLOT_PERM = 1 << 14; // 16384
-        public static final int PLOT_SET = 1 << 15;  // 32768
-        public static final int PLOT_OWNER = 1 << 16;// 65536
-
-        // Admin permissions (bits 17-20)
-        public static final int ADMIN = 1 << 17;     // 131072
-        public static final int ADMIN_TOWN = 1 << 18;// 262144
-        public static final int ADMIN_PLOT = 1 << 19;// 524288
-        public static final int ADMIN_RESIDENT = 1 << 20; // 1048576
-        public static final int BYPASS = 1 << 21;    // 2097152
-
-        // Convenience combinations
-        public static final int BUILD_ALL = BUILD | DESTROY | SWITCH | ITEM_USE;
-        public static final int TOWN_MANAGE = CLAIM | UNCLAIM | SPAWN | SET_SPAWN;
-        public static final int MEMBER_MANAGE = INVITE | KICK | PROMOTE | DEMOTE;
-        public static final int ECONOMIC = WITHDRAW | DEPOSIT;
-        public static final int PLOT_MANAGE = PLOT_PERM | PLOT_SET | PLOT_OWNER;
-        public static final int ADMIN_ALL = ADMIN | ADMIN_TOWN | ADMIN_PLOT | ADMIN_RESIDENT | BYPASS;
-        public static final int ALL = BUILD_ALL | TOWN_MANAGE | MEMBER_MANAGE | ECONOMIC | PLOT_MANAGE | ADMIN_ALL;
-
-        // Default permission sets
-        public static final int DEFAULT_TOWN = BUILD | SWITCH | SPAWN | INVITE;
-        public static final int DEFAULT_PLOT = BUILD | SWITCH | ITEM_USE;
-        public static final int ASSISTANT_PERMS = DEFAULT_TOWN | CLAIM | UNCLAIM | KICK;
-        public static final int MAYOR_PERMS = ASSISTANT_PERMS | MEMBER_MANAGE | WITHDRAW | SET_SPAWN | DEPOSIT;
-        public static final int RESIDENT_PERMS = BUILD | SWITCH | SPAWN;
     }
 
     /**
@@ -323,7 +263,7 @@ public class Permission {
      * @return True if has build-related permissions
      */
     public boolean hasBuildPermissions() {
-        return hasFlag(Flag.BUILD_ALL);
+        return hasFlag(TownyPermission.BUILD_ALL);
     }
 
     /**
@@ -331,7 +271,7 @@ public class Permission {
      * @return True if has town management permissions
      */
     public boolean hasTownManagementPermissions() {
-        return hasFlag(Flag.TOWN_MANAGE) || hasFlag(Flag.MEMBER_MANAGE);
+        return hasFlag(TownyPermission.TOWN_MANAGE) || hasFlag(TownyPermission.MEMBER_MANAGE);
     }
 
     /**
@@ -339,7 +279,7 @@ public class Permission {
      * @return True if has admin permissions
      */
     public boolean hasAdminPermissions() {
-        return hasFlag(Flag.ADMIN_ALL);
+        return hasFlag(TownyPermission.ADMIN_ALL);
     }
 
     /**
@@ -349,28 +289,28 @@ public class Permission {
     public java.util.List<String> getActiveFlagNames() {
         java.util.List<String> activeFlags = new java.util.ArrayList<>();
 
-        if (hasFlag(Flag.BUILD)) activeFlags.add("BUILD");
-        if (hasFlag(Flag.DESTROY)) activeFlags.add("DESTROY");
-        if (hasFlag(Flag.SWITCH)) activeFlags.add("SWITCH");
-        if (hasFlag(Flag.ITEM_USE)) activeFlags.add("ITEM_USE");
-        if (hasFlag(Flag.CLAIM)) activeFlags.add("CLAIM");
-        if (hasFlag(Flag.UNCLAIM)) activeFlags.add("UNCLAIM");
-        if (hasFlag(Flag.SPAWN)) activeFlags.add("SPAWN");
-        if (hasFlag(Flag.SET_SPAWN)) activeFlags.add("SET_SPAWN");
-        if (hasFlag(Flag.INVITE)) activeFlags.add("INVITE");
-        if (hasFlag(Flag.KICK)) activeFlags.add("KICK");
-        if (hasFlag(Flag.PROMOTE)) activeFlags.add("PROMOTE");
-        if (hasFlag(Flag.DEMOTE)) activeFlags.add("DEMOTE");
-        if (hasFlag(Flag.WITHDRAW)) activeFlags.add("WITHDRAW");
-        if (hasFlag(Flag.DEPOSIT)) activeFlags.add("DEPOSIT");
-        if (hasFlag(Flag.PLOT_PERM)) activeFlags.add("PLOT_PERM");
-        if (hasFlag(Flag.PLOT_SET)) activeFlags.add("PLOT_SET");
-        if (hasFlag(Flag.PLOT_OWNER)) activeFlags.add("PLOT_OWNER");
-        if (hasFlag(Flag.ADMIN)) activeFlags.add("ADMIN");
-        if (hasFlag(Flag.ADMIN_TOWN)) activeFlags.add("ADMIN_TOWN");
-        if (hasFlag(Flag.ADMIN_PLOT)) activeFlags.add("ADMIN_PLOT");
-        if (hasFlag(Flag.ADMIN_RESIDENT)) activeFlags.add("ADMIN_RESIDENT");
-        if (hasFlag(Flag.BYPASS)) activeFlags.add("BYPASS");
+        if (hasFlag(TownyPermission.BUILD.getLegacyBitwiseValue())) activeFlags.add("BUILD");
+        if (hasFlag(TownyPermission.DESTROY.getLegacyBitwiseValue())) activeFlags.add("DESTROY");
+        if (hasFlag(TownyPermission.SWITCH.getLegacyBitwiseValue())) activeFlags.add("SWITCH");
+        if (hasFlag(TownyPermission.ITEM_USE.getLegacyBitwiseValue())) activeFlags.add("ITEM_USE");
+        if (hasFlag(TownyPermission.CLAIM.getLegacyBitwiseValue())) activeFlags.add("CLAIM");
+        if (hasFlag(TownyPermission.UNCLAIM.getLegacyBitwiseValue())) activeFlags.add("UNCLAIM");
+        if (hasFlag(TownyPermission.SPAWN.getLegacyBitwiseValue())) activeFlags.add("SPAWN");
+        if (hasFlag(TownyPermission.SET_SPAWN.getLegacyBitwiseValue())) activeFlags.add("SET_SPAWN");
+        if (hasFlag(TownyPermission.INVITE.getLegacyBitwiseValue())) activeFlags.add("INVITE");
+        if (hasFlag(TownyPermission.KICK.getLegacyBitwiseValue())) activeFlags.add("KICK");
+        if (hasFlag(TownyPermission.PROMOTE.getLegacyBitwiseValue())) activeFlags.add("PROMOTE");
+        if (hasFlag(TownyPermission.DEMOTE.getLegacyBitwiseValue())) activeFlags.add("DEMOTE");
+        if (hasFlag(TownyPermission.WITHDRAW.getLegacyBitwiseValue())) activeFlags.add("WITHDRAW");
+        if (hasFlag(TownyPermission.DEPOSIT.getLegacyBitwiseValue())) activeFlags.add("DEPOSIT");
+        if (hasFlag(TownyPermission.PLOT_PERM.getLegacyBitwiseValue())) activeFlags.add("PLOT_PERM");
+        if (hasFlag(TownyPermission.PLOT_SET.getLegacyBitwiseValue())) activeFlags.add("PLOT_SET");
+        if (hasFlag(TownyPermission.PLOT_OWNER.getLegacyBitwiseValue())) activeFlags.add("PLOT_OWNER");
+        if (hasFlag(TownyPermission.ADMIN.getLegacyBitwiseValue())) activeFlags.add("ADMIN");
+        if (hasFlag(TownyPermission.ADMIN_TOWN.getLegacyBitwiseValue())) activeFlags.add("ADMIN_TOWN");
+        if (hasFlag(TownyPermission.ADMIN_PLOT.getLegacyBitwiseValue())) activeFlags.add("ADMIN_PLOT");
+        if (hasFlag(TownyPermission.ADMIN_RESIDENT.getLegacyBitwiseValue())) activeFlags.add("ADMIN_RESIDENT");
+        if (hasFlag(TownyPermission.BYPASS.getLegacyBitwiseValue())) activeFlags.add("BYPASS");
 
         return activeFlags;
     }

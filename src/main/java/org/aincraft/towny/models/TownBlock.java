@@ -26,7 +26,7 @@ public class TownBlock {
      */
     public TownBlock() {
         this.id = UUID.randomUUID();
-        this.permissionsFlags = Permission.Flag.DEFAULT_PLOT;
+        this.permissionsFlags = PermissionSet.createDefaultPlot().toLegacyFlags();
         this.plotType = PlotTypes.DEFAULT;
         this.price = 0.0;
         this.claimedAt = LocalDateTime.now();
@@ -260,13 +260,13 @@ public class TownBlock {
     public boolean hasPermission(String permissionName) {
         switch (permissionName.toLowerCase()) {
             case "build":
-                return hasPermissionFlag(Permission.Flag.BUILD);
+                return hasPermissionFlag(TownyPermission.BUILD.getLegacyBitwiseValue());
             case "destroy":
-                return hasPermissionFlag(Permission.Flag.DESTROY);
+                return hasPermissionFlag(TownyPermission.DESTROY.getLegacyBitwiseValue());
             case "switch":
-                return hasPermissionFlag(Permission.Flag.SWITCH);
+                return hasPermissionFlag(TownyPermission.SWITCH.getLegacyBitwiseValue());
             case "item_use":
-                return hasPermissionFlag(Permission.Flag.ITEM_USE);
+                return hasPermissionFlag(TownyPermission.ITEM_USE.getLegacyBitwiseValue());
             default:
                 return false;
         }
@@ -280,16 +280,16 @@ public class TownBlock {
     public void setPermission(String permissionName, boolean value) {
         switch (permissionName.toLowerCase()) {
             case "build":
-                setPermissionFlag(Permission.Flag.BUILD, value);
+                setPermissionFlag(TownyPermission.BUILD.getLegacyBitwiseValue(), value);
                 break;
             case "destroy":
-                setPermissionFlag(Permission.Flag.DESTROY, value);
+                setPermissionFlag(TownyPermission.DESTROY.getLegacyBitwiseValue(), value);
                 break;
             case "switch":
-                setPermissionFlag(Permission.Flag.SWITCH, value);
+                setPermissionFlag(TownyPermission.SWITCH.getLegacyBitwiseValue(), value);
                 break;
             case "item_use":
-                setPermissionFlag(Permission.Flag.ITEM_USE, value);
+                setPermissionFlag(TownyPermission.ITEM_USE.getLegacyBitwiseValue(), value);
                 break;
         }
     }
@@ -301,13 +301,13 @@ public class TownBlock {
     public List<String> getActivePermissionNames() {
         List<String> activePermissions = new ArrayList<>();
 
-        if (hasPermissionFlag(Permission.Flag.BUILD)) activePermissions.add("BUILD");
-        if (hasPermissionFlag(Permission.Flag.DESTROY)) activePermissions.add("DESTROY");
-        if (hasPermissionFlag(Permission.Flag.SWITCH)) activePermissions.add("SWITCH");
-        if (hasPermissionFlag(Permission.Flag.ITEM_USE)) activePermissions.add("ITEM_USE");
-        if (hasPermissionFlag(Permission.Flag.PLOT_PERM)) activePermissions.add("PLOT_PERM");
-        if (hasPermissionFlag(Permission.Flag.PLOT_SET)) activePermissions.add("PLOT_SET");
-        if (hasPermissionFlag(Permission.Flag.PLOT_OWNER)) activePermissions.add("PLOT_OWNER");
+        if (hasPermissionFlag(TownyPermission.BUILD.getLegacyBitwiseValue())) activePermissions.add("BUILD");
+        if (hasPermissionFlag(TownyPermission.DESTROY.getLegacyBitwiseValue())) activePermissions.add("DESTROY");
+        if (hasPermissionFlag(TownyPermission.SWITCH.getLegacyBitwiseValue())) activePermissions.add("SWITCH");
+        if (hasPermissionFlag(TownyPermission.ITEM_USE.getLegacyBitwiseValue())) activePermissions.add("ITEM_USE");
+        if (hasPermissionFlag(TownyPermission.PLOT_PERM.getLegacyBitwiseValue())) activePermissions.add("PLOT_PERM");
+        if (hasPermissionFlag(TownyPermission.PLOT_SET.getLegacyBitwiseValue())) activePermissions.add("PLOT_SET");
+        if (hasPermissionFlag(TownyPermission.PLOT_OWNER.getLegacyBitwiseValue())) activePermissions.add("PLOT_OWNER");
 
         return activePermissions;
     }
@@ -318,7 +318,7 @@ public class TownBlock {
     public void resetToDefaultPermissions() {
         if (hasOwner()) {
             // Player-owned plots get full permissions for owner
-            permissionsFlags = Permission.Flag.ALL;
+            permissionsFlags = TownyPermission.ALL;
         } else {
             // Town-owned plots get default permissions based on type
             permissionsFlags = PlotTypes.getDefaultPermissions(plotType);
@@ -330,7 +330,7 @@ public class TownBlock {
      * @return True if non-owners can build
      */
     public boolean allowsPublicBuild() {
-        return hasPermissionFlag(Permission.Flag.BUILD);
+        return hasPermissionFlag(TownyPermission.BUILD.getLegacyBitwiseValue());
     }
 
     /**
@@ -338,7 +338,7 @@ public class TownBlock {
      * @return True if non-owners can destroy
      */
     public boolean allowsPublicDestroy() {
-        return hasPermissionFlag(Permission.Flag.DESTROY);
+        return hasPermissionFlag(TownyPermission.DESTROY.getLegacyBitwiseValue());
     }
 
     /**
