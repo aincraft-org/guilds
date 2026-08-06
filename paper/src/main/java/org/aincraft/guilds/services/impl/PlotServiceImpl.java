@@ -685,19 +685,103 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             if (!plot.isForSale() || plot.getPrice() != price) {
                 return false; // Plot not for sale at this price
             }
-
-            if (plot.hasOwner()) {
-                return false; // Plot already has owner
+            if (price <= 0.0) {
+                return false; // A purchase must move money
             }
 
-            // TODO: Implement economy check and transaction
-            // This would need integration with an economy plugin
+            if (plot.isOwner(residentUuid)) {
+                return false; // Buyer already owns the plot
+            }
 
-            plot.setOwnerId(residentUuid);
-            plot.setPrice(0.0); // Remove from sale
-            plot.resetToDefaultPermissions(); // Set full permissions for new owner
+            // Money model: guild banks are the only wallets in this subsystem
+            // (residents have no personal balance). The buyer's guild pays the
+            // plot's guild — the land's owner — so a same-guild purchase nets
+            // zero and only transfers ownership; cross-guild purchases move
+            // the price between guild banks. Every purchase is audited in
+            // economy_transactions.
+            String residentGuildName = getResidentGuild(residentUuid);
+            if (residentGuildName == null) {
+                return false; // Resident not in a guild
+            }
+            Optional<Guild> buyerGuild = guildService.getGuild(residentGuildName);
+            if (buyerGuild.isEmpty()) {
+                return false;
+            }
+            Guild plotGuild = guildService.getGuildById(plot.getGuildId()).orElse(null);
+            if (plotGuild == null) {
+                return false; // Plot's guild no longer exists
+            }
+            if (buyerGuild.get().getBalance() < price) {
+                return false; // Fast pre-check; the transaction re-checks authoritatively
+            }
 
-            return updateGuildBlock(plot) != null;
+            String buyerGuildId = buyerGuild.get().getId();
+            String plotGuildId = plot.getGuildId();
+            String now = LocalDateTime.now().format(DATE_FORMATTER);
+            String observedOwner = plot.getOwnerId() == null ? null : plot.getOwnerId().toString();
+
+            // Atomic: ownership transfer, debit (guarded), credit, audit. The
+            // transfer UPDATE is conditional on the observed sale state (price
+            // + seller), so two concurrent buyers cannot both commit — the
+            // second one matches zero rows and the whole purchase rolls back.
+            // Any failure aborts with SQLException so the purchase rolls back —
+            // money can never move without the ownership transfer.
+            boolean txCommitted = databaseManager.executeTransaction(connection -> {
+                String transferSql = "UPDATE guild_blocks SET owner_uuid = ?, price = 0.0, permissions_flags = ? "
+                        + "WHERE id = ? AND price = ?"
+                        + (observedOwner == null ? " AND owner_uuid IS NULL" : " AND owner_uuid = ?");
+                try (PreparedStatement statement = connection.prepareStatement(transferSql)) {
+                    statement.setString(1, residentUuid.toString());
+                    statement.setInt(2, GuildPermission.ALL); // owner gets full permissions
+                    statement.setString(3, plot.getId().toString());
+                    statement.setDouble(4, price);
+                    if (observedOwner != null) {
+                        statement.setString(5, observedOwner);
+                    }
+                    if (statement.executeUpdate() == 0) {
+                        throw new SQLException("Plot " + plot.getId() + " no longer for sale at this price");
+                    }
+                }
+
+                if (!buyerGuildId.equals(plotGuildId)) {
+                    String debitSql = "UPDATE guilds SET balance = balance - ? WHERE id = ? AND balance >= ?";
+                    try (PreparedStatement statement = connection.prepareStatement(debitSql)) {
+                        statement.setDouble(1, price);
+                        statement.setString(2, buyerGuildId);
+                        statement.setDouble(3, price);
+                        if (statement.executeUpdate() == 0) {
+                            throw new SQLException("Insufficient balance in guild " + buyerGuildId);
+                        }
+                    }
+                    String creditSql = "UPDATE guilds SET balance = balance + ? WHERE id = ?";
+                    try (PreparedStatement statement = connection.prepareStatement(creditSql)) {
+                        statement.setDouble(1, price);
+                        statement.setString(2, plotGuildId);
+                        if (statement.executeUpdate() == 0) {
+                            throw new SQLException("Plot guild " + plotGuildId + " no longer exists");
+                        }
+                    }
+                }
+
+                String auditSql = "INSERT INTO economy_transactions (id, guild_id, player_uuid, type, amount, description, timestamp) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                try (PreparedStatement statement = connection.prepareStatement(auditSql)) {
+                    statement.setString(1, UUID.randomUUID().toString());
+                    statement.setString(2, buyerGuildId);
+                    statement.setString(3, residentUuid.toString());
+                    statement.setString(4, "PLOT_PURCHASE");
+                    statement.setDouble(5, price);
+                    statement.setString(6, "Plot " + plot.getId() + " bought from guild " + plotGuildId);
+                    statement.setString(7, now);
+                    statement.executeUpdate();
+                }
+            });
+
+            if (txCommitted) {
+                logger.info("Plot " + plot.getId() + " purchased by " + residentUuid
+                        + " for " + price + " (guild " + buyerGuildId + " -> guild " + plotGuildId + ")");
+            }
+            return txCommitted;
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to buy plot " + plotId + " by resident " + residentUuid, e);
@@ -982,9 +1066,23 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean canResidentAffordPlot(UUID residentUuid, UUID plotId) {
-        // TODO: Implement economy integration
-        // This would check the resident's balance against the plot price
-        return true;
+        try {
+            Optional<GuildBlock> plotOpt = getGuildBlock(plotId);
+            if (plotOpt.isEmpty() || !plotOpt.get().isForSale()) {
+                return false;
+            }
+            String guildName = getResidentGuild(residentUuid);
+            if (guildName == null) {
+                return false;
+            }
+            double price = plotOpt.get().getPrice();
+            return guildService.getGuild(guildName)
+                    .map(guild -> guild.getBalance() >= price)
+                    .orElse(false);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to check affordability for plot " + plotId, e);
+            return false;
+        }
     }
 
     // Helper methods
