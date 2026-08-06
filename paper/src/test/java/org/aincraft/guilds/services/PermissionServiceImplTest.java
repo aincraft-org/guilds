@@ -10,6 +10,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 import java.util.UUID;
 
@@ -124,6 +127,55 @@ class PermissionServiceImplTest {
         permissions.getResidentPermissions(resident, "town", "alpha");
         assertTrue(permissions.getCacheStatistics().contains("2 misses"),
                 "grant must invalidate the cache so the next read misses");
+    }
+
+    @Test
+    void failedLoadIsNotCached() throws Exception {
+        permissions.grantPermission(resident, "build", "town", "alpha", true);
+
+        // Force a load failure: drop the permissions table, read (error -> empty),
+        // then recreate the table.
+        try (Connection connection = services.databaseManager().getDataSource().getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute("DROP TABLE permissions");
+        }
+        try {
+            assertTrue(permissions.getResidentPermissions(resident, "town", "alpha").isEmpty(),
+                    "a failed load returns empty for this call");
+        } finally {
+            try (Connection connection = services.databaseManager().getDataSource().getConnection();
+                 Statement statement = connection.createStatement()) {
+                statement.execute("""
+                        CREATE TABLE IF NOT EXISTS permissions (
+                            id TEXT PRIMARY KEY,
+                            context TEXT NOT NULL,
+                            context_id TEXT NOT NULL,
+                            target_type TEXT NOT NULL,
+                            target_id TEXT,
+                            permissions_flags INTEGER NOT NULL,
+                            granted_at TEXT NOT NULL,
+                            granted_by_uuid TEXT,
+                            FOREIGN KEY (granted_by_uuid) REFERENCES residents(uuid) ON DELETE SET NULL
+                        )
+                        """);
+            }
+        }
+
+        // Seed a row behind the service's back (no cache invalidation).
+        try (Connection connection = services.databaseManager().getDataSource().getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at) "
+                             + "VALUES (?, 'town', 'alpha', 'resident', ?, ?, ?)")) {
+            statement.setString(1, UUID.randomUUID().toString());
+            statement.setString(2, resident.toString());
+            statement.setInt(3, GuildPermission.BUILD.getLegacyBitwiseValue());
+            statement.setString(4, "2026-01-01 00:00:00");
+            statement.executeUpdate();
+        }
+
+        List<Permission> after = permissions.getResidentPermissions(resident, "town", "alpha");
+        assertEquals(1, after.size(),
+                "the failed load must not have been cached; the next read sees the new row");
     }
 
     @Test

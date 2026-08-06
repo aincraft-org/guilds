@@ -242,12 +242,21 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             return cached;
         }
         cacheMisses.increment();
-        List<Permission> loaded = loadResidentPermissions(residentUuid, context, contextId);
+        List<Permission> loaded;
+        try {
+            loaded = loadResidentPermissions(residentUuid, context, contextId);
+        } catch (SQLException e) {
+            // A failed load must not poison the cache with "no permissions":
+            // return empty for this call, but let the next read retry the DB.
+            logger.log(Level.SEVERE, "Failed to get permissions for resident: " + residentUuid, e);
+            return List.of();
+        }
         permissionCache.put(key, loaded);
         return loaded;
     }
 
-    private List<Permission> loadResidentPermissions(UUID residentUuid, String context, String contextId) {
+    private List<Permission> loadResidentPermissions(UUID residentUuid, String context, String contextId)
+            throws SQLException {
         String sql = "SELECT id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid " +
                     "FROM permissions WHERE context = ? AND context_id = ? AND (target_type = 'all' OR (target_type = 'resident' AND target_id = ?))";
 
@@ -265,9 +274,6 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                     permissions.add(mapResultSetToPermission(resultSet));
                 }
             }
-
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get permissions for resident: " + residentUuid, e);
         }
 
         return permissions;
