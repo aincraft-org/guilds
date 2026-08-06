@@ -1,5 +1,7 @@
 package com.azoth.territory.permission;
 
+import com.azoth.territory.model.GovernmentForm;
+
 import java.util.Objects;
 import java.util.Optional;
 
@@ -221,6 +223,11 @@ public final class BlockProtection {
         }
         if (!body.hasAssignedGovernment()) {
             // ANARCHY local government: no formal protection grants
+            return true;
+        }
+        // ANARCHY government (territory-local or guild): no permission system
+        // at all — land is wild for everyone.
+        if (body.government().form() == GovernmentForm.ANARCHY) {
             return true;
         }
         // Governance layer: the form's electorate always passes

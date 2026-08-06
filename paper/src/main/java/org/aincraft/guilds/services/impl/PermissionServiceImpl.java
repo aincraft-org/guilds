@@ -2,6 +2,10 @@ package org.aincraft.guilds.services.impl;
 
 
 
+import com.azoth.territory.model.GovernmentForm;
+import com.azoth.territory.model.LookupResult;
+import com.azoth.territory.model.Territory;
+import com.azoth.territory.registry.TerritoryRegistry;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Permission;
 import org.aincraft.guilds.models.Guild;
@@ -51,6 +55,13 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     private final GuildToggleService guildToggleService;
     private final LocationService locationService;
 
+    /**
+     * Late-bound: territory boundaries let the plot gate apply government-form
+     * semantics to territory chunks the guild has not materialized as plots.
+     * Null when the host plugin does not wire it (tests / degraded mode).
+     */
+    private TerritoryRegistry territoryRegistry;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /** Cache key for resident permission lookups. */
@@ -78,6 +89,10 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         this.residentService = residentService;
         this.locationService = locationService;
         this.guildToggleService = guildToggleService;
+    }
+
+    public void setTerritoryRegistry(TerritoryRegistry territoryRegistry) {
+        this.territoryRegistry = territoryRegistry;
     }
 
     @Override
@@ -438,8 +453,19 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             Optional<GuildBlock> guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
 
             if (!guildBlock.isPresent()) {
-                // Wilderness - apply wilderness toggle defaults
-                return checkWildernessPermission(permissionFlag);
+                // No plot row: territory chunks still follow the governing
+                // guild's government form (only ANARCHY is a wildcard bypass);
+                // land outside any territory stays wilderness.
+                return checkNoPlotPermission(residentUuid, x, z, world, permissionFlag);
+            }
+
+            // Guild block exists - use hierarchical permission evaluation
+            GuildBlock block = guildBlock.get();
+
+            // ANARCHY-form guild: no permission system — anyone may act here,
+            // including non-residents (no public/private admission gate).
+            if (guildService.getGovernanceForm(block.getGuildId()) == GovernmentForm.ANARCHY) {
+                return true;
             }
 
             // Guild block exists - apply guild toggle checks first
@@ -449,8 +475,6 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                 return false;
             }
 
-            // Guild block exists - use hierarchical permission evaluation
-            GuildBlock block = guildBlock.get();
             PermissionEvaluationResult result = evaluatePlotPermission(residentUuid, block.getId(), permissionFlag);
 
             // Log the evaluation result for debugging
@@ -511,6 +535,75 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         // - Switch/Item: Allowed (true)
         // - Fire/Explosions: Based on wilderness defaults
         return true; // By default, wilderness allows most actions
+    }
+
+    /**
+     * Permission at a location with no plot row. Territory chunks still belong
+     * to the governing guild: ANARCHY is the only form that is a wildcard
+     * bypass; under every other form the government owns the land and members
+     * act through explicit grants or form-gated role defaults. Land outside
+     * any territory is wilderness (always allowed).
+     */
+    private boolean checkNoPlotPermission(UUID residentUuid, int x, int z, String world, int permissionFlag) {
+        if (territoryRegistry == null) {
+            return checkWildernessPermission(permissionFlag);
+        }
+        LookupResult result = territoryRegistry.resolve(world, x, z);
+        if (!result.isContained()) {
+            return checkWildernessPermission(permissionFlag);
+        }
+        Optional<String> guildId = result.territory().flatMap(Territory::governedByGuildId);
+        if (guildId.isEmpty()) {
+            // Territory-local government: the territory gate (BlockProtection)
+            // enforces its seat lockdown; the plot layer stays permissive here.
+            return checkWildernessPermission(permissionFlag);
+        }
+        GovernmentForm form = guildService.getGovernanceForm(guildId.get());
+        if (form == GovernmentForm.ANARCHY) {
+            return true; // no permission system
+        }
+        Optional<Guild> guild = guildService.getGuildById(guildId.get());
+        if (guild.isEmpty()) {
+            return checkWildernessPermission(permissionFlag);
+        }
+        String guildName = guild.get().getName();
+        if (!isResidentInGuild(residentUuid, guildName)) {
+            // Outsider on government land without a plot row: mirror the
+            // territory gate's public-guild fallback (build/interact, never break).
+            return guild.get().isPublicEnabled() && permissionFlag != GuildPermission.DESTROY.getLegacyBitwiseValue();
+        }
+        // Member: explicit guild grants first, then form-gated role defaults.
+        for (Permission perm : getResidentPermissions(residentUuid, Permission.Context.GUILD, guildName)) {
+            if (perm.appliesTo(residentUuid) && perm.hasFlag(permissionFlag)) {
+                return true;
+            }
+        }
+        return memberDefaultAllows(residentUuid, guildName, permissionFlag, form);
+    }
+
+    /**
+     * Role-default evaluation for a guild member on land without explicit
+     * ownership (guild-owned plots and unclaimed territory chunks).
+     * <p>
+     * Government semantics: only DEMOCRACY shares land-modifying defaults
+     * (BUILD/DESTROY) with residents; MONARCHY/OLIGARCHY land is
+     * government-controlled — residents need explicit grants. Switch/item-use
+     * defaults stay under every form so towns remain usable.
+     */
+    private boolean memberDefaultAllows(UUID residentUuid, String guildName, int permissionFlag, GovernmentForm form) {
+        if (isGuildMayor(residentUuid, guildName)) {
+            return (PermissionSet.createMayor().toLegacyFlags() & permissionFlag) != 0;
+        }
+        if (isGuildAssistant(residentUuid, guildName)) {
+            return (PermissionSet.createAssistant().toLegacyFlags() & permissionFlag) != 0;
+        }
+        boolean residentDefault = (PermissionSet.createResident().toLegacyFlags() & permissionFlag) != 0;
+        if (!residentDefault) {
+            return false;
+        }
+        boolean landModification = permissionFlag == GuildPermission.BUILD.getLegacyBitwiseValue()
+                || permissionFlag == GuildPermission.DESTROY.getLegacyBitwiseValue();
+        return !landModification || form == GovernmentForm.DEMOCRACY;
     }
 
     @Override
@@ -1037,6 +1130,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         // Priority 4: Guild permissions (fallback for guild-owned plots or guild members)
         String guildName = getGuildNameFromId(guildId);
         if (guildName != null) {
+            GovernmentForm form = guildService.getGovernanceForm(guildId);
             // Check if user is member of the guild
             if (isResidentInGuild(residentUuid, guildName)) {
                 // Check guild-specific permissions for this resident
@@ -1047,25 +1141,20 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                     }
                 }
 
-                // Check default guild permissions based on resident's role
-                if (isGuildMayor(residentUuid, guildName)) {
-                    if ((PermissionSet.createMayor().toLegacyFlags() & permissionFlag) != 0) {
-                        return new PermissionEvaluationResult(true, "town", "Default mayor permissions");
-                    }
-                } else if (isGuildAssistant(residentUuid, guildName)) {
-                    if ((PermissionSet.createAssistant().toLegacyFlags() & permissionFlag) != 0) {
-                        return new PermissionEvaluationResult(true, "town", "Default assistant permissions");
-                    }
-                } else {
-                    // Regular guild resident
-                    if ((PermissionSet.createResident().toLegacyFlags() & permissionFlag) != 0) {
-                        return new PermissionEvaluationResult(true, "town", "Default resident permissions");
-                    }
+                // Role defaults (form-gated): land-modifying defaults
+                // (BUILD/DESTROY) exist only under DEMOCRACY — in MONARCHY and
+                // OLIGARCHY the government controls the land and members need
+                // explicit grants. Switch/item-use defaults stay under every
+                // form so towns remain usable.
+                if (memberDefaultAllows(residentUuid, guildName, permissionFlag, form)) {
+                    return new PermissionEvaluationResult(true, "town", "Role default permission");
                 }
             }
 
-            // Check if plot is guild-owned and apply default plot permissions
-            if (block.getOwnerId() == null) {
+            // Check if plot is guild-owned and apply default plot permissions.
+            // Only DEMOCRACY shares the commons with everyone; under
+            // MONARCHY/OLIGARCHY guild-owned land needs explicit grants.
+            if (block.getOwnerId() == null && form == GovernmentForm.DEMOCRACY) {
                 if ((PermissionSet.createDefaultPlot().toLegacyFlags() & permissionFlag) != 0) {
                     return new PermissionEvaluationResult(true, "plot", "Default town plot permissions");
                 }

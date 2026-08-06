@@ -123,6 +123,20 @@ class BlockProtectionTest {
     }
 
     @Test
+    void guildGoverned_anarchyForm_wildForEveryone() {
+        // ANARCHY means no permission system: guild-governed land under an
+        // anarchy-form guild is wild for members AND outsiders.
+        source.putGuild(guild("an-town", Government.anarchy(),
+                List.of("resident:1"), GuildToggles.defaults()));
+        registerGuildGovernedTerritory("anland", square(0, 50), "an-town", Government.anarchy());
+
+        assertTrue(protection.canBreak("world", 25, 25, "resident:1"));
+        assertTrue(protection.canBreak("world", 25, 25, "outsider"));
+        assertTrue(protection.canPlace("world", 25, 25, "outsider"));
+        assertTrue(protection.canInteract("world", 25, 25, "outsider"));
+    }
+
+    @Test
     void guildGoverned_publicGuild_outsiderCanBuildAndInteractButNotBreak() {
         GuildToggles publicToggles = new GuildToggles(false, false, false, true, true);
         source.putGuild(guild("open-town", Government.monarchy("mayor:1"),

@@ -90,6 +90,11 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         // permission checks resolve through real guild data; the web server and
         // commands start later in enableGuildsSubsystem().
         constructGuildsSubsystem();
+        if (this.guilds != null) {
+            // Let the guilds plot gate apply government-form semantics to
+            // territory chunks that have no plot rows.
+            this.guilds.wireTerritoryRegistry(registry);
+        }
 
         GovernanceSource source = this.guilds != null
                 ? this.guilds.getGovernanceSource()

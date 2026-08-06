@@ -456,6 +456,17 @@ public class GuildsServices {
         return questService;
     }
 
+    /**
+     * Let the guilds permission service apply government-form semantics to
+     * territory chunks that have no plot rows (late-bound from the host
+     * plugin, which owns the territory registry).
+     */
+    public void wireTerritoryRegistry(com.azoth.territory.registry.TerritoryRegistry registry) {
+        if (permissionService instanceof PermissionServiceImpl impl) {
+            impl.setTerritoryRegistry(registry);
+        }
+    }
+
     public PlotTypeRegistry getPlotTypeRegistry() {
         return plotTypeRegistry;
     }

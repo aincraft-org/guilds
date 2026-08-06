@@ -2,6 +2,7 @@ package org.aincraft.guilds.services.impl;
 
 
 
+import com.azoth.territory.model.GovernmentForm;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Location;
@@ -661,6 +662,23 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         }
 
         return false;
+    }
+
+    @Override
+    public GovernmentForm getGovernanceForm(String guildId) {
+        String sql = "SELECT governance_form FROM guilds WHERE id = ?";
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, guildId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return GovernmentForm.fromString(resultSet.getString("governance_form"));
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to read governance form for town " + guildId, e);
+        }
+        return GovernmentForm.MONARCHY;
     }
 
     @Override

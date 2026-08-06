@@ -1,5 +1,6 @@
 package org.aincraft.guilds.services;
 
+import com.azoth.territory.model.GovernmentForm;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Location;
 
@@ -88,6 +89,14 @@ public interface GuildService {
      * @return True if guild exists
      */
     boolean guildExists(String name);
+
+    /**
+     * Get a guild's governance form (the government form driving permission
+     * semantics: ANARCHY/MONARCHY/OLIGARCHY/DEMOCRACY).
+     * @param guildId Guild ID
+     * @return The stored form, or {@code MONARCHY} when unknown
+     */
+    GovernmentForm getGovernanceForm(String guildId);
 
     /**
      * Add a resident to a guild
