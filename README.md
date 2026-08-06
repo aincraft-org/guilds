@@ -139,13 +139,26 @@ truth: the guilds database.
 
 **Block protection** (`BlockProtection.canBreak` / `canPlace` / `canInteract` / `canInteractWithEntity` / `allowsPvp` / `canTeleportInto` / `crossesBoundary`), layered:
 - Uncontained wilderness → allow
-- `ANARCHY` government → no seat-based lockdown (allow); still no formal policy authority
+- `ANARCHY` government (territory-local **or** guild) → **no permission system at
+  all**: land is wild for everyone, members and outsiders alike; still no formal
+  policy authority
 - Assigned government → **formal authority holders always pass**; guild-governed
-  land then falls through to the guilds permission model:
+  land then falls through to the guilds permission model (two gates ANDed —
+  the territory gate plus the plot gate):
+  - **government form sets the property model** — in `MONARCHY`/`OLIGARCHY`
+    the government owns the land: members get **no build/destroy defaults** and
+    need explicit grants (`/perm set <player> build true`, guild-context, or
+    `/plot perm`); in `DEMOCRACY` the citizens share the commons and the
+    resident build default applies; switch/item-use defaults stay under every
+    form so towns remain usable. This is how a monarch builds their own
+    permission system: the form sets the default, `/perm` grants customize it;
+  - **plot ownership is honored under every form** — a resident who claimed or
+    bought a plot has absolute rights on it;
+  - territory chunks inside a guild-governed territory that have no plot rows
+    follow the same form policy (fallback through the territory registry);
   - members (residents of the governing town; for nations, any member-town
     resident) are evaluated by their effective permissions — global `bypass`,
-    explicit town-context grants, then the role default granting every member
-    the basic build actions (break/place/switch/item-use);
+    explicit town-context grants, then the form-gated role default;
   - outsiders are denied unless the town is **public**, in which case they may
     build/interact but never break (mirroring guilds town-owned plot defaults);
   - territory-local government stays a pure seat lockdown.
