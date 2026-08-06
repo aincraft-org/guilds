@@ -33,21 +33,18 @@ public class EconomyBridge {
     private final GovernanceRegistry governance;
     private final GoodsCatalog goods;
     private final PaymentRail rail;
-    private final boolean simulationMode;
     private final List<UnresolvedTransaction> unresolved = new CopyOnWriteArrayList<>();
 
     public EconomyBridge(
             TerritoryRegistry territories,
             GovernanceRegistry governance,
             GoodsCatalog goods,
-            PaymentRail rail,
-            boolean simulationMode
+            PaymentRail rail
     ) {
         this.territories = Objects.requireNonNull(territories, "territories");
         this.governance = Objects.requireNonNull(governance, "governance");
         this.goods = Objects.requireNonNull(goods, "goods");
         this.rail = Objects.requireNonNull(rail, "rail");
-        this.simulationMode = simulationMode;
     }
 
     public TaxReport reportSale(
@@ -98,9 +95,6 @@ public class EconomyBridge {
         }
 
         double taxAmount = TaxCalculator.tax(grossAmount, rate);
-        if (simulationMode) {
-            return report(TaxOutcome.SIMULATED_TAXED, territoryId, good.get().id(), rate, taxAmount);
-        }
         if (!rail.available()) {
             return report(TaxOutcome.VAULT_UNAVAILABLE, territoryId, good.get().id(), rate, taxAmount);
         }

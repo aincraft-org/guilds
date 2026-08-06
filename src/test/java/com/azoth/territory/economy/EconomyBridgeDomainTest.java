@@ -37,10 +37,10 @@ class EconomyBridgeDomainTest {
         return t.decreePolicy("tax", "king:arthur", true, NOW + 1);
     }
 
-    private static EconomyBridge bridge(PaymentRail rail, boolean simulation) {
+    private static EconomyBridge bridge(PaymentRail rail) {
         TerritoryRegistry reg = new TerritoryRegistry();
         reg.register(taxedTerritory());
-        return new EconomyBridge(reg, new GovernanceRegistry(reg), GoodsCatalog.defaultCatalog(), rail, simulation);
+        return new EconomyBridge(reg, new GovernanceRegistry(reg), GoodsCatalog.defaultCatalog(), rail);
     }
 
     private static final class RecordingRail implements PaymentRail {
@@ -63,7 +63,7 @@ class EconomyBridgeDomainTest {
     @Test
     void taxedSaleSettlesAndReports() {
         RecordingRail rail = new RecordingRail();
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
         assertEquals(TaxOutcome.TAXED, r.outcome());
         assertEquals("t1", r.territoryId());
@@ -76,7 +76,7 @@ class EconomyBridgeDomainTest {
     @Test
     void outsideAnyTerritoryIsNoTerritory() {
         RecordingRail rail = new RecordingRail();
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         TaxReport r = b.reportSale(PAYER, WORLD, 500, 500, "carrot", 100.0);
         assertEquals(TaxOutcome.NO_TERRITORY, r.outcome());
         assertEquals(0.0, r.taxAmount(), 1e-9);
@@ -88,7 +88,7 @@ class EconomyBridgeDomainTest {
         TerritoryRegistry reg = new TerritoryRegistry();
         reg.register(new Territory("t2", "T2", WORLD, SQUARE));
         EconomyBridge b = new EconomyBridge(reg, new GovernanceRegistry(reg), GoodsCatalog.defaultCatalog(),
-                new RecordingRail(), false);
+                new RecordingRail());
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
         assertEquals(TaxOutcome.NO_GOVERNMENT, r.outcome());
         assertEquals("t2", r.territoryId());
@@ -96,14 +96,14 @@ class EconomyBridgeDomainTest {
 
     @Test
     void unknownGoodIsUnknownGood() {
-        EconomyBridge b = bridge(new RecordingRail(), false);
+        EconomyBridge b = bridge(new RecordingRail());
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "dragon_egg", 100.0);
         assertEquals(TaxOutcome.UNKNOWN_GOOD, r.outcome());
     }
 
     @Test
     void untaxedGoodIsNoTax() {
-        EconomyBridge b = bridge(new RecordingRail(), false);
+        EconomyBridge b = bridge(new RecordingRail());
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "potato", 100.0);
         assertEquals(TaxOutcome.NO_TAX, r.outcome());
         assertEquals(0.0, r.taxAmount(), 1e-9);
@@ -113,7 +113,7 @@ class EconomyBridgeDomainTest {
     @Test
     void invalidAmountIsRejectedBeforeSettlement() {
         RecordingRail rail = new RecordingRail();
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "carrot", -5.0);
         assertEquals(TaxOutcome.INVALID_AMOUNT, r.outcome());
         assertEquals(0, rail.settleCalls);
@@ -123,7 +123,7 @@ class EconomyBridgeDomainTest {
     void railUnavailableIsVaultUnavailable() {
         RecordingRail rail = new RecordingRail();
         rail.available = false;
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
         assertEquals(TaxOutcome.VAULT_UNAVAILABLE, r.outcome());
         assertEquals(0, rail.settleCalls);
@@ -133,7 +133,7 @@ class EconomyBridgeDomainTest {
     void insufficientFundsMapsThrough() {
         RecordingRail rail = new RecordingRail();
         rail.result = new SettlementResult(PaymentRail.SettlementStatus.INSUFFICIENT_FUNDS);
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         assertEquals(TaxOutcome.INSUFFICIENT_FUNDS, b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0).outcome());
     }
 
@@ -141,7 +141,7 @@ class EconomyBridgeDomainTest {
     void payerUnavailableMapsThrough() {
         RecordingRail rail = new RecordingRail();
         rail.result = new SettlementResult(PaymentRail.SettlementStatus.PAYER_UNAVAILABLE);
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         assertEquals(TaxOutcome.PAYER_UNAVAILABLE, b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0).outcome());
     }
 
@@ -149,7 +149,7 @@ class EconomyBridgeDomainTest {
     void vaultUnavailableSettlementMapsThrough() {
         RecordingRail rail = new RecordingRail();
         rail.result = new SettlementResult(PaymentRail.SettlementStatus.VAULT_UNAVAILABLE);
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         assertEquals(TaxOutcome.VAULT_UNAVAILABLE, b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0).outcome());
     }
 
@@ -157,7 +157,7 @@ class EconomyBridgeDomainTest {
     void compensatedFailureMapsThrough() {
         RecordingRail rail = new RecordingRail();
         rail.result = new SettlementResult(PaymentRail.SettlementStatus.COMPENSATED_FAILURE);
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         assertEquals(TaxOutcome.SETTLEMENT_FAILED, b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0).outcome());
     }
 
@@ -165,7 +165,7 @@ class EconomyBridgeDomainTest {
     void reconciliationRequiredMapsThroughAndQueues() {
         RecordingRail rail = new RecordingRail();
         rail.result = new SettlementResult(PaymentRail.SettlementStatus.RECONCILIATION_REQUIRED);
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
         assertEquals(TaxOutcome.SETTLEMENT_RECONCILIATION_REQUIRED, r.outcome());
         assertEquals(1, b.unresolvedTransactions().size());
@@ -176,28 +176,12 @@ class EconomyBridgeDomainTest {
     }
 
     @Test
-    void simulationModeReturnsSimulatedTaxed() {
-        EconomyBridge b = bridge(new RecordingRail(), true);
-        TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
-        assertEquals(TaxOutcome.SIMULATED_TAXED, r.outcome());
-        assertEquals(15.0, r.taxAmount(), 1e-9);
-    }
-
-    @Test
     void multipleReconciliationsAreNotDoubleCounted() {
         RecordingRail rail = new RecordingRail();
         rail.result = new SettlementResult(PaymentRail.SettlementStatus.RECONCILIATION_REQUIRED);
-        EconomyBridge b = bridge(rail, false);
+        EconomyBridge b = bridge(rail);
         b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
         b.reportSale(PAYER, WORLD, 5, 5, "carrot", 50.0);
         assertEquals(2, b.unresolvedTransactions().size());
-    }
-
-    @Test
-    void simulationTreasurySettlementCreditsActiveLedger() {
-        SimulationTreasury treasury = new SimulationTreasury();
-        SettlementResult result = treasury.settle(PAYER, "t1", 2.5);
-        assertEquals(PaymentRail.SettlementStatus.SETTLED, result.status());
-        assertEquals(2.5, treasury.activeBalanceOf("t1"), 1e-9);
     }
 }

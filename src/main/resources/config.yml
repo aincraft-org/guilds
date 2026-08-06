@@ -25,8 +25,3 @@ web:
     keystore-type: PKCS12
     password: changeit
     key-password: changeit
-
-
-# Settlement economy: VAULT (real money via Vault banks) or SIMULATION (dev/test ledger-only).
-economy:
-  mode: VAULT

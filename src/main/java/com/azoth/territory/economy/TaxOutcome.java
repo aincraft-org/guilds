@@ -3,7 +3,6 @@ package com.azoth.territory.economy;
 /** Result of a sale report. Outcomes before settlement mutate nothing. */
 public enum TaxOutcome {
     TAXED,
-    SIMULATED_TAXED,
     NO_TERRITORY,
     NO_GOVERNMENT,
     NO_TAX,

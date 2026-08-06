@@ -20,7 +20,7 @@ class BukkitEconomyBridgeTest {
                     new com.azoth.territory.permission.GovernanceRegistry(
                             new com.azoth.territory.registry.TerritoryRegistry()),
                     com.azoth.territory.decree.GoodsCatalog.defaultCatalog(),
-                    new RecordingRail(), false);
+                    new RecordingRail());
         }
 
         @Override

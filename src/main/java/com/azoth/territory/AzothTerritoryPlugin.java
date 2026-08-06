@@ -3,10 +3,8 @@ package com.azoth.territory;
 import com.azoth.territory.command.TerritoryCommand;
 import com.azoth.territory.economy.BukkitEconomyBridge;
 import com.azoth.territory.economy.EconomyBridge;
-import com.azoth.territory.economy.EconomyConfig;
 import com.azoth.territory.economy.PaymentRail;
 import com.azoth.territory.economy.SettlementResult;
-import com.azoth.territory.economy.SimulationTreasury;
 import com.azoth.territory.economy.VaultTreasury;
 import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
@@ -54,13 +52,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         this.governance = new GovernanceRegistry(registry);
 
         try {
-            EconomyConfig economyConfig = EconomyConfig.fromBukkit(getConfig());
-            boolean simulation = economyConfig.mode() == EconomyConfig.Mode.SIMULATION;
             PaymentRail rail;
-            if (simulation) {
-                rail = new SimulationTreasury();
-                getLogger().info("Economy in SIMULATION mode — non-monetary ledger only, no player charges");
-            } else if (getServer().getPluginManager().getPlugin("Vault") == null) {
+            if (getServer().getPluginManager().getPlugin("Vault") == null) {
                 rail = new UnavailableRail();
                 getLogger().warning("Vault not found — settlement returns VAULT_UNAVAILABLE");
             } else {
@@ -82,7 +75,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 }
             }
             this.economyBridge = new EconomyBridge(
-                    registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(), rail, simulation);
+                    registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(), rail);
             this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge);
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Failed to wire economy — settlement disabled", e);
@@ -136,7 +129,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private static final class UnavailableRail implements PaymentRail {
         @Override
         public SettlementResult settle(java.util.UUID payerId, String territoryId, double amount) {
-            return new SettlementResult(PaymentRail.SettlementStatus.PAYER_UNAVAILABLE);
+            return new SettlementResult(PaymentRail.SettlementStatus.VAULT_UNAVAILABLE);
         }
 
         @Override
