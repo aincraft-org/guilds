@@ -212,6 +212,28 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
     }
 
     @Override
+    public List<Resident> searchResidents(String prefix, int limit) {
+        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags "
+                + "FROM residents WHERE name LIKE ? ORDER BY name LIMIT ?";
+        List<Resident> residents = new ArrayList<>();
+
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, prefix + "%");
+            statement.setInt(2, Math.max(1, limit));
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    residents.add(mapResultSetToResident(resultSet));
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.SEVERE, "Failed to search residents with prefix " + prefix, e);
+        }
+
+        return residents;
+    }
+
+    @Override
     public boolean residentExists(UUID uuid) {
         String sql = "SELECT COUNT(*) FROM residents WHERE uuid = ?";
 

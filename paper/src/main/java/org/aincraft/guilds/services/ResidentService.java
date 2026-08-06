@@ -61,6 +61,14 @@ public interface ResidentService {
     List<Resident> getResidentsInGuild(String guildName);
 
     /**
+     * Search residents by case-insensitive name prefix (offline suggestions).
+     * @param prefix Name prefix
+     * @param limit Maximum results
+     * @return Residents whose name starts with the prefix, ordered by name
+     */
+    List<Resident> searchResidents(String prefix, int limit);
+
+    /**
      * Check if a resident exists
      * @param uuid Player UUID
      * @return True if resident exists

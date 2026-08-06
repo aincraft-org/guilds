@@ -17,10 +17,11 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 /**
  * Argument type for resident names with validation and suggestions
@@ -75,18 +76,22 @@ public class ResidentArgumentType implements CustomArgumentType<String, String> 
 
     @Override
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-        // Suggest online players first
-        List<String> onlinePlayers = Bukkit.getOnlinePlayers().stream()
-            .map(Player::getName)
-            .filter(name -> name.toLowerCase().startsWith(builder.getRemainingLowerCase()))
-            .collect(Collectors.toList());
+        String remaining = builder.getRemainingLowerCase();
 
-        for (String playerName : onlinePlayers) {
-            builder.suggest(playerName);
+        // Online players first, then offline residents from the database
+        // (bounded prefix search; deduplicated, prefix-filtered).
+        Set<String> names = new LinkedHashSet<>();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (player.getName().toLowerCase().startsWith(remaining)) {
+                names.add(player.getName());
+            }
         }
-
-        // TODO: Add offline resident suggestions from database
-        // This would require database access which might be expensive for tab completion
+        for (Resident resident : residentService.searchResidents(remaining, 50)) {
+            names.add(resident.getName());
+        }
+        for (String name : names) {
+            builder.suggest(name);
+        }
 
         return builder.buildFuture();
     }
