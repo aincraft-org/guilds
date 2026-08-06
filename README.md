@@ -246,6 +246,7 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 | PUT | `/api/territories/{id}` | Create/update (persists to the configured store — PostgreSQL or JSON) |
 | DELETE | `/api/territories/{id}` | Remove |
 | GET | `/api/resolve?world=&x=&z=` | Spatial lookup |
+| GET | `/api/influence` | Influence race state per territory (404 when the engine is disabled) |
 
 ### Reverse proxy (recommended TLS)
 
