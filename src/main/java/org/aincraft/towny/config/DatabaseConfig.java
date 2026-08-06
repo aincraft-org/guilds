@@ -61,8 +61,7 @@ public class DatabaseConfig {
             dataSource = new HikariDataSource(config);
             plugin.getLogger().info("Database connection pool initialized successfully.");
         } catch (Exception e) {
-            plugin.getLogger().severe("Failed to initialize database connection pool: " + e.getMessage());
-            e.printStackTrace();
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to initialize database connection pool", e);
         }
     }
 
@@ -111,8 +110,7 @@ public class DatabaseConfig {
                 databaseFile.createNewFile();
                 plugin.getLogger().info("Created new database file: " + databaseFile.getAbsolutePath());
             } catch (Exception e) {
-                plugin.getLogger().severe("Failed to create database file: " + e.getMessage());
-                e.printStackTrace();
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to create database file", e);
             }
         }
     }

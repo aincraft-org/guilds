@@ -1232,7 +1232,6 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                 return setHomeBlockAsSpawnFallbackWithoutY(townName, location);
             } else {
                 logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town: " + townName, e);
-                e.printStackTrace();
             }
         }
 
@@ -1272,7 +1271,6 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
 
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town (without Y): " + townName, e);
-            e.printStackTrace();
         }
 
         return false;
@@ -1334,7 +1332,6 @@ public class TownServiceImpl implements org.aincraft.towny.services.TownService 
                 return getHomeBlockAsSpawn(townName);
             } else {
                 logger.log(Level.SEVERE, "Failed to get spawn for town: " + townName, e);
-                e.printStackTrace();
             }
         }
 

@@ -36,9 +36,8 @@ import java.util.logging.Logger;
  */
 public class TownyPlugin implements Listener {
 
-    /** Resource name for guilds defaults (avoids clobbering territory {@code config.yml}). */
-    public static final String GUILDS_CONFIG_RESOURCE = "guilds-config.yml";
-    public static final String GUILDS_CONFIG_FILE = "guilds-config.yml";
+    /** Resource/file name for guilds defaults (avoids clobbering territory {@code config.yml}). */
+    public static final String GUILDS_CONFIG = "guilds-config.yml";
 
     private static TownyPlugin instance;
 
@@ -171,9 +170,9 @@ public class TownyPlugin implements Listener {
     }
 
     public void saveDefaultConfig() {
-        File out = new File(getDataFolder(), GUILDS_CONFIG_FILE);
+        File out = new File(getDataFolder(), GUILDS_CONFIG);
         if (!out.exists()) {
-            host.saveResource(GUILDS_CONFIG_RESOURCE, false);
+            host.saveResource(GUILDS_CONFIG, false);
         }
     }
 
@@ -184,14 +183,14 @@ public class TownyPlugin implements Listener {
         try {
             guildsConfig.save(guildsConfigFile());
         } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Could not save " + GUILDS_CONFIG_FILE, e);
+            getLogger().log(Level.SEVERE, "Could not save " + GUILDS_CONFIG, e);
         }
     }
 
     public void reloadConfig() {
         guildsConfigFile = guildsConfigFile();
         guildsConfig = YamlConfiguration.loadConfiguration(guildsConfigFile);
-        InputStream def = host.getResource(GUILDS_CONFIG_RESOURCE);
+        InputStream def = host.getResource(GUILDS_CONFIG);
         if (def != null) {
             YamlConfiguration defaults = YamlConfiguration.loadConfiguration(
                     new InputStreamReader(def, StandardCharsets.UTF_8));
@@ -201,7 +200,7 @@ public class TownyPlugin implements Listener {
 
     private File guildsConfigFile() {
         if (guildsConfigFile == null) {
-            guildsConfigFile = new File(getDataFolder(), GUILDS_CONFIG_FILE);
+            guildsConfigFile = new File(getDataFolder(), GUILDS_CONFIG);
         }
         return guildsConfigFile;
     }
@@ -214,8 +213,7 @@ public class TownyPlugin implements Listener {
             webServer.start();
             getLogger().info("Guilds dependency injection initialized successfully.");
         } catch (Exception e) {
-            getLogger().severe("Failed to initialize guilds dependency injection: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(Level.SEVERE, "Failed to initialize guilds dependency injection", e);
             injector = null;
         }
     }
@@ -247,8 +245,7 @@ public class TownyPlugin implements Listener {
 
             getLogger().info("Guilds core services initialized.");
         } catch (Exception e) {
-            getLogger().severe("Failed to initialize guilds core services: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(Level.SEVERE, "Failed to initialize guilds core services", e);
         }
     }
 
@@ -262,8 +259,7 @@ public class TownyPlugin implements Listener {
             commandRegistry.registerCommands();
             getLogger().info("Guilds Brigadier commands registered successfully.");
         } catch (Exception e) {
-            getLogger().severe("Failed to register guilds Brigadier commands: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(Level.SEVERE, "Failed to register guilds Brigadier commands", e);
         }
     }
 
