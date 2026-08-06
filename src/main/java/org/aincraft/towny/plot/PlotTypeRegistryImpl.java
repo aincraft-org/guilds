@@ -257,28 +257,4 @@ public class PlotTypeRegistryImpl implements PlotTypeRegistry {
                                 builtInTypes, pluginTypes, pluginCount);
     }
 
-    /**
-     * Initialize the registry with built-in types
-     * Should be called during plugin startup
-     */
-    public void initialize() {
-        if (plotTypes.isEmpty()) {
-            registerBuiltInTypes();
-        }
-    }
-
-    /**
-     * Get all registered plugin names
-     */
-    public Set<String> getRegisteredPlugins() {
-        return new HashSet<>(pluginTypes.keySet());
-    }
-
-    /**
-     * Check if any plot types from a plugin are registered
-     */
-    public boolean hasPluginTypes(String pluginName) {
-        Objects.requireNonNull(pluginName, "Plugin name cannot be null");
-        return pluginTypes.containsKey(pluginName) && !pluginTypes.get(pluginName).isEmpty();
-    }
 }

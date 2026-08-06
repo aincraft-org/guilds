@@ -6,7 +6,6 @@ import org.aincraft.towny.plot.PlotTypeDefinition;
 import org.aincraft.towny.plot.PlotTypeHandler;
 import org.aincraft.towny.plot.PlotTypeHandlerManager;
 import org.aincraft.towny.plot.PlotTypeRegistry;
-import org.aincraft.towny.plot.PlotTypeRegistryImpl;
 import org.aincraft.towny.services.PlotService;
 import org.aincraft.towny.services.PlotTypeService;
 
@@ -197,11 +196,7 @@ public class PlotTypeServiceImpl implements PlotTypeService {
 
     @Override
     public void initializeBuiltInTypes() {
-        if (plotTypeRegistry instanceof PlotTypeRegistryImpl) {
-            ((PlotTypeRegistryImpl) plotTypeRegistry).initialize();
-        } else {
-            logger.warning("Cannot initialize built-in plot types: registry is not an instance of PlotTypeRegistryImpl");
-        }
+        plotTypeRegistry.registerBuiltInTypes();
     }
 
     @Override
@@ -236,54 +231,4 @@ public class PlotTypeServiceImpl implements PlotTypeService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get plot types with a specific metadata key
-     */
-    public List<PlotTypeDefinition> getPlotTypesWithMetadata(String key) {
-        return plotTypeRegistry.getAllPlotTypes().stream()
-                .filter(def -> def.hasMetadata(key))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get plot types that require specific permissions
-     */
-    public List<PlotTypeDefinition> getPlotTypesRequiringPermission(String permission) {
-        return plotTypeRegistry.getAllPlotTypes().stream()
-                .filter(def -> def.requiresPermission(permission))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get enabled plot types
-     */
-    public List<PlotTypeDefinition> getEnabledPlotTypes() {
-        return plotTypeRegistry.getAllPlotTypes().stream()
-                .filter(PlotTypeDefinition::isEnabled)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Get built-in plot types
-     */
-    public List<PlotTypeDefinition> getBuiltInPlotTypes() {
-        return new ArrayList<>(plotTypeRegistry.getBuiltInPlotTypes());
-    }
-
-    /**
-     * Check if a plot type is built-in
-     */
-    public boolean isBuiltInPlotType(String typeName) {
-        Optional<PlotTypeDefinition> definition = plotTypeRegistry.getPlotType(typeName);
-        return definition.isPresent() && definition.get().isBuiltIn();
-    }
-
-    /**
-     * Get plot type by display name (case-insensitive)
-     */
-    public Optional<PlotTypeDefinition> getPlotTypeByDisplayName(String displayName) {
-        return plotTypeRegistry.getAllPlotTypes().stream()
-                .filter(def -> def.getDisplayName().equalsIgnoreCase(displayName))
-                .findFirst();
-    }
 }

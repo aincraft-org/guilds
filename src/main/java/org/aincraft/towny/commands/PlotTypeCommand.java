@@ -214,7 +214,6 @@ public class PlotTypeCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§7Total Handlers: §e" + handlerStats.getTotalHandlers());
         sender.sendMessage("§7Enabled Handlers: §a" + handlerStats.getEnabledHandlers());
         sender.sendMessage("§7Types with Handlers: §e" + handlerStats.getTypeCount());
-        sender.sendMessage("§7Plugins with Handlers: §e" + handlerStats.getPluginCount());
     }
 
     /**

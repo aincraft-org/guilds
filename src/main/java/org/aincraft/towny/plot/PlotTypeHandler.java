@@ -20,11 +20,6 @@ public interface PlotTypeHandler {
      */
     void onPlayerLeave(PlotTypeEvent.PlayerLeavePlotEvent event);
 
-    /**
-     * Called when a player performs an action within a plot of the registered type
-     * @param event The plot action event
-     */
-    void onPlotAction(PlotTypeEvent.PlotActionEvent event);
 
     /**
      * Called when the plot type is about to change

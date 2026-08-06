@@ -2,12 +2,11 @@ package org.aincraft.towny.plot;
 
 import com.google.inject.Singleton;
 import org.aincraft.towny.models.TownBlock;
-import org.bukkit.Bukkit;
-import org.bukkit.plugin.Plugin;
 
 import com.google.inject.Inject;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -18,7 +17,6 @@ import java.util.logging.Logger;
 public class PlotTypeHandlerManager {
 
     private final Map<String, Set<PlotTypeHandler>> typeHandlers = new ConcurrentHashMap<>();
-    private final Map<Plugin, Set<String>> pluginHandlers = new ConcurrentHashMap<>();
     private final PlotTypeRegistry plotTypeRegistry;
     private final Logger logger;
 
@@ -45,17 +43,6 @@ public class PlotTypeHandlerManager {
         logger.info("Registered handler for plot type: " + plotTypeName + " (plugin: " + handler.getPluginName() + ")");
     }
 
-    /**
-     * Register a handler for a specific plot type with plugin tracking
-     */
-    public void registerHandler(Plugin plugin, String plotTypeName, PlotTypeHandler handler) {
-        Objects.requireNonNull(plugin, "Plugin cannot be null");
-
-        registerHandler(plotTypeName, handler);
-
-        pluginHandlers.computeIfAbsent(plugin, k -> ConcurrentHashMap.newKeySet())
-                     .add(plotTypeName.toLowerCase());
-    }
 
     /**
      * Unregister handlers for a specific plot type
@@ -65,10 +52,6 @@ public class PlotTypeHandlerManager {
 
         Set<PlotTypeHandler> handlers = typeHandlers.remove(plotTypeName.toLowerCase());
         if (handlers != null) {
-            // Remove from plugin tracking
-            for (Set<String> types : pluginHandlers.values()) {
-                types.remove(plotTypeName.toLowerCase());
-            }
 
             logger.info("Unregistered " + handlers.size() + " handlers for plot type: " + plotTypeName);
             return true;
@@ -76,30 +59,6 @@ public class PlotTypeHandlerManager {
         return false;
     }
 
-    /**
-     * Unregister handlers for a specific plugin
-     */
-    public int unregisterHandler(Plugin plugin) {
-        Objects.requireNonNull(plugin, "Plugin cannot be null");
-
-        Set<String> types = pluginHandlers.remove(plugin);
-        if (types == null) {
-            return 0;
-        }
-
-        int removedCount = 0;
-        for (String typeName : types) {
-            Set<PlotTypeHandler> handlers = typeHandlers.get(typeName);
-            if (handlers != null) {
-                int beforeSize = handlers.size();
-                handlers.removeIf(handler -> handler.getPluginName().equals(plugin.getName()));
-                removedCount += (beforeSize - handlers.size());
-            }
-        }
-
-        logger.info("Unregistered " + removedCount + " handlers for plugin: " + plugin.getName());
-        return removedCount;
-    }
 
     /**
      * Get all handlers for a specific plot type
@@ -122,25 +81,7 @@ public class PlotTypeHandlerManager {
         return allHandlers;
     }
 
-    /**
-     * Get handlers for a specific plugin
-     */
-    public Set<PlotTypeHandler> getHandlersForPlugin(Plugin plugin) {
-        Objects.requireNonNull(plugin, "Plugin cannot be null");
 
-        Set<PlotTypeHandler> pluginHandlers = new HashSet<>();
-        String pluginName = plugin.getName();
-
-        for (Set<PlotTypeHandler> handlers : typeHandlers.values()) {
-            for (PlotTypeHandler handler : handlers) {
-                if (handler.getPluginName().equals(pluginName)) {
-                    pluginHandlers.add(handler);
-                }
-            }
-        }
-
-        return pluginHandlers;
-    }
 
     /**
      * Dispatch player enter plot event
@@ -170,8 +111,7 @@ public class PlotTypeHandlerManager {
                         return;
                     }
                 } catch (Exception e) {
-                    logger.warning("Error in plot type handler " + handler.getPluginName() + ": " + e.getMessage());
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, "Error in plot type handler " + handler.getPluginName(), e);
                 }
             }
         }
@@ -205,48 +145,12 @@ public class PlotTypeHandlerManager {
                         return;
                     }
                 } catch (Exception e) {
-                    logger.warning("Error in plot type handler " + handler.getPluginName() + ": " + e.getMessage());
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, "Error in plot type handler " + handler.getPluginName(), e);
                 }
             }
         }
     }
 
-    /**
-     * Dispatch plot action event
-     */
-    public void dispatchPlotActionEvent(org.bukkit.entity.Player player, TownBlock plot, String action, Object actionData) {
-        String plotTypeName = plot.getPlotType();
-        if (plotTypeName == null) {
-            return;
-        }
-
-        Optional<PlotTypeDefinition> definitionOpt = plotTypeRegistry.getPlotType(plotTypeName);
-        if (!definitionOpt.isPresent() || !definitionOpt.get().isEnabled()) {
-            return;
-        }
-
-        PlotTypeDefinition definition = definitionOpt.get();
-        org.aincraft.towny.events.plot.PlotTypeEvent.PlotActionEvent event =
-            new org.aincraft.towny.events.plot.PlotTypeEvent.PlotActionEvent(player, plot, definition, action, actionData);
-
-        Set<PlotTypeHandler> handlers = getHandlersForPlotType(plotTypeName);
-        for (PlotTypeHandler handler : handlers) {
-            if (handler.isEnabled()) {
-                try {
-                    handler.onPlotAction(event);
-                    if (event.isCancelled()) {
-                        logger.fine("Plot action event cancelled by handler: " + handler.getPluginName() +
-                                  (event.getCancelReason() != null ? " - " + event.getCancelReason() : ""));
-                        return;
-                    }
-                } catch (Exception e) {
-                    logger.warning("Error in plot type handler " + handler.getPluginName() + ": " + e.getMessage());
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
 
     /**
      * Dispatch plot type change event
@@ -271,8 +175,7 @@ public class PlotTypeHandlerManager {
                         return;
                     }
                 } catch (Exception e) {
-                    logger.warning("Error in plot type handler " + handler.getPluginName() + ": " + e.getMessage());
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, "Error in plot type handler " + handler.getPluginName(), e);
                 }
             }
         }
@@ -284,7 +187,6 @@ public class PlotTypeHandlerManager {
     public HandlerStats getStats() {
         int totalHandlers = 0;
         int enabledHandlers = 0;
-        int pluginCount = pluginHandlers.size();
 
         for (PlotTypeHandler handler : getAllHandlers()) {
             totalHandlers++;
@@ -293,7 +195,7 @@ public class PlotTypeHandlerManager {
             }
         }
 
-        return new HandlerStats(totalHandlers, enabledHandlers, typeHandlers.size(), pluginCount);
+        return new HandlerStats(totalHandlers, enabledHandlers, typeHandlers.size());
     }
 
     /**
@@ -303,24 +205,21 @@ public class PlotTypeHandlerManager {
         private final int totalHandlers;
         private final int enabledHandlers;
         private final int typeCount;
-        private final int pluginCount;
 
-        public HandlerStats(int totalHandlers, int enabledHandlers, int typeCount, int pluginCount) {
+        public HandlerStats(int totalHandlers, int enabledHandlers, int typeCount) {
             this.totalHandlers = totalHandlers;
             this.enabledHandlers = enabledHandlers;
             this.typeCount = typeCount;
-            this.pluginCount = pluginCount;
         }
 
         public int getTotalHandlers() { return totalHandlers; }
         public int getEnabledHandlers() { return enabledHandlers; }
         public int getTypeCount() { return typeCount; }
-        public int getPluginCount() { return pluginCount; }
 
         @Override
         public String toString() {
-            return String.format("HandlerStats{total=%d, enabled=%d, types=%d, plugins=%d}",
-                               totalHandlers, enabledHandlers, typeCount, pluginCount);
+            return String.format("HandlerStats{total=%d, enabled=%d, types=%d}",
+                               totalHandlers, enabledHandlers, typeCount);
         }
     }
 }

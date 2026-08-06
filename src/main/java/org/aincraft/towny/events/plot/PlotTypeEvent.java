@@ -101,49 +101,6 @@ public abstract class PlotTypeEvent extends Event {
         }
     }
 
-    /**
-     * Event fired when a player performs an action within a plot
-     */
-    public static class PlotActionEvent extends PlotTypeEvent {
-        private final org.bukkit.entity.Player player;
-        private final String action;
-        private final Object actionData;
-
-        public PlotActionEvent(org.bukkit.entity.Player player, TownBlock plot, PlotTypeDefinition plotType, String action, Object actionData) {
-            super(plot, plotType);
-            this.player = player;
-            this.action = action;
-            this.actionData = actionData;
-        }
-
-        public org.bukkit.entity.Player getPlayer() {
-            return player;
-        }
-
-        public String getAction() {
-            return action;
-        }
-
-        public Object getActionData() {
-            return actionData;
-        }
-
-        @SuppressWarnings("unchecked")
-        public <T> T getActionData(Class<T> type) {
-            if (actionData != null && type.isInstance(actionData)) {
-                return (T) actionData;
-            }
-            return null;
-        }
-
-        @Override
-        public String toString() {
-            return "PlotActionEvent{player=" + player.getName() +
-                   ", action=" + action +
-                   ", plotType=" + getPlotType().getTypeName() +
-                   ", location=" + getPlot().getX() + "," + getPlot().getZ() + "}";
-        }
-    }
 
     /**
      * Event fired when a plot type is about to change
@@ -181,61 +138,4 @@ public abstract class PlotTypeEvent extends Event {
         }
     }
 
-    /**
-     * Event fired when a plot type handler is registered
-     */
-    public static class HandlerRegisteredEvent extends PlotTypeEvent {
-        private final String handlerPluginName;
-        private final String plotTypeName;
-
-        public HandlerRegisteredEvent(String handlerPluginName, String plotTypeName, PlotTypeDefinition plotType) {
-            super(null, plotType);
-            this.handlerPluginName = handlerPluginName;
-            this.plotTypeName = plotTypeName;
-        }
-
-        public String getHandlerPluginName() {
-            return handlerPluginName;
-        }
-
-        public String getPlotTypeName() {
-            return plotTypeName;
-        }
-
-        @Override
-        public String toString() {
-            return "HandlerRegisteredEvent{plugin=" + handlerPluginName +
-                   ", plotType=" + plotTypeName +
-                   ", definition=" + getPlotType().getDisplayName() + "}";
-        }
-    }
-
-    /**
-     * Event fired when a plot type handler is unregistered
-     */
-    public static class HandlerUnregisteredEvent extends PlotTypeEvent {
-        private final String handlerPluginName;
-        private final String plotTypeName;
-
-        public HandlerUnregisteredEvent(String handlerPluginName, String plotTypeName, PlotTypeDefinition plotType) {
-            super(null, plotType);
-            this.handlerPluginName = handlerPluginName;
-            this.plotTypeName = plotTypeName;
-        }
-
-        public String getHandlerPluginName() {
-            return handlerPluginName;
-        }
-
-        public String getPlotTypeName() {
-            return plotTypeName;
-        }
-
-        @Override
-        public String toString() {
-            return "HandlerUnregisteredEvent{plugin=" + handlerPluginName +
-                   ", plotType=" + plotTypeName +
-                   ", definition=" + getPlotType().getDisplayName() + "}";
-        }
-    }
 }
