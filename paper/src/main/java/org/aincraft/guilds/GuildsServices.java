@@ -3,7 +3,7 @@ package org.aincraft.guilds;
 import org.aincraft.guilds.commands.BrigadierCommandRegistry;
 import org.aincraft.guilds.commands.brigadier.ChatBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.MapBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.NationBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.AllianceBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PermBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PlotBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PlotTypeBrigadierCommand;
@@ -22,7 +22,7 @@ import org.aincraft.guilds.config.GuildsConfig;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
 import org.aincraft.guilds.gui.TechTreeGUI;
-import org.aincraft.guilds.listeners.NationListener;
+import org.aincraft.guilds.listeners.AllianceListener;
 import org.aincraft.guilds.listeners.PlayerMovementListener;
 import org.aincraft.guilds.listeners.GuildBroadcastListener;
 import org.aincraft.guilds.listeners.GuildChatListener;
@@ -34,7 +34,7 @@ import org.aincraft.guilds.plot.PlotTypeRegistryImpl;
 import org.aincraft.guilds.services.BroadcastService;
 import org.aincraft.guilds.services.ChatService;
 import org.aincraft.guilds.services.LocationService;
-import org.aincraft.guilds.services.NationService;
+import org.aincraft.guilds.services.AllianceService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.QuestService;
@@ -48,7 +48,7 @@ import org.aincraft.guilds.services.GuildToggleService;
 import org.aincraft.guilds.services.impl.BroadcastServiceImpl;
 import org.aincraft.guilds.services.impl.ChatServiceImpl;
 import org.aincraft.guilds.services.impl.LocationServiceImpl;
-import org.aincraft.guilds.services.impl.NationServiceImpl;
+import org.aincraft.guilds.services.impl.AllianceServiceImpl;
 import org.aincraft.guilds.services.impl.PermissionServiceImpl;
 import org.aincraft.guilds.services.impl.PlotServiceImpl;
 import org.aincraft.guilds.services.impl.QuestServiceImpl;
@@ -116,10 +116,10 @@ public class GuildsServices {
     private final SpecializationService specializationService;
     private final BroadcastService broadcastService;
     private final ChatService chatService;
-    private final NationService nationService;
+    private final AllianceService allianceService;
     private final QuestService questService;
 
-    // Governance (guilds as local governments, nations as alliances)
+    // Governance (guilds as local governments, alliances as alliances)
     private final GuildsGovernanceSource governanceSource;
 
     // Plot types
@@ -143,7 +143,7 @@ public class GuildsServices {
     private final GuildPublicAccessListener guildPublicAccessListener;
     private final GuildBroadcastListener guildBroadcastListener;
     private final GuildChatListener guildChatListener;
-    private final NationListener nationListener;
+    private final AllianceListener allianceListener;
 
     public GuildsServices(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -183,9 +183,11 @@ public class GuildsServices {
         plotService = plotImpl;
         locationService = new LocationServiceImpl(plotService, guildService);
         guildToggleService = new GuildToggleServiceImpl(locationService);
+        allianceService = new AllianceServiceImpl(plugin, databaseManager,
+                Logger.getLogger(AllianceServiceImpl.class.getName()), guildService);
         permissionService = new PermissionServiceImpl(databaseManager,
                 Logger.getLogger(PermissionServiceImpl.class.getName()), plotService, guildService,
-                residentService, guildToggleService, locationService);
+                residentService, guildToggleService, locationService, allianceService);
         guildImpl.setPermissionService(permissionService);
         plotImpl.setPermissionService(permissionService);
 
@@ -197,12 +199,10 @@ public class GuildsServices {
                 Logger.getLogger(BroadcastServiceImpl.class.getName()),
                 guildService, residentService, permissionService);
         chatService = new ChatServiceImpl(plugin, guildService, residentService);
-        nationService = new NationServiceImpl(plugin, databaseManager,
-                Logger.getLogger(NationServiceImpl.class.getName()), guildService);
         questService = new QuestServiceImpl(plugin, databaseManager);
 
-        // Governance: guilds as local governments, nations as alliances
-        governanceSource = new GuildsGovernanceSource(databaseManager, guildService, nationService,
+        // Governance: guilds as local governments, alliances as alliances
+        governanceSource = new GuildsGovernanceSource(databaseManager, guildService, allianceService,
                 Logger.getLogger(GuildsGovernanceSource.class.getName()));
 
         // Plot type registry
@@ -227,7 +227,7 @@ public class GuildsServices {
         guildBroadcastListener = new GuildBroadcastListener(plugin, broadcastService, residentService,
                 guildService, Logger.getLogger(GuildBroadcastListener.class.getName()));
         guildChatListener = new GuildChatListener(plugin, chatService, guildService, residentService);
-        nationListener = new NationListener(nationService, guildService, residentService);
+        allianceListener = new AllianceListener(allianceService, guildService, residentService);
 
         // Commands (built before the registry, which owns them)
         TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(plugin, techTreeService,
@@ -248,7 +248,7 @@ public class GuildsServices {
         GuildPermBrigadierCommand guildPermCommand = new GuildPermBrigadierCommand(plugin, residentService,
                 guildService, plotService, permissionService);
         ChatBrigadierCommand chatCommand = new ChatBrigadierCommand(plugin, chatService, guildService, residentService);
-        NationBrigadierCommand nationCommand = new NationBrigadierCommand(plugin, nationService, guildService,
+        AllianceBrigadierCommand allianceCommand = new AllianceBrigadierCommand(plugin, allianceService, guildService,
                 residentService, governanceSource);
         SpecializationBrigadierCommand specializationCommand = new SpecializationBrigadierCommand(plugin,
                 specializationService, guildService, residentService);
@@ -256,7 +256,7 @@ public class GuildsServices {
 
         commandRegistry = new BrigadierCommandRegistry(plugin, guildCommand, plotCommand, guildsGeneralCommand,
                 guildLevelCommand, mapCommand, permCommand, plotTypeCommand, guildBroadcastCommand, guildPermCommand,
-                techTreeCommand, chatCommand, nationCommand, specializationCommand, questCommand);
+                techTreeCommand, chatCommand, allianceCommand, specializationCommand, questCommand);
     }
 
     /**
@@ -366,7 +366,7 @@ public class GuildsServices {
 
     private void registerListeners() {
         plugin.getServer().getPluginManager().registerEvents(guildChatListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(nationListener, plugin);
+        plugin.getServer().getPluginManager().registerEvents(allianceListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(playerMovementListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(guildToggleListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(guildPublicAccessListener, plugin);
@@ -444,8 +444,8 @@ public class GuildsServices {
         return chatService;
     }
 
-    public NationService getNationService() {
-        return nationService;
+    public AllianceService getAllianceService() {
+        return allianceService;
     }
 
     public GuildsGovernanceSource getGovernanceSource() {
@@ -515,7 +515,7 @@ public class GuildsServices {
         return guildChatListener;
     }
 
-    public NationListener getNationListener() {
-        return nationListener;
+    public AllianceListener getAllianceListener() {
+        return allianceListener;
     }
 }

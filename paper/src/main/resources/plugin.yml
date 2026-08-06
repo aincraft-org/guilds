@@ -28,7 +28,7 @@ permissions:
       guilds.general.*: true
       guilds.map: true
       guilds.admin.*: true
-      guilds.nation.*: true
+      guilds.alliance.*: true
       guilds.chat.*: true
       guilds.techtree.*: true
 
@@ -105,21 +105,21 @@ permissions:
     description: Permission to unlock tech nodes
     default: true
 
-  guilds.commands.nation:
-    description: Permission to use nation commands
+  guilds.commands.alliance:
+    description: Permission to use alliance commands
     default: true
 
-  guilds.nation.*:
-    description: All nation permissions
+  guilds.alliance.*:
+    description: All alliance permissions
     children:
-      guilds.nation.create: true
-      guilds.nation.invite: true
-      guilds.nation.join: true
-      guilds.nation.leave: true
-      guilds.nation.kick: true
-      guilds.nation.ally: true
-      guilds.nation.enemy: true
-      guilds.nation.set: true
+      guilds.alliance.create: true
+      guilds.alliance.invite: true
+      guilds.alliance.join: true
+      guilds.alliance.leave: true
+      guilds.alliance.kick: true
+      guilds.alliance.ally: true
+      guilds.alliance.enemy: true
+      guilds.alliance.set: true
 
   guilds.map:
     description: Permission to use guilds map commands
@@ -146,7 +146,7 @@ permissions:
       guilds.admin.unclaim: true
       guilds.admin.claim: true
       guilds.admin.bypass: true
-      guilds.admin.nation: true
+      guilds.admin.alliance: true
       guilds.admin.quest: true
 
   guilds.admin.plottype:

@@ -3,12 +3,14 @@ package org.aincraft.guilds;
 import org.aincraft.guilds.config.DatabaseConfig;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
+import org.aincraft.guilds.services.AllianceService;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.GuildToggleService;
 import org.aincraft.guilds.services.LocationService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
+import org.aincraft.guilds.services.impl.AllianceServiceImpl;
 import org.aincraft.guilds.services.impl.GuildServiceImpl;
 import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
 import org.aincraft.guilds.services.impl.LocationServiceImpl;
@@ -36,7 +38,8 @@ public final class GuildsServiceTestFixture {
             ResidentService residentService,
             GuildService guildService,
             PlotService plotService,
-            PermissionService permissionService
+            PermissionService permissionService,
+            AllianceService allianceService
     ) {
     }
 
@@ -60,11 +63,14 @@ public final class GuildsServiceTestFixture {
         PlotServiceImpl plotImpl = new PlotServiceImpl(databaseManager, guildImpl, logger);
         LocationService locationService = new LocationServiceImpl(plotImpl, guildImpl);
         GuildToggleService guildToggleService = new GuildToggleServiceImpl(locationService);
+        AllianceServiceImpl allianceImpl = new AllianceServiceImpl(
+                plugin, databaseManager, logger, guildImpl);
         PermissionServiceImpl permissionImpl = new PermissionServiceImpl(
-                databaseManager, logger, plotImpl, guildImpl, residentImpl, guildToggleService, locationService);
+                databaseManager, logger, plotImpl, guildImpl, residentImpl, guildToggleService, locationService,
+                allianceImpl);
         guildImpl.setPermissionService(permissionImpl);
         plotImpl.setPermissionService(permissionImpl);
 
-        return new Services(databaseManager, residentImpl, guildImpl, plotImpl, permissionImpl);
+        return new Services(databaseManager, residentImpl, guildImpl, plotImpl, permissionImpl, allianceImpl);
     }
 }

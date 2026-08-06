@@ -11,7 +11,7 @@ import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.commands.brigadier.ChatBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.MapBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.NationBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.AllianceBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PermBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PlotBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PlotTypeBrigadierCommand;
@@ -47,7 +47,7 @@ public class BrigadierCommandRegistry {
     private final GuildPermBrigadierCommand guildPermCommand;
     private final TechTreeBrigadierCommand techTreeCommand;
     private final ChatBrigadierCommand chatCommand;
-    private final NationBrigadierCommand nationCommand;
+    private final AllianceBrigadierCommand allianceCommand;
     private final SpecializationBrigadierCommand specializationCommand;
     private final QuestBrigadierCommand questCommand;
 
@@ -63,7 +63,7 @@ public class BrigadierCommandRegistry {
                                     GuildPermBrigadierCommand guildPermCommand,
                                     TechTreeBrigadierCommand techTreeCommand,
                                     ChatBrigadierCommand chatCommand,
-                                    NationBrigadierCommand nationCommand,
+                                    AllianceBrigadierCommand allianceCommand,
                                     SpecializationBrigadierCommand specializationCommand,
                                     QuestBrigadierCommand questCommand) {
         this.plugin = plugin;
@@ -78,7 +78,7 @@ public class BrigadierCommandRegistry {
         this.guildPermCommand = guildPermCommand;
         this.techTreeCommand = techTreeCommand;
         this.chatCommand = chatCommand;
-        this.nationCommand = nationCommand;
+        this.allianceCommand = allianceCommand;
         this.specializationCommand = specializationCommand;
         this.questCommand = questCommand;
     }
@@ -144,10 +144,10 @@ public class BrigadierCommandRegistry {
             .redirect(chatCommand.buildCommand())
             .build());
 
-        // Register nation command with alias
-        commands.register(nationCommand.buildCommand());
+        // Register alliance command with alias
+        commands.register(allianceCommand.buildCommand());
         commands.register(Commands.literal("n")
-                .redirect(nationCommand.buildCommand())
+                .redirect(allianceCommand.buildCommand())
                 .build());
 
         // Register specialization command with alias

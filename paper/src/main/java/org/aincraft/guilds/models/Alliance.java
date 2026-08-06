@@ -6,9 +6,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Represents a nation in the Guilds system
+ * Represents a alliance in the Guilds system
  */
-public class Nation {
+public class Alliance {
 
     private String id;
     private String name;
@@ -16,7 +16,7 @@ public class Nation {
     private Set<String> memberGuildIds;
     private UUID kingUuid;
     private Set<UUID> ministers;
-    private Set<String> alliances;
+    private Set<String> allies;
     private Set<String> enemies;
     private double taxRate;
     private boolean isOpen;
@@ -25,10 +25,10 @@ public class Nation {
     /**
      * Default constructor for database mapping
      */
-    public Nation() {
+    public Alliance() {
         this.memberGuildIds = new HashSet<>();
         this.ministers = new HashSet<>();
-        this.alliances = new HashSet<>();
+        this.allies = new HashSet<>();
         this.enemies = new HashSet<>();
         this.taxRate = 0.0;
         this.isOpen = true;
@@ -36,12 +36,12 @@ public class Nation {
     }
 
     /**
-     * Constructor for creating a new nation
-     * @param name Nation name
+     * Constructor for creating a new alliance
+     * @param name Alliance name
      * @param capitalGuildId Capital guild ID
      * @param kingUuid King's UUID
      */
-    public Nation(String name, String capitalGuildId, UUID kingUuid) {
+    public Alliance(String name, String capitalGuildId, UUID kingUuid) {
         this();
         this.name = name;
         this.id = UUID.randomUUID().toString();
@@ -99,12 +99,12 @@ public class Nation {
         this.ministers = ministers != null ? ministers : new HashSet<>();
     }
 
-    public Set<String> getAlliances() {
-        return alliances;
+    public Set<String> getAllies() {
+        return allies;
     }
 
-    public void setAlliances(Set<String> alliances) {
-        this.alliances = alliances != null ? alliances : new HashSet<>();
+    public void setAllies(Set<String> allies) {
+        this.allies = allies != null ? allies : new HashSet<>();
     }
 
     public Set<String> getEnemies() {
@@ -142,7 +142,7 @@ public class Nation {
     // Business methods
 
     /**
-     * Add a guild to the nation
+     * Add a guild to the alliance
      * @param guildId Guild ID to add
      * @return True if added successfully, false if already a member
      */
@@ -151,7 +151,7 @@ public class Nation {
     }
 
     /**
-     * Remove a guild from the nation
+     * Remove a guild from the alliance
      * @param guildId Guild ID to remove
      * @return True if removed successfully, false if guild was not a member
      */
@@ -164,7 +164,7 @@ public class Nation {
     }
 
     /**
-     * Check if a guild is a member of this nation
+     * Check if a guild is a member of this alliance
      * @param guildId Guild ID to check
      * @return True if guild is a member
      */
@@ -173,7 +173,7 @@ public class Nation {
     }
 
     /**
-     * Get the number of guilds in this nation
+     * Get the number of guilds in this alliance
      * @return Guild count
      */
     public int getGuildCount() {
@@ -181,7 +181,7 @@ public class Nation {
     }
 
     /**
-     * Add a minister to the nation
+     * Add a minister to the alliance
      * @param ministerUuid Minister UUID to add
      * @return True if added successfully, false if already a minister
      */
@@ -190,7 +190,7 @@ public class Nation {
     }
 
     /**
-     * Remove a minister from the nation
+     * Remove a minister from the alliance
      * @param ministerUuid Minister UUID to remove
      * @return True if removed successfully, false if player was not a minister
      */
@@ -226,79 +226,79 @@ public class Nation {
     }
 
     /**
-     * Add a nation as an ally
-     * @param nationName Nation name to add as ally
+     * Add an alliance as an ally
+     * @param allianceName Alliance name to add as ally
      * @return True if added successfully, false if already an ally
      */
-    public boolean addAlly(String nationName) {
-        return alliances.add(nationName);
+    public boolean addAlly(String allianceName) {
+        return allies.add(allianceName);
     }
 
     /**
-     * Remove a nation from allies
-     * @param nationName Nation name to remove as ally
-     * @return True if removed successfully, false if nation was not an ally
+     * Remove an alliance from allies
+     * @param allianceName Alliance name to remove as ally
+     * @return True if removed successfully, false if alliance was not an ally
      */
-    public boolean removeAlly(String nationName) {
-        return alliances.remove(nationName);
+    public boolean removeAlly(String allianceName) {
+        return allies.remove(allianceName);
     }
 
     /**
-     * Check if a nation is an ally
-     * @param nationName Nation name to check
-     * @return True if nation is an ally
+     * Check if an alliance is an ally
+     * @param allianceName Alliance name to check
+     * @return True if alliance is an ally
      */
-    public boolean isAlly(String nationName) {
-        return alliances.contains(nationName);
+    public boolean isAlly(String allianceName) {
+        return allies.contains(allianceName);
     }
 
     /**
-     * Add a nation as an enemy
-     * @param nationName Nation name to add as enemy
+     * Add an alliance as an enemy
+     * @param allianceName Alliance name to add as enemy
      * @return True if added successfully, false if already an enemy
      */
-    public boolean addEnemy(String nationName) {
-        return enemies.add(nationName);
+    public boolean addEnemy(String allianceName) {
+        return enemies.add(allianceName);
     }
 
     /**
-     * Remove a nation from enemies
-     * @param nationName Nation name to remove as enemy
-     * @return True if removed successfully, false if nation was not an enemy
+     * Remove an alliance from enemies
+     * @param allianceName Alliance name to remove as enemy
+     * @return True if removed successfully, false if alliance was not an enemy
      */
-    public boolean removeEnemy(String nationName) {
-        return enemies.remove(nationName);
+    public boolean removeEnemy(String allianceName) {
+        return enemies.remove(allianceName);
     }
 
     /**
-     * Check if a nation is an enemy
-     * @param nationName Nation name to check
-     * @return True if nation is an enemy
+     * Check if an alliance is an enemy
+     * @param allianceName Alliance name to check
+     * @return True if alliance is an enemy
      */
-    public boolean isEnemy(String nationName) {
-        return enemies.contains(nationName);
+    public boolean isEnemy(String allianceName) {
+        return enemies.contains(allianceName);
     }
 
     /**
-     * Get relationship with another nation
-     * @param otherNation Nation name to check relationship with
+     * Get the relationship with another alliance
+     * @param otherAlliance Alliance name to check relationship with
      * @return Relationship type (ALLY, ENEMY, NEUTRAL)
      */
-    public NationRelation getRelation(String otherNation) {
-        if (isAlly(otherNation)) {
-            return NationRelation.ALLY;
-        } else if (isEnemy(otherNation)) {
-            return NationRelation.ENEMY;
+    public AllianceRelation getRelation(String otherAlliance) {
+        if (isAlly(otherAlliance)) {
+            return AllianceRelation.ALLY;
+        } else if (isEnemy(otherAlliance)) {
+            return AllianceRelation.ENEMY;
         }
-        return NationRelation.NEUTRAL;
+        return AllianceRelation.NEUTRAL;
     }
 
     @Override
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        Nation nation = (Nation) obj;
-        return id.equals(nation.id);
+        Alliance alliance = (Alliance) obj;
+        return id.equals(alliance.id);
     }
 
     @Override
@@ -308,14 +308,14 @@ public class Nation {
 
     @Override
     public String toString() {
-        return "Nation{" +
+        return "Alliance{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
-                ", capitalTownId='" + capitalGuildId + '\'' +
-                ", townCount=" + getGuildCount() +
+                ", capitalGuildId='" + capitalGuildId + '\'' +
+                ", guildCount=" + getGuildCount() +
                 ", kingUuid=" + kingUuid +
                 ", ministerCount=" + ministers.size() +
-                ", allyCount=" + alliances.size() +
+                ", allyCount=" + allies.size() +
                 ", enemyCount=" + enemies.size() +
                 ", taxRate=" + taxRate +
                 ", isOpen=" + isOpen +
@@ -324,9 +324,9 @@ public class Nation {
     }
 
     /**
-     * Enum representing possible nation relationships
+     * Enum representing possible alliance relationships
      */
-    public enum NationRelation {
+    public enum AllianceRelation {
         ALLY,
         ENEMY,
         NEUTRAL

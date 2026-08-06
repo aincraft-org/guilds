@@ -9,9 +9,9 @@ import com.azoth.territory.permission.MemberPermissions;
 import com.azoth.territory.permission.SovereignAction;
 import com.azoth.territory.permission.GuildToggles;
 import org.aincraft.guilds.database.DatabaseManager;
-import org.aincraft.guilds.models.Nation;
+import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Guild;
-import org.aincraft.guilds.services.NationService;
+import org.aincraft.guilds.services.AllianceService;
 import org.aincraft.guilds.services.GuildService;
 
 import java.sql.Connection;
@@ -31,12 +31,12 @@ import java.util.logging.Logger;
 
 /**
  * {@link GovernanceSource} backed by the guilds database: guilds materialize as
- * {@link GuildBody} (local government entities), nations as {@link AllianceBody}
+ * {@link GuildBody} (local government entities), alliances as {@link AllianceBody}
  * (alliance entities).
  * <p>
  * Government derivation: each entity picks a governance form (stored in the
  * {@code governance_form} column, default {@code MONARCHY}); seats are derived
- * from role holders — guild mayor/assistants/residents, nation
+ * from role holders — guild mayor/assistants/residents, alliance
  * king/ministers/member-guild mayors — via {@link Government#fromRoles}.
  * <p>
  * Member permissions mirror the guilds guild-level hierarchy:
@@ -54,18 +54,18 @@ public final class GuildsGovernanceSource implements GovernanceSource {
 
     private final DatabaseManager databaseManager;
     private final GuildService guildService;
-    private final NationService nationService;
+    private final AllianceService allianceService;
     private final Logger logger;
 
     public GuildsGovernanceSource(
             DatabaseManager databaseManager,
             GuildService guildService,
-            NationService nationService,
+            AllianceService allianceService,
             Logger logger
     ) {
         this.databaseManager = databaseManager;
         this.guildService = guildService;
-        this.nationService = nationService;
+        this.allianceService = allianceService;
         this.logger = logger;
     }
 
@@ -102,9 +102,9 @@ public final class GuildsGovernanceSource implements GovernanceSource {
             return Optional.empty();
         }
         String id = guildId.trim();
-        for (Nation nation : nationService.getAllNations()) {
-            if (nation.hasGuild(id)) {
-                return Optional.of(toAllianceBody(nation));
+        for (Alliance alliance : allianceService.getAllAlliances()) {
+            if (alliance.hasGuild(id)) {
+                return Optional.of(toAllianceBody(alliance));
             }
         }
         return Optional.empty();
@@ -122,8 +122,8 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     @Override
     public List<AllianceBody> allAlliances() {
         List<AllianceBody> bodies = new ArrayList<>();
-        for (Nation nation : nationService.getAllNations()) {
-            bodies.add(toAllianceBody(nation));
+        for (Alliance alliance : allianceService.getAllAlliances()) {
+            bodies.add(toAllianceBody(alliance));
         }
         return List.copyOf(bodies);
     }
@@ -143,16 +143,16 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     }
 
     /**
-     * Set the governance form for an alliance (nation).
+     * Set the governance form for an alliance (alliance).
      *
-     * @return true if the nation exists and the form was persisted
+     * @return true if the alliance exists and the form was persisted
      */
-    public boolean setNationForm(String nationId, GovernmentForm form) {
-        if (nationId == null || nationId.isBlank() || form == null) {
+    public boolean setAllianceForm(String allianceId, GovernmentForm form) {
+        if (allianceId == null || allianceId.isBlank() || form == null) {
             return false;
         }
-        return nationService.getNationById(nationId.trim())
-                .map(nation -> setForm("nations", "id", nation.getId(), form))
+        return allianceService.getAllianceById(allianceId.trim())
+                .map(alliance -> setForm("alliances", "id", alliance.getId(), form))
                 .orElse(false);
     }
 
@@ -206,27 +206,27 @@ public final class GuildsGovernanceSource implements GovernanceSource {
         };
     }
 
-    private AllianceBody toAllianceBody(Nation nation) {
-        GovernmentForm form = readForm("nations", "id", nation.getId());
-        List<String> authorityIds = nationAuthorityIds(nation, form);
+    private AllianceBody toAllianceBody(Alliance alliance) {
+        GovernmentForm form = readForm("alliances", "id", alliance.getId());
+        List<String> authorityIds = allianceAuthorityIds(alliance, form);
         Government government = Government.fromRoles(form, authorityIds);
 
-        List<String> memberGuildIds = new ArrayList<>(nation.getMemberGuildIds());
+        List<String> memberGuildIds = new ArrayList<>(alliance.getMemberGuildIds());
         memberGuildIds.sort(String::compareTo);
-        return new AllianceBody(nation.getId(), nation.getName(), government, memberGuildIds);
+        return new AllianceBody(alliance.getId(), alliance.getName(), government, memberGuildIds);
     }
 
-    private List<String> nationAuthorityIds(Nation nation, GovernmentForm form) {
+    private List<String> allianceAuthorityIds(Alliance alliance, GovernmentForm form) {
         return switch (form) {
-            case MONARCHY -> nation.getKingUuid() == null
+            case MONARCHY -> alliance.getKingUuid() == null
                     ? List.of()
-                    : List.of(nation.getKingUuid().toString());
+                    : List.of(alliance.getKingUuid().toString());
             case OLIGARCHY -> {
                 Set<String> ids = new LinkedHashSet<>();
-                if (nation.getKingUuid() != null) {
-                    ids.add(nation.getKingUuid().toString());
+                if (alliance.getKingUuid() != null) {
+                    ids.add(alliance.getKingUuid().toString());
                 }
-                for (UUID minister : sorted(nation.getMinisters())) {
+                for (UUID minister : sorted(alliance.getMinisters())) {
                     ids.add(minister.toString());
                 }
                 yield new ArrayList<>(ids);
@@ -234,7 +234,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
             case DEMOCRACY -> {
                 // Every member-guild mayor is a representative.
                 List<String> ids = new ArrayList<>();
-                for (String guildId : nation.getMemberGuildIds()) {
+                for (String guildId : alliance.getMemberGuildIds()) {
                     guildService.getGuildById(guildId)
                             .map(Guild::getMayorUuid)
                             .map(UUID::toString)

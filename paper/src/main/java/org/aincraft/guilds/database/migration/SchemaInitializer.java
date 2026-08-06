@@ -83,6 +83,9 @@ public class SchemaInitializer {
         // schema version; any existing blueprints table is preserved)
         migrations.add(new RetireBlueprintMigration());
 
+        // Rename legacy nation* schema objects to alliance* naming
+        migrations.add(new AddAllianceRenameMigration());
+
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
     }

@@ -110,12 +110,14 @@ class GuildRenameMigrationTest {
         assertTrue(tableExists("guild_quests"));
         assertTrue(tableExists("guild_unlocked_nodes"));
 
-        // Columns renamed
+        // Columns renamed (v16 town->guild, v18 nation->alliance)
         assertTrue(columnExists("residents", "guild_name"));
         assertFalse(columnExists("residents", "town_name"));
         assertTrue(columnExists("guilds", "guild_level"));
         assertTrue(columnExists("guild_blocks", "guild_id"));
-        assertTrue(columnExists("nations", "capital_guild_id"));
+        assertTrue(columnExists("alliances", "capital_guild_id"));
+        assertTrue(columnExists("alliance_members", "alliance_id"));
+        assertFalse(columnExists("alliance_members", "nation_id"));
         assertTrue(columnExists("economy_transactions", "guild_id"));
 
         // Indexes renamed
@@ -127,14 +129,17 @@ class GuildRenameMigrationTest {
         assertTrue(indexExists("idx_guild_quests_guild_id"));
         assertTrue(indexExists("idx_guild_unlocked_guild"));
         assertTrue(indexExists("idx_broadcast_messages_guild"));
-        assertTrue(indexExists("idx_nations_capital"));
+        assertTrue(indexExists("idx_alliances_capital"));
+        assertFalse(indexExists("idx_nations_capital"));
+        assertTrue(indexExists("idx_alliance_members_guild"));
 
         // Rows preserved
         assertEquals("Everfall", scalar("SELECT name FROM guilds WHERE id = 't1'"));
         assertEquals("guild-level-4", scalar("SELECT guild_level FROM guilds WHERE id = 't1'"));
         assertEquals("guild-one", scalar("SELECT guild_name FROM residents WHERE uuid = 'r1'"));
         assertEquals(2, scalar("SELECT COUNT(*) FROM guild_blocks"));
-        assertEquals("t1", scalar("SELECT capital_guild_id FROM nations WHERE id = 'n1'"));
+        assertEquals("t1", scalar("SELECT capital_guild_id FROM alliances WHERE id = 'n1'"));
+        assertEquals("t1", scalar("SELECT guild_id FROM alliance_members WHERE alliance_id = 'n1'"));
         assertEquals("t1", scalar("SELECT guild_id FROM economy_transactions WHERE id = 'e1'"));
 
         // New column names are writable by the current code paths

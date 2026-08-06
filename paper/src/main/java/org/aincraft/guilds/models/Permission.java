@@ -57,7 +57,7 @@ public class Permission {
         public static final String ASSISTANT = "assistant";
         public static final String MAYOR = "mayor";
         public static final String ALL = "all";
-        public static final String NATION = "nation";
+        public static final String NATION = "alliance";
         public static final String ALLY = "ally";
         public static final String ENEMY = "enemy";
     }

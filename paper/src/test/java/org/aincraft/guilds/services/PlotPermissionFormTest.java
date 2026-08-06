@@ -53,7 +53,10 @@ class PlotPermissionFormTest {
     private UUID mayor;
     private UUID alice;
     private UUID carol;
+    private UUID bob;
     private UUID outsider;
+
+    private org.aincraft.guilds.models.Alliance pact;
 
     @BeforeEach
     void setUp() {
@@ -67,15 +70,26 @@ class PlotPermissionFormTest {
         mayor = UUID.randomUUID();
         alice = UUID.randomUUID();
         carol = UUID.randomUUID();
+        bob = UUID.randomUUID();
         outsider = UUID.randomUUID();
 
         residents.createResident(mayor, "mayor");
         residents.createResident(alice, "alice");
         residents.createResident(carol, "carol");
+        residents.createResident(bob, "bob");
         residents.createResident(outsider, "outsider");
         guilds.createGuild("Alpha", mayor);
+        guilds.createGuild("Beta", mayor);
         assertTrue(guilds.addResidentToGuild("Alpha", alice));
         assertTrue(guilds.addResidentToGuild("Alpha", carol));
+        assertTrue(guilds.addResidentToGuild("Beta", bob));
+    }
+
+    /** Alpha and Beta joined into alliance "Pact" (capital Alpha). */
+    private void joinAlliance() {
+        services.allianceService().createAlliance("Pact", guilds.getGuild("Alpha").orElseThrow(), mayor);
+        pact = services.allianceService().getAllAlliances().get(0);
+        services.allianceService().addGuild(pact, guilds.getGuild("Beta").orElseThrow().getId());
     }
 
     @AfterEach
@@ -106,6 +120,16 @@ class PlotPermissionFormTest {
                      "UPDATE guilds SET public_enabled = ? WHERE id = ?")) {
             statement.setInt(1, open ? 1 : 0);
             statement.setString(2, guildId);
+            statement.executeUpdate();
+        }
+    }
+
+    private void setAllianceForm(String form) throws Exception {
+        try (Connection connection = services.databaseManager().getDataSource().getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "UPDATE alliances SET governance_form = ? WHERE id = ?")) {
+            statement.setString(1, form);
+            statement.setString(2, pact.getId());
             statement.executeUpdate();
         }
     }
@@ -189,6 +213,55 @@ class PlotPermissionFormTest {
         assertTrue(permissions.canBuild(alice, 3, 3, WORLD));
         assertTrue(permissions.canBuild(outsider, 3, 3, WORLD));
         assertTrue(permissions.canDestroy(outsider, 3, 3, WORLD));
+    }
+
+    // ---- Alliance-governed land follows the ALLIANCE's form ----
+
+    @Test
+    void allianceMonarchy_memberAndSiblingNeedGrants() {
+        joinAlliance();
+        guildOwnedPlot(); // Alpha's plot, inside the Pact
+
+        assertFalse(permissions.canBuild(alice, 3, 3, WORLD), "Alpha member: no build default under monarchy");
+        assertFalse(permissions.canBuild(bob, 3, 3, WORLD), "sibling-guild member: no build default under monarchy");
+        assertTrue(permissions.canSwitch(bob, 3, 3, WORLD), "switch default stays for alliance members");
+
+        // A grant in the sibling's OWN guild context is honored on alliance land.
+        assertTrue(permissions.grantPermission(bob, "build", "town", "Beta", true));
+        assertTrue(permissions.canBuild(bob, 3, 3, WORLD));
+    }
+
+    @Test
+    void allianceDemocracy_membersAndSiblingsShareTheLand() throws Exception {
+        joinAlliance();
+        guildOwnedPlot();
+        setAllianceForm("DEMOCRACY");
+
+        assertTrue(permissions.canBuild(alice, 3, 3, WORLD), "member builds under democracy");
+        assertTrue(permissions.canBuild(bob, 3, 3, WORLD), "sibling-guild member shares the commons");
+    }
+
+    @Test
+    void allianceAnarchy_wildForEveryone() throws Exception {
+        joinAlliance();
+        guildOwnedPlot();
+        setAllianceForm("ANARCHY");
+
+        assertTrue(permissions.canBuild(alice, 3, 3, WORLD));
+        assertTrue(permissions.canBuild(bob, 3, 3, WORLD));
+        assertTrue(permissions.canBuild(outsider, 3, 3, WORLD));
+        assertTrue(permissions.canDestroy(outsider, 3, 3, WORLD));
+    }
+
+    @Test
+    void allianceMonarchy_plotOwnershipStillHonored() {
+        joinAlliance();
+        GuildBlock plot = guildOwnedPlot();
+        plot.setOwnerId(bob);
+        plots.updateGuildBlock(plot);
+
+        assertTrue(permissions.canBuild(bob, 3, 3, WORLD), "owner keeps absolute rights under an alliance monarchy");
+        assertFalse(permissions.canBuild(alice, 3, 3, WORLD));
     }
 
     // ---- Territory chunks without plot rows follow the same form policy ----

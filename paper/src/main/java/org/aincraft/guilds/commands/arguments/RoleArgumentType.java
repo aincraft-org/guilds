@@ -27,7 +27,7 @@ public class RoleArgumentType implements CustomArgumentType<String, String> {
 
     // Available permission roles
     private static final List<String> ROLE_TYPES = Arrays.asList(
-        "resident", "ally", "outsider", "nation", "mayor", "assistant"
+        "resident", "ally", "outsider", "alliance", "mayor", "assistant"
     );
 
     private RoleArgumentType() {}
@@ -111,7 +111,7 @@ public class RoleArgumentType implements CustomArgumentType<String, String> {
             case "resident":
             case "ally":
             case "outsider":
-            case "nation":
+            case "alliance":
                 return true;
             default:
                 return false;

@@ -8,10 +8,12 @@ import com.azoth.territory.model.Territory;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Permission;
+import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.models.GuildPermission;
 import org.aincraft.guilds.models.PermissionSet;
+import org.aincraft.guilds.services.AllianceService;
 import org.aincraft.guilds.services.LocationService;
 import org.aincraft.guilds.services.PermissionEvaluationResult;
 import org.aincraft.guilds.services.PermissionService;
@@ -54,6 +56,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     private final ResidentService residentService;
     private final GuildToggleService guildToggleService;
     private final LocationService locationService;
+    private final AllianceService allianceService;
 
     /**
      * Late-bound: territory boundaries let the plot gate apply government-form
@@ -80,7 +83,8 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     public PermissionServiceImpl(DatabaseManager databaseManager, Logger logger,
                                 PlotService plotService, GuildService guildService, ResidentService residentService,
-                                GuildToggleService guildToggleService, LocationService locationService) {
+                                GuildToggleService guildToggleService, LocationService locationService,
+                                AllianceService allianceService) {
         this.databaseManager = databaseManager;
         this.dataSource = databaseManager.getDataSource();
         this.logger = logger;
@@ -89,6 +93,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         this.residentService = residentService;
         this.locationService = locationService;
         this.guildToggleService = guildToggleService;
+        this.allianceService = allianceService;
     }
 
     public void setTerritoryRegistry(TerritoryRegistry territoryRegistry) {
@@ -462,9 +467,10 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             // Guild block exists - use hierarchical permission evaluation
             GuildBlock block = guildBlock.get();
 
-            // ANARCHY-form guild: no permission system — anyone may act here,
-            // including non-residents (no public/private admission gate).
-            if (guildService.getGovernanceForm(block.getGuildId()) == GovernmentForm.ANARCHY) {
+            // ANARCHY-form government (guild or its alliance): no permission
+            // system — anyone may act here, including non-residents (no
+            // public/private admission gate).
+            if (effectiveForm(block.getGuildId()) == GovernmentForm.ANARCHY) {
                 return true;
             }
 
@@ -558,7 +564,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             // enforces its seat lockdown; the plot layer stays permissive here.
             return checkWildernessPermission(permissionFlag);
         }
-        GovernmentForm form = guildService.getGovernanceForm(guildId.get());
+        GovernmentForm form = effectiveForm(guildId.get());
         if (form == GovernmentForm.ANARCHY) {
             return true; // no permission system
         }
@@ -567,18 +573,77 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             return checkWildernessPermission(permissionFlag);
         }
         String guildName = guild.get().getName();
-        if (!isResidentInGuild(residentUuid, guildName)) {
+        if (!isMemberOfGoverningScope(residentUuid, guildId.get())) {
             // Outsider on government land without a plot row: mirror the
             // territory gate's public-guild fallback (build/interact, never break).
             return guild.get().isPublicEnabled() && permissionFlag != GuildPermission.DESTROY.getLegacyBitwiseValue();
         }
-        // Member: explicit guild grants first, then form-gated role defaults.
-        for (Permission perm : getResidentPermissions(residentUuid, Permission.Context.GUILD, guildName)) {
+        // Member: explicit guild grants first (own guild included for
+        // alliance-governed land), then form-gated role defaults.
+        if (hasGrant(residentUuid, Permission.Context.GUILD, guildName, permissionFlag)) {
+            return true;
+        }
+        String ownGuildName = getResidentGuild(residentUuid);
+        if (ownGuildName != null && !ownGuildName.equals(guildName)
+                && hasGrant(residentUuid, Permission.Context.GUILD, ownGuildName, permissionFlag)) {
+            return true;
+        }
+        return memberDefaultAllows(residentUuid, guildName, permissionFlag, form);
+    }
+
+    /**
+     * The effective government form for a guild's land: the alliance's form
+     * when the guild belongs to one (the alliance is the governing body of its
+     * member guilds' territories), else the guild's own form.
+     */
+    private GovernmentForm effectiveForm(String guildId) {
+        Optional<Alliance> alliance = allianceContaining(guildId);
+        if (alliance.isPresent()) {
+            return allianceService.getGovernanceForm(alliance.get().getId());
+        }
+        return guildService.getGovernanceForm(guildId);
+    }
+
+    private Optional<Alliance> allianceContaining(String guildId) {
+        for (Alliance alliance : allianceService.getAllAlliances()) {
+            if (alliance.hasGuild(guildId)) {
+                return Optional.of(alliance);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Whether the actor is a member of the governing scope for the given
+     * guild's land: a resident of that guild, or — when the guild belongs to
+     * an alliance — a resident of any member guild (mirroring the territory
+     * gate's alliance sibling-member rule).
+     */
+    private boolean isMemberOfGoverningScope(UUID residentUuid, String guildId) {
+        String residentGuildName = getResidentGuild(residentUuid);
+        if (residentGuildName == null) {
+            return false;
+        }
+        String guildName = getGuildNameFromId(guildId);
+        if (guildName != null && guildName.equals(residentGuildName)) {
+            return true;
+        }
+        Optional<Alliance> alliance = allianceContaining(guildId);
+        if (alliance.isEmpty()) {
+            return false;
+        }
+        String residentGuildId = guildService.getGuild(residentGuildName).map(Guild::getId).orElse(null);
+        return residentGuildId != null && alliance.get().hasGuild(residentGuildId);
+    }
+
+    /** Whether any permission row for the resident in the context grants the flag. */
+    private boolean hasGrant(UUID residentUuid, String context, String contextId, int permissionFlag) {
+        for (Permission perm : getResidentPermissions(residentUuid, context, contextId)) {
             if (perm.appliesTo(residentUuid) && perm.hasFlag(permissionFlag)) {
                 return true;
             }
         }
-        return memberDefaultAllows(residentUuid, guildName, permissionFlag, form);
+        return false;
     }
 
     /**
@@ -1130,15 +1195,21 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         // Priority 4: Guild permissions (fallback for guild-owned plots or guild members)
         String guildName = getGuildNameFromId(guildId);
         if (guildName != null) {
-            GovernmentForm form = guildService.getGovernanceForm(guildId);
-            // Check if user is member of the guild
-            if (isResidentInGuild(residentUuid, guildName)) {
+            // The effective government: the alliance's form when the plot's
+            // guild belongs to one, else the guild's own form.
+            GovernmentForm form = effectiveForm(guildId);
+            // Check if user is a member of the governing scope (the plot's
+            // guild, or — on alliance-governed land — any member guild)
+            if (isMemberOfGoverningScope(residentUuid, guildId)) {
                 // Check guild-specific permissions for this resident
-                List<Permission> guildPerms = getResidentPermissions(residentUuid, Permission.Context.GUILD, guildName);
-                for (Permission perm : guildPerms) {
-                    if (perm.appliesTo(residentUuid) && perm.hasFlag(permissionFlag)) {
-                        return new PermissionEvaluationResult(true, "town", "Town permission granted");
-                    }
+                if (hasGrant(residentUuid, Permission.Context.GUILD, guildName, permissionFlag)) {
+                    return new PermissionEvaluationResult(true, "town", "Town permission granted");
+                }
+                // Alliance members are also covered by their own guild's grants.
+                String ownGuildName = getResidentGuild(residentUuid);
+                if (ownGuildName != null && !ownGuildName.equals(guildName)
+                        && hasGrant(residentUuid, Permission.Context.GUILD, ownGuildName, permissionFlag)) {
+                    return new PermissionEvaluationResult(true, "town", "Alliance member guild permission granted");
                 }
 
                 // Role defaults (form-gated): land-modifying defaults

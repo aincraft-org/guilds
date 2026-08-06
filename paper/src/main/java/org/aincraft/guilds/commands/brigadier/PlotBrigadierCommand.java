@@ -345,7 +345,7 @@ public class PlotBrigadierCommand {
         sender.sendMessage("§7/plot perm list§f - List all permissions");
         sender.sendMessage("§7/plot perm list <role>§f - List role permissions");
         sender.sendMessage("");
-        sender.sendMessage("§7Available roles: resident, ally, outsider, nation");
+        sender.sendMessage("§7Available roles: resident, ally, outsider, alliance");
         sender.sendMessage("§7Available permissions: build, destroy, switch, item_use");
         return Command.SINGLE_SUCCESS;
     }
@@ -573,7 +573,7 @@ public class PlotBrigadierCommand {
             player.sendMessage("§fItem Use: " + (canUseItems ? "§aYes" : "§cNo"));
         } else {
             // Show all role permissions
-            String[] roles = {"resident", "ally", "outsider", "nation"};
+            String[] roles = {"resident", "ally", "outsider", "alliance"};
             for (String role : roles) {
                 boolean canBuild = (permissions & getPermissionFlag("build", role)) != 0;
                 boolean canDestroy = (permissions & getPermissionFlag("destroy", role)) != 0;
@@ -612,7 +612,7 @@ public class PlotBrigadierCommand {
             case "resident": return 0;
             case "ally": return 4;
             case "outsider": return 8;
-            case "nation": return 12;
+            case "alliance": return 12;
             default: return 0;
         }
     }
