@@ -5,5 +5,4 @@ plugins {
 
 rootProject.name = "azoth-territory"
 
-// Guilds production sources live under root src/ (single Paper plugin).
-// The historical guilds/ tree is not a separately packaged plugin product.
+// Single Paper plugin: Guilds production sources live under root src/.
