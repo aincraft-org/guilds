@@ -14,7 +14,9 @@ import org.aincraft.towny.commands.arguments.PlotTypeArgumentType;
 import org.aincraft.towny.commands.arguments.PermissionArgumentType;
 import org.aincraft.towny.commands.arguments.RoleArgumentType;
 import org.aincraft.towny.commands.arguments.TownArgumentType;
-import org.aincraft.towny.services.*;
+import org.aincraft.towny.services.PermissionService;
+import org.aincraft.towny.services.PlotService;
+import org.aincraft.towny.services.TownService;
 
 import java.util.UUID;
 

@@ -2,8 +2,12 @@ package org.aincraft.towny.database.migration;
 
 import org.aincraft.towny.models.TownyPermission;
 
-import java.sql.*;
-import java.util.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
  * Database migration utility for converting legacy bitwise permission flags to the new enum system

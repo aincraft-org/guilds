@@ -10,9 +10,18 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.aincraft.towny.TownyPlugin;
 import org.aincraft.towny.models.Town;
-import org.aincraft.towny.services.*;
+import org.aincraft.towny.services.PermissionService;
+import org.aincraft.towny.services.PlotService;
+import org.aincraft.towny.services.ResidentService;
+import org.aincraft.towny.services.ResourceService;
+import org.aincraft.towny.services.TownLevelService;
+import org.aincraft.towny.services.TownService;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Brigadier implementation of the town level command

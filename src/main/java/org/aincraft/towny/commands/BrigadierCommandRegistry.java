@@ -9,7 +9,21 @@ import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSele
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.aincraft.towny.TownyPlugin;
-import org.aincraft.towny.commands.brigadier.*;
+import org.aincraft.towny.commands.brigadier.BlueprintBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.ChatBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.MapBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.NationBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.PermBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.PlotBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.PlotTypeBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.QuestBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.SpecializationBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.TechTreeBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.TownBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.TownBroadcastBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.TownLevelBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.TownPermBrigadierCommand;
+import org.aincraft.towny.commands.brigadier.TownyGeneralBrigadierCommand;
 import org.bukkit.command.CommandSender;
 
 import java.util.ArrayList;

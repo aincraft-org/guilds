@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.awt.*;
+import java.awt.Color;
 
 /**
  * Utility class for rendering ASCII maps of town claims

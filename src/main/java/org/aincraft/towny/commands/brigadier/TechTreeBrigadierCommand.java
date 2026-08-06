@@ -12,7 +12,9 @@ import org.aincraft.towny.gui.TechTreeGUI;
 import org.aincraft.towny.models.TechTreeNode;
 import org.aincraft.towny.models.TechTreeBranch;
 import org.aincraft.towny.models.Town;
-import org.aincraft.towny.services.*;
+import org.aincraft.towny.services.ResidentService;
+import org.aincraft.towny.services.TechTreeService;
+import org.aincraft.towny.services.TownService;
 import org.aincraft.towny.web.SessionManager;
 import org.aincraft.towny.web.WebServerConfig;
 import org.aincraft.towny.web.TechTreeSession;
@@ -20,7 +22,11 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import org.bukkit.entity.Player;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Brigadier command for the tech tree system.

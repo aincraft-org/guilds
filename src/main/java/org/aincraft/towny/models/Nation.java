@@ -1,7 +1,9 @@
 package org.aincraft.towny.models;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Represents a nation in the Towny system

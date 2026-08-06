@@ -15,7 +15,10 @@ import org.aincraft.towny.commands.arguments.ResidentArgumentType;
 import org.aincraft.towny.commands.arguments.RoleArgumentType;
 import org.aincraft.towny.models.TownBlock;
 import org.aincraft.towny.plot.PlotTypeRegistry;
-import org.aincraft.towny.services.*;
+import org.aincraft.towny.services.PermissionService;
+import org.aincraft.towny.services.PlotService;
+import org.aincraft.towny.services.ResidentService;
+import org.aincraft.towny.services.TownService;
 
 import java.util.Optional;
 import java.util.UUID;

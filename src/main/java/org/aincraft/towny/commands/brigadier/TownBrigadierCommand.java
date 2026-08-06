@@ -14,7 +14,10 @@ import org.aincraft.towny.models.Location;
 import org.aincraft.towny.models.TownBlock;
 import org.aincraft.towny.plot.PlotTypeDefinition;
 import org.aincraft.towny.plot.PlotTypeRegistry;
-import org.aincraft.towny.services.*;
+import org.aincraft.towny.services.PermissionService;
+import org.aincraft.towny.services.PlotService;
+import org.aincraft.towny.services.ResidentService;
+import org.aincraft.towny.services.TownService;
 
 import java.util.List;
 import java.util.Map;
