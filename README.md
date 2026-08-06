@@ -41,7 +41,8 @@ that main enables both territory behavior and the guilds/towny subsystem
 Guilds defaults are packaged as `guilds-config.yml` and `techtree.yml` so they
 do not overwrite the territory `config.yml`. The historical `guilds/` directory
 was fully merged into the root `src/` tree and removed; the archived MockBukkit
-test suite lives under `docs/archived-guilds-test/` for reference.
+test suite lives under `docs/archived-guilds-test/` and the historical Guilds
+docs/plans under `docs/archived-guilds/docs/` for reference.
 
 ## Spatial rules
 
