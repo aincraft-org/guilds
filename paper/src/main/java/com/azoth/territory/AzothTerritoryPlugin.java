@@ -20,8 +20,13 @@ import com.azoth.territory.permission.BlockProtection;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.permission.GovernanceSource;
 import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.persist.TerritoryStore;
+import com.azoth.territory.persist.DatabaseSettings;
+import com.azoth.territory.persist.DatabaseSettingsLoader;
+import com.azoth.territory.persist.PostgresTerritoryRepository;
 import com.azoth.territory.persist.ReconciliationStore;
+import com.azoth.territory.persist.TerritoryJson;
+import com.azoth.territory.persist.TerritoryRepository;
+import com.azoth.territory.persist.TerritoryStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
@@ -35,11 +40,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.logging.Level;
 
 public final class AzothTerritoryPlugin extends JavaPlugin {
     private TerritoryRegistry registry;
-    private TerritoryStore store;
+    private TerritoryRepository store;
     private GovernanceRegistry governance;
     private BlockProtection blockProtection;
     private TerritoryWebServer webServer;
@@ -62,12 +68,21 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         Path dataFile = getDataFolder().toPath().resolve(TerritoryStore.DEFAULT_FILE_NAME);
         this.reconciliationStore = new ReconciliationStore(
                 getDataFolder().toPath().resolve(ReconciliationStore.DEFAULT_FILE_NAME));
-        this.store = new TerritoryStore(dataFile);
         try {
-            store.loadInto(registry);
-            getLogger().info("Loaded " + registry.size() + " territor(y/ies) from " + dataFile.getFileName());
+            this.store = createStore(dataFile);
         } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Failed to load territories from " + dataFile, e);
+            this.store = null;
+            getLogger().log(Level.SEVERE,
+                    "Territory persistence unavailable (database.enabled=true) — "
+                            + "territory data and web submodule disabled", e);
+        }
+        if (store != null) {
+            try {
+                store.loadInto(registry);
+                getLogger().info("Loaded " + registry.size() + " territor(y/ies) from " + describeStore(dataFile));
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to load territories from " + describeStore(dataFile), e);
+            }
         }
 
         // Guilds subsystem is the governance source (guilds as local governments,
@@ -215,6 +230,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 getLogger().log(Level.SEVERE, "Failed to save territories", e);
             }
         }
+        if (store != null) {
+            store.close();
+        }
     }
 
     private net.milkbowl.vault.economy.Economy resolveVaultEconomy() {
@@ -243,6 +261,29 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * Pick the territory store: {@link TerritoryStore} (JSON file) unless
+     * {@code database.enabled: true}, which requires a reachable remote
+     * PostgreSQL — no silent fallback.
+     *
+     * @throws IOException when Postgres is configured but unreachable
+     */
+    private TerritoryRepository createStore(Path dataFile) throws IOException {
+        DatabaseSettings db = DatabaseSettingsLoader.fromValues(getConfig().getValues(true));
+        if (!db.enabled()) {
+            return new TerritoryStore(dataFile);
+        }
+        PostgresTerritoryRepository repo = new PostgresTerritoryRepository(db);
+        getLogger().info("Territory persistence: remote PostgreSQL at " + db.jdbcUrl());
+        return repo;
+    }
+
+    private String describeStore(Path dataFile) {
+        return store instanceof PostgresTerritoryRepository
+                ? "PostgreSQL"
+                : dataFile.getFileName().toString();
+    }
+
     private void startWebIfEnabled() {
         try {
             this.webConfig = WebConfigLoader.fromValues(getConfig().getValues(true), getDataFolder().toPath());
@@ -250,11 +291,16 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 getLogger().info("Territory web submodule disabled (web.enabled=false)");
                 return;
             }
+            if (store == null) {
+                getLogger().warning("Territory web submodule not started: no territory store (see previous errors)");
+                return;
+            }
             this.webServer = new TerritoryWebServer(
                     webConfig,
                     registry,
-                    store.json(),
+                    new TerritoryJson(),
                     () -> store,
+                    () -> Optional.ofNullable(influenceEngine),
                     getLogger()
             );
             webServer.start();
@@ -353,7 +399,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         return registry;
     }
 
-    public TerritoryStore getStore() {
+    public TerritoryRepository getStore() {
         return store;
     }
 

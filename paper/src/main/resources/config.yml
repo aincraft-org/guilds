@@ -26,6 +26,26 @@ web:
     password: changeit
     key-password: changeit
 
+# Territory persistence backend. Default: local territories.json.
+# Set enabled: true to store territories in a remote PostgreSQL database
+# instead — the map UI and REST API then serve Postgres-backed data.
+# The database must exist and the configured role must be able to create
+# tables. If Postgres is unreachable at startup the plugin logs SEVERE and
+# the web submodule does not start (no fallback to the JSON file).
+database:
+  enabled: false
+  host: 127.0.0.1
+  port: 5432
+  name: azoth_territory
+  user: azoth
+  password: ""
+  ssl: false
+  pool-size: 10
+  # Optional full JDBC URL — wins over host/port/name/ssl. Use for cloud
+  # Postgres with extra parameters, e.g.
+  # jdbc-url: "jdbc:postgresql://db.example.com:5432/azoth?sslmode=verify-full"
+  jdbc-url: ""
+
 
 # Settlement economy: VAULT (real money via Vault banks) or SIMULATION (dev/test ledger-only).
 economy:
