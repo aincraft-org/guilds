@@ -1,6 +1,7 @@
 package org.aincraft.towny.web;
 
 import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.javalin.Javalin;
@@ -9,16 +10,14 @@ import io.javalin.json.JavalinGson;
 import io.javalin.websocket.WsConfig;
 import io.javalin.websocket.WsContext;
 import io.javalin.websocket.WsMessageContext;
-import org.aincraft.towny.TownyPlugin;
 import org.aincraft.towny.models.TechTreeNode;
 import org.aincraft.towny.models.Town;
-import org.aincraft.towny.services.ResidentService;
 import org.aincraft.towny.services.TechTreeService;
 import org.aincraft.towny.services.TownService;
-import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -27,10 +26,8 @@ import java.util.logging.Logger;
 @Singleton
 public class WebServer {
 
-    private final TownyPlugin plugin;
     private final TechTreeService techTreeService;
     private final TownService townService;
-    private final ResidentService residentService;
     private final SessionManager sessionManager;
     private final WebServerConfig config;
     private final Logger logger;
@@ -42,13 +39,10 @@ public class WebServer {
     private Javalin app;
 
     @Inject
-    public WebServer(TownyPlugin plugin, TechTreeService techTreeService,
-                    TownService townService, ResidentService residentService,
+    public WebServer(TechTreeService techTreeService, TownService townService,
                     SessionManager sessionManager, WebServerConfig config, Logger logger) {
-        this.plugin = plugin;
         this.techTreeService = techTreeService;
         this.townService = townService;
-        this.residentService = residentService;
         this.sessionManager = sessionManager;
         this.config = config;
         this.logger = logger;
@@ -64,9 +58,8 @@ public class WebServer {
         }
 
         try {
-            app = Javalin.create(config -> {
-                // Set up Gson for JSON serialization
-                config.jsonMapper(new JavalinGson(gson, true));
+            app = Javalin.create(javalin -> {
+                javalin.jsonMapper(new JavalinGson(gson, true));
                 // No CORS policy is configured by the plugin; leave Javalin's
                 // default (no CORS headers) rather than broadening access.
             });
@@ -77,10 +70,8 @@ public class WebServer {
             int port = config.getPort();
             app.start(port);
             logger.info("Tech tree web server started on port " + port);
-            
         } catch (Exception e) {
-            logger.severe("Failed to start web server: " + e.getMessage());
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Failed to start web server", e);
         }
     }
 
@@ -187,7 +178,8 @@ public class WebServer {
         String sessionId = ctx.pathParam("sessionId");
         
         try {
-            Map<String, Object> messageData = gson.fromJson(message, Map.class);
+            Map<String, Object> messageData =
+                    gson.fromJson(message, new TypeToken<Map<String, Object>>() {}.getType());
             String action = (String) messageData.get("action");
             
             Optional<TechTreeSession> sessionOpt = sessionManager.getSession(sessionId);
@@ -225,6 +217,7 @@ public class WebServer {
             }
             
         } catch (Exception e) {
+            logger.log(Level.WARNING, "Malformed WebSocket message in session " + sessionId, e);
             ctx.send("{\"error\":\"Invalid message format\"}");
         }
     }

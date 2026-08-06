@@ -46,6 +46,13 @@ economy:
   daily_upkeep: true
   upkeep_cost: 10.0
 
+# Tech Tree Web Server Settings
+# Backs the external tech tree UI (session API + WebSocket).
+webServer:
+  enabled: true
+  port: 8080
+  sessionTimeoutMinutes: 30
+
 # Town Level System Configuration
 town_levels:
   max_level: 150

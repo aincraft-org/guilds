@@ -7,7 +7,6 @@ import org.bukkit.entity.Player;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -91,40 +90,6 @@ public class SessionManager {
         }
     }
     
-    /**
-     * Invalidates all sessions for a specific player
-     */
-    public void invalidatePlayerSessions(UUID playerUuid) {
-        sessions.entrySet().removeIf(entry -> {
-            TechTreeSession session = entry.getValue();
-            if (session.getPlayerUuid().equals(playerUuid)) {
-                logger.info("Invalidated tech tree session for player: " + session.getPlayerName());
-                return true;
-            }
-            return false;
-        });
-    }
-    
-    /**
-     * Invalidates all sessions for a specific town
-     */
-    public void invalidateTownSessions(String townId) {
-        sessions.entrySet().removeIf(entry -> {
-            TechTreeSession session = entry.getValue();
-            if (session.getTownId().equals(townId)) {
-                logger.info("Invalidated tech tree session for town: " + session.getTownName());
-                return true;
-            }
-            return false;
-        });
-    }
-    
-    /**
-     * Gets the number of active sessions
-     */
-    public int getActiveSessionCount() {
-        return sessions.size();
-    }
     
     /**
      * Shuts down the session manager and cleans up all resources
