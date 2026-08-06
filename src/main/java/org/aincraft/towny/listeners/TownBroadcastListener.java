@@ -8,6 +8,7 @@ import org.aincraft.towny.models.Town;
 import org.aincraft.towny.services.BroadcastService;
 import org.aincraft.towny.services.ResidentService;
 import org.aincraft.towny.services.TownService;
+import org.aincraft.towny.utils.BroadcastFormatter;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -16,7 +17,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -121,97 +121,10 @@ public class TownBroadcastListener implements Listener {
         broadcasts.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
 
         for (BroadcastMessage broadcast : broadcasts) {
-            String formattedMessage = formatBroadcastForPlayer(broadcast);
-            player.sendMessage(formattedMessage);
+            player.sendMessage(BroadcastFormatter.format(broadcast));
         }
 
         player.sendMessage(ChatColor.YELLOW + "========================");
-    }
-
-    /**
-     * Format a broadcast message for display to a player
-     */
-    private String formatBroadcastForPlayer(BroadcastMessage broadcast) {
-        StringBuilder message = new StringBuilder();
-
-        // Add header based on message type with priority color
-        String typeColor = getTypeColor(broadcast.getPriority());
-        String priorityIndicator = getPriorityIndicator(broadcast.getPriority());
-
-        switch (broadcast.getMessageType()) {
-            case BroadcastMessage.Type.ALERT:
-                message.append(typeColor).append("[§cALERT").append(typeColor).append("] ");
-                break;
-            case BroadcastMessage.Type.ANNOUNCEMENT:
-                message.append(typeColor).append("[§eANNOUNCE").append(typeColor).append("] ");
-                break;
-            case BroadcastMessage.Type.WELCOME:
-                message.append(typeColor).append("[§aWELCOME").append(typeColor).append("] ");
-                break;
-            case BroadcastMessage.Type.WARNING:
-                message.append(typeColor).append("[§4WARNING").append(typeColor).append("] ");
-                break;
-            case BroadcastMessage.Type.CELEBRATION:
-                message.append(typeColor).append("[§6CELEBRATE").append(typeColor).append("] ");
-                break;
-            case BroadcastMessage.Type.ECONOMIC:
-                message.append(typeColor).append("[§2ECONOMY").append(typeColor).append("] ");
-                break;
-            default:
-                message.append(typeColor).append("[§fBROADCAST").append(typeColor).append("] ");
-        }
-
-        // Add priority indicator if high priority
-        if (broadcast.getPriority() >= BroadcastMessage.Priority.HIGH) {
-            message.append(priorityIndicator).append(" ");
-        }
-
-        // Add title and content
-        message.append("§f").append(broadcast.getTitle()).append("\n");
-        message.append("§7").append(broadcast.getContent()).append("\n");
-
-        // Add footer with sender info
-        message.append("§8- ").append(broadcast.getSenderName())
-               .append(" §8(").append(broadcast.getCreatedAt().format(DateTimeFormatter.ofPattern("MMM dd, HH:mm")))
-               .append("§8)");
-
-        return message.toString();
-    }
-
-    /**
-     * Get color based on broadcast priority
-     */
-    private String getTypeColor(int priority) {
-        switch (priority) {
-            case BroadcastMessage.Priority.CRITICAL:
-                return "§4";
-            case BroadcastMessage.Priority.URGENT:
-                return "§c";
-            case BroadcastMessage.Priority.HIGH:
-                return "§6";
-            case BroadcastMessage.Priority.NORMAL:
-                return "§e";
-            case BroadcastMessage.Priority.LOW:
-                return "§a";
-            default:
-                return "§f";
-        }
-    }
-
-    /**
-     * Get priority indicator symbol
-     */
-    private String getPriorityIndicator(int priority) {
-        switch (priority) {
-            case BroadcastMessage.Priority.CRITICAL:
-                return "‼";
-            case BroadcastMessage.Priority.URGENT:
-                return "⚠";
-            case BroadcastMessage.Priority.HIGH:
-                return "⬆";
-            default:
-                return "";
-        }
     }
 
     /**

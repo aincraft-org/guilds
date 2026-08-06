@@ -437,7 +437,7 @@ public class BroadcastServiceImpl implements BroadcastService {
         }
 
         int sentCount = 0;
-        String formattedMessage = formatBroadcastMessage(broadcast);
+        String formattedMessage = org.aincraft.towny.utils.BroadcastFormatter.format(broadcast);
 
         for (UUID residentUuid : town.get().getResidents()) {
             Player player = Bukkit.getPlayer(residentUuid);
@@ -448,42 +448,6 @@ public class BroadcastServiceImpl implements BroadcastService {
         }
 
         return sentCount;
-    }
-
-    private String formatBroadcastMessage(BroadcastMessage broadcast) {
-        StringBuilder message = new StringBuilder();
-
-        // Add header based on message type
-        switch (broadcast.getMessageType()) {
-            case BroadcastMessage.Type.ALERT:
-                message.append("§c[§6ALERT§c] ");
-                break;
-            case BroadcastMessage.Type.ANNOUNCEMENT:
-                message.append("§e[§6ANNOUNCEMENT§e] ");
-                break;
-            case BroadcastMessage.Type.WELCOME:
-                message.append("§a[§bWELCOME§a] ");
-                break;
-            case BroadcastMessage.Type.WARNING:
-                message.append("§c[§4WARNING§c] ");
-                break;
-            case BroadcastMessage.Type.CELEBRATION:
-                message.append("§6[§eCELEBRATION§6] ");
-                break;
-            case BroadcastMessage.Type.ECONOMIC:
-                message.append("§2[§aECONOMY§2] ");
-                break;
-            default:
-                message.append("§7[§fBROADCAST§7] ");
-        }
-
-        message.append("§f").append(broadcast.getTitle()).append("\n");
-        message.append("§7").append(broadcast.getContent()).append("\n");
-        message.append("§8- ").append(broadcast.getSenderName()).append(" §8(")
-               .append(broadcast.getCreatedAt().format(DateTimeFormatter.ofPattern("MMM dd, HH:mm")))
-               .append("§8)");
-
-        return message.toString();
     }
 
     private String getTownName(String townId) {
