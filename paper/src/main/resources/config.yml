@@ -30,3 +30,24 @@ web:
 # Settlement economy: VAULT (real money via Vault banks) or SIMULATION (dev/test ledger-only).
 economy:
   mode: VAULT
+
+# Territory influence race (New World style): rival guilds accrue influence in
+# enemy-alliance territories; at 100% they may declare and take over after a
+# countdown. Both sides must belong to alliances.
+influence:
+  enabled: true
+  cap: 100.0
+  values:
+    pvp-kill: 10.0
+    pve-kill: 0.5
+    block-break: 0.1
+    block-place: 0.1
+    craft: 0.2
+  # Defender activity pushes every attacker bar down by source value * this.
+  defender-multiplier: 1.0
+  # Hours between declare and the takeover flip.
+  declare-countdown-hours: 24
+  # Days after a flip before a new race may start on that territory.
+  post-flip-cooldown-days: 7
+  # Seconds between batched influence.json flushes (bar changes only).
+  flush-seconds: 60
