@@ -359,9 +359,8 @@ public class WebServer {
         }
         payload.put("nodes", nodes);
 
-        // Edges (placeholder for now)
-        List<Map<String, Object>> edges = new ArrayList<>();
-        payload.put("edges", edges);
+        // Edges: one directed edge per prerequisite (prerequisite -> node)
+        payload.put("edges", buildTreeEdges(techTreeService.getAllNodes()));
 
         // Pending unlocks
         Set<String> pending = pendingUnlocks.getOrDefault(session.getSessionId(), new HashSet<>());
@@ -370,5 +369,25 @@ public class WebServer {
         treeState.put("payload", payload);
 
         return gson.toJson(treeState);
+    }
+
+    /**
+     * Directed edges for the tech tree graph: one edge per prerequisite,
+     * {@code {source: prerequisiteId, target: nodeId}}.
+     */
+    static List<Map<String, Object>> buildTreeEdges(List<TechTreeNode> nodes) {
+        List<Map<String, Object>> edges = new ArrayList<>();
+        for (TechTreeNode node : nodes) {
+            if (node.getPrerequisites() == null) {
+                continue;
+            }
+            for (String prerequisiteId : node.getPrerequisites()) {
+                Map<String, Object> edge = new HashMap<>();
+                edge.put("source", prerequisiteId);
+                edge.put("target", node.getId());
+                edges.add(edge);
+            }
+        }
+        return edges;
     }
 }
