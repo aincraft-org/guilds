@@ -26,6 +26,24 @@ public final class ExpenseLedger {
     public synchronized Optional<ExpenseEntry> find(String idempotencyKey) {
         return Optional.ofNullable(entries.get(idempotencyKey));
     }
+    /**
+     * Claims an idempotency key without overwriting an existing journal entry.
+     * The snapshot is persisted before the new claim becomes visible.
+     */
+    public synchronized Optional<ExpenseEntry> claim(ExpenseEntry entry) {
+        Objects.requireNonNull(entry, "entry");
+        ExpenseEntry existing = entries.get(entry.idempotencyKey());
+        if (existing != null) {
+            return Optional.of(existing);
+        }
+        Map<String, ExpenseEntry> candidate = new LinkedHashMap<>(entries);
+        candidate.put(entry.idempotencyKey(), entry);
+        persistCandidate(candidate.values());
+        entries.clear();
+        entries.putAll(candidate);
+        return Optional.empty();
+    }
+
 
     public synchronized void put(ExpenseEntry entry) {
         Objects.requireNonNull(entry, "entry");

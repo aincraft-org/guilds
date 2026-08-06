@@ -3,6 +3,10 @@ package com.azoth.territory.economy;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -55,4 +59,24 @@ class ExpenseLedgerTest {
         assertThrows(IllegalStateException.class, () -> ledger.put(entry));
         assertEquals(List.of(), ledger.entries());
     }
+    @Test
+    void claimAcceptsOnlyOneConcurrentOwner() throws Exception {
+        ExpenseLedger ledger = new ExpenseLedger();
+        ExpenseEntry entry = new ExpenseEntry(
+                "same-key", "t1", ExpenseKind.UPKEEP, 10.0,
+                ExpenseJournalState.PENDING, ExpenseOutcome.RECONCILIATION_REQUIRED);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Optional<ExpenseEntry>> first = executor.submit(() -> ledger.claim(entry));
+            Future<Optional<ExpenseEntry>> second = executor.submit(() -> ledger.claim(entry));
+
+            boolean firstClaimed = first.get().isEmpty();
+            boolean secondClaimed = second.get().isEmpty();
+            assertEquals(1, (firstClaimed ? 1 : 0) + (secondClaimed ? 1 : 0));
+            assertEquals(1, ledger.entries().size());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
 }

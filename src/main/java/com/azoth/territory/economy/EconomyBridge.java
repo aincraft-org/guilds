@@ -190,26 +190,31 @@ public class EconomyBridge {
             return expenseReport(ExpenseOutcome.NO_GOVERNMENT, territoryId, kind, amount, idempotencyKey);
         }
 
-        var existing = expenses.find(idempotencyKey);
-        if (existing.isPresent()) {
-            if (existing.get().state() == ExpenseJournalState.DEBITED) {
-                return expenseReport(ExpenseOutcome.ALREADY_APPLIED, territoryId, kind, amount, idempotencyKey);
-            }
-            return expenseReport(
-                    ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
-        }
-
         ExpenseEntry pending = new ExpenseEntry(
                 idempotencyKey, territoryId, kind, amount,
                 ExpenseJournalState.PENDING, ExpenseOutcome.RECONCILIATION_REQUIRED);
         try {
-            expenses.put(pending);
+            var existing = expenses.claim(pending);
+            if (existing.isPresent()) {
+                if (existing.get().state() == ExpenseJournalState.DEBITED) {
+                    return expenseReport(ExpenseOutcome.ALREADY_APPLIED, territoryId, kind, amount, idempotencyKey);
+                }
+                return expenseReport(
+                        ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
+            }
         } catch (RuntimeException e) {
             return expenseReport(
                     ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
         }
 
-        TreasuryDebitResult debit = rail.debitTreasury(territoryId, amount);
+        TreasuryDebitResult debit;
+        try {
+            debit = rail.debitTreasury(territoryId, amount);
+        } catch (RuntimeException e) {
+            return expenseReport(
+                    ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
+        }
+
         if (debit == null) {
             return removeFailedExpense(
                     ExpenseOutcome.VAULT_UNAVAILABLE, territoryId, kind, amount, idempotencyKey);
