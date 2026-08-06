@@ -128,15 +128,11 @@ public class BlueprintServiceImpl implements BlueprintService {
             return false;
         }
 
-        try {
-            // Simple implementation using direct block placement
-            // In a real system, you'd use proper schematic management
-            plugin.getLogger().info("Applying blueprint: " + name + " at " + location);
-            return true;
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to apply blueprint: " + name, e);
-            return false;
-        }
+        // Schematic placement (WorldEdit paste) is not implemented yet. Never
+        // report success for a paste that did not happen.
+        plugin.getLogger().warning("Blueprint application is not implemented yet: " + name
+                + " at " + location);
+        return false;
     }
 
     private Blueprint mapResultSetToBlueprint(ResultSet rs) throws SQLException {

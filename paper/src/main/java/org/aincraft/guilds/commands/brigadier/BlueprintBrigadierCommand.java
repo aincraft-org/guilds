@@ -91,22 +91,17 @@ public class BlueprintBrigadierCommand {
             return 0;
         }
 
-        String name = StringArgumentType.getString(ctx, "name");
         String guildId = getPlayerGuildId(player);
         if (guildId == null) {
             player.sendMessage(Component.text("You must be in a town to save blueprints.", NamedTextColor.RED));
             return 0;
         }
 
-        // WorldEdit integration would go here — for now save an empty schematic
-        // In production, use WorldEdit API to get player's selection and serialize blocks
-        player.sendMessage(Component.text("Blueprint save requires WorldEdit selection. ", NamedTextColor.YELLOW)
-                .append(Component.text("Select a region with WorldEdit first, then run this command.", NamedTextColor.GRAY)));
-
-        // Placeholder: save with empty data
-        blueprintService.saveBlueprint(name, player.getUniqueId(), guildId, new byte[0]);
-        player.sendMessage(Component.text("Blueprint '" + name + "' saved (empty template).", NamedTextColor.GREEN));
-        return Command.SINGLE_SUCCESS;
+        // WorldEdit schematic serialization is not implemented yet. Refuse
+        // loudly rather than saving an empty schematic the user cannot apply.
+        player.sendMessage(Component.text("Blueprint saving is not implemented yet — nothing was saved.", NamedTextColor.RED));
+        player.sendMessage(Component.text("WorldEdit selection serialization is planned as a future feature.", NamedTextColor.GRAY));
+        return 0;
     }
 
     private int handleList(CommandContext<CommandSourceStack> ctx) {
@@ -160,12 +155,17 @@ public class BlueprintBrigadierCommand {
         if (player == null) return 0;
 
         String name = StringArgumentType.getString(ctx, "name");
-        boolean applied = blueprintService.applyBlueprint(name, player.getLocation());
+        Optional<Blueprint> bpOpt = blueprintService.getBlueprint(name);
+        if (bpOpt.isEmpty()) {
+            player.sendMessage(Component.text("Blueprint not found: " + name, NamedTextColor.RED));
+            return 0;
+        }
 
+        boolean applied = blueprintService.applyBlueprint(name, player.getLocation());
         if (applied) {
             player.sendMessage(Component.text("Blueprint '" + name + "' applied at your location.", NamedTextColor.GREEN));
         } else {
-            player.sendMessage(Component.text("Failed to apply blueprint. Does it exist?", NamedTextColor.RED));
+            player.sendMessage(Component.text("Failed to apply blueprint — schematic application is not implemented yet.", NamedTextColor.RED));
         }
         return Command.SINGLE_SUCCESS;
     }
