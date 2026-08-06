@@ -186,6 +186,12 @@ public class PlotTypeRegistryImpl implements PlotTypeRegistry {
 
     @Override
     public void registerBuiltInTypes() {
+        if (plotTypes.isEmpty()) {
+            registerBuiltInTypesNow();
+        }
+    }
+
+    private void registerBuiltInTypesNow() {
         registerPlotType(PlotTypeDefinition.builder()
                 .typeName("resident")
                 .displayName("Resident")
@@ -226,35 +232,6 @@ public class PlotTypeRegistryImpl implements PlotTypeRegistry {
                 .build());
 
         logger.info("Registered " + getBuiltInPlotTypes().size() + " built-in plot types");
-    }
-
-    
-    @Override
-    public RegistryStats getStats() {
-        int totalTypes = plotTypes.size();
-        int enabledTypes = 0;
-        int disabledTypes = 0;
-        int builtInTypes = 0;
-        int pluginTypes = 0;
-
-        for (PlotTypeDefinition definition : plotTypes.values()) {
-            if (definition.isEnabled()) {
-                enabledTypes++;
-            } else {
-                disabledTypes++;
-            }
-
-            if (definition.isBuiltIn()) {
-                builtInTypes++;
-            } else {
-                pluginTypes++;
-            }
-        }
-
-        int pluginCount = this.pluginTypes.size();
-
-        return new RegistryStats(totalTypes, enabledTypes, disabledTypes,
-                                builtInTypes, pluginTypes, pluginCount);
     }
 
 }

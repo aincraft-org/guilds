@@ -14,6 +14,7 @@ import org.aincraft.towny.commands.arguments.PlotTypeArgumentType;
 import org.aincraft.towny.commands.arguments.ResidentArgumentType;
 import org.aincraft.towny.commands.arguments.RoleArgumentType;
 import org.aincraft.towny.models.TownBlock;
+import org.aincraft.towny.plot.PlotTypeRegistry;
 import org.aincraft.towny.services.*;
 
 import java.util.Optional;
@@ -29,18 +30,18 @@ public class PlotBrigadierCommand {
     private final TownService townService;
     private final PlotService plotService;
     private final PermissionService permissionService;
-    private final PlotTypeService plotTypeService;
+    private final PlotTypeRegistry plotTypeRegistry;
 
     @Inject
     public PlotBrigadierCommand(TownyPlugin plugin, ResidentService residentService,
                                TownService townService, PlotService plotService,
-                               PermissionService permissionService, PlotTypeService plotTypeService) {
+                               PermissionService permissionService, PlotTypeRegistry plotTypeRegistry) {
         this.plugin = plugin;
         this.residentService = residentService;
         this.townService = townService;
         this.plotService = plotService;
         this.permissionService = permissionService;
-        this.plotTypeService = plotTypeService;
+        this.plotTypeRegistry = plotTypeRegistry;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -98,7 +99,7 @@ public class PlotBrigadierCommand {
             .then(Commands.literal("set")
                 .requires(source -> source.getSender().hasPermission("towny.plot.set"))
                 .executes(this::showTypeHelp)
-                .then(Commands.argument("type", PlotTypeArgumentType.plotType(plotTypeService))
+                .then(Commands.argument("type", PlotTypeArgumentType.plotType(plotTypeRegistry))
                     .executes(this::handleSetType)))
             // List subcommand
             .then(Commands.literal("list")
@@ -455,7 +456,7 @@ public class PlotBrigadierCommand {
         sender.sendMessage("§7Available plot types:");
 
         // Dynamically list all registered plot types
-        var plotTypes = plotTypeService.getAllPlotTypes();
+        var plotTypes = plotTypeRegistry.getAllPlotTypes();
         for (var plotType : plotTypes) {
             if (plotType.isEnabled()) {
                 sender.sendMessage("§f  " + plotType.getTypeName() + "§7 - " + plotType.getDescription());

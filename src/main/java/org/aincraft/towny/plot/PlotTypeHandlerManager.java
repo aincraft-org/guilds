@@ -181,45 +181,4 @@ public class PlotTypeHandlerManager {
         }
     }
 
-    /**
-     * Get statistics about registered handlers
-     */
-    public HandlerStats getStats() {
-        int totalHandlers = 0;
-        int enabledHandlers = 0;
-
-        for (PlotTypeHandler handler : getAllHandlers()) {
-            totalHandlers++;
-            if (handler.isEnabled()) {
-                enabledHandlers++;
-            }
-        }
-
-        return new HandlerStats(totalHandlers, enabledHandlers, typeHandlers.size());
-    }
-
-    /**
-     * Handler statistics for monitoring
-     */
-    public static class HandlerStats {
-        private final int totalHandlers;
-        private final int enabledHandlers;
-        private final int typeCount;
-
-        public HandlerStats(int totalHandlers, int enabledHandlers, int typeCount) {
-            this.totalHandlers = totalHandlers;
-            this.enabledHandlers = enabledHandlers;
-            this.typeCount = typeCount;
-        }
-
-        public int getTotalHandlers() { return totalHandlers; }
-        public int getEnabledHandlers() { return enabledHandlers; }
-        public int getTypeCount() { return typeCount; }
-
-        @Override
-        public String toString() {
-            return String.format("HandlerStats{total=%d, enabled=%d, types=%d}",
-                               totalHandlers, enabledHandlers, typeCount);
-        }
-    }
 }

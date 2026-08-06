@@ -122,45 +122,4 @@ public interface PlotTypeRegistry {
      * This should be called during server startup to ensure built-in types are available
      */
     void registerBuiltInTypes();
-
-    /**
-     * Get registry statistics for monitoring
-     * @return RegistryStats object containing various statistics
-     */
-    RegistryStats getStats();
-
-    /**
-     * Registry statistics for monitoring and debugging
-     */
-    class RegistryStats {
-        private final int totalTypes;
-        private final int enabledTypes;
-        private final int disabledTypes;
-        private final int builtInTypes;
-        private final int pluginTypes;
-        private final int pluginCount;
-
-        public RegistryStats(int totalTypes, int enabledTypes, int disabledTypes,
-                           int builtInTypes, int pluginTypes, int pluginCount) {
-            this.totalTypes = totalTypes;
-            this.enabledTypes = enabledTypes;
-            this.disabledTypes = disabledTypes;
-            this.builtInTypes = builtInTypes;
-            this.pluginTypes = pluginTypes;
-            this.pluginCount = pluginCount;
-        }
-
-        public int getTotalTypes() { return totalTypes; }
-        public int getEnabledTypes() { return enabledTypes; }
-        public int getDisabledTypes() { return disabledTypes; }
-        public int getBuiltInTypes() { return builtInTypes; }
-        public int getPluginTypes() { return pluginTypes; }
-        public int getPluginCount() { return pluginCount; }
-
-        @Override
-        public String toString() {
-            return String.format("RegistryStats{total=%d, enabled=%d, disabled=%d, builtIn=%d, plugin=%d, plugins=%d}",
-                               totalTypes, enabledTypes, disabledTypes, builtInTypes, pluginTypes, pluginCount);
-        }
-    }
 }

@@ -240,9 +240,9 @@ public class TownyPlugin implements Listener {
             techTreeService.syncConfigToDatabase();
             getLogger().info("Tech tree data synchronized to database.");
 
-            org.aincraft.towny.services.PlotTypeService plotTypeService =
-                    injector.getInstance(org.aincraft.towny.services.PlotTypeService.class);
-            plotTypeService.initializeBuiltInTypes();
+            org.aincraft.towny.plot.PlotTypeRegistry plotTypeRegistry =
+                    injector.getInstance(org.aincraft.towny.plot.PlotTypeRegistry.class);
+            plotTypeRegistry.registerBuiltInTypes();
             getLogger().info("Plot type registry initialized.");
 
             getLogger().info("Guilds core services initialized.");
