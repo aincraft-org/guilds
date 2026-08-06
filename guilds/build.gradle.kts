@@ -19,6 +19,9 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
 
+    // Runtime libraries (shaded into the Towny.jar artifact)
+    // Gson comes transitively from paper-api (compile scope) and ships with Paper.
+
     // Guice DI
     implementation("com.google.inject:guice:7.0.0")
     annotationProcessor("com.google.inject:guice:7.0.0")
@@ -27,13 +30,12 @@ dependencies {
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.xerial:sqlite-jdbc:3.45.3.0")
 
-// Caffeine caching
-implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    // Caffeine caching
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
     // Web server dependencies
     implementation("io.javalin:javalin:6.3.0")
     implementation("org.slf4j:slf4j-simple:2.0.16")
-    implementation("com.google.code.gson:gson:2.11.0")
 
     // Testing
     testCompileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
