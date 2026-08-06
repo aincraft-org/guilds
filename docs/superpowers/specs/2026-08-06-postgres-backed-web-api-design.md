@@ -41,7 +41,9 @@ TerritoryApiHandler ──► TerritoryRegistry (in-memory, gameplay)
   `store.save(staged)`, and only on success swaps the live registry with
   `replaceAll(staged.list())`. A failed remote save returns HTTP 500 and
   leaves the live registry untouched — memory can never drift ahead of
-  PostgreSQL (the old `persistQuietly` best-effort path is removed).
+  PostgreSQL (the old `persistQuietly` best-effort path is removed). The
+  stage → save → replace sequence runs under a handler-level `mutationLock`
+  so concurrent requests serialize and cannot clobber each other's commits.
 - The plugin picks the implementation at enable: `database.enabled: true` →
   Postgres; otherwise the existing JSON store. There is **no silent fallback**:
   if Postgres is configured but unreachable, the plugin logs SEVERE, loads no
