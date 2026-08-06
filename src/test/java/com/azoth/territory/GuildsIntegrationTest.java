@@ -100,7 +100,7 @@ class GuildsIntegrationTest {
     @Test
     void guildsConfigResourceConstant_matchesShippedResourceName() throws Exception {
         Class<?> towny = Class.forName("org.aincraft.towny.TownyPlugin");
-        Object resource = towny.getField("GUILDS_CONFIG_RESOURCE").get(null);
+        Object resource = towny.getField("GUILDS_CONFIG").get(null);
         assertEquals("guilds-config.yml", resource);
         assertNotNull(getClass().getClassLoader().getResourceAsStream((String) resource));
     }
