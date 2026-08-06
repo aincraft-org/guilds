@@ -37,6 +37,7 @@ implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
     // Testing
     testCompileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    testImplementation("com.github.MilkBowl:VaultAPI:1.7.1")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
     testImplementation("org.junit.platform:junit-platform-commons:1.10.2")

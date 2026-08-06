@@ -1,8 +1,12 @@
 package org.aincraft.towny.services;
 
 import org.aincraft.towny.TownyPlugin;
-import org.aincraft.towny.base.BaseUnitTest;
 import org.aincraft.towny.database.DatabaseManager;
+import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.ServicesManager;
 import org.aincraft.towny.services.impl.EconomyServiceImpl;
 import org.bukkit.Server;
 import org.bukkit.plugin.PluginManager;
@@ -17,11 +21,12 @@ import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class EconomyServiceImplTest extends BaseUnitTest {
+class EconomyServiceImplTest {
 
     private EconomyService service;
 
@@ -33,11 +38,17 @@ class EconomyServiceImplTest extends BaseUnitTest {
 
     @Mock
     private PluginManager pluginManager;
+    @Mock
+    private ServicesManager servicesManager;
+
+    @Mock
+    private RegisteredServiceProvider<Economy> economyRegistration;
+
+    @Mock
+    private Economy vaultEconomy;
 
     @BeforeEach
-    @Override
-    protected void setup() {
-        super.setup();
+    void setup() {
         when(plugin.getServer()).thenReturn(server);
         when(plugin.getLogger()).thenReturn(Logger.getLogger("EconomyServiceImplTest"));
         when(server.getPluginManager()).thenReturn(pluginManager);
@@ -93,5 +104,23 @@ class EconomyServiceImplTest extends BaseUnitTest {
     @Test
     void formatHasSafeFallbackWithoutVault() {
         assertThat(service.format(123.45)).isEqualTo("$123.45");
+    }
+
+    @Test
+    void failedTownDepositIsNotLoggedAsSuccessful() {
+        DatabaseManager databaseManager = mock(DatabaseManager.class);
+        when(pluginManager.getPlugin("Vault")).thenReturn(mock(Plugin.class));
+        when(server.getServicesManager()).thenReturn(servicesManager);
+        when(servicesManager.getRegistration(Economy.class)).thenReturn(economyRegistration);
+        when(economyRegistration.getProvider()).thenReturn(vaultEconomy);
+        when(vaultEconomy.getName()).thenReturn("test");
+        when(vaultEconomy.bankDeposit("town", 100.0)).thenReturn(
+                new EconomyResponse(0.0, 0.0, EconomyResponse.ResponseType.FAILURE, "failed"));
+
+        service = new EconomyServiceImpl(plugin, databaseManager);
+        service.depositTown("town", 100.0);
+
+        verify(vaultEconomy).bankDeposit("town", 100.0);
+        verifyNoInteractions(databaseManager);
     }
 }

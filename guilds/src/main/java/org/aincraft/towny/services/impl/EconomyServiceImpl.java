@@ -83,8 +83,10 @@ public class EconomyServiceImpl implements EconomyService {
         if (amount <= 0 || !vaultAvailable) return;
 
         OfflinePlayer player = Bukkit.getOfflinePlayer(playerUuid);
-        vaultEconomy.depositPlayer(player, amount);
-        logTransaction(null, playerUuid.toString(), "deposit_player", amount, "Player deposit");
+        EconomyResponse resp = vaultEconomy.depositPlayer(player, amount);
+        if (resp.transactionSuccess()) {
+            logTransaction(null, playerUuid.toString(), "deposit_player", amount, "Player deposit");
+        }
     }
 
     @Override
@@ -122,8 +124,10 @@ public class EconomyServiceImpl implements EconomyService {
     public void depositTown(String townId, double amount) {
         if (amount <= 0 || !vaultAvailable) return;
 
-        vaultEconomy.bankDeposit(townId, amount);
-        logTransaction(townId, null, "deposit_town", amount, "Town bank deposit");
+        EconomyResponse resp = vaultEconomy.bankDeposit(townId, amount);
+        if (resp.transactionSuccess()) {
+            logTransaction(townId, null, "deposit_town", amount, "Town bank deposit");
+        }
     }
 
     @Override
