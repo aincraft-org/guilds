@@ -39,12 +39,6 @@ messages:
   error_color: "&c"
   info_color: "&e"
 
-# Economic Settings (for future integration)
-economy:
-  enabled: false
-  starting_balance: 100.0
-  daily_upkeep: true
-  upkeep_cost: 10.0
 
 # Town Level System Configuration
 town_levels:

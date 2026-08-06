@@ -381,11 +381,9 @@ towns:
   maxClaimRadius: 100
   
 # Economy settings
-economy:
-  enabled: true
-  townCreationCost: 1000.0
-  claimCost: 100.0
-  dailyTax: 10.0
+# All player and town balances are provided by Vault. If Vault or its economy
+# provider is unavailable, economy operations fail safely without a persisted
+# town-balance fallback.
 
 # Permission settings
 permissions:

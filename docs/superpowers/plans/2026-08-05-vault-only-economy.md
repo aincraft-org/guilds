@@ -21,48 +21,43 @@
 ### Task 1: Lock Vault-only Azoth behavior with tests
 
 **Files:**
-- Modify: `src/test/java/com/azoth/territory/economy/EconomyConfigTest.java`
 - Modify: `src/test/java/com/azoth/territory/economy/EconomyBridgeDomainTest.java`
-- Modify: `src/test/java/com/azoth/territory/PluginEconomyWiringTest.java`
-- Test: `src/test/java/com/azoth/territory/economy/`
+- Modify: `src/test/java/com/azoth/territory/economy/BukkitEconomyBridgeTest.java`
+- Delete: `src/test/java/com/azoth/territory/economy/EconomyConfigTest.java`
+- Delete: `src/test/java/com/azoth/territory/economy/SimulationTreasuryTest.java`
 
 **Interfaces:**
-- Consumes: `EconomyConfig`, `EconomyBridge`, `TaxOutcome`, `PaymentRail`.
-- Produces: failing assertions that simulation configuration and simulated tax outcomes are no longer available, while unavailable Vault remains safe.
+- Consumes: `EconomyBridge`, `TaxOutcome`, `PaymentRail`.
+- Produces: tests that require the four-argument bridge and map unavailable settlement to `VAULT_UNAVAILABLE`.
 
-- [ ] **Step 1: Remove simulation-specific test expectations.** Replace tests that parse `economy.mode: SIMULATION` or expect `SIMULATED_TAXED` with tests asserting the config is Vault-only and missing Vault maps to `VAULT_UNAVAILABLE`.
-- [ ] **Step 2: Run the focused economy tests.**
-
-```bash
-./gradlew test --tests 'com.azoth.territory.economy.EconomyConfigTest' --tests 'com.azoth.territory.economy.EconomyBridgeDomainTest'
-```
-
-Expected: compilation/test failure because production still exposes simulation mode and the tests intentionally assert the Vault-only contract.
-- [ ] **Step 3: Commit the red tests only.**
+- [x] **Step 1: Remove simulation-specific test expectations.** Remove tests for `economy.mode: SIMULATION`, `SIMULATED_TAXED`, and `SimulationTreasury`; update bridge callers to the Vault-only constructor.
+- [x] **Step 2: Run the focused economy tests.**
 
 ```bash
-git add src/test/java/com/azoth/territory/economy/EconomyConfigTest.java src/test/java/com/azoth/territory/economy/EconomyBridgeDomainTest.java src/test/java/com/azoth/territory/PluginEconomyWiringTest.java
-git commit -m "test: require Vault-only economy behavior"
+./gradlew :test --tests 'com.azoth.territory.economy.EconomyBridgeDomainTest' --tests 'com.azoth.territory.economy.VaultTreasuryTest' --tests 'com.azoth.territory.economy.BukkitEconomyBridgeTest'
 ```
+
+Expected: focused Azoth economy tests pass after the production cutover.
+- [x] **Step 3: Keep the test changes with the Azoth cutover commit.**
 
 ### Task 2: Remove Azoth simulation runtime/configuration
 
 **Files:**
 - Modify: `src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
 - Modify: `src/main/java/com/azoth/territory/economy/EconomyBridge.java`
-- Modify: `src/main/java/com/azoth/territory/economy/EconomyConfig.java`
+- Delete: `src/main/java/com/azoth/territory/economy/EconomyConfig.java`
 - Modify: `src/main/java/com/azoth/territory/economy/TaxOutcome.java`
 - Delete: `src/main/java/com/azoth/territory/economy/SimulationTreasury.java`
 - Modify: `src/main/resources/config.yml`
 
 **Interfaces:**
 - Consumes: the tests from Task 1.
-- Produces: `new EconomyBridge(registry, governance, goods, rail)` with no simulation flag; `EconomyConfig` representing Vault-only configuration; no `SIMULATED_TAXED` outcome.
+- Produces: `new EconomyBridge(registry, governance, goods, rail)` with no simulation flag, no selectable economy mode, and no `SIMULATED_TAXED` outcome.
 
-- [ ] **Step 1: Remove the simulation branch from plugin startup.** Always resolve Vault; choose `VaultTreasury` when available and `UnavailableRail` otherwise; pass the four-argument `EconomyBridge` constructor.
-- [ ] **Step 2: Remove simulation state and outcome mapping.** Delete `simulationMode`, `Mode.SIMULATION`, and `TaxOutcome.SIMULATED_TAXED`.
-- [ ] **Step 3: Remove the simulation config block.** Keep only a comment/config marker that economy is Vault-backed; do not expose a selectable simulation mode.
-- [ ] **Step 4: Run focused Azoth economy tests and fix only contract failures.**
+- [x] **Step 1: Remove the simulation branch from plugin startup.** Always resolve Vault; choose `VaultTreasury` when available and `UnavailableRail` otherwise; pass the four-argument `EconomyBridge` constructor.
+- [x] **Step 2: Remove simulation state and outcome mapping.** Delete `simulationMode`, `EconomyConfig`, and `TaxOutcome.SIMULATED_TAXED`.
+- [x] **Step 3: Remove the simulation config block.** Economy is Vault-backed by implementation; no selectable simulation mode remains in `config.yml`.
+- [x] **Step 4: Run focused Azoth economy tests and fix only contract failures.**
 
 ```bash
 ./gradlew test --tests 'com.azoth.territory.economy.*' --tests 'com.azoth.territory.PluginEconomyWiringTest'
@@ -83,19 +78,19 @@ git commit -m "fix: make Azoth economy Vault-only"
 - Modify: `guilds/src/test/java/org/aincraft/towny/services/EconomyServiceImplTest.java`
 
 **Interfaces:**
-- Consumes: `EconomyServiceImpl`, `TownService`, Vault `Economy` API.
+- Consumes: `EconomyServiceImpl` and the Vault `Economy` API.
 - Produces: Vault-unavailable player/town operations that return zero/false/no-op without calling `Town.addFunds`, `Town.withdrawFunds`, or `TownService.updateTown`.
 
-- [ ] **Step 1: Add focused tests for no fallback.** Cover `depositTown`, `withdrawTown`, `getTownBalance`, and `townHas` with Vault unavailable; assert no town mutation and safe return values.
+- [x] **Step 1: Add focused tests for no fallback.** Cover `depositTown`, `withdrawTown`, `getTownBalance`, and `townHas` with Vault unavailable; assert safe return values and no database interaction.
 - [ ] **Step 2: Run the focused Guilds test class.**
 
 ```bash
 ./gradlew :guilds:test --tests 'org.aincraft.towny.services.EconomyServiceImplTest'
 ```
 
-Expected: tests fail because the current implementation mutates/reads `Town.balance` without Vault.
-- [ ] **Step 3: Remove fallback branches.** Make `depositTown`/`withdrawTown` no-op without Vault, make `getTownBalance` return `0.0`, and retain `townHas` as a comparison against that safe balance. Change the no-Vault startup message to identify economy as unavailable.
-- [ ] **Step 4: Run the focused Guilds test class again.** Expected: the new Vault-only tests pass; unrelated stale Guilds tests remain outside this focused scope.
+Blocked by unrelated active Guilds tests with stale API/fixture compile errors.
+- [x] **Step 3: Remove fallback branches.** Make town operations no-op without Vault, make `getTownBalance` return `0.0`, and make `townHas` false without Vault. Change the no-Vault startup message to identify economy as unavailable.
+- [ ] **Step 4: Run the focused Guilds test class again.** The rewritten test is present but cannot compile until the unrelated active Guilds test sources are repaired.
 - [ ] **Step 5: Commit the Guilds cutover.**
 
 ```bash
@@ -106,33 +101,28 @@ git commit -m "fix: remove Guilds town balance economy fallback"
 ### Task 4: Update documentation and verify artifacts
 
 **Files:**
-- Modify: `README.md`
-- Modify: `src/main/resources/config.yml` if Task 2 changes its economy section
-- Modify: `docs/superpowers/specs/2026-08-05-economy-hooks-design.md` only if current behavior claims become false
+- Modify: `guilds/README.md`
+- Modify: `guilds/src/main/resources/config.yml`
+- Modify: `docs/superpowers/plans/2026-08-05-vault-only-economy.md`
 
 **Interfaces:**
 - Consumes: Vault-only runtime behavior from Tasks 2–3.
-- Produces: accurate user-facing setup and no simulation instructions.
+- Produces: accurate user-facing setup and no selectable simulation or persisted-balance instructions.
 
-- [ ] **Step 1: Update current README/config wording.** State that Vault is required for money movement and missing Vault disables settlement; remove simulation instructions.
-- [ ] **Step 2: Run production assembly.**
+- [x] **Step 1: Update current README/config wording.** State that Vault is required for money movement and missing Vault disables settlement; remove non-Vault economy configuration.
+- [x] **Step 2: Run production assembly.**
 
 ```bash
-./gradlew assemble
+./gradlew :jar :guilds:jar
 ```
 
 Expected: root and Guilds production artifacts build successfully.
-- [ ] **Step 3: Run focused economy tests and inspect Vault metadata.**
+- [x] **Step 3: Run focused Azoth tests and inspect Vault metadata.**
 
 ```bash
-./gradlew test --tests 'com.azoth.territory.economy.*' --tests 'com.azoth.territory.PluginEconomyWiringTest'
+./gradlew :test --tests 'com.azoth.territory.economy.EconomyBridgeDomainTest' --tests 'com.azoth.territory.economy.VaultTreasuryTest' --tests 'com.azoth.territory.economy.BukkitEconomyBridgeTest'
 ```
 
-Expected: focused Azoth tests pass. The repository’s known unrelated Guilds test compilation failures may prevent a full `./gradlew test`.
+Expected: focused Azoth tests pass. The repository’s known unrelated Guilds test compilation failures prevent a full `./gradlew test`.
 - [ ] **Step 4: Commit docs and verify clean feature worktree.**
-
-```bash
-git add README.md src/main/resources/config.yml docs/superpowers/specs/2026-08-05-economy-hooks-design.md
-git commit -m "docs: describe Vault-only economy setup"
-git status --short
 ```
