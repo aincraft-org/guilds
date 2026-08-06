@@ -124,6 +124,12 @@ Configurable values (defaults):
   and flip transitions **persist synchronously and atomically** on the
   event that creates them — they are rare, load-bearing transitions.
 - Missing file → empty state (backward compatible).
+- **Corrupt file** (parse/version failure on load): never silently discarded.
+  The file is first moved aside as
+  `influence.json.corrupt-<epochMs>` (preserved for manual recovery), then
+  the engine starts with an empty state and logs SEVERE pointing at the
+  backup. If even the preservation move fails, the influence subsystem
+  fails closed (all operations no-op) until the file is removed or fixed.
 
 ### Recovery on load (eager, per territory entry)
 
