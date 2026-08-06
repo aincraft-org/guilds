@@ -4,7 +4,6 @@ import com.azoth.territory.command.TerritoryCommand;
 import com.azoth.territory.economy.BukkitEconomyBridge;
 import com.azoth.territory.economy.EconomyBridge;
 import com.azoth.territory.economy.EconomyConfig;
-import com.azoth.territory.economy.ExpenseLedger;
 import com.azoth.territory.economy.PaymentRail;
 import com.azoth.territory.economy.SettlementResult;
 import com.azoth.territory.economy.SimulationTreasury;
@@ -14,30 +13,23 @@ import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
 import com.azoth.territory.permission.BlockProtection;
 import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.persist.ExpenseStore;
-import com.azoth.territory.persist.FacilityStore;
 import com.azoth.territory.persist.TerritoryStore;
 import com.azoth.territory.persist.ReconciliationStore;
-import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
 import com.azoth.territory.web.WebConfigLoader;
+import org.aincraft.towny.TownyPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.logging.Level;
 
 public final class AzothTerritoryPlugin extends JavaPlugin {
     private TerritoryRegistry registry;
     private TerritoryStore store;
-    private FacilityRegistry facilityRegistry;
-    private FacilityStore facilityStore;
-    private ExpenseLedger expenseLedger;
-    private ExpenseStore expenseStore;
     private GovernanceRegistry governance;
     private BlockProtection blockProtection;
     private TerritoryWebServer webServer;
@@ -45,6 +37,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private EconomyBridge economyBridge;
     private BukkitEconomyBridge bukkitEconomyBridge;
     private ReconciliationStore reconciliationStore;
+    private TownyPlugin guilds;
 
     @Override
     public void onEnable() {
@@ -64,36 +57,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "Failed to load territories from " + dataFile, e);
         }
-        Path dataFolder = getDataFolder().toPath();
-        this.facilityRegistry = new FacilityRegistry(registry);
-        this.facilityStore = new FacilityStore(dataFolder.resolve("facilities.json"));
-        try {
-            facilityStore.loadInto(facilityRegistry);
-            getLogger().info("Loaded " + facilityRegistry.list().size()
-                    + " settlement facilit(y/ies) from " + facilityStore.file().getFileName());
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Failed to load settlement facilities from "
-                    + facilityStore.file(), e);
-        }
-
-        this.expenseStore = new ExpenseStore(dataFolder.resolve("expenses.json"));
-        this.expenseLedger = new ExpenseLedger();
-        try {
-            expenseLedger.load(expenseStore.load());
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Failed to load treasury expenses from "
-                    + expenseStore.file(), e);
-        }
-        expenseLedger.setSnapshotSink(entries -> {
-            try {
-                expenseStore.save(entries);
-            } catch (IOException e) {
-                getLogger().log(Level.SEVERE, "Failed to persist treasury expenses to "
-                        + expenseStore.file(), e);
-                throw new UncheckedIOException(e);
-            }
-        });
-
 
         this.governance = new GovernanceRegistry(registry);
 
@@ -126,13 +89,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 }
             }
             this.economyBridge = new EconomyBridge(
-                    registry,
-                    governance,
-                    com.azoth.territory.decree.GoodsCatalog.defaultCatalog(),
-                    rail,
-                    simulation,
-                    expenseLedger);
-            this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge, facilityRegistry);
+                    registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(), rail, simulation);
+            this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge);
             try {
                 economyBridge.loadUnresolvedTransactions(reconciliationStore.load());
             } catch (IOException e) {
@@ -175,10 +133,12 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         }
 
         startWebIfEnabled();
+        enableGuildsSubsystem();
     }
 
     @Override
     public void onDisable() {
+        disableGuildsSubsystem();
         stopWeb();
         if (reconciliationStore != null && economyBridge != null) {
             try {
@@ -187,21 +147,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 getLogger().log(Level.SEVERE, "Failed to save reconciliation queue", e);
             }
         }
-        if (expenseStore != null && expenseLedger != null) {
-            try {
-                expenseStore.save(expenseLedger.entries());
-            } catch (IOException e) {
-                getLogger().log(Level.SEVERE, "Failed to save treasury expenses", e);
-            }
-        }
-        if (facilityStore != null && facilityRegistry != null) {
-            try {
-                facilityStore.save(facilityRegistry);
-            } catch (IOException e) {
-                getLogger().log(Level.SEVERE, "Failed to save settlement facilities", e);
-            }
-        }
-
         if (store != null && registry != null) {
             try {
                 store.save(registry);
@@ -266,6 +211,39 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         }
     }
 
+    private void enableGuildsSubsystem() {
+        try {
+            this.guilds = new TownyPlugin(this);
+            guilds.enable();
+            if (guilds.isEnabled()) {
+                getLogger().info("Guilds (Towny-style towns/nations) subsystem started");
+            } else {
+                getLogger().warning("Guilds subsystem did not fully enable — see errors above");
+            }
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "Failed to start guilds subsystem", e);
+            this.guilds = null;
+        }
+    }
+
+    private void disableGuildsSubsystem() {
+        if (guilds != null) {
+            try {
+                guilds.disable();
+            } catch (Exception e) {
+                getLogger().log(Level.SEVERE, "Failed to stop guilds subsystem", e);
+            }
+            guilds = null;
+        }
+    }
+
+    /**
+     * Guilds / Towny subsystem hosted by this plugin (null if enable failed).
+     */
+    public TownyPlugin getGuilds() {
+        return guilds;
+    }
+
     public TerritoryRegistry getRegistry() {
         return registry;
     }
@@ -273,22 +251,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     public TerritoryStore getStore() {
         return store;
     }
-    public FacilityRegistry getFacilityRegistry() {
-        return facilityRegistry;
-    }
-
-    public FacilityStore getFacilityStore() {
-        return facilityStore;
-    }
-
-    public ExpenseLedger getExpenseLedger() {
-        return expenseLedger;
-    }
-
-    public ExpenseStore getExpenseStore() {
-        return expenseStore;
-    }
-
 
     public GovernanceRegistry getGovernance() {
         return governance;
