@@ -12,6 +12,7 @@ import java.util.Objects;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -30,16 +31,16 @@ class GuildsIntegrationTest {
 
             assertTrue(yaml.contains("name: AzothTerritory"), "single plugin name");
             assertTrue(yaml.contains("main: com.azoth.territory.AzothTerritoryPlugin"), "single main");
-            assertFalse(yaml.contains("main: org.aincraft.towny.TownyPlugin"),
-                    "TownyPlugin must not be a second Paper main");
-            assertFalse(yaml.contains("name: Towny\n") || yaml.matches("(?s).*\\nname: Towny\\n.*"),
-                    "must not declare a second plugin identity named Towny");
+            assertFalse(yaml.contains("main: org.aincraft.guilds.GuildsPlugin"),
+                    "GuildsPlugin must not be a second Paper main");
+            assertFalse(yaml.contains("name: Guilds\n") || yaml.matches("(?s).*\\nname: Guilds\\n.*"),
+                    "must not declare a second plugin identity named Guilds");
 
             // Guilds permissions merged onto the single descriptor
-            assertTrue(yaml.contains("towny.town.create") || yaml.contains("towny.town.*"),
-                    "guilds/towny permissions present: " + yaml.substring(0, Math.min(400, yaml.length())));
-            assertTrue(yaml.contains("towny.admin") || yaml.contains("towny.admin.*"),
-                    "towny admin permissions present");
+            assertTrue(yaml.contains("guilds.town.create") || yaml.contains("guilds.town.*"),
+                    "guilds permissions present: " + yaml.substring(0, Math.min(400, yaml.length())));
+            assertTrue(yaml.contains("guilds.admin") || yaml.contains("guilds.admin.*"),
+                    "guilds admin permissions present");
             assertTrue(yaml.contains("Vault"), "softdepend Vault retained for both subsystems");
         }
     }
@@ -66,15 +67,17 @@ class GuildsIntegrationTest {
 
     @Test
     void guildsProductionClasses_loadFromRootClasspath() throws Exception {
-        Class<?> towny = Class.forName("org.aincraft.towny.TownyPlugin");
-        Class<?> module = Class.forName("org.aincraft.towny.dependency.TownyModule");
-        Class<?> brigadier = Class.forName("org.aincraft.towny.commands.BrigadierCommandRegistry");
-        assertNotNull(towny);
-        assertNotNull(module);
+        Class<?> services = Class.forName("org.aincraft.guilds.GuildsServices");
+        Class<?> brigadier = Class.forName("org.aincraft.guilds.commands.BrigadierCommandRegistry");
+        assertNotNull(services);
         assertNotNull(brigadier);
-        // TownyPlugin is a subsystem, not a second JavaPlugin main
-        assertFalse(org.bukkit.plugin.java.JavaPlugin.class.isAssignableFrom(towny),
-                "TownyPlugin must not extend JavaPlugin after single-plugin integration");
+        // GuildsServices is a subsystem composition root, not a second JavaPlugin main
+        assertFalse(org.bukkit.plugin.java.JavaPlugin.class.isAssignableFrom(services),
+                "GuildsServices must not extend JavaPlugin after single-plugin integration");
+        // The old GuildsPlugin facade is gone — one plugin class only
+        assertThrows(ClassNotFoundException.class,
+                () -> Class.forName("org.aincraft.guilds.GuildsPlugin"),
+                "GuildsPlugin must no longer exist after loader centralization");
     }
 
     @Test
@@ -84,23 +87,23 @@ class GuildsIntegrationTest {
 
         // Public accessor owned by main
         Method getGuilds = main.getMethod("getGuilds");
-        assertEquals("org.aincraft.towny.TownyPlugin", getGuilds.getReturnType().getName());
+        assertEquals("org.aincraft.guilds.GuildsServices", getGuilds.getReturnType().getName());
 
         // Source-level wiring: onEnable path calls guilds subsystem enable
         Path source = findMainSource();
         String text = Files.readString(source);
         assertTrue(text.contains("enableGuildsSubsystem") || text.contains("guilds.enable"),
                 "AzothTerritoryPlugin must enable guilds subsystem");
-        assertTrue(text.contains("new TownyPlugin(this)") || text.contains("TownyPlugin("),
-                "main must construct TownyPlugin with host plugin");
-        assertTrue(text.contains("import org.aincraft.towny.TownyPlugin"),
+        assertTrue(text.contains("new GuildsServices(this)") || text.contains("GuildsServices("),
+                "main must construct GuildsServices with the host plugin");
+        assertTrue(text.contains("import org.aincraft.guilds.GuildsServices"),
                 "main must import guilds subsystem");
     }
 
     @Test
     void guildsConfigResourceConstant_matchesShippedResourceName() throws Exception {
-        Class<?> towny = Class.forName("org.aincraft.towny.TownyPlugin");
-        Object resource = towny.getField("GUILDS_CONFIG").get(null);
+        Class<?> services = Class.forName("org.aincraft.guilds.GuildsServices");
+        Object resource = services.getField("GUILDS_CONFIG").get(null);
         assertEquals("guilds-config.yml", resource);
         assertNotNull(getClass().getClassLoader().getResourceAsStream((String) resource));
     }

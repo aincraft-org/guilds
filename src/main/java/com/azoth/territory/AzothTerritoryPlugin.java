@@ -13,13 +13,14 @@ import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
 import com.azoth.territory.permission.BlockProtection;
 import com.azoth.territory.permission.GovernanceRegistry;
+import com.azoth.territory.permission.GovernanceSource;
 import com.azoth.territory.persist.TerritoryStore;
 import com.azoth.territory.persist.ReconciliationStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
 import com.azoth.territory.web.WebConfigLoader;
-import org.aincraft.towny.TownyPlugin;
+import org.aincraft.guilds.GuildsServices;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -37,7 +38,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private EconomyBridge economyBridge;
     private BukkitEconomyBridge bukkitEconomyBridge;
     private ReconciliationStore reconciliationStore;
-    private TownyPlugin guilds;
+    private GuildsServices guilds;
 
     @Override
     public void onEnable() {
@@ -58,7 +59,16 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             getLogger().log(Level.SEVERE, "Failed to load territories from " + dataFile, e);
         }
 
-        this.governance = new GovernanceRegistry(registry);
+        // Guilds subsystem is the governance source (towns as local governments,
+        // nations as alliances). Constructed before the governance registry so
+        // permission checks resolve through real guild data; the web server and
+        // commands start later in enableGuildsSubsystem().
+        constructGuildsSubsystem();
+
+        GovernanceSource source = this.guilds != null
+                ? this.guilds.getGovernanceSource()
+                : GovernanceSource.none();
+        this.governance = new GovernanceRegistry(registry, source);
 
         try {
             EconomyConfig economyConfig = EconomyConfig.fromBukkit(getConfig());
@@ -211,18 +221,36 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         }
     }
 
-    private void enableGuildsSubsystem() {
+    /**
+     * Construct the guilds subsystem (config, database, services). This is
+     * early — before the governance registry — so governance resolves through
+     * real guild data. Failure is non-fatal: governance falls back to
+     * territory-local government via {@link GovernanceSource#none()}.
+     */
+    private void constructGuildsSubsystem() {
         try {
-            this.guilds = new TownyPlugin(this);
-            guilds.enable();
+            this.guilds = new GuildsServices(this);
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE,
+                    "Failed to construct guilds subsystem — governance falls back to territory-local", e);
+            this.guilds = null;
+        }
+    }
+
+    private void enableGuildsSubsystem() {
+        if (this.guilds == null) {
+            getLogger().warning("Guilds subsystem unavailable — skipping enable");
+            return;
+        }
+        try {
+            this.guilds.enable();
             if (guilds.isEnabled()) {
-                getLogger().info("Guilds (Towny-style towns/nations) subsystem started");
+                getLogger().info("Guilds subsystem started");
             } else {
                 getLogger().warning("Guilds subsystem did not fully enable — see errors above");
             }
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Failed to start guilds subsystem", e);
-            this.guilds = null;
         }
     }
 
@@ -238,9 +266,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     }
 
     /**
-     * Guilds / Towny subsystem hosted by this plugin (null if enable failed).
+     * Guilds subsystem hosted by this plugin (null if enable failed).
      */
-    public TownyPlugin getGuilds() {
+    public GuildsServices getGuilds() {
         return guilds;
     }
 

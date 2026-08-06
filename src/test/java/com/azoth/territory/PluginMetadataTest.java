@@ -27,11 +27,11 @@ class PluginMetadataTest {
                     "main class missing: " + yaml);
             assertTrue(yaml.contains("api-version:"), "api-version missing: " + yaml);
             assertTrue(yaml.contains("1.21"), "api-version should be 1.21.x: " + yaml);
-            // Single identity: no second Towny main on this descriptor
-            assertTrue(!yaml.contains("main: org.aincraft.towny.TownyPlugin"),
-                    "must not declare TownyPlugin as a second main");
+            // Single identity: no second Guilds main on this descriptor
+            assertTrue(!yaml.contains("main: org.aincraft.guilds.GuildsPlugin"),
+                    "must not declare GuildsPlugin as a second main");
         }
         assertNotNull(Class.forName("com.azoth.territory.AzothTerritoryPlugin"));
-        assertNotNull(Class.forName("org.aincraft.towny.TownyPlugin"));
+        assertNotNull(Class.forName("org.aincraft.guilds.GuildsServices"));
     }
 }

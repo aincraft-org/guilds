@@ -83,13 +83,15 @@ class ProtectionListenerWiringTest {
 
     @Test
     void protectionListener_handlersCallDomainApis() throws Exception {
-        // Source-level: handlers must call canBreak / canPlace / isEnvironmentallyProtected
-        // / blocksMobSpawn / blocksEntityGrief
+        // Source-level: handlers must call canBreak / canPlace / toggle-aware fire
+        // and explosion gates / blocksMobSpawn / blocksEntityGrief
         String source = readMainSource("com/azoth/territory/listener/ProtectionListener.java");
         assertTrue(source.contains("protection.canBreak("), "break path must call domain canBreak");
         assertTrue(source.contains("protection.canPlace("), "place path must call domain canPlace");
-        assertTrue(source.contains("protection.isEnvironmentallyProtected("),
-                "fire/explosion path must call domain isEnvironmentallyProtected");
+        assertTrue(source.contains("protection.isFireProtected("),
+                "fire path must call domain isFireProtected");
+        assertTrue(source.contains("protection.areExplosionsProtected("),
+                "explosion path must call domain areExplosionsProtected");
         assertTrue(source.contains("protection.blocksMobSpawn("),
                 "spawn path must call domain blocksMobSpawn");
         assertTrue(source.contains("protection.blocksEntityGrief("),

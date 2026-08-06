@@ -2,15 +2,17 @@ package com.azoth.territory.permission;
 
 import com.azoth.territory.model.Government;
 import com.azoth.territory.model.GovernmentForm;
-import com.azoth.territory.model.RegionGuild;
 import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.TerritoryAlliance;
 
 import java.util.Objects;
 import java.util.Optional;
 
 /**
  * The governing body that applies for a permission check: alliance, guild, or territory-local.
+ * <p>
+ * Guild and alliance bodies carry their materialized DTO snapshots so the
+ * permission layer can evaluate members and toggles without touching the
+ * guilds subsystem directly.
  */
 public final class GoverningBody {
     public enum Kind {
@@ -24,30 +26,35 @@ public final class GoverningBody {
     private final Kind kind;
     private final String bodyId;
     private final Government government;
+    private final GuildBody guild;
+    private final AllianceBody alliance;
 
-    private GoverningBody(Kind kind, String bodyId, Government government) {
+    private GoverningBody(Kind kind, String bodyId, Government government,
+                          GuildBody guild, AllianceBody alliance) {
         this.kind = Objects.requireNonNull(kind, "kind");
         this.bodyId = bodyId;
         this.government = government == null ? Government.anarchy() : government;
+        this.guild = guild;
+        this.alliance = alliance;
     }
 
     public static GoverningBody none() {
-        return new GoverningBody(Kind.NONE, null, Government.anarchy());
+        return new GoverningBody(Kind.NONE, null, Government.anarchy(), null, null);
     }
 
-    public static GoverningBody ofAlliance(TerritoryAlliance alliance) {
+    public static GoverningBody ofAlliance(AllianceBody alliance) {
         Objects.requireNonNull(alliance, "alliance");
-        return new GoverningBody(Kind.ALLIANCE, alliance.id(), alliance.government());
+        return new GoverningBody(Kind.ALLIANCE, alliance.id(), alliance.government(), null, alliance);
     }
 
-    public static GoverningBody ofGuild(RegionGuild guild) {
+    public static GoverningBody ofGuild(GuildBody guild) {
         Objects.requireNonNull(guild, "guild");
-        return new GoverningBody(Kind.GUILD, guild.id(), guild.government());
+        return new GoverningBody(Kind.GUILD, guild.id(), guild.government(), guild, null);
     }
 
     public static GoverningBody ofTerritory(Territory territory) {
         Objects.requireNonNull(territory, "territory");
-        return new GoverningBody(Kind.TERRITORY, territory.id(), territory.government());
+        return new GoverningBody(Kind.TERRITORY, territory.id(), territory.government(), null, null);
     }
 
     public Kind kind() {
@@ -70,6 +77,14 @@ public final class GoverningBody {
         return government.isAssigned();
     }
 
+    public Optional<GuildBody> guildBody() {
+        return Optional.ofNullable(guild);
+    }
+
+    public Optional<AllianceBody> allianceBody() {
+        return Optional.ofNullable(alliance);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -80,12 +95,14 @@ public final class GoverningBody {
         }
         return kind == that.kind
                 && Objects.equals(bodyId, that.bodyId)
-                && government.equals(that.government);
+                && government.equals(that.government)
+                && Objects.equals(guild, that.guild)
+                && Objects.equals(alliance, that.alliance);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, bodyId, government);
+        return Objects.hash(kind, bodyId, government, guild, alliance);
     }
 
     @Override

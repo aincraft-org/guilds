@@ -1,10 +1,10 @@
-package org.aincraft.towny.services;
+package org.aincraft.guilds.services;
 
-import org.aincraft.towny.TestUtilities;
-import org.aincraft.towny.database.DatabaseManager;
-import org.aincraft.towny.models.Permission;
-import org.aincraft.towny.models.TownBlock;
-import org.aincraft.towny.services.impl.PlotServiceImpl;
+import org.aincraft.guilds.TestUtilities;
+import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.models.Permission;
+import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.services.impl.PlotServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
@@ -56,7 +56,7 @@ class PlotServiceTest {
     private Logger logger;
 
     @Mock
-    private org.aincraft.towny.services.TownService townService;
+    private org.aincraft.guilds.services.TownService townService;
 
     private PlotServiceImpl plotService;
 

@@ -2,22 +2,22 @@
 
 ## Feature Overview
 
-The town chat feature allows players to send messages to all online residents of their town using `/towny chat <message>` or `/towny tc <message>`.
+The town chat feature allows players to send messages to all online residents of their town using `/guilds chat <message>` or `/guilds tc <message>`.
 
-**Implementation Location**: `TownyGeneralCommand.java:289-341`
+**Implementation Location**: `GuildsGeneralCommand.java:289-341`
 
 **Key Behaviors**:
 - Players must be in a town to use chat
 - Messages broadcast to all online town residents
 - Format: `[TC] PlayerName: message`
 - Messages logged to server console
-- Permission: `towny.general.chat`
+- Permission: `guilds.general.chat`
 
 ---
 
 ## Test Suite Structure
 
-### 1. Unit Tests (`TownyGeneralCommandChatTest.java`)
+### 1. Unit Tests (`GuildsGeneralCommandChatTest.java`)
 
 Mock-based tests for command logic isolation
 
@@ -25,7 +25,7 @@ Mock-based tests for command logic isolation
 
 **TC-001: Player Not In Town**
 - **Setup**: Player not member of any town
-- **Execute**: `/towny chat hello`
+- **Execute**: `/guilds chat hello`
 - **Assert**:
   - Error message: "You are not in a town!"
   - Help message shown
@@ -34,16 +34,16 @@ Mock-based tests for command logic isolation
 
 **TC-002: Missing Message Argument**
 - **Setup**: Player in town "TestTown"
-- **Execute**: `/towny chat` (no message)
+- **Execute**: `/guilds chat` (no message)
 - **Assert**:
-  - Error: "Usage: /towny chat <message>"
+  - Error: "Usage: /guilds chat <message>"
   - Help text shown
   - No message sent
   - Command returns true
 
 **TC-003: Single Word Message**
 - **Setup**: Player "Alice" in "TestTown", 2 online residents
-- **Execute**: `/towny chat hello`
+- **Execute**: `/guilds chat hello`
 - **Assert**:
   - Message formatted: `[TC] Alice: hello`
   - All online town residents receive message
@@ -52,7 +52,7 @@ Mock-based tests for command logic isolation
 
 **TC-004: Multi-Word Message**
 - **Setup**: Player "Bob" in "TestTown"
-- **Execute**: `/towny chat hello world test message`
+- **Execute**: `/guilds chat hello world test message`
 - **Assert**:
   - Message joined correctly: "hello world test message"
   - Proper formatting applied
@@ -60,7 +60,7 @@ Mock-based tests for command logic isolation
 
 **TC-005: Message With Special Characters**
 - **Setup**: Player in town
-- **Execute**: `/towny chat !@#$%^&*() test`
+- **Execute**: `/guilds chat !@#$%^&*() test`
 - **Assert**:
   - Special chars preserved
   - No errors thrown
@@ -68,9 +68,9 @@ Mock-based tests for command logic isolation
 
 **TC-006: TC Alias**
 - **Setup**: Player in town
-- **Execute**: `/towny tc quick message`
+- **Execute**: `/guilds tc quick message`
 - **Assert**:
-  - Works identically to `/towny chat`
+  - Works identically to `/guilds chat`
   - Same formatting
   - Same broadcast behavior
 
@@ -116,7 +116,7 @@ Mock-based tests for command logic isolation
 
 **TC-012: Console Sender Rejected**
 - **Setup**: Console executes command
-- **Execute**: `/towny chat test`
+- **Execute**: `/guilds chat test`
 - **Assert**:
   - Error: "Only players can use this command"
   - Command returns true
@@ -148,7 +148,7 @@ Mock-based tests for command logic isolation
 
 ---
 
-### 2. Integration Tests (`TownyGeneralCommandChatIntegrationTest.java`)
+### 2. Integration Tests (`GuildsGeneralCommandChatIntegrationTest.java`)
 
 Full stack tests with MockBukkit
 
@@ -164,18 +164,18 @@ Full stack tests with MockBukkit
 
 **IT-002: Tab Completion**
 - **Setup**: Player typing command
-- **Execute**: Tab complete `/towny` with partial input
+- **Execute**: Tab complete `/guilds` with partial input
 - **Assert**:
   - "chat" appears in completions
   - "tc" appears in completions
   - Sorted correctly
 
 **IT-003: Permission Check**
-- **Setup**: Player without `towny.general.chat` permission
+- **Setup**: Player without `guilds.general.chat` permission
 - **Execute**: Chat command
 - **Assert**:
   - Permission denied (if implemented)
-  - Or allow based on `towny.general.*`
+  - Or allow based on `guilds.general.*`
 
 **IT-004: Real Resident Service Integration**
 - **Setup**: Real database, actual resident records

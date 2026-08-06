@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -42,12 +43,72 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
             case "reload" -> reload(sender);
             case "save" -> save(sender);
             case "web" -> webStatus(sender);
+            case "govern" -> govern(sender, args);
             default -> {
                 sender.sendMessage(Component.text(
-                        "Usage: /" + label + " [lookup|list|reload|save|web]", NamedTextColor.RED));
+                        "Usage: /" + label + " [lookup|list|reload|save|web|govern]", NamedTextColor.RED));
                 yield true;
             }
         };
+    }
+
+    /**
+     * Bind/unbind a governing guild (town) to a territory.
+     * <pre>
+     * /territory govern &lt;territoryId&gt; &lt;townId|-&gt;
+     * </pre>
+     * A dash ({@code -}) removes the binding, falling back to the territory's
+     * local government. The guild's own governance form + role holders decide
+     * sovereignty and permissions from then on.
+     */
+    private boolean govern(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("azoth.territory.admin") && !sender.isOp()) {
+            sender.sendMessage(Component.text(
+                    "You need 'azoth.territory.admin' to bind a governing guild.", NamedTextColor.RED));
+            return true;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(Component.text(
+                    "Usage: /territory govern <territoryId> <townId|->", NamedTextColor.RED));
+            return true;
+        }
+        String territoryId = args[1];
+        String townId = args[2];
+        var registry = plugin.getRegistry();
+        Optional<Territory> existing = registry.get(territoryId);
+        if (existing.isEmpty()) {
+            sender.sendMessage(Component.text("Unknown territory: " + territoryId, NamedTextColor.RED));
+            return true;
+        }
+        Territory next;
+        if ("-".equals(townId)) {
+            next = existing.get().withoutGoverningGuild();
+            sender.sendMessage(Component.text(
+                    "Cleared governing guild for " + territoryId + ".", NamedTextColor.GREEN));
+        } else {
+            var guilds = plugin.getGuilds();
+            if (guilds == null) {
+                sender.sendMessage(Component.text(
+                        "Guilds subsystem unavailable — cannot bind a governing guild.", NamedTextColor.RED));
+                return true;
+            }
+            boolean townExists = guilds.getGovernanceSource().guild(townId).isPresent();
+            if (!townExists) {
+                sender.sendMessage(Component.text("Unknown town (guild): " + townId, NamedTextColor.RED));
+                return true;
+            }
+            next = existing.get().withGoverningGuild(townId);
+            sender.sendMessage(Component.text(
+                    "Territory " + territoryId + " is now governed by guild " + townId + ".", NamedTextColor.GREEN));
+        }
+        registry.register(next);
+        try {
+            plugin.saveTerritories();
+        } catch (IOException e) {
+            sender.sendMessage(Component.text(
+                    "Saved binding in memory; persist failed: " + e.getMessage(), NamedTextColor.RED));
+        }
+        return true;
     }
 
     private boolean lookupHere(CommandSender sender) {
@@ -142,7 +203,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             String p = args[0].toLowerCase(Locale.ROOT);
-            return Arrays.asList("lookup", "list", "reload", "save", "web").stream()
+            return Arrays.asList("lookup", "list", "reload", "save", "web", "govern").stream()
                     .filter(s -> s.startsWith(p))
                     .collect(Collectors.toCollection(ArrayList::new));
         }

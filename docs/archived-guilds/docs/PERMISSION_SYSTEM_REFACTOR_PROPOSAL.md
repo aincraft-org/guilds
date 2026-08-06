@@ -1,5 +1,5 @@
 # Permission System Refactoring Proposal
-**Senior Engineer Review - Towny Permission Architecture**
+**Senior Engineer Review - Guilds Permission Architecture**
 
 ---
 
@@ -92,8 +92,8 @@ if ((permissionsFlags & flag) != 0) { ... }
 
 **Inactive System** (enum):
 ```java
-// TownyPermission.java - NEVER USED IN PRODUCTION CODE
-public enum TownyPermission {
+// GuildPermission.java - NEVER USED IN PRODUCTION CODE
+public enum GuildPermission {
     BUILD(Category.BUILD, Permission.Flag.BUILD),
     DESTROY(Category.BUILD, Permission.Flag.DESTROY),
     // ...
@@ -569,7 +569,7 @@ UPDATE town_blocks SET permissions = convertBitwiseToEnumList(permissions_flags)
 - ✓ Type safety (compile-time checks)
 - ✓ Better autocomplete in IDE
 - ✓ Easier to extend (add new permissions)
-- ✓ Remove TownyPermission/PermissionSet dead code
+- ✓ Remove GuildPermission/PermissionSet dead code
 
 ---
 
@@ -579,7 +579,7 @@ UPDATE town_blocks SET permissions = convertBitwiseToEnumList(permissions_flags)
 
 **New Package Structure**:
 ```
-org.aincraft.towny.permissions/
+org.aincraft.guilds.permissions/
 ├── api/
 │   ├── PermissionResolver.java         (interface)
 │   ├── PermissionContext.java          (immutable DTO)

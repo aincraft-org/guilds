@@ -1,4 +1,4 @@
-package org.aincraft.towny.database.migration;
+package org.aincraft.guilds.database.migration;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

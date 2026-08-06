@@ -1,4 +1,4 @@
-# Code Analysis Report - Guilds/Towny Plugin
+# Code Analysis Report - Guilds Plugin
 
 ## Summary
 This is a comprehensive Minecraft Paper plugin for town and guild management, featuring:
@@ -12,7 +12,7 @@ This is a comprehensive Minecraft Paper plugin for town and guild management, fe
 ## Critical Bugs Found
 
 ### 1. **PermCommand.java - Incorrect Implementation** (HIGH PRIORITY)
-**File:** `src/main/java/org/aincraft/towny/commands/PermCommand.java`
+**File:** `src/main/java/org/aincraft/guilds/commands/PermCommand.java`
 **Line:** 155-163
 
 ```java
@@ -140,7 +140,7 @@ Run IDE inspection to remove unused imports across all files
 **File:** `PermCommand.java`
 
 **Issue:** User input (args) used directly in messages without sanitization
-**Risk:** Low (only used in debug command with `towny.admin.perm` permission)
+**Risk:** Low (only used in debug command with `guilds.admin.perm` permission)
 
 ## Performance Issues
 

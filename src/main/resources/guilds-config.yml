@@ -1,5 +1,5 @@
-# Towny Plugin Configuration
-# This file contains default settings for the Towny plugin
+# Guilds Plugin Configuration
+# This file contains default settings for the Guilds plugin
 
 # General Settings
 language: en
@@ -34,7 +34,7 @@ database:
 
 # Message Settings
 messages:
-  prefix: "&6[Towny]&r "
+  prefix: "&6[Guilds]&r "
   success_color: "&a"
   error_color: "&c"
   info_color: "&e"

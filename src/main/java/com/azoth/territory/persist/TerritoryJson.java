@@ -82,6 +82,7 @@ public final class TerritoryJson {
         }
         o.add("zones", zones);
         o.add("government", governmentToJson(t.government()));
+        t.governedByGuildId().ifPresent(guildId -> o.addProperty("governedByGuildId", guildId));
         JsonArray policies = new JsonArray();
         for (Policy p : t.policies()) {
             policies.add(policyToJson(p));
@@ -107,13 +108,16 @@ public final class TerritoryJson {
         Government government = o.has("government") && o.get("government").isJsonObject()
                 ? governmentFromJson(o.getAsJsonObject("government"))
                 : Government.anarchy();
+        String governedByGuildId = o.has("governedByGuildId")
+                ? o.get("governedByGuildId").getAsString()
+                : null;
         List<Policy> policies = new ArrayList<>();
         if (o.has("policies")) {
             for (JsonElement el : o.getAsJsonArray("policies")) {
                 policies.add(policyFromJson(el.getAsJsonObject()));
             }
         }
-        return new Territory(id, name, world, boundary, zones, def, government, policies);
+        return new Territory(id, name, world, boundary, zones, def, government, policies, governedByGuildId);
     }
 
     public JsonObject policyToJson(Policy p) {

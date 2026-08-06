@@ -5,7 +5,7 @@ plugins {
 
 group = "com.azoth"
 version = "1.0.0-SNAPSHOT"
-description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus integrated Guilds (Towny-style)"
+description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
 
 java {
     toolchain {
@@ -29,9 +29,7 @@ dependencies {
         exclude(group = "org.bukkit", module = "bukkit")
     }
 
-    // Guilds (Towny) runtime libraries — shaded into the single plugin JAR
-    implementation("com.google.inject:guice:7.0.0")
-    annotationProcessor("com.google.inject:guice:7.0.0")
+    // Guilds runtime libraries — shaded into the single plugin JAR
     implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.xerial:sqlite-jdbc:3.45.3.0")
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
@@ -50,7 +48,6 @@ dependencies {
     }
     testImplementation("org.mockito:mockito-core:5.14.2")
     testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
-    testImplementation("com.google.inject:guice:7.0.0")
 }
 
 tasks.test {

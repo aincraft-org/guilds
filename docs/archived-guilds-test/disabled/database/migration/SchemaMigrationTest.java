@@ -1,6 +1,6 @@
-package org.aincraft.towny.database.migration;
+package org.aincraft.guilds.database.migration;
 
-import org.aincraft.towny.TownyPlugin;
+import org.aincraft.guilds.GuildsPlugin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
 class SchemaMigrationTest {
 
     @Mock
-    private TownyPlugin plugin;
+    private GuildsPlugin plugin;
 
     private SchemaInitializer schemaInitializer;
 
@@ -97,8 +97,8 @@ class SchemaMigrationTest {
     }
 
     @Test
-    @DisplayName("Should verify towny plugin is not null")
-    void shouldVerifyTownyPluginIsNotNull() {
+    @DisplayName("Should verify guilds plugin is not null")
+    void shouldVerifyGuildsPluginIsNotNull() {
         assertThat(plugin).isNotNull();
     }
 

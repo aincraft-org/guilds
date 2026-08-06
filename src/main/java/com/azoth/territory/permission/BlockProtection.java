@@ -1,24 +1,35 @@
 package com.azoth.territory.permission;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Domain block break/place and environmental protection using spatial resolve + form-based authority.
+ * Domain block break/place and environmental protection using spatial resolve
+ * and the governing body (guild, alliance, or territory-local).
  * <p>
- * Player break/place rules:
+ * Player break/place rules (layered, governance-first):
  * <ul>
  *   <li>Uncontained wilderness (no territory) — allow (no governing body).</li>
  *   <li>Territory/alliance with {@code ANARCHY} or unassigned government — allow
  *       (no formal authority grants apply; no seat-based lockdown).</li>
- *   <li>Assigned government — only filled authority-seat holders may break/place;
- *       outsiders are denied.</li>
+ *   <li>Assigned government — formal authority holders (the form's electorate:
+ *       sovereign / councilors / representatives) always pass. Guild-governed
+ *       land (town or nation) then falls through to the guilds permission
+ *       model: members are evaluated by their effective permissions (global
+ *       bypass → explicit grants → role defaults granting the basic build
+ *       actions), alliance sibling-town members keep their basic rights across
+ *       the alliance, and outsiders are allowed only when the town is public
+ *       (build/interact, never break). Territory-local government stays a pure
+ *       seat lockdown for non-authority actors.</li>
  * </ul>
- * Environmental protection (assigned non-anarchy territory-local or alliance government only;
- * uncontained and anarchy stay unrestricted):
+ * Environmental protection:
  * <ul>
- *   <li>Fire burn/spread/ignite and explosions — {@link #isEnvironmentallyProtected}</li>
- *   <li>Natural/hostile mob spawn — {@link #blocksMobSpawn}</li>
- *   <li>Entity-caused block change and crop trampling — {@link #blocksEntityGrief}</li>
+ *   <li>Fire burn/spread/ignite — {@link #isFireProtected}: governed land with
+ *       fire disabled by the governing town's toggle (territory-local stays protected).</li>
+ *   <li>Explosions — {@link #areExplosionsProtected}: same, via the explosions toggle.</li>
+ *   <li>Natural/hostile mob spawn — {@link #blocksMobSpawn}: same, via the mobs toggle.</li>
+ *   <li>Entity-caused block change and crop trampling — {@link #blocksEntityGrief}.</li>
+ *   <li>Mechanical transfers (hoppers) and cross-boundary pushes — {@link #isEnvironmentallyProtected}.</li>
  * </ul>
  * Paper/Bukkit listeners should call these methods; they are pure domain.
  * Spawn-reason filtering (eggs, spawners, commands stay unrestricted) lives at the listener edge.
@@ -49,20 +60,8 @@ public final class BlockProtection {
     }
 
     /**
-     * Whether blocks at the world location are environmentally protected
-     * (fire burn/spread and explosions must not destroy or ignite them).
-     * <p>
-     * True only when an assigned (non-anarchy) territory-local or alliance government
-     * governs the coordinate. Uncontained wilderness and anarchy land return false.
-     */
-    public boolean isEnvironmentallyProtected(String worldId, int blockX, int blockZ) {
-        return isAssignedGoverned(worldId, blockX, blockZ);
-    }
-
-    /**
      * Whether {@code actorId} may interact with a block at the world location
-     * (containers, doors, buttons, levers, beds, …). Same form-authority gate as
-     * break/place; granted via {@link SovereignAction#INTERACT}.
+     * (containers, doors, buttons, levers, beds, …).
      */
     public boolean canInteract(String worldId, int blockX, int blockZ, String actorId) {
         return canModify(worldId, blockX, blockZ, actorId, SovereignAction.INTERACT);
@@ -71,7 +70,6 @@ public final class BlockProtection {
     /**
      * Whether {@code actorId} may interact with an entity at the world location
      * (armor stands, item frames, animals with leads, vehicles, …).
-     * Same form-authority gate as block interaction.
      */
     public boolean canInteractWithEntity(String worldId, int blockX, int blockZ, String actorId) {
         return canModify(worldId, blockX, blockZ, actorId, SovereignAction.INTERACT);
@@ -90,10 +88,10 @@ public final class BlockProtection {
      * Whether {@code attackerId} may damage {@code victimId} on a governed territory
      * (PvP and friendly-fire by territory).
      * <p>
-     * Conservative model: inside governed (assigned non-anarchy) territory, damage
-     * between any players is denied unless the attacker has formal authority. No
-     * member/company distinction exists in the current data model; per-group flags
-     * are future work. Uncontained land stays unrestricted.
+     * Uncontained land and anarchy stay unrestricted. Under an assigned
+     * government, formal authority holders may always attack; on guild-governed
+     * land everyone else may fight when the governing town's PvP toggle is on.
+     * Territory-local government stays conservative (authority attackers only).
      */
     public boolean allowsPvp(String worldId, int blockX, int blockZ, String attackerId, String victimId) {
         if (attackerId == null || victimId == null
@@ -107,48 +105,100 @@ public final class BlockProtection {
         if (body.kind() == GoverningBody.Kind.NONE || !body.hasAssignedGovernment()) {
             return true;
         }
-        return PermissionRules.allows(body.government(), attackerId, SovereignAction.INTERACT);
+        if (PermissionRules.allows(body.government(), attackerId, SovereignAction.INTERACT)) {
+            return true;
+        }
+        Optional<GuildBody> guild = governance.governingGuildAt(worldId, blockX, blockZ);
+        return guild.map(g -> g.toggles().pvpEnabled()).orElse(false);
     }
 
     /**
      * Whether {@code actorId} may be teleported into the territory (spawn/home/tpa
-     * commands, plugins, portals/gateways). Denied for outsiders; authority holders
-     * (owners) are never blocked from their own land.
+     * commands, plugins, portals/gateways). Authority holders and guild members
+     * are never blocked from their own land; public towns admit outsiders.
      * <p>
      * Only applies to player-forced teleports. Respawns to a player's own bed /
      * respawn anchor never fire a {@code PlayerTeleportEvent}, so setting spawn
      * inside claims stays free. Foreign-territory home registration is not
-     * expressible in the current model (no per-player home store); command-level
-     * home/spawn plugins are covered via the {@code COMMAND}/{@code PLUGIN} causes.
+     * expressible in the current model (no per-player home store).
      */
     public boolean canTeleportInto(String worldId, int blockX, int blockZ, String actorId) {
         GoverningBody body = governance.resolveAt(worldId, blockX, blockZ);
         if (body.kind() == GoverningBody.Kind.NONE || !body.hasAssignedGovernment()) {
             return true;
         }
-        return PermissionRules.allows(body.government(), actorId, SovereignAction.INTERACT);
+        if (PermissionRules.allows(body.government(), actorId, SovereignAction.INTERACT)) {
+            return true;
+        }
+        Optional<GuildBody> guild = governance.governingGuildAt(worldId, blockX, blockZ);
+        if (guild.isEmpty()) {
+            return false;
+        }
+        return guild.get().containsMember(actorId) || guild.get().isPublic();
+    }
+
+    /**
+     * Whether fire may be blocked from burning, spreading, or igniting at this
+     * location. Governed land is fire-protected unless the governing town's
+     * fire toggle is enabled (territory-local stays protected).
+     */
+    public boolean isFireProtected(String worldId, int blockX, int blockZ) {
+        if (!isAssignedGoverned(worldId, blockX, blockZ)) {
+            return false;
+        }
+        return governance.governingGuildAt(worldId, blockX, blockZ)
+                .map(g -> !g.toggles().fireEnabled())
+                .orElse(true);
+    }
+
+    /**
+     * Whether explosions are blocked from damaging this location. Governed land
+     * is explosion-protected unless the governing town's explosions toggle is
+     * enabled (territory-local stays protected).
+     */
+    public boolean areExplosionsProtected(String worldId, int blockX, int blockZ) {
+        if (!isAssignedGoverned(worldId, blockX, blockZ)) {
+            return false;
+        }
+        return governance.governingGuildAt(worldId, blockX, blockZ)
+                .map(g -> !g.toggles().explosionsEnabled())
+                .orElse(true);
+    }
+
+    /**
+     * Whether blocks at the world location are environmentally protected
+     * (mechanical transfers, boundary crossings, entity grief). True only when
+     * an assigned (non-anarchy) government governs the coordinate.
+     */
+    public boolean isEnvironmentallyProtected(String worldId, int blockX, int blockZ) {
+        return isAssignedGoverned(worldId, blockX, blockZ);
     }
 
     /**
      * Whether natural/hostile mob spawning should be denied at this location.
-     * Same assigned-government eligibility as environmental protection.
-     * Listener maps Bukkit spawn reasons; eggs/spawners/commands stay unrestricted.
+     * Governed land blocks spawns unless the governing town's mobs toggle is
+     * enabled (territory-local stays protected). Listener maps Bukkit spawn
+     * reasons; eggs/spawners/commands stay unrestricted.
      */
     public boolean blocksMobSpawn(String worldId, int blockX, int blockZ) {
-        return isAssignedGoverned(worldId, blockX, blockZ);
+        if (!isAssignedGoverned(worldId, blockX, blockZ)) {
+            return false;
+        }
+        return governance.governingGuildAt(worldId, blockX, blockZ)
+                .map(g -> !g.toggles().mobsEnabled())
+                .orElse(true);
     }
 
     /**
      * Whether entity-caused block changes and crop trampling should be denied here
      * (enderman/wither-style pickup/break, farmland physical change).
-     * Same assigned-government eligibility as environmental protection.
      */
     public boolean blocksEntityGrief(String worldId, int blockX, int blockZ) {
         return isAssignedGoverned(worldId, blockX, blockZ);
     }
 
     /**
-     * Location under an assigned (non-anarchy) territory-local or alliance government.
+     * Location under an assigned (non-anarchy) government.
      */
     private boolean isAssignedGoverned(String worldId, int blockX, int blockZ) {
         GoverningBody body = governance.resolveAt(worldId, blockX, blockZ);
@@ -173,7 +223,37 @@ public final class BlockProtection {
             // ANARCHY local government: no formal protection grants
             return true;
         }
-        return PermissionRules.allows(body.government(), actorId, action);
+        // Governance layer: the form's electorate always passes
+        if (PermissionRules.allows(body.government(), actorId, action)) {
+            return true;
+        }
+        Optional<GuildBody> governing = governance.governingGuildAt(worldId, blockX, blockZ);
+        if (governing.isEmpty()) {
+            // Territory-local government: seat-only lockdown
+            return false;
+        }
+        GuildBody guild = governing.get();
+        Optional<MemberPermissions> perms = guild.permissionsOf(actorId);
+        if (perms.isPresent()) {
+            return perms.get().allows(action);
+        }
+        // Alliance sibling-town members keep their basic rights across the alliance.
+        if (body.kind() == GoverningBody.Kind.ALLIANCE) {
+            AllianceBody alliance = body.allianceBody().orElseThrow();
+            for (String guildId : alliance.memberGuildIds()) {
+                Optional<GuildBody> sibling = governance.source().guild(guildId);
+                if (sibling.isEmpty()) {
+                    continue;
+                }
+                Optional<MemberPermissions> siblingPerms = sibling.get().permissionsOf(actorId);
+                if (siblingPerms.isPresent()) {
+                    return siblingPerms.get().allows(action);
+                }
+            }
+        }
+        // Outsider: public towns mirror guilds town-owned plot defaults
+        // (build/switch/item-use allowed, destroy not).
+        return guild.isPublic() && action != SovereignAction.BREAK_BLOCK;
     }
 
     /**

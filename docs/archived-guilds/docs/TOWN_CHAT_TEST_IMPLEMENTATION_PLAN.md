@@ -7,9 +7,9 @@
 ## Prerequisites
 
 1. Read `TOWN_CHAT_TEST_PLAN.md` for test case specifications
-2. Read `src/test/java/org/aincraft/towny/TestingGuide.md` for testing patterns
-3. Review existing test: `src/test/java/org/aincraft/towny/commands/PlotCommandTest.java`
-4. Understand target implementation: `TownyGeneralCommand.java:289-341`
+2. Read `src/test/java/org/aincraft/guilds/TestingGuide.md` for testing patterns
+3. Review existing test: `src/test/java/org/aincraft/guilds/commands/PlotCommandTest.java`
+4. Understand target implementation: `GuildsGeneralCommand.java:289-341`
 
 ---
 
@@ -17,14 +17,14 @@
 
 ### Phase 1: Setup Test Infrastructure
 
-**File**: `src/test/java/org/aincraft/towny/commands/TownyGeneralCommandChatTest.java`
+**File**: `src/test/java/org/aincraft/guilds/commands/GuildsGeneralCommandChatTest.java`
 
 ```java
-package org.aincraft.towny.commands;
+package org.aincraft.guilds.commands;
 
-import org.aincraft.towny.base.BaseUnitTest;
-import org.aincraft.towny.services.*;
-import org.aincraft.towny.models.*;
+import org.aincraft.guilds.base.BaseUnitTest;
+import org.aincraft.guilds.services.*;
+import org.aincraft.guilds.models.*;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.entity.Player;
@@ -38,9 +38,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @DisplayName("Town Chat Command - Unit Tests")
-class TownyGeneralCommandChatTest extends BaseUnitTest {
+class GuildsGeneralCommandChatTest extends BaseUnitTest {
 
-    @Mock private TownyPlugin plugin;
+    @Mock private GuildsPlugin plugin;
     @Mock private ResidentService residentService;
     @Mock private TownService townService;
     @Mock private PlotService plotService;
@@ -49,7 +49,7 @@ class TownyGeneralCommandChatTest extends BaseUnitTest {
     @Mock private Logger logger;
     @Mock private Command command;
 
-    private TownyGeneralCommand townyCommand;
+    private GuildsGeneralCommand guildsCommand;
     private Player mockPlayer;
     private UUID playerUuid;
     private List<Resident> townResidents;
@@ -66,7 +66,7 @@ class TownyGeneralCommandChatTest extends BaseUnitTest {
         when(plugin.getLogger()).thenReturn(logger);
 
         // Create command instance
-        townyCommand = new TownyGeneralCommand(
+        guildsCommand = new GuildsGeneralCommand(
             plugin, residentService, townService,
             plotService, permissionService, mapCommand
         );
@@ -118,7 +118,7 @@ void shouldRejectChatWhenPlayerNotInTown() {
     String[] args = {"chat", "hello"};
 
     // When
-    boolean result = townyCommand.onCommand(mockPlayer, command, "towny", args);
+    boolean result = guildsCommand.onCommand(mockPlayer, command, "guilds", args);
 
     // Then
     assertThat(result).isTrue();
@@ -149,7 +149,7 @@ void shouldSendSingleWordMessageToTownResidents() {
     String[] args = {"chat", "hello"};
 
     // When
-    boolean result = townyCommand.onCommand(mockPlayer, command, "towny", args);
+    boolean result = guildsCommand.onCommand(mockPlayer, command, "guilds", args);
 
     // Then
     assertThat(result).isTrue();
@@ -190,26 +190,26 @@ void shouldSendSingleWordMessageToTownResidents() {
 
 ### Phase 3: Integration Tests
 
-**File**: `src/test/java/org/aincraft/towny/commands/TownyGeneralCommandChatIntegrationTest.java`
+**File**: `src/test/java/org/aincraft/guilds/commands/GuildsGeneralCommandChatIntegrationTest.java`
 
 ```java
-package org.aincraft.towny.commands;
+package org.aincraft.guilds.commands;
 
-import org.aincraft.towny.base.BaseIntegrationTest;
+import org.aincraft.guilds.base.BaseIntegrationTest;
 import be.seeseemelk.mockbukkit.entity.PlayerMock;
 import org.junit.jupiter.api.*;
 import static org.assertj.core.api.Assertions.*;
 
 @DisplayName("Town Chat Command - Integration Tests")
-class TownyGeneralCommandChatIntegrationTest extends BaseIntegrationTest {
+class GuildsGeneralCommandChatIntegrationTest extends BaseIntegrationTest {
 
-    private TownyGeneralCommand townyCommand;
+    private GuildsGeneralCommand guildsCommand;
     private PlayerMock player1, player2, player3;
 
     @BeforeEach
     void setUp() {
         // Use real services from BaseIntegrationTest
-        townyCommand = injector.getInstance(TownyGeneralCommand.class);
+        guildsCommand = injector.getInstance(GuildsGeneralCommand.class);
 
         // Create test town and residents
         createTestTownWithResidents();
@@ -265,12 +265,12 @@ class EdgeCaseTests {
 
 ### Phase 5: Test Utilities
 
-**Create helper file**: `src/test/java/org/aincraft/towny/commands/ChatTestHelpers.java`
+**Create helper file**: `src/test/java/org/aincraft/guilds/commands/ChatTestHelpers.java`
 
 ```java
-package org.aincraft.towny.commands;
+package org.aincraft.guilds.commands;
 
-import org.aincraft.towny.models.Resident;
+import org.aincraft.guilds.models.Resident;
 import org.bukkit.entity.Player;
 import java.util.*;
 
@@ -314,7 +314,7 @@ public class ChatTestHelpers {
 
 1. **Run all tests**:
    ```bash
-   ./gradlew test --tests "*TownyGeneralCommandChat*"
+   ./gradlew test --tests "*GuildsGeneralCommandChat*"
    ```
 
 2. **Verify coverage**:
@@ -375,7 +375,7 @@ public class BukkitPlayerRegistry implements PlayerRegistry {
     }
 }
 
-// Inject into TownyGeneralCommand
+// Inject into GuildsGeneralCommand
 // Then tests can mock PlayerRegistry instead
 ```
 
@@ -386,10 +386,10 @@ public class BukkitPlayerRegistry implements PlayerRegistry {
 ## File Structure
 
 ```
-src/test/java/org/aincraft/towny/
+src/test/java/org/aincraft/guilds/
 ├── commands/
-│   ├── TownyGeneralCommandChatTest.java          (Unit tests)
-│   ├── TownyGeneralCommandChatIntegrationTest.java (Integration tests)
+│   ├── GuildsGeneralCommandChatTest.java          (Unit tests)
+│   ├── GuildsGeneralCommandChatIntegrationTest.java (Integration tests)
 │   └── ChatTestHelpers.java                      (Test utilities)
 └── TOWN_CHAT_TEST_PLAN.md                        (Reference doc)
 ```

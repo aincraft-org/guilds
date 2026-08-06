@@ -1,14 +1,14 @@
 # Brigadier Command Migration Plan
 
 ## Overview
-Migrate all Towny commands from legacy Bukkit `CommandExecutor` to Paper's modern Brigadier API. Brigadier provides better tab completion, argument validation, and command structure.
+Migrate all Guilds commands from legacy Bukkit `CommandExecutor` to Paper's modern Brigadier API. Brigadier provides better tab completion, argument validation, and command structure.
 
 ## Current Commands (9 total)
 1. `/town` - TownCommand.java
 2. `/plot` - PlotCommand.java
-3. `/towny` - TownyGeneralCommand.java
+3. `/guilds` - GuildsGeneralCommand.java
 4. `/townlevel` - TownLevelCommand.java
-5. `/townymap` - MapCommand.java
+5. `/guildsmap` - MapCommand.java
 6. `/perm` - PermCommand.java
 7. `/plottype` - PlotTypeCommand.java
 8. `/broadcast` - TownBroadcastCommand.java
@@ -18,11 +18,11 @@ Migrate all Towny commands from legacy Bukkit `CommandExecutor` to Paper's moder
 
 ### Phase 1: Infrastructure Setup
 1. **Create Brigadier Command Registry**
-   - Location: `src/main/java/org/aincraft/towny/commands/BrigadierCommandRegistry.java`
+   - Location: `src/main/java/org/aincraft/guilds/commands/BrigadierCommandRegistry.java`
    - Centralized registration via Paper's LifecycleEvents.COMMANDS
    - Inject Guice dependencies for all command handlers
 
-2. **Update TownyPlugin.java**
+2. **Update GuildsPlugin.java**
    - Replace `registerCommands()` with Brigadier lifecycle registration
    - Register event handler for `LifecycleEvents.COMMANDS`
    - Remove legacy CommandExecutor registrations
@@ -32,7 +32,7 @@ Migrate all Towny commands from legacy Bukkit `CommandExecutor` to Paper's moder
    - Brigadier handles registration dynamically
 
 ### Phase 2: Create Brigadier Argument Types
-Create custom argument types in `src/main/java/org/aincraft/towny/commands/arguments/`:
+Create custom argument types in `src/main/java/org/aincraft/guilds/commands/arguments/`:
 
 1. **TownArgumentType.java**
    - Suggests existing town names
@@ -90,7 +90,7 @@ public class TownBrigadierCommand {
 2. **MapCommand** (single command)
 3. **TownLevelCommand** (moderate, ~5 subcommands)
 4. **PlotTypeCommand** (moderate)
-5. **TownyGeneralCommand** (moderate)
+5. **GuildsGeneralCommand** (moderate)
 6. **PlotCommand** (complex, ~10 subcommands)
 7. **TownCommand** (complex, ~12 subcommands)
 8. **TownBroadcastCommand** (complex, ~10 subcommands)
@@ -168,7 +168,7 @@ Subcommands:
 - `list`
 - `contribute <resource> <amount>` - ResourceTypeArgumentType + IntegerArgumentType
 
-#### /townymap Command
+#### /guildsmap Command
 Args:
 - `[mode]` - EnumArgumentType (ascii, fancy)
 
@@ -185,7 +185,7 @@ Brigadier supports permission checks via `.requires()`:
 
 ```java
 Commands.literal("delete")
-    .requires(source -> source.getSender().hasPermission("towny.town.delete"))
+    .requires(source -> source.getSender().hasPermission("guilds.town.delete"))
     .executes(this::handleDelete)
 ```
 
@@ -263,7 +263,7 @@ private int handleCommand(CommandContext<CommandSourceStack> ctx) {
 
 ## File Structure After Migration
 ```
-src/main/java/org/aincraft/towny/commands/
+src/main/java/org/aincraft/guilds/commands/
 ├── BrigadierCommandRegistry.java (new)
 ├── arguments/ (new)
 │   ├── TownArgumentType.java
@@ -274,7 +274,7 @@ src/main/java/org/aincraft/towny/commands/
 ├── brigadier/ (new)
 │   ├── TownBrigadierCommand.java
 │   ├── PlotBrigadierCommand.java
-│   ├── TownyGeneralBrigadierCommand.java
+│   ├── GuildsGeneralBrigadierCommand.java
 │   ├── TownLevelBrigadierCommand.java
 │   ├── MapBrigadierCommand.java
 │   ├── PermBrigadierCommand.java
@@ -312,6 +312,6 @@ src/main/java/org/aincraft/towny/commands/
 
 ## Rollback Plan
 Keep legacy commands in `commands/legacy/` until migration fully tested. Can revert by:
-1. Restoring old `registerCommands()` in TownyPlugin
+1. Restoring old `registerCommands()` in GuildsPlugin
 2. Re-adding commands to plugin.yml
 3. Removing Brigadier lifecycle handler

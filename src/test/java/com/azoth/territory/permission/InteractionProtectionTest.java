@@ -4,13 +4,13 @@ import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Government;
 import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.TerritoryAlliance;
 import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class InteractionProtectionTest {
 
     private TerritoryRegistry territories;
+    private FakeGovernanceSource source;
     private GovernanceRegistry governance;
     private BlockProtection protection;
 
@@ -37,17 +38,25 @@ class InteractionProtectionTest {
     @BeforeEach
     void setUp() {
         territories = new TerritoryRegistry();
-        governance = new GovernanceRegistry(territories);
+        source = new FakeGovernanceSource();
+        governance = new GovernanceRegistry(territories, source);
         protection = new BlockProtection(governance);
     }
 
+    /**
+     * Guild-governed monarchy: the town's mayor is the sovereign; the named
+     * members get the basic build actions.
+     */
     private void registerMonarchyTerritory(String id, int min, int max, String king) {
         territories.register(new Territory(
                 id, id, "world", square(min, max),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
+                List.of(), ZoneType.WILDERNESS, Government.anarchy(), List.of(), id + "-town"
         ));
-        governance.putAlliance(TerritoryAlliance.form(
-                "pact-" + id, "Pact", Government.monarchy(king), List.of(id)));
+        MemberPermissions member = MemberPermissions.of(List.of(
+                SovereignAction.BREAK_BLOCK, SovereignAction.PLACE_BLOCK, SovereignAction.INTERACT));
+        source.putGuild(new GuildBody(id + "-town", "Town of " + id,
+                Government.monarchy(king), List.of(king, "member:" + id),
+                TownToggles.defaults(), Map.of(king, member, "member:" + id, member)));
     }
 
     @Test
@@ -64,11 +73,15 @@ class InteractionProtectionTest {
     }
 
     @Test
-    void interact_monarchy_sovereignOnly() {
+    void interact_monarchy_sovereignAndMembers() {
         registerMonarchyTerritory("crownlands", 0, 100, "king:arthur");
 
         assertTrue(protection.canInteract("world", 40, 40, "king:arthur"));
         assertTrue(protection.canInteractWithEntity("world", 40, 40, "king:arthur"));
+        // Member of the governing town (basic actions by role default)
+        assertTrue(protection.canInteract("world", 40, 40, "member:crownlands"));
+        assertTrue(protection.canInteractWithEntity("world", 40, 40, "member:crownlands"));
+        // Outsider denied (town not public)
         assertFalse(protection.canInteract("world", 40, 40, "peasant:bob"));
         assertFalse(protection.canInteractWithEntity("world", 40, 40, "peasant:bob"));
     }
@@ -108,33 +121,31 @@ class InteractionProtectionTest {
     }
 
     @Test
-    void pvp_governed_authorityCanDamage_allowed() {
+    void pvp_governed_authorityCanDamage() {
         registerMonarchyTerritory("crownlands", 0, 100, "king:arthur");
 
-        assertTrue(protection.allowsPvp("world", 40, 40, "king:arthur", "peasant:bob"));
-        assertTrue(protection.allowsPvp("world", 40, 40, "king:arthur", "king:arthur"));
-        assertFalse(protection.allowsPvp("world", 40, 40, "peasant:bob", "king:arthur"));
-        // Friendly-fire: two outsiders fighting inside is denied.
-        assertFalse(protection.allowsPvp("world", 40, 40, "peasant:alice", "peasant:bob"));
-        // Outside the claim stays unrestricted.
-        assertTrue(protection.allowsPvp("world", 500, 500, "peasant:alice", "peasant:bob"));
+        // Authority (sovereign) may attack; toggle off blocks member-vs-member.
+        assertTrue(protection.allowsPvp("world", 40, 40, "king:arthur", "member:crownlands"));
+        assertFalse(protection.allowsPvp("world", 40, 40, "member:crownlands", "king:arthur"));
     }
 
     @Test
     void teleport_uncontainedAnarchy_anyone() {
         assertTrue(protection.canTeleportInto("world", 0, 0, "stranger"));
+
         territories.register(new Territory(
                 "free", "Free", "world", square(0, 50),
                 List.of(), ZoneType.WILDERNESS, Government.anarchy()
         ));
-        assertTrue(protection.canTeleportInto("world", 10, 10, "stranger"));
+        assertTrue(protection.canTeleportInto("world", 10, 10, "outsider"));
     }
 
     @Test
-    void teleport_governed_authorityOnly() {
+    void teleport_governed_authorityAndMembersOnly() {
         registerMonarchyTerritory("crownlands", 0, 100, "king:arthur");
 
         assertTrue(protection.canTeleportInto("world", 40, 40, "king:arthur"));
-        assertFalse(protection.canTeleportInto("world", 40, 40, "wanderer"));
+        assertTrue(protection.canTeleportInto("world", 40, 40, "member:crownlands"));
+        assertFalse(protection.canTeleportInto("world", 40, 40, "peasant:bob"));
     }
 }

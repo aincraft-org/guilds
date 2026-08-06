@@ -1,7 +1,7 @@
-package org.aincraft.towny.services;
+package org.aincraft.guilds.services;
 
-import org.aincraft.towny.models.Town;
-import org.aincraft.towny.models.TownBlock;
+import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.TownBlock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;

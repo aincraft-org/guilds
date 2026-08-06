@@ -1,0 +1,384 @@
+package org.aincraft.guilds;
+
+import com.azoth.territory.model.Government;
+import com.azoth.territory.model.GovernmentForm;
+import com.azoth.territory.permission.AllianceBody;
+import com.azoth.territory.permission.GovernanceSource;
+import com.azoth.territory.permission.GuildBody;
+import com.azoth.territory.permission.MemberPermissions;
+import com.azoth.territory.permission.SovereignAction;
+import com.azoth.territory.permission.TownToggles;
+import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.models.Nation;
+import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.services.NationService;
+import org.aincraft.guilds.services.TownService;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+/**
+ * {@link GovernanceSource} backed by the guilds database: towns materialize as
+ * {@link GuildBody} (local government entities), nations as {@link AllianceBody}
+ * (alliance entities).
+ * <p>
+ * Government derivation: each entity picks a governance form (stored in the
+ * {@code governance_form} column, default {@code MONARCHY}); seats are derived
+ * from role holders — town mayor/assistants/residents, nation
+ * king/ministers/member-town mayors — via {@link Government#fromRoles}.
+ * <p>
+ * Member permissions mirror the guilds town-level hierarchy:
+ * <ol>
+ *   <li>global {@code bypass} grants every sovereign action;</li>
+ *   <li>explicit town-context grants (permissions table) add actions;</li>
+ *   <li>role default — every town member gets the basic build actions
+ *       (break/place/switch/item-use) by default, matching the guilds
+ *       {@code hasRoleBasedTownPermission} town semantics.</li>
+ * </ol>
+ */
+public final class GuildsGovernanceSource implements GovernanceSource {
+
+    private static final String DEFAULT_FORM = "MONARCHY";
+
+    private final DatabaseManager databaseManager;
+    private final TownService townService;
+    private final NationService nationService;
+    private final Logger logger;
+
+    public GuildsGovernanceSource(
+            DatabaseManager databaseManager,
+            TownService townService,
+            NationService nationService,
+            Logger logger
+    ) {
+        this.databaseManager = databaseManager;
+        this.townService = townService;
+        this.nationService = nationService;
+        this.logger = logger;
+    }
+
+    @Override
+    public Optional<GuildBody> guild(String guildId) {
+        if (guildId == null || guildId.isBlank()) {
+            return Optional.empty();
+        }
+        return townService.getTownById(guildId.trim()).map(this::toGuildBody);
+    }
+
+    @Override
+    public List<GuildBody> guildsForMember(String holderId) {
+        if (holderId == null || holderId.isBlank()) {
+            return List.of();
+        }
+        UUID uuid = parseUuid(holderId.trim());
+        if (uuid == null) {
+            return List.of();
+        }
+        List<GuildBody> matches = new ArrayList<>();
+        for (Town town : townService.getAllTowns()) {
+            if (town.isResident(uuid)) {
+                matches.add(toGuildBody(town));
+            }
+        }
+        matches.sort((a, b) -> a.id().compareTo(b.id()));
+        return List.copyOf(matches);
+    }
+
+    @Override
+    public Optional<AllianceBody> allianceContainingGuild(String guildId) {
+        if (guildId == null || guildId.isBlank()) {
+            return Optional.empty();
+        }
+        String id = guildId.trim();
+        for (Nation nation : nationService.getAllNations()) {
+            if (nation.hasTown(id)) {
+                return Optional.of(toAllianceBody(nation));
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public List<GuildBody> allGuilds() {
+        List<GuildBody> bodies = new ArrayList<>();
+        for (Town town : townService.getAllTowns()) {
+            bodies.add(toGuildBody(town));
+        }
+        return List.copyOf(bodies);
+    }
+
+    @Override
+    public List<AllianceBody> allAlliances() {
+        List<AllianceBody> bodies = new ArrayList<>();
+        for (Nation nation : nationService.getAllNations()) {
+            bodies.add(toAllianceBody(nation));
+        }
+        return List.copyOf(bodies);
+    }
+
+    /**
+     * Set the governance form for a guild (town).
+     *
+     * @return true if the town exists and the form was persisted
+     */
+    public boolean setTownForm(String townId, GovernmentForm form) {
+        if (townId == null || townId.isBlank() || form == null) {
+            return false;
+        }
+        return townService.getTownById(townId.trim())
+                .map(town -> setForm("towns", "id", town.getId(), form))
+                .orElse(false);
+    }
+
+    /**
+     * Set the governance form for an alliance (nation).
+     *
+     * @return true if the nation exists and the form was persisted
+     */
+    public boolean setNationForm(String nationId, GovernmentForm form) {
+        if (nationId == null || nationId.isBlank() || form == null) {
+            return false;
+        }
+        return nationService.getNationById(nationId.trim())
+                .map(nation -> setForm("nations", "id", nation.getId(), form))
+                .orElse(false);
+    }
+
+    // ---- materialization -------------------------------------------------
+
+    private GuildBody toGuildBody(Town town) {
+        GovernmentForm form = readForm("towns", "id", town.getId());
+        List<String> authorityIds = townAuthorityIds(town, form);
+        Government government = Government.fromRoles(form, authorityIds);
+
+        List<String> memberIds = new ArrayList<>();
+        for (UUID resident : town.getResidents()) {
+            memberIds.add(resident.toString());
+        }
+        memberIds.sort(String::compareTo);
+
+        Map<String, MemberPermissions> permissions = new java.util.HashMap<>();
+        for (UUID resident : town.getResidents()) {
+            permissions.put(resident.toString(), memberPermissions(town, resident));
+        }
+
+        TownToggles toggles = new TownToggles(
+                town.isPvpEnabled(),
+                town.isFireEnabled(),
+                town.isExplosionsEnabled(),
+                town.isMobsEnabled(),
+                town.isPublicEnabled()
+        );
+        return new GuildBody(town.getId(), town.getName(), government, memberIds, toggles, permissions);
+    }
+
+    private List<String> townAuthorityIds(Town town, GovernmentForm form) {
+        return switch (form) {
+            case MONARCHY -> List.of(town.getMayorUuid().toString());
+            case OLIGARCHY -> {
+                Set<String> ids = new LinkedHashSet<>();
+                ids.add(town.getMayorUuid().toString());
+                for (UUID assistant : sorted(town.getAssistants())) {
+                    ids.add(assistant.toString());
+                }
+                yield new ArrayList<>(ids);
+            }
+            case DEMOCRACY -> {
+                List<String> ids = new ArrayList<>();
+                for (UUID resident : sorted(town.getResidents())) {
+                    ids.add(resident.toString());
+                }
+                yield ids;
+            }
+            case ANARCHY -> List.of();
+        };
+    }
+
+    private AllianceBody toAllianceBody(Nation nation) {
+        GovernmentForm form = readForm("nations", "id", nation.getId());
+        List<String> authorityIds = nationAuthorityIds(nation, form);
+        Government government = Government.fromRoles(form, authorityIds);
+
+        List<String> memberGuildIds = new ArrayList<>(nation.getMemberTownIds());
+        memberGuildIds.sort(String::compareTo);
+        return new AllianceBody(nation.getId(), nation.getName(), government, memberGuildIds);
+    }
+
+    private List<String> nationAuthorityIds(Nation nation, GovernmentForm form) {
+        return switch (form) {
+            case MONARCHY -> nation.getKingUuid() == null
+                    ? List.of()
+                    : List.of(nation.getKingUuid().toString());
+            case OLIGARCHY -> {
+                Set<String> ids = new LinkedHashSet<>();
+                if (nation.getKingUuid() != null) {
+                    ids.add(nation.getKingUuid().toString());
+                }
+                for (UUID minister : sorted(nation.getMinisters())) {
+                    ids.add(minister.toString());
+                }
+                yield new ArrayList<>(ids);
+            }
+            case DEMOCRACY -> {
+                // Every member-town mayor is a representative.
+                List<String> ids = new ArrayList<>();
+                for (String townId : nation.getMemberTownIds()) {
+                    townService.getTownById(townId)
+                            .map(Town::getMayorUuid)
+                            .map(UUID::toString)
+                            .ifPresent(ids::add);
+                }
+                yield ids;
+            }
+            case ANARCHY -> List.of();
+        };
+    }
+
+    /**
+     * Effective territory permissions for one member, mirroring the guilds
+     * town-level hierarchy (bypass → explicit town grants → role default).
+     */
+    private MemberPermissions memberPermissions(Town town, UUID resident) {
+        Set<SovereignAction> granted = EnumSet.noneOf(SovereignAction.class);
+        boolean bypass = false;
+
+        // 1. Global bypass rows (context='global', target all or this resident)
+        List<Integer> globalFlags = queryFlags(
+                "SELECT permissions_flags FROM permissions WHERE context = 'global' "
+                        + "AND (target_type = 'all' OR (target_type = 'resident' AND target_id = ?))",
+                resident.toString()
+        );
+        for (int flags : globalFlags) {
+            if (hasFlag(flags, GuildPermissionBit.BYPASS)) {
+                bypass = true;
+            }
+            addMappedActions(granted, flags);
+        }
+
+        // 2. Explicit town-context grants
+        List<Integer> townFlags = queryFlags(
+                "SELECT permissions_flags FROM permissions WHERE context = 'town' AND context_id = ? "
+                        + "AND (target_type = 'all' OR (target_type = 'resident' AND target_id = ?))",
+                town.getName(), resident.toString()
+        );
+        for (int flags : townFlags) {
+            addMappedActions(granted, flags);
+        }
+
+        // 3. Role default: all town members get the basic build actions
+        //    (matches hasRoleBasedTownPermission: build/destroy/switch/item_use).
+        granted.add(SovereignAction.BREAK_BLOCK);
+        granted.add(SovereignAction.PLACE_BLOCK);
+        granted.add(SovereignAction.INTERACT);
+
+        return new MemberPermissions(granted, bypass);
+    }
+
+    private void addMappedActions(Set<SovereignAction> granted, int flags) {
+        for (Map.Entry<Integer, SovereignAction> e : FLAG_TO_ACTION.entrySet()) {
+            if (hasFlag(flags, e.getKey())) {
+                granted.add(e.getValue());
+            }
+        }
+    }
+
+    private boolean hasFlag(int flags, int bit) {
+        return (flags & bit) != 0;
+    }
+
+    private List<Integer> queryFlags(String sql, String... params) {
+        List<Integer> flags = new ArrayList<>();
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                statement.setString(i + 1, params[i]);
+            }
+            try (ResultSet rs = statement.executeQuery()) {
+                while (rs.next()) {
+                    flags.add(rs.getInt("permissions_flags"));
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "Failed to read governance permission flags", e);
+        }
+        return flags;
+    }
+
+    private GovernmentForm readForm(String table, String idColumn, String id) {
+        String sql = "SELECT governance_form FROM " + table + " WHERE " + idColumn + " = ?";
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, id);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (rs.next()) {
+                    return GovernmentForm.fromString(rs.getString("governance_form"));
+                }
+            }
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "Failed to read governance form for " + table + " " + id, e);
+        }
+        return GovernmentForm.fromString(DEFAULT_FORM);
+    }
+
+    private boolean setForm(String table, String idColumn, String id, GovernmentForm form) {
+        String sql = "UPDATE " + table + " SET governance_form = ? WHERE " + idColumn + " = ?";
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, form.name());
+            statement.setString(2, id);
+            return statement.executeUpdate() > 0;
+        } catch (SQLException e) {
+            logger.log(Level.WARNING, "Failed to set governance form for " + table + " " + id, e);
+            return false;
+        }
+    }
+
+    private static UUID parseUuid(String raw) {
+        try {
+            return UUID.fromString(raw);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static List<UUID> sorted(Set<UUID> uuids) {
+        List<UUID> list = new ArrayList<>(uuids);
+        list.sort(UUID::compareTo);
+        return list;
+    }
+
+    /**
+     * GuildPermission legacy bit values for the flags the territory layer maps
+     * to sovereign actions (build/destroy/switch/item_use + bypass).
+     */
+    private static final class GuildPermissionBit {
+        static final int BUILD = org.aincraft.guilds.models.GuildPermission.BUILD.getLegacyBitwiseValue();
+        static final int DESTROY = org.aincraft.guilds.models.GuildPermission.DESTROY.getLegacyBitwiseValue();
+        static final int SWITCH = org.aincraft.guilds.models.GuildPermission.SWITCH.getLegacyBitwiseValue();
+        static final int ITEM_USE = org.aincraft.guilds.models.GuildPermission.ITEM_USE.getLegacyBitwiseValue();
+        static final int BYPASS = org.aincraft.guilds.models.GuildPermission.BYPASS.getLegacyBitwiseValue();
+    }
+
+    private static final Map<Integer, SovereignAction> FLAG_TO_ACTION = buildFlagMapping();
+
+    private static Map<Integer, SovereignAction> buildFlagMapping() {
+        Map<Integer, SovereignAction> map = new java.util.HashMap<>();
+        map.put(GuildPermissionBit.BUILD, SovereignAction.PLACE_BLOCK);
+        map.put(GuildPermissionBit.DESTROY, SovereignAction.BREAK_BLOCK);
+        map.put(GuildPermissionBit.SWITCH, SovereignAction.INTERACT);
+        map.put(GuildPermissionBit.ITEM_USE, SovereignAction.INTERACT);
+        return Map.copyOf(map);
+    }
+}

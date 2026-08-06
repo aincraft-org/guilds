@@ -1,6 +1,6 @@
 # Extensible Plot Type System - Usage Guide
 
-This guide demonstrates how to use the new extensible plot type system in Towny. The system allows plugins to register custom plot types with rich metadata and respond to player actions within specific plot types.
+This guide demonstrates how to use the new extensible plot type system in Guilds. The system allows plugins to register custom plot types with rich metadata and respond to player actions within specific plot types.
 
 ## Quick Start
 
@@ -28,13 +28,13 @@ public class MyPlotPlugin extends JavaPlugin implements PlotTypeHandler {
             .metadata("feature_2", 1.5)
             .build();
 
-        // Get the Towny PlotTypeService and register
-        PlotTypeService plotTypeService = TownyAPI.getPlotTypeService();
+        // Get the Guilds PlotTypeService and register
+        PlotTypeService plotTypeService = GuildsAPI.getPlotTypeService();
         plotTypeService.registerPlotType(getName(), myPlotType);
     }
 
     private void registerMyHandler() {
-        PlotTypeService plotTypeService = TownyAPI.getPlotTypeService();
+        PlotTypeService plotTypeService = GuildsAPI.getPlotTypeService();
         plotTypeService.registerHandler(getName(), "custom_plot", this);
     }
 }
@@ -107,7 +107,7 @@ PlotTypeDefinition vipPlot = PlotTypeDefinition.builder()
     .displayName("VIP Lounge")
     .description("Exclusive area for VIP players")
     .pluginName(getName())
-    .requirePermission("towny.vip")
+    .requirePermission("guilds.vip")
     .requirePermission("premium lounge.access")
     .build();
 ```
@@ -121,7 +121,7 @@ public class MyPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        plotTypeService = TownyAPI.getPlotTypeService();
+        plotTypeService = GuildsAPI.getPlotTypeService();
 
         // Register plot type and handlers
         registerPlotType();
@@ -130,7 +130,7 @@ public class MyPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Clean up - Towny will automatically clean up
+        // Clean up - Guilds will automatically clean up
         // when the plugin disables, but you can explicitly
         // call cleanup if needed
         if (plotTypeService != null) {
@@ -163,7 +163,7 @@ You can dispatch custom action events from anywhere:
 
 ```java
 // In your code when a player performs a specific action
-PlotTypeService plotTypeService = TownyAPI.getPlotTypeService();
+PlotTypeService plotTypeService = GuildsAPI.getPlotTypeService();
 PlotTypeHandlerManager handlerManager = // get from injection or service
 
 // Dispatch a custom action
@@ -180,7 +180,7 @@ handlerManager.dispatchPlotActionEvent(
 ### Changing Plot Types
 
 ```java
-PlotTypeService plotTypeService = TownyAPI.getPlotTypeService();
+PlotTypeService plotTypeService = GuildsAPI.getPlotTypeService();
 
 // Change a plot's type
 boolean success = plotTypeService.changePlotType(townBlockId, "my_custom_plot");
@@ -193,7 +193,7 @@ if (success) {
 ### Querying Plot Information
 
 ```java
-PlotTypeService plotTypeService = TownyAPI.getPlotTypeService();
+PlotTypeService plotTypeService = GuildsAPI.getPlotTypeService();
 
 // Get plot type of a specific plot
 Optional<String> plotType = plotTypeService.getPlotType(townBlockId);
@@ -277,7 +277,7 @@ Implement proper cleanup in onDisable():
 ```java
 @Override
 public void onDisable() {
-    PlotTypeService plotTypeService = TownyAPI.getPlotTypeService();
+    PlotTypeService plotTypeService = GuildsAPI.getPlotTypeService();
     if (plotTypeService != null) {
         int cleaned = plotTypeService.cleanupPlugin(getName());
         getLogger().info("Cleaned up " + cleaned + " plot type entries");
@@ -330,4 +330,4 @@ Use these commands for debugging (when implemented):
 - `getPlotTypeDefinition(UUID)` - Get definition for plot
 - `getStats()` - Get system statistics
 
-This extensible plot type system provides powerful customization capabilities while maintaining compatibility with existing Towny functionality. Happy coding!
+This extensible plot type system provides powerful customization capabilities while maintaining compatibility with existing Guilds functionality. Happy coding!

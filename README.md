@@ -24,19 +24,20 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 
 Produces the single Paper plugin JAR:
 `build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
-(shadow/fat jar with Guilds runtime libraries: Guice, HikariCP, SQLite, Caffeine, Javalin).
+(shadow/fat jar with Guilds runtime libraries: HikariCP, SQLite, Caffeine, Javalin).
 
 ```bash
 ./gradlew test
 ```
 
-### Integrated Guilds (Towny-style) subsystem
+### Integrated Guilds subsystem
 
-Guilds production sources live under the root `src/main/java/org/aincraft/towny/`
+Guilds production sources live under the root `src/main/java/org/aincraft/guilds/`
 tree and ship in the **same** plugin artifact as Azoth Territory. There is one
 `plugin.yml`, one main class (`com.azoth.territory.AzothTerritoryPlugin`), and
-that main enables both territory behavior and the guilds/towny subsystem
-(commands via Paper Brigadier, listeners, Guice services).
+that main enables both territory behavior and the guilds subsystem
+(commands via Paper Brigadier, listeners, plain constructor-wired services via
+the `GuildsServices` composition root).
 
 Guilds defaults are packaged as `guilds-config.yml` and `techtree.yml` so they
 do not overwrite the territory `config.yml`. The historical `guilds/` directory
@@ -54,71 +55,97 @@ docs/plans under `docs/archived-guilds/docs/` for reference.
 
 ## Government / sovereignty
 
-Governments are first-class at **region guild** and **territory alliance** formation
-(`RegionGuild.form(...)`, `TerritoryAlliance.form(...)` — must pick an assigned form, not `ANARCHY`).
-Territories may still carry an optional government attachment for local sovereignty.
+Governments are first-class through the guilds subsystem: **towns are the local
+governments** and **nations are the alliance entities**. The territory layer
+records only an optional binding (`governedByGuildId`); all governance data
+lives in the guilds database (`guilds.db`).
 
-Each territory may have **at most one** government attachment (default `ANARCHY`).
-Holder ids are **opaque strings** (player UUID, company id, faction id, …) for later wiring.
+Resolution (via `GovernanceRegistry` + `GovernanceSource`, implemented by
+`GuildsGovernanceSource`):
 
-Only forms that differ in decision mechanics are included (no flavor renames of the same structure).
+- Territory → the bound town's **nation** if the town is a nation member, else
+  the **town** itself, else the territory-local government attachment.
+- Holder → the first guild (town) listing them as a resident.
+- World location → spatial `TerritoryRegistry.resolve` then territory resolution above.
 
-| Form | Seats | Policy decision |
-|------|-------|-----------------|
-| `ANARCHY` | — | Cannot adopt policies |
-| `MONARCHY` | 1 `SOVEREIGN` | **Decree** by sovereign |
-| `OLIGARCHY` | 2+ `COUNCILOR` | **Majority** of filled council seats |
-| `DEMOCRACY` | 1+ `REPRESENTATIVE` | **Majority** of filled representatives (optional terms) |
+Each guild (town) and alliance (nation) picks a **governance form** (`/town
+government <form>`, `/nation government <form>`, mayor/king only). Seats are
+derived live from role holders — the governance form IS the permission
+structure:
+
+| Form | Town (guild) seats | Nation (alliance) seats |
+|------|--------------------|-------------------------|
+| `ANARCHY` | none | none |
+| `MONARCHY` | mayor → `SOVEREIGN` | king → `SOVEREIGN` |
+| `OLIGARCHY` | mayor + assistants → `COUNCILOR` | king + ministers → `COUNCILOR` |
+| `DEMOCRACY` | every resident → `REPRESENTATIVE` | every member-town mayor → `REPRESENTATIVE` |
 
 ### Policies (propose → vote/decree → PASSED/REJECTED)
 
 ```java
+// Territory-local government (no guild binding): seats are persisted directly
 Territory t = new Territory("crownlands", "Crownlands", "world", boundary)
     .withGovernment(Government.monarchy("player:uuid"));
-
-// Monarchy: decree
 t = t.proposePolicy("tax", "Tax Reform", "…", "player:uuid", System.currentTimeMillis());
 t = t.decreePolicy("tax", "player:uuid", true, System.currentTimeMillis());
 // t.policy("tax").status() == PASSED
+```
 
-// Oligarchy / democracy: multi-seat vote (auto-resolves on majority)
-t = t.withGovernment(Government.oligarchy(List.of("c1", "c2", "c3")));
-t = t.proposePolicy("wall", "Build Wall", "…", "c1", now);
-t = t.castPolicyVote("wall", "c1", VoteChoice.YES, now);
-t = t.castPolicyVote("wall", "c2", VoteChoice.YES, now); // → PASSED when yes > filled/2
+For guild/alliance-bound territories, policy operations go through the
+governance registry so the **derived** government (town/nation form + roles)
+gates proposals, votes, and decrees:
+
+```java
+// Town picks MONARCHY → the mayor is the sovereign and may decree;
+// /territory govern everfall everfall-town binds the territory.
+governance.proposePolicy("everfall", "tax", "Tax Reform", "…", "mayor-uuid", now);
+Policy passed = governance.decreePolicy("everfall", "tax", "mayor-uuid", true, now);
 ```
 
 Ineligible proposers/voters throw. Policy content is **decision data only** (no world enforcement yet).
 
-Persisted in `territories.json` as `"government"` + `"policies": [{ id, title, body, proposerId, status, votes… }]`.
+Persisted in `territories.json` as `"government"` + `"policies"` + optional
+`"governedByGuildId"`.
 
 ### Guilds, alliances, and permissions
 
-In-memory wiring via `GovernanceRegistry` + form-based `PermissionRules` / `BlockProtection`
-(package `com.azoth.territory.permission`).
-
-**Resolution**
-- Territory → first alliance that lists it (by alliance id), else the territory's local government
-- Holder → first guild that lists them as a member
-- World location → spatial `TerritoryRegistry.resolve` then territory resolution above
+The standalone in-memory `RegionGuild`/`TerritoryAlliance` models are gone.
+The territory layer consumes DTO snapshots (`GuildBody`, `AllianceBody`) via
+`GovernanceSource`; the guilds subsystem materializes them from
+`TownService`/`NationService` + the permissions table. There is one source of
+truth: the guilds database.
 
 **Formal authority** (`SovereignAction`: `MANAGE_MEMBERSHIP`, `SET_POLICY`, `BREAK_BLOCK`, `PLACE_BLOCK`, `INTERACT`)
 - `ANARCHY` — no formal grants
-- `MONARCHY` — filled sovereign seat only
+- `MONARCHY` — the filled sovereign seat
 - `OLIGARCHY` / `DEMOCRACY` — each filled authority-role seat holder
 
-**Block protection** (`BlockProtection.canBreak` / `canPlace` / `canInteract` / `canInteractWithEntity` / `allowsPvp` / `canTeleportInto` / `crossesBoundary`)
+**Block protection** (`BlockProtection.canBreak` / `canPlace` / `canInteract` / `canInteractWithEntity` / `allowsPvp` / `canTeleportInto` / `crossesBoundary`), layered:
 - Uncontained wilderness → allow
-- Assigned government → only formal authority holders; outsiders denied
-- Local `ANARCHY` → no seat-based lockdown (allow); still no formal policy authority
+- `ANARCHY` government → no seat-based lockdown (allow); still no formal policy authority
+- Assigned government → **formal authority holders always pass**; guild-governed
+  land then falls through to the guilds permission model:
+  - members (residents of the governing town; for nations, any member-town
+    resident) are evaluated by their effective permissions — global `bypass`,
+    explicit town-context grants, then the role default granting every member
+    the basic build actions (break/place/switch/item-use);
+  - outsiders are denied unless the town is **public**, in which case they may
+    build/interact but never break (mirroring guilds town-owned plot defaults);
+  - territory-local government stays a pure seat lockdown.
+
+**Environmental flags follow the governing town's toggles** (`isFireProtected`,
+`areExplosionsProtected`, `blocksMobSpawn`): governed land is protected when the
+toggle is off (fire/explosions) or on (mobs); territory-local stays protected
+regardless. `isEnvironmentallyProtected` (mechanical transfers, boundary
+crossings, entity grief) still gates on assigned government alone. PvP follows
+the town's `pvp` toggle, with authority holders always able to defend.
 
 ```java
-GovernanceRegistry gov = new GovernanceRegistry(registry);
-gov.putAlliance(TerritoryAlliance.form("pact", "Pact",
-    Government.monarchy("king:1"), List.of("everfall")));
+GovernanceSource source = guilds.getGovernanceSource(); // towns + nations
+GovernanceRegistry gov = new GovernanceRegistry(registry, source);
 BlockProtection blocks = new BlockProtection(gov);
-blocks.canBreak("world", x, z, "king:1");   // true
-blocks.canBreak("world", x, z, "outsider"); // false
+blocks.canBreak("world", x, z, "resident-uuid"); // true for town members
+blocks.canBreak("world", x, z, "outsider");      // false in a closed town
 ```
 
 Paper listeners are wired on enable (`ProtectionListener` + `InteractionProtectionListener`):
@@ -128,14 +155,15 @@ Paper listeners are wired on enable (`ProtectionListener` + `InteractionProtecti
 | Block break/place | `canBreak` / `canPlace` | Actor = player UUID string |
 | Block interact (chests, doors, buttons, levers, beds, furnaces, hoppers) | `canInteract` | Includes container open (InventoryOpen). Right-click on blocks |
 | Entity interact (item frames, armor stands, paintings, vehicles, leash) | `canInteractWithEntity` | Place + break + rotate + equip |
-| Fire burn/spread/ignite, explosions | `isEnvironmentallyProtected` | Assigned non-anarchy only |
+| Fire burn/spread/ignite | `isFireProtected` | Governed land with the town's fire toggle off (territory-local always) |
+| Explosions | `areExplosionsProtected` | Governed land with the town's explosions toggle off (territory-local always) |
 | Piston push / fluid flow into claims | `crossesBoundary` | Blocked crossing in/out of governed land |
-| Hopper / dropper steals, item pickup | (environmental) | Mechanical actors have no authority → denied in governed land |
-| Natural/hostile mob spawn | `blocksMobSpawn` | Eggs/spawners/commands unrestricted |
+| Hopper / dropper steals, item pickup | `isEnvironmentallyProtected` | Mechanical actors have no authority → denied in governed land |
+| Natural/hostile mob spawn | `blocksMobSpawn` | Governed land with the town's mobs toggle on (territory-local always); eggs/spawners/commands unrestricted |
 | Entity block change, crop trample | `blocksEntityGrief` | Enderman/wither/farmland |
-| Player PvP / friendly-fire | `allowsPvp` | Denied inside governed land for non-authority attackers; uncontained/anarchy unrestricted |
+| Player PvP / friendly-fire | `allowsPvp` | Town's pvp toggle for members; authority holders always may; uncontained/anarchy unrestricted |
 | Animal kill / pet damage | `canInteract` on victim | Animals/tameables/villagers/armor stands only; hostile mobs stay killable |
-| Forced teleport / spawn / home-setting into claims | `canTeleportInto` | COMMAND/PLUGIN/portal/pearl causes; owners exempt; respawn-to-bed never fires this event |
+| Forced teleport / spawn / home-setting into claims | `canTeleportInto` | COMMAND/PLUGIN/portal/pearl causes; authority + members exempt; public towns admit outsiders; respawn-to-bed never fires this event |
 
 Uncontained wilderness and anarchy-governed land stay unrestricted for environmental flags, block interaction, PvP, and teleport gates.
 
@@ -152,6 +180,7 @@ Company-level friendly fire and per-player home registration are **not expressib
       "name": "Everfall",
       "world": "world",
       "defaultZoneType": "WILDERNESS",
+      "governedByGuildId": "everfall-town",
       "boundary": {
         "polygon": [{"x": 0, "z": 0}, {"x": 1000, "z": 0}, {"x": 1000, "z": 1000}, {"x": 0, "z": 1000}],
         "chunks": []

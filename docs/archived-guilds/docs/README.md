@@ -1,4 +1,4 @@
-# Towny - Enhanced Town & Guild Management
+# Guilds - Enhanced Town & Guild Management
 
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Minecraft](https://img.shields.io/badge/Minecraft-1.21.4-brightgreen.svg)](https://www.minecraft.net/)
@@ -9,7 +9,7 @@
 
 ## 🎯 Overview
 
-Towny is a comprehensive Minecraft plugin that enables players to create towns, manage land claims, and build communities. It features a sophisticated permission system, plot management, tech trees, and extensive customization options.
+Guilds is a comprehensive Minecraft plugin that enables players to create towns, manage land claims, and build communities. It features a sophisticated permission system, plot management, tech trees, and extensive customization options.
 
 ### Key Features
 
@@ -40,7 +40,7 @@ Towny is a comprehensive Minecraft plugin that enables players to create towns, 
 ### Quick Start
 
 1. Download the latest release from [Releases](https://github.com/mintychochip/guilds/releases)
-2. Place `Towny.jar` in your server's `plugins/` folder
+2. Place `Guilds.jar` in your server's `plugins/` folder
 3. Start the server
 4. Configure `config.yml` to your liking
 5. Restart the server
@@ -55,7 +55,7 @@ cd guilds
 # Build with Gradle
 ./gradlew build
 
-# The compiled JAR will be in build/libs/Towny.jar
+# The compiled JAR will be in build/libs/Guilds.jar
 ```
 
 ## 🎮 Commands
@@ -64,254 +64,254 @@ cd guilds
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/town create <name>` | Create a new town | `towny.town.create` |
-| `/town delete` | Delete your town | `towny.town.delete` |
-| `/town join <town>` | Join a town | `towny.town.join` |
-| `/town leave` | Leave your current town | `towny.town.leave` |
-| `/town claim` | Claim land for your town | `towny.town.claim` |
-| `/town unclaim` | Unclaim land | `towny.town.unclaim` |
-| `/town spawn` | Teleport to town spawn | `towny.town.spawn` |
-| `/town set` | Configure town settings | `towny.town.set` |
-| `/town invite <player>` | Invite a player to your town | `towny.town.invite` |
-| `/town kick <player>` | Kick a player from your town | `towny.town.kick` |
+| `/town create <name>` | Create a new town | `guilds.town.create` |
+| `/town delete` | Delete your town | `guilds.town.delete` |
+| `/town join <town>` | Join a town | `guilds.town.join` |
+| `/town leave` | Leave your current town | `guilds.town.leave` |
+| `/town claim` | Claim land for your town | `guilds.town.claim` |
+| `/town unclaim` | Unclaim land | `guilds.town.unclaim` |
+| `/town spawn` | Teleport to town spawn | `guilds.town.spawn` |
+| `/town set` | Configure town settings | `guilds.town.set` |
+| `/town invite <player>` | Invite a player to your town | `guilds.town.invite` |
+| `/town kick <player>` | Kick a player from your town | `guilds.town.kick` |
 
 ### Plot Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/plot claim` | Claim a plot for yourself | `towny.plot.claim` |
-| `/plot unclaim` | Unclaim your plot | `towny.plot.unclaim` |
-| `/plot info` | View plot information | `towny.plot.info` |
-| `/plot set <type>` | Set plot type | `towny.plot.set` |
-| `/plot perms` | View/modify plot permissions | `towny.plot.perms` |
-| `/plot toggle` | Toggle plot settings | `towny.plot.toggle` |
+| `/plot claim` | Claim a plot for yourself | `guilds.plot.claim` |
+| `/plot unclaim` | Unclaim your plot | `guilds.plot.unclaim` |
+| `/plot info` | View plot information | `guilds.plot.info` |
+| `/plot set <type>` | Set plot type | `guilds.plot.set` |
+| `/plot perms` | View/modify plot permissions | `guilds.plot.perms` |
+| `/plot toggle` | Toggle plot settings | `guilds.plot.toggle` |
 
 ### Permission Debug Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/perm check` | Check all permissions at location | `towny.admin.perm` |
-| `/perm build` | Test build permission | `towny.admin.perm` |
-| `/perm destroy` | Test destroy permission | `towny.admin.perm` |
-| `/perm plot [flag]` | Test specific plot permission | `towny.admin.perm` |
-| `/perm flags` | Show available permission flags | `towny.admin.perm` |
+| `/perm check` | Check all permissions at location | `guilds.admin.perm` |
+| `/perm build` | Test build permission | `guilds.admin.perm` |
+| `/perm destroy` | Test destroy permission | `guilds.admin.perm` |
+| `/perm plot [flag]` | Test specific plot permission | `guilds.admin.perm` |
+| `/perm flags` | Show available permission flags | `guilds.admin.perm` |
 
 ### Other Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/map` | View town map | `towny.map` |
-| `/townlevel` | View town level info | `towny.level` |
-| `/towny reload` | Reload configuration | `towny.admin.reload` |
+| `/map` | View town map | `guilds.map` |
+| `/townlevel` | View town level info | `guilds.level` |
+| `/guilds reload` | Reload configuration | `guilds.admin.reload` |
 
 ### Tech Tree Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/techtree` | Open tech tree GUI | `towny.techtree.view` |
-| `/techtree info <node>` | Show node details | `towny.techtree.view` |
-| `/techtree unlock <node>` | Unlock a tech node | `towny.techtree.unlock` |
-| `/techtree list [branch]` | List nodes by branch | `towny.techtree.view` |
-| `/tt` | Alias for /techtree | `towny.techtree.view` |
+| `/techtree` | Open tech tree GUI | `guilds.techtree.view` |
+| `/techtree info <node>` | Show node details | `guilds.techtree.view` |
+| `/techtree unlock <node>` | Unlock a tech node | `guilds.techtree.unlock` |
+| `/techtree list [branch]` | List nodes by branch | `guilds.techtree.view` |
+| `/tt` | Alias for /techtree | `guilds.techtree.view` |
 
 ### Nation Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/nation create <name>` | Create a nation | `towny.nation.create` |
-| `/nation invite <town>` | Invite a town | `towny.nation.invite` |
-| `/nation join <nation>` | Join a nation | `towny.nation.join` |
-| `/nation leave` | Leave nation | `towny.nation.leave` |
-| `/nation list` | List all nations | `towny.commands.nation` |
-| `/nation info [nation]` | Show nation details | `towny.commands.nation` |
-| `/nation ally <nation>` | Form alliance | `towny.nation.ally` |
-| `/nation enemy <nation>` | Declare enemy | `towny.nation.enemy` |
-| `/nation kick <town>` | Kick a town | `towny.nation.kick` |
-| `/nation set king <player>` | Transfer kingship | `towny.nation.set` |
-| `/nation set tax <rate>` | Set tax rate | `towny.nation.set` |
-| `/nation set open <true/false>` | Toggle open/closed | `towny.nation.set` |
-| `/n` | Alias for /nation | `towny.commands.nation` |
+| `/nation create <name>` | Create a nation | `guilds.nation.create` |
+| `/nation invite <town>` | Invite a town | `guilds.nation.invite` |
+| `/nation join <nation>` | Join a nation | `guilds.nation.join` |
+| `/nation leave` | Leave nation | `guilds.nation.leave` |
+| `/nation list` | List all nations | `guilds.commands.nation` |
+| `/nation info [nation]` | Show nation details | `guilds.commands.nation` |
+| `/nation ally <nation>` | Form alliance | `guilds.nation.ally` |
+| `/nation enemy <nation>` | Declare enemy | `guilds.nation.enemy` |
+| `/nation kick <town>` | Kick a town | `guilds.nation.kick` |
+| `/nation set king <player>` | Transfer kingship | `guilds.nation.set` |
+| `/nation set tax <rate>` | Set tax rate | `guilds.nation.set` |
+| `/nation set open <true/false>` | Toggle open/closed | `guilds.nation.set` |
+| `/n` | Alias for /nation | `guilds.commands.nation` |
 
 ### Chat Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/tc <message>` | Send town chat message | `towny.chat.town` |
-| `/tc` | Toggle town chat channel | `towny.chat.town` |
-| `/townchat` | Alias for /tc | `towny.chat.town` |
+| `/tc <message>` | Send town chat message | `guilds.chat.town` |
+| `/tc` | Toggle town chat channel | `guilds.chat.town` |
+| `/townchat` | Alias for /tc | `guilds.chat.town` |
 
 ### Specialization Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/town specialize` | View specializations | `towny.town.specialize` |
-| `/town specialize <type>` | Choose specialization | `towny.town.specialize` |
-| `/town specialize reset` | Remove specialization | `towny.town.specialize` |
+| `/town specialize` | View specializations | `guilds.town.specialize` |
+| `/town specialize <type>` | Choose specialization | `guilds.town.specialize` |
+| `/town specialize reset` | Remove specialization | `guilds.town.specialize` |
 
 ### Quest Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/town quests` | List active quests | `towny.commands.nation` |
-| `/town quest progress` | Show quest progress | `towny.commands.nation` |
-| `/town quest refresh` | Regenerate quests (admin) | `towny.admin.quest` |
+| `/town quests` | List active quests | `guilds.commands.nation` |
+| `/town quest progress` | Show quest progress | `guilds.commands.nation` |
+| `/town quest refresh` | Regenerate quests (admin) | `guilds.admin.quest` |
 
 ### Blueprint Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/blueprint save <name>` | Save selection | `towny.commands.blueprint` |
-| `/blueprint list` | List town blueprints | `towny.commands.blueprint` |
-| `/blueprint load <name>` | View blueprint info | `towny.commands.blueprint` |
-| `/blueprint apply <name>` | Paste at location | `towny.commands.blueprint` |
-| `/blueprint delete <name>` | Delete blueprint | `towny.commands.blueprint` |
-| `/bp` | Alias for /blueprint | `towny.commands.blueprint` |
+| `/blueprint save <name>` | Save selection | `guilds.commands.blueprint` |
+| `/blueprint list` | List town blueprints | `guilds.commands.blueprint` |
+| `/blueprint load <name>` | View blueprint info | `guilds.commands.blueprint` |
+| `/blueprint apply <name>` | Paste at location | `guilds.commands.blueprint` |
+| `/blueprint delete <name>` | Delete blueprint | `guilds.commands.blueprint` |
+| `/bp` | Alias for /blueprint | `guilds.commands.blueprint` |
 
 ## 🔐 Permission System
 
-Towny uses standard Bukkit permission nodes (`towny.*`). These work with LuckPerms, PermissionsEx, or any Bukkit-compatible permission plugin. Nodes marked `default: op` require operator status; `default: true` are available to all players.
+Guilds uses standard Bukkit permission nodes (`guilds.*`). These work with LuckPerms, PermissionsEx, or any Bukkit-compatible permission plugin. Nodes marked `default: op` require operator status; `default: true` are available to all players.
 
 ### Wildcard Permissions
 
 | Node | Description |
 |------|-------------|
-| `towny.*` | Grants ALL permissions |
-| `towny.admin.*` | Grants all admin permissions |
-| `towny.town.*` | Grants all town permissions |
-| `towny.resident.*` | Grants all resident permissions |
-| `towny.plot.*` | Grants all plot permissions |
-| `towny.general.*` | Grants all general permissions |
-| `towny.broadcast.*` | Grants all broadcast permissions |
-| `towny.nation.*` | Grants all nation permissions |
-| `towny.chat.*` | Grants all chat permissions |
-| `towny.techtree.*` | Grants all tech tree permissions |
-| `towny.blueprint.*` | Grants all blueprint permissions |
+| `guilds.*` | Grants ALL permissions |
+| `guilds.admin.*` | Grants all admin permissions |
+| `guilds.town.*` | Grants all town permissions |
+| `guilds.resident.*` | Grants all resident permissions |
+| `guilds.plot.*` | Grants all plot permissions |
+| `guilds.general.*` | Grants all general permissions |
+| `guilds.broadcast.*` | Grants all broadcast permissions |
+| `guilds.nation.*` | Grants all nation permissions |
+| `guilds.chat.*` | Grants all chat permissions |
+| `guilds.techtree.*` | Grants all tech tree permissions |
+| `guilds.blueprint.*` | Grants all blueprint permissions |
 
 ### Town Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.town.create` | true | Create a new town |
-| `towny.town.delete` | true | Delete your town |
-| `towny.town.join` | true | Join a town |
-| `towny.town.leave` | true | Leave your town |
-| `towny.town.claim` | true | Claim land for your town |
-| `towny.town.unclaim` | true | Unclaim land |
-| `towny.town.spawn` | true | Teleport to town spawn |
-| `towny.town.set` | true | Configure town settings |
-| `towny.town.kick` | true | Kick a player from town |
-| `towny.town.invite` | true | Invite a player to town |
-| `towny.town.mayor` | true | Mayor-only actions |
-| `towny.town.assistant` | true | Assistant actions |
-| `towny.town.specialize` | true | Set town specialization |
+| `guilds.town.create` | true | Create a new town |
+| `guilds.town.delete` | true | Delete your town |
+| `guilds.town.join` | true | Join a town |
+| `guilds.town.leave` | true | Leave your town |
+| `guilds.town.claim` | true | Claim land for your town |
+| `guilds.town.unclaim` | true | Unclaim land |
+| `guilds.town.spawn` | true | Teleport to town spawn |
+| `guilds.town.set` | true | Configure town settings |
+| `guilds.town.kick` | true | Kick a player from town |
+| `guilds.town.invite` | true | Invite a player to town |
+| `guilds.town.mayor` | true | Mayor-only actions |
+| `guilds.town.assistant` | true | Assistant actions |
+| `guilds.town.specialize` | true | Set town specialization |
 
 ### Plot Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.plot.claim` | true | Claim a plot |
-| `towny.plot.unclaim` | true | Unclaim a plot |
-| `towny.plot.info` | true | View plot information |
-| `towny.plot.set` | true | Set plot type |
-| `towny.plot.perms` | true | View/modify plot permissions |
-| `towny.plot.toggle` | true | Toggle plot settings |
-| `towny.plot.buy` | true | Buy plots for sale |
-| `towny.plot.forsale` | true | Put plot up for sale |
-| `towny.plot.list` | true | List town plots |
-| `towny.plot.perm` | true | Set specific plot flags |
+| `guilds.plot.claim` | true | Claim a plot |
+| `guilds.plot.unclaim` | true | Unclaim a plot |
+| `guilds.plot.info` | true | View plot information |
+| `guilds.plot.set` | true | Set plot type |
+| `guilds.plot.perms` | true | View/modify plot permissions |
+| `guilds.plot.toggle` | true | Toggle plot settings |
+| `guilds.plot.buy` | true | Buy plots for sale |
+| `guilds.plot.forsale` | true | Put plot up for sale |
+| `guilds.plot.list` | true | List town plots |
+| `guilds.plot.perm` | true | Set specific plot flags |
 
 ### Nation Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.commands.nation` | true | Base nation command access |
-| `towny.nation.create` | true | Create a nation |
-| `towny.nation.invite` | true | Invite a town to nation |
-| `towny.nation.join` | true | Join a nation |
-| `towny.nation.leave` | true | Leave nation |
-| `towny.nation.kick` | true | Kick a town from nation |
-| `towny.nation.ally` | true | Form alliance |
-| `towny.nation.enemy` | true | Declare enemy |
-| `towny.nation.set` | true | Configure nation settings |
+| `guilds.commands.nation` | true | Base nation command access |
+| `guilds.nation.create` | true | Create a nation |
+| `guilds.nation.invite` | true | Invite a town to nation |
+| `guilds.nation.join` | true | Join a nation |
+| `guilds.nation.leave` | true | Leave nation |
+| `guilds.nation.kick` | true | Kick a town from nation |
+| `guilds.nation.ally` | true | Form alliance |
+| `guilds.nation.enemy` | true | Declare enemy |
+| `guilds.nation.set` | true | Configure nation settings |
 
 ### Chat Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.chat.town` | true | Send/receive town chat |
-| `towny.chat.spy` | op | Spy on any town's chat |
+| `guilds.chat.town` | true | Send/receive town chat |
+| `guilds.chat.spy` | op | Spy on any town's chat |
 
 ### Tech Tree Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.techtree.view` | true | View the tech tree |
-| `towny.techtree.unlock` | true | Unlock tech nodes |
+| `guilds.techtree.view` | true | View the tech tree |
+| `guilds.techtree.unlock` | true | Unlock tech nodes |
 
 ### Blueprint Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.commands.blueprint` | true | Base blueprint command access |
+| `guilds.commands.blueprint` | true | Base blueprint command access |
 
 ### Quest Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.quest` | true | View town quests |
-| `towny.admin.quest` | op | Refresh/regenerate quests |
+| `guilds.quest` | true | View town quests |
+| `guilds.admin.quest` | op | Refresh/regenerate quests |
 
 ### General Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.general.info` | true | View plugin info |
-| `towny.general.chat` | true | Use general chat |
-| `towny.general.top` | true | View town rankings |
-| `towny.general.prices` | true | View prices |
-| `towny.general.time` | true | View server time |
-| `towny.general.universe` | true | View universe info |
-| `towny.general.version` | true | View plugin version |
-| `towny.map` | true | View town map |
-| `towny.level` | true | View town level info |
+| `guilds.general.info` | true | View plugin info |
+| `guilds.general.chat` | true | Use general chat |
+| `guilds.general.top` | true | View town rankings |
+| `guilds.general.prices` | true | View prices |
+| `guilds.general.time` | true | View server time |
+| `guilds.general.universe` | true | View universe info |
+| `guilds.general.version` | true | View plugin version |
+| `guilds.map` | true | View town map |
+| `guilds.level` | true | View town level info |
 
 ### Admin Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.admin.reload` | op | Reload config |
-| `towny.admin.backup` | op | Backup database |
-| `towny.admin.purge` | op | Purge data |
-| `towny.admin.town` | op | Admin town management |
-| `towny.admin.resident` | op | Admin resident management |
-| `towny.admin.plot` | op | Admin plot management |
-| `towny.admin.plottype` | op | Manage plot types |
-| `towny.admin.unclaim` | op | Force unclaim |
-| `towny.admin.claim` | op | Force claim |
-| `towny.admin.bypass` | op | Bypass all restrictions |
-| `towny.admin.nation` | op | Admin nation management |
-| `towny.admin.blueprint` | op | Admin blueprint management |
-| `towny.admin.quest` | op | Admin quest management |
-| `towny.admin.perm` | op | Debug permissions |
-| `towny.admin.specialize` | op | Force specialization change |
+| `guilds.admin.reload` | op | Reload config |
+| `guilds.admin.backup` | op | Backup database |
+| `guilds.admin.purge` | op | Purge data |
+| `guilds.admin.town` | op | Admin town management |
+| `guilds.admin.resident` | op | Admin resident management |
+| `guilds.admin.plot` | op | Admin plot management |
+| `guilds.admin.plottype` | op | Manage plot types |
+| `guilds.admin.unclaim` | op | Force unclaim |
+| `guilds.admin.claim` | op | Force claim |
+| `guilds.admin.bypass` | op | Bypass all restrictions |
+| `guilds.admin.nation` | op | Admin nation management |
+| `guilds.admin.blueprint` | op | Admin blueprint management |
+| `guilds.admin.quest` | op | Admin quest management |
+| `guilds.admin.perm` | op | Debug permissions |
+| `guilds.admin.specialize` | op | Force specialization change |
 
 ### Broadcast Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.broadcast` | true | Base broadcast access |
-| `towny.broadcast.create` | true | Create broadcasts |
-| `towny.broadcast.read` | true | Read broadcasts |
-| `towny.broadcast.manage` | true | Manage broadcasts |
+| `guilds.broadcast` | true | Base broadcast access |
+| `guilds.broadcast.create` | true | Create broadcasts |
+| `guilds.broadcast.read` | true | Read broadcasts |
+| `guilds.broadcast.manage` | true | Manage broadcasts |
 
 ### Resident Permissions
 
 | Node | Default | Description |
 |------|---------|-------------|
-| `towny.resident.info` | true | View resident info |
-| `towny.resident.list` | true | List residents |
-| `towny.resident.friend` | true | Manage friends |
-| `towny.resident.town` | true | View resident's town |
+| `guilds.resident.info` | true | View resident info |
+| `guilds.resident.list` | true | List residents |
+| `guilds.resident.friend` | true | Manage friends |
+| `guilds.resident.town` | true | View resident's town |
 
 ### In-Game Plot Flags
 
@@ -342,7 +342,7 @@ These are set per-plot via `/plot perms` and control who can do what on a specif
 
 ## 🗺️ Plot Types
 
-Towny supports configurable plot types:
+Guilds supports configurable plot types:
 
 - **Residential** - Standard player housing
 - **Commercial** - Shops and businesses
@@ -370,8 +370,8 @@ database:
   mysql:
     host: localhost
     port: 3306
-    database: towny
-    username: towny
+    database: guilds
+    username: guilds
     password: secret
 
 # Town settings
@@ -411,13 +411,13 @@ townLevels:
     name: "Village"
     minResidents: 5
     maxClaims: 25
-    bonusPermissions: ["towny.town.spawn"]
+    bonusPermissions: ["guilds.town.spawn"]
     
   - level: 3
     name: "Town"
     minResidents: 15
     maxClaims: 50
-    bonusPermissions: ["towny.town.set"]
+    bonusPermissions: ["guilds.town.set"]
 ```
 
 ## 🏗️ Architecture
@@ -437,7 +437,7 @@ townLevels:
 ```
 src/
 ├── main/
-│   ├── java/org/aincraft/towny/
+│   ├── java/org/aincraft/guilds/
 │   │   ├── commands/          # Command handlers
 │   │   ├── services/          # Business logic
 │   │   │   └── impl/          # Service implementations

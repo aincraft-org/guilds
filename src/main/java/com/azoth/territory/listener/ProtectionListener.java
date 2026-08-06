@@ -130,7 +130,7 @@ public final class ProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBurn(BlockBurnEvent event) {
         Block block = event.getBlock();
-        if (protection.isEnvironmentallyProtected(
+        if (protection.isFireProtected(
                 block.getWorld().getName(), block.getX(), block.getZ())) {
             event.setCancelled(true);
         }
@@ -144,7 +144,7 @@ public final class ProtectionListener implements Listener {
             return;
         }
         Block target = event.getBlock();
-        if (protection.isEnvironmentallyProtected(
+        if (protection.isFireProtected(
                 target.getWorld().getName(), target.getX(), target.getZ())) {
             event.setCancelled(true);
         }
@@ -153,7 +153,7 @@ public final class ProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockIgnite(BlockIgniteEvent event) {
         Block block = event.getBlock();
-        if (protection.isEnvironmentallyProtected(
+        if (protection.isFireProtected(
                 block.getWorld().getName(), block.getX(), block.getZ())) {
             event.setCancelled(true);
         }
@@ -214,7 +214,7 @@ public final class ProtectionListener implements Listener {
         Iterator<Block> it = blocks.iterator();
         while (it.hasNext()) {
             Block block = it.next();
-            if (protection.isEnvironmentallyProtected(
+            if (protection.areExplosionsProtected(
                     block.getWorld().getName(), block.getX(), block.getZ())) {
                 it.remove();
             }

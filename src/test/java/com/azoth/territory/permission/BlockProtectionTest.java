@@ -3,25 +3,29 @@ package com.azoth.territory.permission;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Government;
-import com.azoth.territory.model.RegionGuild;
 import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.TerritoryAlliance;
 import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Block allow/deny through shipped GovernanceRegistry + PermissionRules path.
+ * Block allow/deny through shipped GovernanceRegistry + PermissionRules path,
+ * with guild (town) and alliance (nation) governing bodies.
  */
 class BlockProtectionTest {
 
+    private static final MemberPermissions MEMBER_DEFAULT = MemberPermissions.of(List.of(
+            SovereignAction.BREAK_BLOCK, SovereignAction.PLACE_BLOCK, SovereignAction.INTERACT));
+
     private TerritoryRegistry territories;
+    private FakeGovernanceSource source;
     private GovernanceRegistry governance;
     private BlockProtection protection;
 
@@ -34,257 +38,203 @@ class BlockProtectionTest {
         ));
     }
 
+    private static GuildBody guild(String id, Government government, List<String> members,
+                                   TownToggles toggles) {
+        Map<String, MemberPermissions> perms = new java.util.HashMap<>();
+        for (String m : members) {
+            perms.put(m, MEMBER_DEFAULT);
+        }
+        return new GuildBody(id, id, government, members, toggles, perms);
+    }
+
     @BeforeEach
     void setUp() {
         territories = new TerritoryRegistry();
-        governance = new GovernanceRegistry(territories);
+        source = new FakeGovernanceSource();
+        governance = new GovernanceRegistry(territories, source);
         protection = new BlockProtection(governance);
     }
 
-    @Test
-    void uncontained_allowsAnyone() {
-        assertTrue(protection.canBreak("world", 0, 0, "stranger"));
-        assertTrue(protection.canPlace("world", 0, 0, "stranger"));
+    private void registerTerritory(String id, Boundary boundary, Government government) {
+        territories.register(new Territory(id, id, "world", boundary, List.of(), ZoneType.WILDERNESS, government));
+    }
+
+    private void registerGuildGovernedTerritory(String territoryId, Boundary boundary,
+                                                String guildId, Government localGov) {
+        territories.register(new Territory(territoryId, territoryId, "world", boundary,
+                List.of(), ZoneType.WILDERNESS, localGov, List.of(), guildId));
     }
 
     @Test
-    void anarchyTerritory_noFormalLockdown_allowsAnyone() {
-        territories.register(new Territory(
-                "free", "Free", "world", square(0, 50),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        assertTrue(protection.canBreak("world", 10, 10, "outsider"));
-        assertTrue(protection.canPlace("world", 10, 10, "outsider"));
-        assertFalse(protection.allowsOnTerritory("free", "outsider", SovereignAction.SET_POLICY));
+    void uncontainedWilderness_allowsEveryone() {
+        assertTrue(protection.canBreak("world", 9000, 9000, "wanderer"));
+        assertTrue(protection.canPlace("world", 9000, 9000, "wanderer"));
+        assertTrue(protection.canInteract("world", 9000, 9000, "wanderer"));
     }
 
     @Test
-    void monarchyAlliance_sovereignCanBreakOutsiderCannot() {
-        territories.register(new Territory(
-                "crownlands", "Crownlands", "world", square(0, 100),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        governance.putAlliance(TerritoryAlliance.form(
-                "crown-pact",
-                "Crown Pact",
-                Government.monarchy("king:arthur"),
-                List.of("crownlands")
-        ));
-
-        assertTrue(protection.canBreak("world", 40, 40, "king:arthur"));
-        assertTrue(protection.canPlace("world", 40, 40, "king:arthur"));
-        assertFalse(protection.canBreak("world", 40, 40, "peasant:bob"));
-        assertFalse(protection.canPlace("world", 40, 40, "peasant:bob"));
-        assertTrue(protection.allowsOnTerritory(
-                "crownlands", "king:arthur", SovereignAction.SET_POLICY));
-        assertFalse(protection.allowsOnTerritory(
-                "crownlands", "peasant:bob", SovereignAction.MANAGE_MEMBERSHIP));
+    void anarchyLocalGovernment_noLockdown() {
+        registerTerritory("an-land", square(100, 150), Government.anarchy());
+        assertTrue(protection.canBreak("world", 125, 125, "anyone"));
+        assertFalse(protection.isFireProtected("world", 125, 125));
     }
 
     @Test
-    void oligarchyLocal_councilorCanOutsiderCannot() {
-        territories.register(new Territory(
-                "council-land", "Council", "world", square(0, 80),
-                List.of(), ZoneType.WILDERNESS,
-                Government.oligarchy(List.of("c1", "c2", "c3"))
-        ));
-
-        assertTrue(protection.canBreak("world", 20, 20, "c2"));
-        assertFalse(protection.canBreak("world", 20, 20, "raider"));
-        assertTrue(protection.canPlace("world", 20, 20, "c1"));
-        assertFalse(protection.canPlace("world", 20, 20, "raider"));
+    void territoryLocalMonarchy_seatLockdown() {
+        registerTerritory("mon-land", square(0, 50), Government.monarchy("king:1"));
+        assertTrue(protection.canBreak("world", 25, 25, "king:1"));
+        assertFalse(protection.canBreak("world", 25, 25, "outsider"));
+        assertFalse(protection.canPlace("world", 25, 25, "outsider"));
+        assertFalse(protection.canInteract("world", 25, 25, "outsider"));
+        // Territory-local stays environmentally protected (no guild toggles)
+        assertTrue(protection.isFireProtected("world", 25, 25));
+        assertTrue(protection.areExplosionsProtected("world", 25, 25));
+        assertTrue(protection.blocksMobSpawn("world", 25, 25));
     }
 
     @Test
-    void democracy_representativeCanBreak() {
-        territories.register(new Territory(
-                "free-city", "Free City", "world", square(0, 60),
-                List.of(), ZoneType.WILDERNESS,
-                Government.democracy(3, List.of("r1", "r2"), null)
-        ));
-        assertTrue(protection.canBreak("world", 5, 5, "r1"));
-        assertTrue(protection.canPlace("world", 5, 5, "r2"));
-        assertFalse(protection.canBreak("world", 5, 5, "tourist"));
+    void guildGoverned_authorityPasses_memberHasBasicActions_outsiderDenied() {
+        source.putGuild(guild("everfall-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1", "resident:1"), TownToggles.defaults()));
+        registerGuildGovernedTerritory("everfall", square(0, 50), "everfall-town", Government.anarchy());
+
+        // Authority (mayor = sovereign seat)
+        assertTrue(protection.canBreak("world", 25, 25, "mayor:1"));
+        // Member: guilds role default grants break/place/interact
+        assertTrue(protection.canBreak("world", 25, 25, "resident:1"));
+        assertTrue(protection.canPlace("world", 25, 25, "resident:1"));
+        assertTrue(protection.canInteract("world", 25, 25, "resident:1"));
+        // Outsider denied (town not public)
+        assertFalse(protection.canBreak("world", 25, 25, "outsider"));
+        assertFalse(protection.canPlace("world", 25, 25, "outsider"));
+    }
+
+    @Test
+    void guildGoverned_memberWithoutGrants_denied() {
+        GuildBody town = new GuildBody("everfall-town", "Everfall Town",
+                Government.monarchy("mayor:1"), List.of("mayor:1", "resident:1"),
+                TownToggles.defaults(),
+                Map.of("mayor:1", MEMBER_DEFAULT, "resident:1", MemberPermissions.none()));
+        source.putGuild(town);
+        registerGuildGovernedTerritory("everfall", square(0, 50), "everfall-town", Government.anarchy());
+
+        assertTrue(protection.canBreak("world", 25, 25, "mayor:1"));
+        assertFalse(protection.canBreak("world", 25, 25, "resident:1"));
+    }
+
+    @Test
+    void guildGoverned_publicTown_outsiderCanBuildAndInteractButNotBreak() {
+        TownToggles publicToggles = new TownToggles(false, false, false, true, true);
+        source.putGuild(guild("open-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1"), publicToggles));
+        registerGuildGovernedTerritory("openland", square(50, 100), "open-town", Government.anarchy());
+
+        assertTrue(protection.canPlace("world", 75, 75, "visitor"));
+        assertTrue(protection.canInteract("world", 75, 75, "visitor"));
+        assertFalse(protection.canBreak("world", 75, 75, "visitor"));
+    }
+
+    @Test
+    void allianceGoverned_kingPasses_siblingMemberPasses_outsiderDenied() {
+        source.putGuild(guild("everfall-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1", "resident:1"), TownToggles.defaults()));
+        source.putGuild(guild("sibling-town", Government.monarchy("mayor:2"),
+                List.of("mayor:2", "sibling:1"), TownToggles.defaults()));
+        source.putAlliance(new AllianceBody("northern-pact", "Northern Pact",
+                Government.monarchy("king:1"), List.of("everfall-town", "sibling-town")));
+        registerGuildGovernedTerritory("everfall", square(0, 50), "everfall-town", Government.anarchy());
+
+        // Alliance authority (king)
+        assertTrue(protection.canBreak("world", 25, 25, "king:1"));
+        // Member of the governing town
+        assertTrue(protection.canBreak("world", 25, 25, "resident:1"));
+        // Member of a sibling nation town keeps basic rights across the alliance
+        assertTrue(protection.canPlace("world", 25, 25, "sibling:1"));
+        // Outsider denied
+        assertFalse(protection.canBreak("world", 25, 25, "outsider"));
+    }
+
+    @Test
+    void allowsPvp_followsTownToggle() {
+        // PvP disabled (defaults) — authority may attack, members may not
+        source.putGuild(guild("everfall-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1", "resident:1"), TownToggles.defaults()));
+        registerGuildGovernedTerritory("everfall", square(0, 50), "everfall-town", Government.anarchy());
+
+        assertTrue(protection.allowsPvp("world", 25, 25, "mayor:1", "resident:1"));
+        assertFalse(protection.allowsPvp("world", 25, 25, "resident:1", "mayor:1"));
+        assertTrue(protection.allowsPvp("world", 25, 25, "resident:1", "resident:1")); // self
+        // Uncontained unrestricted
+        assertTrue(protection.allowsPvp("world", 9000, 9000, "a", "b"));
+    }
+
+    @Test
+    void allowsPvp_enabledToggle_allowsEveryone() {
+        source.putGuild(guild("warcamp", Government.monarchy("chief:1"),
+                List.of("chief:1", "fighter:1"), new TownToggles(true, false, false, true, false)));
+        registerGuildGovernedTerritory("warcamp", square(50, 100), "warcamp", Government.anarchy());
+
+        assertTrue(protection.allowsPvp("world", 75, 75, "fighter:1", "chief:1"));
+        assertTrue(protection.allowsPvp("world", 75, 75, "outsider", "fighter:1"));
+    }
+
+    @Test
+    void canTeleportInto_membersAndPublicAllowed() {
+        source.putGuild(guild("everfall-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1", "resident:1"), TownToggles.defaults()));
+        registerGuildGovernedTerritory("everfall", square(0, 50), "everfall-town", Government.anarchy());
+
+        assertTrue(protection.canTeleportInto("world", 25, 25, "mayor:1"));
+        assertTrue(protection.canTeleportInto("world", 25, 25, "resident:1"));
+        assertFalse(protection.canTeleportInto("world", 25, 25, "outsider"));
+
+        source.putGuild(guild("open-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1"), new TownToggles(false, false, false, true, true)));
+        registerGuildGovernedTerritory("openland", square(50, 100), "open-town", Government.anarchy());
+        assertTrue(protection.canTeleportInto("world", 75, 75, "visitor"));
+    }
+
+    @Test
+    void environmentalFlags_followGuildToggles() {
+        // fire off, explosions off, mobs on
+        source.putGuild(guild("everfall-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1"), new TownToggles(false, false, false, true, false)));
+        registerGuildGovernedTerritory("everfall", square(0, 50), "everfall-town", Government.anarchy());
+
+        assertTrue(protection.isFireProtected("world", 25, 25));
+        assertTrue(protection.areExplosionsProtected("world", 25, 25));
+        assertFalse(protection.blocksMobSpawn("world", 25, 25)); // mobs enabled
+
+        // fire on, explosions on, mobs off
+        source.putGuild(guild("wild-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1"), new TownToggles(true, true, true, false, false)));
+        registerGuildGovernedTerritory("wildland", square(50, 100), "wild-town", Government.anarchy());
+
+        assertFalse(protection.isFireProtected("world", 75, 75));
+        assertFalse(protection.areExplosionsProtected("world", 75, 75));
+        assertTrue(protection.blocksMobSpawn("world", 75, 75));
+        // Environmental protection (mechanical/boundary) still applies
+        assertTrue(protection.isEnvironmentallyProtected("world", 75, 75));
     }
 
     @Test
     void guildMembershipManage_usesGuildGovernment() {
-        governance.putGuild(RegionGuild.form(
-                "builders",
-                "Builders",
-                Government.oligarchy(List.of("c1", "c2")),
-                List.of("player:member")
-        ));
-        assertTrue(protection.allowsForHolder(
-                "player:member", "c1", SovereignAction.MANAGE_MEMBERSHIP));
-        assertFalse(protection.allowsForHolder(
-                "player:member", "player:member", SovereignAction.MANAGE_MEMBERSHIP));
-        assertFalse(protection.allowsForHolder(
-                "player:member", "outsider", SovereignAction.MANAGE_MEMBERSHIP));
+        source.putGuild(guild("builders", Government.oligarchy(List.of("c1", "c2")),
+                List.of("c1", "c2", "m1"), TownToggles.defaults()));
+
+        assertTrue(protection.allowsForHolder("m1", "c1", SovereignAction.MANAGE_MEMBERSHIP));
+        assertTrue(protection.allowsForHolder("m1", "c2", SovereignAction.MANAGE_MEMBERSHIP));
+        assertFalse(protection.allowsForHolder("m1", "m1", SovereignAction.MANAGE_MEMBERSHIP));
+        assertFalse(protection.allowsForHolder("unknown", "c1", SovereignAction.MANAGE_MEMBERSHIP));
     }
 
     @Test
-    void environmental_uncontained_notProtected() {
-        assertFalse(protection.isEnvironmentallyProtected("world", 0, 0));
-    }
+    void allowsOnTerritory_formAuthorityOnly() {
+        source.putGuild(guild("everfall-town", Government.monarchy("mayor:1"),
+                List.of("mayor:1", "resident:1"), TownToggles.defaults()));
+        registerGuildGovernedTerritory("everfall", square(0, 50), "everfall-town", Government.anarchy());
 
-    @Test
-    void environmental_anarchyTerritory_notProtected() {
-        territories.register(new Territory(
-                "free", "Free", "world", square(0, 50),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        assertFalse(protection.isEnvironmentallyProtected("world", 10, 10));
-    }
-
-    @Test
-    void environmental_monarchyLocal_protected() {
-        territories.register(new Territory(
-                "crown", "Crown", "world", square(0, 80),
-                List.of(), ZoneType.WILDERNESS, Government.monarchy("king:1")
-        ));
-        assertTrue(protection.isEnvironmentallyProtected("world", 20, 20));
-        // Outside boundary remains unprotected
-        assertFalse(protection.isEnvironmentallyProtected("world", 200, 200));
-    }
-
-    @Test
-    void environmental_oligarchyLocal_protected() {
-        territories.register(new Territory(
-                "council-land", "Council", "world", square(0, 80),
-                List.of(), ZoneType.WILDERNESS,
-                Government.oligarchy(List.of("c1", "c2", "c3"))
-        ));
-        assertTrue(protection.isEnvironmentallyProtected("world", 15, 15));
-    }
-
-    @Test
-    void environmental_allianceOverridesAnarchyLocal_protected() {
-        territories.register(new Territory(
-                "crownlands", "Crownlands", "world", square(0, 100),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        // Local is anarchy → not protected until alliance is assigned
-        assertFalse(protection.isEnvironmentallyProtected("world", 40, 40));
-
-        governance.putAlliance(TerritoryAlliance.form(
-                "crown-pact",
-                "Crown Pact",
-                Government.monarchy("king:arthur"),
-                List.of("crownlands")
-        ));
-        assertTrue(protection.isEnvironmentallyProtected("world", 40, 40));
-    }
-
-    @Test
-    void environmental_democracyLocal_protected() {
-        territories.register(new Territory(
-                "free-city", "Free City", "world", square(0, 60),
-                List.of(), ZoneType.WILDERNESS,
-                Government.democracy(3, List.of("r1", "r2"), null)
-        ));
-        assertTrue(protection.isEnvironmentallyProtected("world", 5, 5));
-    }
-
-    @Test
-    void mobSpawn_uncontainedAndAnarchy_notBlocked() {
-        assertFalse(protection.blocksMobSpawn("world", 0, 0));
-
-        territories.register(new Territory(
-                "free", "Free", "world", square(0, 50),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        assertFalse(protection.blocksMobSpawn("world", 10, 10));
-    }
-
-    @Test
-    void mobSpawn_assignedLocal_blocked() {
-        territories.register(new Territory(
-                "crown", "Crown", "world", square(0, 80),
-                List.of(), ZoneType.WILDERNESS, Government.monarchy("king:1")
-        ));
-        assertTrue(protection.blocksMobSpawn("world", 20, 20));
-        assertFalse(protection.blocksMobSpawn("world", 200, 200));
-    }
-
-    @Test
-    void mobSpawn_oligarchyLocal_blocked() {
-        territories.register(new Territory(
-                "council-land", "Council", "world", square(0, 80),
-                List.of(), ZoneType.WILDERNESS,
-                Government.oligarchy(List.of("c1", "c2", "c3"))
-        ));
-        assertTrue(protection.blocksMobSpawn("world", 15, 15));
-    }
-
-    @Test
-    void mobSpawn_allianceGoverned_blocked() {
-        territories.register(new Territory(
-                "crownlands", "Crownlands", "world", square(0, 100),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        assertFalse(protection.blocksMobSpawn("world", 40, 40));
-
-        governance.putAlliance(TerritoryAlliance.form(
-                "crown-pact",
-                "Crown Pact",
-                Government.monarchy("king:arthur"),
-                List.of("crownlands")
-        ));
-        assertTrue(protection.blocksMobSpawn("world", 40, 40));
-    }
-
-    @Test
-    void entityGrief_uncontainedAndAnarchy_notBlocked() {
-        assertFalse(protection.blocksEntityGrief("world", 0, 0));
-
-        territories.register(new Territory(
-                "free", "Free", "world", square(0, 50),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        assertFalse(protection.blocksEntityGrief("world", 10, 10));
-    }
-
-    @Test
-    void entityGrief_assignedLocal_blocked() {
-        territories.register(new Territory(
-                "crown", "Crown", "world", square(0, 80),
-                List.of(), ZoneType.WILDERNESS, Government.monarchy("king:1")
-        ));
-        assertTrue(protection.blocksEntityGrief("world", 20, 20));
-        // Outside remains unrestricted
-        assertFalse(protection.blocksEntityGrief("world", 200, 200));
-    }
-
-    @Test
-    void entityGrief_allianceGoverned_blocked() {
-        territories.register(new Territory(
-                "crownlands", "Crownlands", "world", square(0, 100),
-                List.of(), ZoneType.WILDERNESS, Government.anarchy()
-        ));
-        assertFalse(protection.blocksEntityGrief("world", 40, 40));
-
-        governance.putAlliance(TerritoryAlliance.form(
-                "crown-pact",
-                "Crown Pact",
-                Government.monarchy("king:arthur"),
-                List.of("crownlands")
-        ));
-        assertTrue(protection.blocksEntityGrief("world", 40, 40));
-    }
-
-    @Test
-    void spawnAndEntityGrief_shareAssignedEligibilityWithEnvironmental() {
-        territories.register(new Territory(
-                "crown", "Crown", "world", square(0, 50),
-                List.of(), ZoneType.WILDERNESS, Government.monarchy("king:1")
-        ));
-        // Same resolve path: assigned → all three true; uncontained → all false
-        assertTrue(protection.isEnvironmentallyProtected("world", 10, 10));
-        assertTrue(protection.blocksMobSpawn("world", 10, 10));
-        assertTrue(protection.blocksEntityGrief("world", 10, 10));
-        assertFalse(protection.isEnvironmentallyProtected("world", 999, 999));
-        assertFalse(protection.blocksMobSpawn("world", 999, 999));
-        assertFalse(protection.blocksEntityGrief("world", 999, 999));
+        assertTrue(protection.allowsOnTerritory("everfall", "mayor:1", SovereignAction.SET_POLICY));
+        assertFalse(protection.allowsOnTerritory("everfall", "resident:1", SovereignAction.SET_POLICY));
     }
 }

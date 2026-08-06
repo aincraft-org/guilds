@@ -117,6 +117,30 @@ public final class Government {
     }
 
     /**
+     * Derive a government from a chosen form and the role-ordered authority ids.
+     * <p>
+     * Role mapping (the governance form IS the permission structure):
+     * <ul>
+     *   <li>{@code MONARCHY} — first id becomes the SOVEREIGN seat</li>
+     *   <li>{@code OLIGARCHY} — all ids become COUNCILOR seats (min 2)</li>
+     *   <li>{@code DEMOCRACY} — all ids become REPRESENTATIVE seats (min 1)</li>
+     *   <li>{@code ANARCHY} — no seats</li>
+     * </ul>
+     * Used to derive guild (town) and alliance (nation) governments from their
+     * role holders (mayor/assistants/residents, king/ministers/town mayors).
+     */
+    public static Government fromRoles(GovernmentForm form, Collection<String> authorityIds) {
+        Objects.requireNonNull(form, "form");
+        List<String> ids = normalizeHolders(authorityIds);
+        return switch (form) {
+            case ANARCHY -> anarchy();
+            case MONARCHY -> monarchy(ids.isEmpty() ? null : ids.get(0));
+            case OLIGARCHY -> oligarchy(Math.max(MIN_OLIGARCHY_SEATS, ids.size()), ids);
+            case DEMOCRACY -> democracy(Math.max(MIN_DEMOCRACY_SEATS, ids.size()), ids, null);
+        };
+    }
+
+    /**
      * Reconstruct from persisted form + seats (validates structure).
      */
     public static Government of(GovernmentForm form, Collection<GovernmentSeat> seats) {
