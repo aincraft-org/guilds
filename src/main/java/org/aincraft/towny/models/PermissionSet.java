@@ -19,13 +19,19 @@ public class PermissionSet {
     }
 
     public PermissionSet(Set<TownyPermission> granted) {
-        this.grantedPermissions = EnumSet.copyOf(granted);
+        this.grantedPermissions = copyOf(granted);
         this.deniedPermissions = EnumSet.noneOf(TownyPermission.class);
     }
 
     public PermissionSet(Set<TownyPermission> granted, Set<TownyPermission> denied) {
-        this.grantedPermissions = EnumSet.copyOf(granted);
-        this.deniedPermissions = EnumSet.copyOf(denied);
+        this.grantedPermissions = copyOf(granted);
+        this.deniedPermissions = copyOf(denied);
+    }
+
+    private static EnumSet<TownyPermission> copyOf(Set<TownyPermission> permissions) {
+        return permissions.isEmpty()
+                ? EnumSet.noneOf(TownyPermission.class)
+                : EnumSet.copyOf(permissions);
     }
 
     /**
@@ -127,14 +133,14 @@ public class PermissionSet {
      * Get all granted permissions
      */
     public Set<TownyPermission> getGrantedPermissions() {
-        return EnumSet.copyOf(grantedPermissions);
+        return copyOf(grantedPermissions);
     }
 
     /**
      * Get all denied permissions
      */
     public Set<TownyPermission> getDeniedPermissions() {
-        return EnumSet.copyOf(deniedPermissions);
+        return copyOf(deniedPermissions);
     }
 
     /**
