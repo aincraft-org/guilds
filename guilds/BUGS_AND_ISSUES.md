@@ -211,7 +211,7 @@ Run IDE inspection to remove unused imports across all files
 ## Dependencies Status
 
 ✅ All dependencies up to date:
-- Paper API 1.21.4
+- Paper API 26.2
 - Guice 7.0.0
 - HikariCP 5.1.0
 - Caffeine 3.1.8

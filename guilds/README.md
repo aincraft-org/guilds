@@ -1,7 +1,7 @@
 # Towny - Enhanced Town & Guild Management
 
-[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
-[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.4-brightgreen.svg)](https://www.minecraft.net/)
+[![Java](https://img.shields.io/badge/Java-26-orange.svg)](https://openjdk.org/projects/jdk/26/)
+[![Minecraft](https://img.shields.io/badge/Minecraft-26.2-brightgreen.svg)](https://www.minecraft.net/)
 [![Paper](https://img.shields.io/badge/Paper-API-blue.svg)](https://papermc.io/)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 
@@ -33,8 +33,8 @@ Towny is a comprehensive Minecraft plugin that enables players to create towns, 
 
 ### Requirements
 
-- **Minecraft Server:** Paper 1.21.4 or later
-- **Java:** JDK 21 or later
+- **Minecraft Server:** Paper 26.2 or later
+- **Java:** JDK 26 or later
 - **Database:** SQLite (included) or MySQL (optional)
 
 ### Quick Start
@@ -422,8 +422,8 @@ townLevels:
 
 ### Technology Stack
 
-- **Language:** Java 21
-- **Framework:** Paper API 1.21.4
+- **Language:** Java 26
+- **Framework:** Paper API 26.2
 - **DI Framework:** Google Guice 7.0.0
 - **Database:** SQLite with HikariCP 5.1.0
 - **Caching:** Caffeine 3.1.8
@@ -507,7 +507,7 @@ All services are managed by Google Guice for:
 ./gradlew runServer
 ```
 
-This downloads Paper 1.21.4 and starts a server with the plugin loaded.
+This downloads Paper 26.2 and starts a server with the plugin loaded.
 
 ## 🐛 Bug Reports
 

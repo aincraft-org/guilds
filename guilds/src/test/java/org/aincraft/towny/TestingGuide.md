@@ -263,7 +263,7 @@ testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 testImplementation("org.mockito:mockito-core:5.11.0")
 
 // MockBukkit for Bukkit testing
-testImplementation("com.github.seeseemelk:MockBukkit-v1.21:3.127.2")
+testImplementation("com.github.seeseemelk:MockBukkit-v1.20:3.88.0")
 
 // Additional testing utilities
 testImplementation("org.assertj:assertj-core:3.25.3")

@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.98-stable")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
 
     // Runtime libraries (shaded into the Towny.jar artifact)
@@ -38,7 +38,7 @@ dependencies {
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
     // Testing
-    testCompileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    testCompileOnly("io.papermc.paper:paper-api:26.2.build.98-stable")
     testImplementation("com.github.MilkBowl:VaultAPI:1.7.1")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
@@ -84,8 +84,8 @@ tasks {
         archiveClassifier.set("")
         archiveVersion.set("")
 
-        // Note: Relocations disabled due to shadow plugin compatibility issues with Java 21
-        // This is acceptable for testing; consider upgrading shadow plugin or downgrading Java for production
+        // Note: Relocations disabled due to shadow plugin compatibility issues with Java 26
+        // This is acceptable for testing; consider upgrading shadow plugin for production
         // relocate("com.google.inject", "org.aincraft.towny.libs.guice")
         // relocate("org.aopalliance", "org.aincraft.towny.libs.aopalliance")
         // relocate("com.github.benmanes.caffeine", "org.aincraft.towny.libs.caffeine")
@@ -97,8 +97,8 @@ tasks {
     }
 
     runServer {
-        // Use Paper 1.21.4
-        minecraftVersion("1.21.4")
+        // Use Paper 26.2
+        minecraftVersion("26.2")
 
         // Automatically download and run the server
         downloadPlugins {
