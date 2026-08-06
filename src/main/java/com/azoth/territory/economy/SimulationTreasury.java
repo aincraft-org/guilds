@@ -55,6 +55,21 @@ public final class SimulationTreasury implements PaymentRail {
     }
 
     @Override
+    public synchronized TreasuryDebitResult debitTreasury(String territoryId, double amount) {
+        if (!Double.isFinite(amount) || amount <= 0) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.INVALID_AMOUNT);
+        }
+        if (territoryId == null || territoryId.isBlank()) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.VAULT_UNAVAILABLE);
+        }
+        if (amount > state.balanceOf(territoryId)) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.INSUFFICIENT_FUNDS);
+        }
+        state = state.debit(territoryId, amount);
+        return new TreasuryDebitResult(TreasuryDebitStatus.DEBITED);
+    }
+
+    @Override
     public boolean available() {
         return true;
     }

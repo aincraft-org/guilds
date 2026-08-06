@@ -97,6 +97,27 @@ public final class VaultTreasury implements PaymentRail {
     }
 
     @Override
+    public TreasuryDebitResult debitTreasury(String territoryId, double amount) {
+        if (!Double.isFinite(amount) || amount <= 0) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.INVALID_AMOUNT);
+        }
+        if (economy == null || !economy.hasBankSupport()) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.VAULT_UNAVAILABLE);
+        }
+        if (territoryId == null || territoryId.isBlank() || !bankExists(territoryId.trim())) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.VAULT_UNAVAILABLE);
+        }
+        EconomyResponse hasFunds = economy.bankHas(territoryId.trim(), amount);
+        if (!success(hasFunds)) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.INSUFFICIENT_FUNDS);
+        }
+        EconomyResponse withdrawal = economy.bankWithdraw(territoryId.trim(), amount);
+        return success(withdrawal)
+                ? new TreasuryDebitResult(TreasuryDebitStatus.DEBITED)
+                : new TreasuryDebitResult(TreasuryDebitStatus.INSUFFICIENT_FUNDS);
+    }
+
+    @Override
     public boolean available() {
         return economy != null && economy.hasBankSupport();
     }

@@ -36,6 +36,10 @@ class BukkitEconomyBridgeTest {
         public SettlementResult settle(UUID payerId, String territoryId, double amount) {
             return new SettlementResult(PaymentRail.SettlementStatus.SETTLED);
         }
+        @Override
+        public TreasuryDebitResult debitTreasury(String territoryId, double amount) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.DEBITED);
+        }
 
         @Override
         public boolean available() {

@@ -20,6 +20,12 @@ public interface PaymentRail {
     /** Settles a tax transfer from a payer to a territory treasury. */
     SettlementResult settle(UUID payerId, String territoryId, double amount);
 
+    /**
+     * Withdraws money from a territory treasury to an external sink.
+     * This operation never touches a payer account.
+     */
+    TreasuryDebitResult debitTreasury(String territoryId, double amount);
+
     /** Whether this rail can currently move money. */
     boolean available();
 }

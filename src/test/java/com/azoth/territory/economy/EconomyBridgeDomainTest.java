@@ -53,6 +53,10 @@ class EconomyBridgeDomainTest {
             settleCalls++;
             return result;
         }
+        @Override
+        public TreasuryDebitResult debitTreasury(String territoryId, double amount) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.DEBITED);
+        }
 
         @Override
         public boolean available() {

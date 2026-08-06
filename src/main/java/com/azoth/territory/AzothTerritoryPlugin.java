@@ -7,6 +7,7 @@ import com.azoth.territory.economy.EconomyConfig;
 import com.azoth.territory.economy.PaymentRail;
 import com.azoth.territory.economy.SettlementResult;
 import com.azoth.territory.economy.SimulationTreasury;
+import com.azoth.territory.economy.TreasuryDebitResult;
 import com.azoth.territory.economy.VaultTreasury;
 import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
@@ -165,6 +166,11 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         @Override
         public SettlementResult settle(java.util.UUID payerId, String territoryId, double amount) {
             return new SettlementResult(PaymentRail.SettlementStatus.PAYER_UNAVAILABLE);
+        }
+
+        @Override
+        public TreasuryDebitResult debitTreasury(String territoryId, double amount) {
+            return new TreasuryDebitResult(com.azoth.territory.economy.TreasuryDebitStatus.VAULT_UNAVAILABLE);
         }
 
         @Override
