@@ -15,7 +15,7 @@ dependencies {
     }
 
     // Guilds runtime libraries — shaded into the single plugin JAR
-    implementation("com.zaxxer:HikariCP:5.1.0")
+    // (HikariCP comes from :common via api)
     implementation("org.xerial:sqlite-jdbc:3.45.3.0")
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
     implementation("io.javalin:javalin:6.3.0")
