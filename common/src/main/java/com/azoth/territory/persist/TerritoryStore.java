@@ -19,7 +19,7 @@ import java.util.List;
  * Uses Gson (available on the Paper server classpath; test classpath provides it).
  * Format is intentional and stable for web-map tooling.
  */
-public final class TerritoryStore {
+public final class TerritoryStore implements TerritoryRepository {
     public static final String DEFAULT_FILE_NAME = "territories.json";
 
     private final TerritoryJson json = new TerritoryJson();
@@ -63,5 +63,10 @@ public final class TerritoryStore {
         TerritoryRegistry tmp = new TerritoryRegistry();
         loadInto(tmp);
         return tmp.list();
+    }
+
+    @Override
+    public void close() {
+        // File-backed: nothing to release.
     }
 }

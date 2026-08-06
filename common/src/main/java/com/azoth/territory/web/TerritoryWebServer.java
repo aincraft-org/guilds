@@ -1,7 +1,8 @@
 package com.azoth.territory.web;
 
+import com.azoth.territory.influence.InfluenceService;
 import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryStore;
+import com.azoth.territory.persist.TerritoryRepository;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
@@ -17,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.security.KeyStore;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +37,8 @@ public final class TerritoryWebServer implements AutoCloseable {
     private final WebConfig config;
     private final TerritoryRegistry registry;
     private final TerritoryJson json;
-    private final Supplier<TerritoryStore> storeSupplier;
+    private final Supplier<TerritoryRepository> storeSupplier;
+    private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Logger log;
 
     private HttpServer server;
@@ -46,13 +49,15 @@ public final class TerritoryWebServer implements AutoCloseable {
             WebConfig config,
             TerritoryRegistry registry,
             TerritoryJson json,
-            Supplier<TerritoryStore> storeSupplier,
+            Supplier<TerritoryRepository> storeSupplier,
+            Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
         this.config = Objects.requireNonNull(config, "config");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.json = json == null ? new TerritoryJson() : json;
         this.storeSupplier = storeSupplier == null ? () -> null : storeSupplier;
+        this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.log = log == null ? Logger.getLogger("AzothTerritoryWeb") : log;
     }
 
@@ -72,7 +77,7 @@ public final class TerritoryWebServer implements AutoCloseable {
         }
 
         TerritoryApiHandler api = new TerritoryApiHandler(
-                config, proxy, registry, json, storeSupplier, log
+                config, proxy, registry, json, storeSupplier, influenceSupplier, log
         );
         StaticWebHandler web = new StaticWebHandler(config);
 

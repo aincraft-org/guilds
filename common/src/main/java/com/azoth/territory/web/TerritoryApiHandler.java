@@ -1,11 +1,15 @@
 package com.azoth.territory.web;
 
+import com.azoth.territory.influence.InfluenceBar;
+import com.azoth.territory.influence.InfluenceService;
+import com.azoth.territory.influence.TerritoryInfluenceState;
 import com.azoth.territory.model.LookupResult;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryStore;
+import com.azoth.territory.persist.TerritoryRepository;
 import com.azoth.territory.registry.TerritoryRegistry;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
@@ -37,7 +41,8 @@ public final class TerritoryApiHandler implements HttpHandler {
     private final ReverseProxySupport proxy;
     private final TerritoryRegistry registry;
     private final TerritoryJson json;
-    private final Supplier<TerritoryStore> storeSupplier;
+    private final Supplier<TerritoryRepository> storeSupplier;
+    private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Logger log;
 
     public TerritoryApiHandler(
@@ -45,7 +50,8 @@ public final class TerritoryApiHandler implements HttpHandler {
             ReverseProxySupport proxy,
             TerritoryRegistry registry,
             TerritoryJson json,
-            Supplier<TerritoryStore> storeSupplier,
+            Supplier<TerritoryRepository> storeSupplier,
+            Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
         this.config = config;
@@ -53,6 +59,7 @@ public final class TerritoryApiHandler implements HttpHandler {
         this.registry = registry;
         this.json = json;
         this.storeSupplier = storeSupplier;
+        this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.log = log;
     }
 
@@ -113,6 +120,10 @@ public final class TerritoryApiHandler implements HttpHandler {
             }
             if ("/resolve".equals(path) && "GET".equals(method)) {
                 resolve(exchange);
+                return;
+            }
+            if ("/influence".equals(path) && "GET".equals(method)) {
+                influenceList(exchange);
                 return;
             }
 
@@ -185,7 +196,46 @@ public final class TerritoryApiHandler implements HttpHandler {
             HttpResponses.notFound(exchange, config);
             return;
         }
-        HttpResponses.json(exchange, 200, json.gson().toJson(json.toJson(t.get())), config);
+        JsonObject body = json.toJson(t.get());
+        influenceSupplier.get().flatMap(s -> s.influence(id))
+                .ifPresent(state -> body.add("influence", toInfluenceJson(state)));
+        HttpResponses.json(exchange, 200, json.gson().toJson(body), config);
+    }
+
+    private void influenceList(HttpExchange exchange) throws IOException {
+        Optional<InfluenceService> service = influenceSupplier.get();
+        if (service.isEmpty()) {
+            HttpResponses.notFound(exchange, config);
+            return;
+        }
+        JsonArray out = new JsonArray();
+        for (TerritoryInfluenceState s : service.get().all()) {
+            out.add(toInfluenceJson(s));
+        }
+        HttpResponses.json(exchange, 200, json.gson().toJson(out), config);
+    }
+
+    private static JsonObject toInfluenceJson(TerritoryInfluenceState state) {
+        JsonObject out = new JsonObject();
+        out.addProperty("territoryId", state.territoryId());
+        out.addProperty("ownerGuildId", state.ownerGuildId());
+        out.addProperty("cooldownUntilEpochMs", state.cooldownUntilEpochMs());
+        JsonArray bars = new JsonArray();
+        for (InfluenceBar bar : state.bars()) {
+            JsonObject b = new JsonObject();
+            b.addProperty("guildId", bar.guildId());
+            b.addProperty("value", bar.value());
+            bars.add(b);
+        }
+        out.add("bars", bars);
+        if (state.declaration() != null) {
+            JsonObject d = new JsonObject();
+            d.addProperty("guildId", state.declaration().guildId());
+            d.addProperty("declaredAtEpochMs", state.declaration().declaredAtEpochMs());
+            d.addProperty("flipAtEpochMs", state.declaration().flipAtEpochMs());
+            out.add("declaration", d);
+        }
+        return out;
     }
 
     private void upsertBody(HttpExchange exchange) throws IOException {
@@ -252,7 +302,7 @@ public final class TerritoryApiHandler implements HttpHandler {
     }
 
     private void persistQuietly() {
-        TerritoryStore store = storeSupplier.get();
+        TerritoryRepository store = storeSupplier.get();
         if (store == null) {
             return;
         }
