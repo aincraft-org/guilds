@@ -35,6 +35,7 @@ public class EconomyBridge {
     private final GoodsCatalog goods;
     private final PaymentRail rail;
     private final boolean simulationMode;
+    private final ExpenseLedger expenses;
     private final List<UnresolvedTransaction> unresolved = new CopyOnWriteArrayList<>();
     private volatile Consumer<List<UnresolvedTransaction>> unresolvedSink = ignored -> {
     };
@@ -47,7 +48,7 @@ public class EconomyBridge {
             boolean simulationMode
     ) {
         this(territories, governance, goods, rail, simulationMode, ignored -> {
-        });
+        }, new ExpenseLedger());
     }
 
     public EconomyBridge(
@@ -58,11 +59,36 @@ public class EconomyBridge {
             boolean simulationMode,
             Consumer<List<UnresolvedTransaction>> unresolvedSink
     ) {
+        this(territories, governance, goods, rail, simulationMode, unresolvedSink, new ExpenseLedger());
+    }
+
+    public EconomyBridge(
+            TerritoryRegistry territories,
+            GovernanceRegistry governance,
+            GoodsCatalog goods,
+            PaymentRail rail,
+            boolean simulationMode,
+            ExpenseLedger expenses
+    ) {
+        this(territories, governance, goods, rail, simulationMode, ignored -> {
+        }, expenses);
+    }
+
+    public EconomyBridge(
+            TerritoryRegistry territories,
+            GovernanceRegistry governance,
+            GoodsCatalog goods,
+            PaymentRail rail,
+            boolean simulationMode,
+            Consumer<List<UnresolvedTransaction>> unresolvedSink,
+            ExpenseLedger expenses
+    ) {
         this.territories = Objects.requireNonNull(territories, "territories");
         this.governance = Objects.requireNonNull(governance, "governance");
         this.goods = Objects.requireNonNull(goods, "goods");
         this.rail = Objects.requireNonNull(rail, "rail");
         this.simulationMode = simulationMode;
+        this.expenses = Objects.requireNonNull(expenses, "expenses");
         this.unresolvedSink = Objects.requireNonNull(unresolvedSink, "unresolvedSink");
     }
 
@@ -124,6 +150,99 @@ public class EconomyBridge {
         SettlementResult result = rail.settle(payerId, territoryId, taxAmount);
         return mapSettlement(result, territoryId, good.get().id(), rate, taxAmount, payerId);
     }
+    /**
+     * Charges an externally scheduled settlement expense against its treasury.
+     * The idempotency key makes retries safe across restarts.
+     */
+    public ExpenseReport chargeExpense(
+            String territoryId,
+            ExpenseKind kind,
+            double amount,
+            String idempotencyKey
+    ) {
+        if (kind == null || idempotencyKey == null || idempotencyKey.isBlank()
+                || !Double.isFinite(amount) || amount <= 0) {
+            return expenseReport(ExpenseOutcome.INVALID_AMOUNT, territoryId, kind, amount, idempotencyKey);
+        }
+        if (territories.get(territoryId).isEmpty()) {
+            return expenseReport(ExpenseOutcome.NO_TERRITORY, territoryId, kind, amount, idempotencyKey);
+        }
+        if (!governance.resolveForTerritory(territoryId).hasAssignedGovernment()) {
+            return expenseReport(ExpenseOutcome.NO_GOVERNMENT, territoryId, kind, amount, idempotencyKey);
+        }
+
+        var existing = expenses.find(idempotencyKey);
+        if (existing.isPresent()) {
+            if (existing.get().state() == ExpenseJournalState.DEBITED) {
+                return expenseReport(ExpenseOutcome.ALREADY_APPLIED, territoryId, kind, amount, idempotencyKey);
+            }
+            return expenseReport(
+                    ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
+        }
+
+        ExpenseEntry pending = new ExpenseEntry(
+                idempotencyKey, territoryId, kind, amount,
+                ExpenseJournalState.PENDING, ExpenseOutcome.RECONCILIATION_REQUIRED);
+        try {
+            expenses.put(pending);
+        } catch (RuntimeException e) {
+            return expenseReport(
+                    ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
+        }
+
+        TreasuryDebitResult debit = rail.debitTreasury(territoryId, amount);
+        if (debit == null) {
+            return removeFailedExpense(
+                    ExpenseOutcome.VAULT_UNAVAILABLE, territoryId, kind, amount, idempotencyKey);
+        }
+        return switch (debit.status()) {
+            case DEBITED -> {
+                ExpenseEntry applied = new ExpenseEntry(
+                        idempotencyKey, territoryId, kind, amount,
+                        ExpenseJournalState.DEBITED, ExpenseOutcome.DEBITED);
+                try {
+                    expenses.put(applied);
+                    yield expenseReport(ExpenseOutcome.DEBITED, territoryId, kind, amount, idempotencyKey);
+                } catch (RuntimeException e) {
+                    yield expenseReport(
+                            ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
+                }
+            }
+            case INSUFFICIENT_FUNDS -> removeFailedExpense(
+                    ExpenseOutcome.INSUFFICIENT_FUNDS, territoryId, kind, amount, idempotencyKey);
+            case VAULT_UNAVAILABLE -> removeFailedExpense(
+                    ExpenseOutcome.VAULT_UNAVAILABLE, territoryId, kind, amount, idempotencyKey);
+            case INVALID_AMOUNT -> removeFailedExpense(
+                    ExpenseOutcome.INVALID_AMOUNT, territoryId, kind, amount, idempotencyKey);
+        };
+    }
+
+    private ExpenseReport removeFailedExpense(
+            ExpenseOutcome outcome,
+            String territoryId,
+            ExpenseKind kind,
+            double amount,
+            String idempotencyKey
+    ) {
+        try {
+            expenses.remove(idempotencyKey);
+            return expenseReport(outcome, territoryId, kind, amount, idempotencyKey);
+        } catch (RuntimeException e) {
+            return expenseReport(
+                    ExpenseOutcome.RECONCILIATION_REQUIRED, territoryId, kind, amount, idempotencyKey);
+        }
+    }
+
+    private static ExpenseReport expenseReport(
+            ExpenseOutcome outcome,
+            String territoryId,
+            ExpenseKind kind,
+            double amount,
+            String idempotencyKey
+    ) {
+        return new ExpenseReport(outcome, territoryId, kind, amount, idempotencyKey);
+    }
+
 
     private TaxReport mapSettlement(
             SettlementResult result,
