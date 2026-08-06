@@ -6,9 +6,7 @@ import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.aincraft.towny.TownyPlugin;
 import org.aincraft.towny.database.DatabaseManager;
-import org.aincraft.towny.models.Town;
 import org.aincraft.towny.services.EconomyService;
-import org.aincraft.towny.services.TownService;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 
@@ -19,23 +17,21 @@ import java.util.logging.Level;
 
 /**
  * Implementation of EconomyService wrapping the Vault Economy API.
- * Falls back to town balance field when Vault is not installed.
+ * Economy operations are unavailable until Vault and an economy provider are present.
  */
 @Singleton
 public class EconomyServiceImpl implements EconomyService {
 
     private final TownyPlugin plugin;
     private final DatabaseManager databaseManager;
-    private final TownService townService;
 
     private Economy vaultEconomy = null;
     private boolean vaultAvailable = false;
 
     @Inject
-    public EconomyServiceImpl(TownyPlugin plugin, DatabaseManager databaseManager, TownService townService) {
+    public EconomyServiceImpl(TownyPlugin plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
-        this.townService = townService;
         setupVault();
     }
 
@@ -44,7 +40,7 @@ public class EconomyServiceImpl implements EconomyService {
      */
     private void setupVault() {
         if (plugin.getServer().getPluginManager().getPlugin("Vault") == null) {
-            plugin.getLogger().info("Vault not found — economy features will use town bank fallback.");
+            plugin.getLogger().info("Vault not found — economy operations are unavailable.");
             vaultAvailable = false;
             return;
         }
@@ -84,26 +80,21 @@ public class EconomyServiceImpl implements EconomyService {
 
     @Override
     public void depositPlayer(UUID playerUuid, double amount) {
-        if (amount <= 0) return;
+        if (amount <= 0 || !vaultAvailable) return;
 
-        if (vaultAvailable) {
-            OfflinePlayer player = Bukkit.getOfflinePlayer(playerUuid);
-            vaultEconomy.depositPlayer(player, amount);
-            logTransaction(null, playerUuid.toString(), "deposit_player", amount, "Player deposit");
-        }
-        // No fallback needed — without Vault, player balances don't exist
+        OfflinePlayer player = Bukkit.getOfflinePlayer(playerUuid);
+        vaultEconomy.depositPlayer(player, amount);
+        logTransaction(null, playerUuid.toString(), "deposit_player", amount, "Player deposit");
     }
 
     @Override
     public void withdrawPlayer(UUID playerUuid, double amount) {
-        if (amount <= 0) return;
+        if (amount <= 0 || !vaultAvailable) return;
 
-        if (vaultAvailable) {
-            OfflinePlayer player = Bukkit.getOfflinePlayer(playerUuid);
-            EconomyResponse resp = vaultEconomy.withdrawPlayer(player, amount);
-            if (resp.transactionSuccess()) {
-                logTransaction(null, playerUuid.toString(), "withdraw_player", amount, "Player withdrawal");
-            }
+        OfflinePlayer player = Bukkit.getOfflinePlayer(playerUuid);
+        EconomyResponse resp = vaultEconomy.withdrawPlayer(player, amount);
+        if (resp.transactionSuccess()) {
+            logTransaction(null, playerUuid.toString(), "withdraw_player", amount, "Player withdrawal");
         }
     }
 
@@ -129,38 +120,19 @@ public class EconomyServiceImpl implements EconomyService {
 
     @Override
     public void depositTown(String townId, double amount) {
-        if (amount <= 0) return;
+        if (amount <= 0 || !vaultAvailable) return;
 
-        if (vaultAvailable) {
-            // Use Vault bank for the town
-            // Vault's bank feature uses player UUIDs, so we derive a fake UUID from town ID
-            OfflinePlayer townHolder = Bukkit.getOfflinePlayer(getTownBankUuid(townId));
-            vaultEconomy.bankDeposit(townId, amount);
-            logTransaction(townId, null, "deposit_town", amount, "Town bank deposit");
-        } else {
-            // Fallback: update town balance field directly
-            townService.getTownById(townId).ifPresent(town -> {
-                town.addFunds(amount);
-                townService.updateTown(town);
-            });
-        }
+        vaultEconomy.bankDeposit(townId, amount);
+        logTransaction(townId, null, "deposit_town", amount, "Town bank deposit");
     }
 
     @Override
     public void withdrawTown(String townId, double amount) {
-        if (amount <= 0) return;
+        if (amount <= 0 || !vaultAvailable) return;
 
-        if (vaultAvailable) {
-            EconomyResponse resp = vaultEconomy.bankWithdraw(townId, amount);
-            if (resp.transactionSuccess()) {
-                logTransaction(townId, null, "withdraw_town", amount, "Town bank withdrawal");
-            }
-        } else {
-            townService.getTownById(townId).ifPresent(town -> {
-                if (town.withdrawFunds(amount)) {
-                    townService.updateTown(town);
-                }
-            });
+        EconomyResponse resp = vaultEconomy.bankWithdraw(townId, amount);
+        if (resp.transactionSuccess()) {
+            logTransaction(townId, null, "withdraw_town", amount, "Town bank withdrawal");
         }
     }
 
@@ -169,25 +141,12 @@ public class EconomyServiceImpl implements EconomyService {
         if (vaultAvailable) {
             return vaultEconomy.bankBalance(townId).balance;
         }
-
-        // Fallback: use town's balance field
-        return townService.getTownById(townId)
-                .map(Town::getBalance)
-                .orElse(0.0);
+        return 0.0;
     }
 
     @Override
     public boolean townHas(String townId, double amount) {
-        return getTownBalance(townId) >= amount;
-    }
-
-    // ── Helpers ────────────────────────────────────────────────────────
-
-    /**
-     * Derive a consistent UUID for a town's bank account.
-     */
-    private UUID getTownBankUuid(String townId) {
-        return UUID.nameUUIDFromBytes(("town-bank:" + townId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return vaultAvailable && getTownBalance(townId) >= amount;
     }
 
     /**
