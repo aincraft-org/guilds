@@ -173,21 +173,26 @@ Flip sequence (all writes atomic temp-file moves):
 3. **Finalize**: write influence.json with `ownerGuildId = newOwnerGuildId`,
    `cooldownUntilEpochMs` from the marker, `pendingFlip` cleared.
 
-Recovery on load: if `pendingFlip` is present, first check that the
-territory's current `governedByGuildId` still equals
-`pendingFlip.oldOwnerGuildId`:
+Recovery on load: if `pendingFlip` is present, check the territory's current
+`governedByGuildId` against the marker:
 
-- **Owner moved on** (external rebind during the crash window) → the flip
+- **Equals `oldOwnerGuildId`** → crash before step 2: run steps 2–3.
+- **Equals `newOwnerGuildId`** → crash after step 2 (ownership already
+  persisted): skip step 2, retry only the finalize (step 3). Never void a
+  completed takeover.
+- **Any other owner** (external rebind during the crash window) → the flip
   is void: clear `pendingFlip`, write no cooldown, keep `declaration`
   cleared and `bars` reset, log. Never overwrite the new owner.
-- **Owner unchanged** → revalidate eligibility (owner guild exists,
-  attacker guild exists, both allied, alliances differ,
-  `flipAtEpochMs <= now`):
-  - Eligible → run steps 2–3 (idempotent: re-registering the same owner is
-    harmless; the cooldown comes from the marker, so the new owner is never
-    left contestable).
-  - Ineligible → cancel: clear `pendingFlip`, keep `declaration` cleared and
-    `bars` reset, write no cooldown, log.
+
+In all non-void paths, revalidate eligibility (owner guild exists,
+attacker guild exists, both allied, alliances differ,
+`flipAtEpochMs <= now`) before applying:
+
+- Eligible → finalize (idempotent: re-registering the same owner is
+  harmless; the cooldown comes from the marker, so the new owner is never
+  left contestable).
+- Ineligible → cancel: clear `pendingFlip`, keep `declaration` cleared and
+  `bars` reset, write no cooldown, log.
 
 The marker is written only at flip execution (`flipAt <= now` already
 holds), so recovery always completes, never re-arms, and never double-applies.
@@ -205,7 +210,10 @@ holds), so recovery always completes, never re-arms, and never double-applies.
   long cooldownUntilEpochMs, List<InfluenceBar> bars, Declaration declaration)`
 - `record DeclareResult(DeclareStatus status, String message)` with
   `enum DeclareStatus { DECLARED, CANCELLED, NOT_ELIGIBLE, NOT_AT_CAP,
-  NOT_AUTHORIZED, RACE_ACTIVE, TERRITORY_UNKNOWN, UNGOVERNABLE, DISABLED }`
+  NOT_AUTHORIZED, RACE_ACTIVE, TERRITORY_UNKNOWN, UNGOVERNABLE,
+  STORAGE_ERROR }` — `STORAGE_ERROR` means the transition could not be
+  persisted; the engine rolls the in-memory change back (declaration kept,
+  marker retained) so a retry is safe.
 - `interface InfluenceService`:
   - `Optional<TerritoryInfluenceState> influence(String territoryId)`
   - `List<TerritoryInfluenceState> all()`

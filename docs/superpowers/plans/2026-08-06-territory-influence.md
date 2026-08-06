@@ -116,7 +116,8 @@ public enum DeclareStatus {
     NOT_AUTHORIZED,
     RACE_ACTIVE,
     TERRITORY_UNKNOWN,
-    UNGOVERNABLE
+    UNGOVERNABLE,
+    STORAGE_ERROR
 }
 ```
 
@@ -934,6 +935,51 @@ class InfluenceEngineAccrualTest {
         }
         assertTrue(engine.influence("everfall").orElseThrow().bars().isEmpty(),
                 "bar must hit exactly zero and be dropped, never negative");
+    }
+
+    @Test
+    void recover_finalizesMarkerWhenOwnershipAlreadyApplied() throws IOException {
+        // Crash after journal step 2: ownership persisted, finalize not.
+        InfluenceState state = new InfluenceState();
+        TerritoryEntry entry = new TerritoryEntry();
+        entry.ownerGuildId = "everfall-town";
+        entry.pendingFlip = new PendingFlip("everfall", "everfall-town", "rival-guild",
+                now + 1, now + config.postFlipCooldownEpochMs());
+        state.entries.put("everfall", entry);
+        store.save(state);
+
+        setupEverfallContest();
+        // Territory already shows the new owner (step 2 done before the crash).
+        territories.register(new Territory("everfall", "Everfall", "world", square(0, 100),
+                List.of(), ZoneType.WILDERNESS, Government.anarchy(), List.of(), "rival-guild"));
+        freshEngine();
+        List<InfluenceEngine.TerritoryFlip> flipped = engine.recover(now + 5);
+
+        assertEquals(1, flipped.size(), "the completed takeover must finalize and broadcast");
+        assertEquals("rival-guild", territories.get("everfall").orElseThrow().governedByGuildId().orElseThrow());
+        assertTrue(persistedOwnership.isEmpty(), "ownership already applied — persister must not run again");
+        TerritoryEntry recovered = store.load().entries.get("everfall");
+        assertEquals("rival-guild", recovered.ownerGuildId);
+        assertEquals(now + config.postFlipCooldownEpochMs(), recovered.cooldownUntilEpochMs);
+        assertNull(recovered.pendingFlip, "marker finalized");
+    }
+
+    @Test
+    void declare_persistFailure_returnsStorageErrorAndRollsBack() throws Exception {
+        setupEverfallContest();
+        pushRivalToCap();
+        // A directory at the target path makes the atomic move fail.
+        java.nio.file.Files.createDirectory(tempDir.resolve("influence.json"));
+
+        DeclareResult result = engine.declare("everfall", "rival-guild", "m:rival-guild", now);
+
+        assertEquals(DeclareStatus.STORAGE_ERROR, result.status());
+        assertNull(engine.influence("everfall").orElseThrow().declaration(),
+                "declaration must roll back so a retry is safe");
+        // Retry succeeds once the blocker is removed.
+        java.nio.file.Files.delete(tempDir.resolve("influence.json"));
+        assertEquals(DeclareStatus.DECLARED,
+                engine.declare("everfall", "rival-guild", "m:rival-guild", now).status());
     }
 
     @Test
@@ -1835,7 +1881,12 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
         long flipAt = nowEpochMs + config.declareCountdownEpochMs();
         entry.declaration = new Declaration(guildId, nowEpochMs, flipAt);
         dirty = true;
-        persistSync();
+        if (!persistSync()) {
+            entry.declaration = null; // roll back so a retry is safe
+            dirty = true;
+            return DeclareResult.error(DeclareStatus.STORAGE_ERROR,
+                    "could not persist the declaration — please retry");
+        }
         log.info("Territory " + territoryId + ": declaration by guild " + guildId
                 + ", flip at " + flipAt);
         return DeclareResult.ok(DeclareStatus.DECLARED, "declaration filed; territory flips in "
@@ -1864,9 +1915,15 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
             return DeclareResult.error(DeclareStatus.NOT_AUTHORIZED,
                     "you need a seat in your guild's government to cancel");
         }
+        Declaration previous = entry.declaration;
         entry.declaration = null;
         dirty = true;
-        persistSync();
+        if (!persistSync()) {
+            entry.declaration = previous; // roll back so the race stays locked
+            dirty = true;
+            return DeclareResult.error(DeclareStatus.STORAGE_ERROR,
+                    "could not persist the cancellation — please retry");
+        }
         return DeclareResult.ok(DeclareStatus.CANCELLED, "declaration cancelled; the race continues");
     }
 
@@ -2019,7 +2076,7 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
         String territoryId = findTerritoryId(entry);
         Territory t = territories().get(territoryId).orElse(null);
         String currentOwner = t == null ? null : t.governedByGuildId().orElse(null);
-        if (t == null || !java.util.Objects.equals(currentOwner, entry.ownerGuildId)
+        if (t == null || !Objects.equals(currentOwner, entry.ownerGuildId)
                 || !canContest(entry.ownerGuildId, entry.declaration.guildId())) {
             log.warning("Declaration on " + territoryId + " invalidated — cancelling without flip");
             entry.declaration = null;
@@ -2027,13 +2084,21 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
             persistSync();
             return;
         }
-        entry.pendingFlip = new PendingFlip(territoryId, entry.ownerGuildId,
+        // Step 1 of the journal: write the marker BEFORE mutating the race state,
+        // so a crash can never lose the takeover.
+        PendingFlip marker = new PendingFlip(territoryId, entry.ownerGuildId,
                 entry.declaration.guildId(), entry.declaration.flipAtEpochMs(),
                 nowEpochMs + config.postFlipCooldownEpochMs());
+        entry.pendingFlip = marker;
+        dirty = true;
+        if (!persistSync()) {
+            entry.pendingFlip = null; // roll back — declaration + bars untouched
+            dirty = true;
+            return;
+        }
         entry.declaration = null;
         entry.bars.clear();
         dirty = true;
-        persistSync();
         applyJournal(entry, nowEpochMs, flipped);
     }
 
@@ -2052,7 +2117,11 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
             dirty = true;
             return;
         }
-        if (!java.util.Objects.equals(currentOwner, marker.oldOwnerGuildId())) {
+        boolean oldOwnerStillOwns = Objects.equals(currentOwner, marker.oldOwnerGuildId());
+        boolean newOwnerAlreadyOwns = Objects.equals(currentOwner, marker.newOwnerGuildId());
+        if (!oldOwnerStillOwns && !newOwnerAlreadyOwns) {
+            // External rebind during the crash window: neither pre- nor post-flip
+            // owner — the flip is void and must never overwrite the new owner.
             log.warning("Pending flip for " + territoryId + " voided: owner changed to " + currentOwner
                     + " before recovery");
             entry.pendingFlip = null;
@@ -2070,26 +2139,44 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
             dirty = true;
             return;
         }
+        // oldOwnerStillOwns → step 2 (ownership) is still pending and
+        // applyFlipCore performs it; newOwnerAlreadyOwns → step 2 already
+        // succeeded and applyFlipCore only finalizes (skips re-registering).
         applyFlipCore(entry, marker, flipped);
     }
 
     /** Steps 2–3 of the flip journal: register new owner, persist, finalize state. */
     private void applyFlipCore(TerritoryEntry entry, PendingFlip marker, List<TerritoryFlip> flipped) {
         String territoryId = marker.territoryId();
-        try {
-            Territory t = territories().get(territoryId).orElseThrow();
-            territories().register(t.withGoverningGuild(marker.newOwnerGuildId()));
-            persister.persist(territoryId, marker.newOwnerGuildId());
-        } catch (IOException e) {
-            log.log(Level.SEVERE, "Failed to persist ownership change for " + territoryId
-                    + " — retrying next tick (marker kept)", e);
+        Territory t = territories().get(territoryId).orElse(null);
+        if (t == null) {
+            log.warning("Pending flip for missing territory " + territoryId + " — dropping marker");
+            entry.pendingFlip = null;
+            dirty = true;
             return;
+        }
+        String currentOwner = t.governedByGuildId().orElse(null);
+        if (!Objects.equals(currentOwner, marker.newOwnerGuildId())) {
+            try {
+                territories().register(t.withGoverningGuild(marker.newOwnerGuildId()));
+                persister.persist(territoryId, marker.newOwnerGuildId());
+            } catch (IOException e) {
+                log.log(Level.SEVERE, "Failed to persist ownership change for " + territoryId
+                        + " — retrying next tick (marker kept)", e);
+                return;
+            }
         }
         entry.ownerGuildId = marker.newOwnerGuildId();
         entry.cooldownUntilEpochMs = marker.cooldownUntilEpochMs();
+        entry.declaration = null;
+        entry.bars.clear();
         entry.pendingFlip = null;
         dirty = true;
-        persistSync();
+        if (!persistSync()) {
+            entry.pendingFlip = marker; // finalize failed — keep marker for retry
+            dirty = true;
+            return; // no broadcast until the finalize actually persisted
+        }
         flipped.add(new TerritoryFlip(territoryId, marker.oldOwnerGuildId(), marker.newOwnerGuildId()));
     }
 
@@ -2102,12 +2189,15 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
         throw new IllegalStateException("entry not registered");
     }
 
-    private void persistSync() {
+    /** Synchronous atomic transition write; false when the write failed. */
+    private boolean persistSync() {
         try {
             store.save(state);
             dirty = false;
+            return true;
         } catch (IOException e) {
             log.log(Level.SEVERE, "Failed to persist influence state transition", e);
+            return false;
         }
     }
 
@@ -2160,7 +2250,7 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
 - [ ] **Step 4: Run the lifecycle tests to verify they pass**
 
 Run: `./gradlew :common:test --tests 'com.azoth.territory.influence.InfluenceEngineLifecycleTest'`
-Expected: PASS (27 tests).
+Expected: PASS (29 tests).
 
 Note: `InfluenceEngine.java` needs `import java.nio.file.Path;` for the `backupCorrupt()` result type in `recover()`.
 
