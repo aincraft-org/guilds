@@ -1,16 +1,25 @@
 package com.azoth.territory.economy;
 
+import com.azoth.territory.model.SettlementFacility;
+import com.azoth.territory.registry.FacilityRegistry;
 import org.bukkit.OfflinePlayer;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /** Bukkit-friendly facade delegating OfflinePlayer transactions to UUID domain APIs. */
 public final class BukkitEconomyBridge {
 
     private final EconomyBridge delegate;
+    private final FacilityRegistry facilities;
 
     public BukkitEconomyBridge(EconomyBridge delegate) {
+        this(delegate, null);
+    }
+
+    public BukkitEconomyBridge(EconomyBridge delegate, FacilityRegistry facilities) {
         this.delegate = Objects.requireNonNull(delegate, "delegate");
+        this.facilities = facilities;
     }
 
     public TaxReport reportSale(
@@ -47,5 +56,11 @@ public final class BukkitEconomyBridge {
                 outputQuantity,
                 grossValue);
     }
+    public Optional<SettlementFacility> resolveFacility(String worldId, int x, int y, int z) {
+        return facilities == null
+                ? Optional.empty()
+                : facilities.resolve(worldId, x, y, z);
+    }
+
 
 }
