@@ -8,7 +8,9 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 - Boundaries as **polygons** (block XZ vertices), **chunk sets**, or both (union)
 - **Zones** nested under a territory: `WILDERNESS` and `CLAIMABLE`
 - Spatial **resolve(world, x, z)** → territory + zone type (or uncontained)
-- JSON **save/load** (`plugins/AzothTerritory/territories.json`)
+- **Persistence**: JSON save/load (`plugins/AzothTerritory/territories.json`) or
+  **remote PostgreSQL** (`database.enabled: true`) — the map UI and REST API
+  serve Postgres-backed data when configured
 - Admin command: `/territory [lookup|list|reload|save|web]`
 - **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
   - Map UI at `/` (canvas viewer over chunk/polygon boundaries)
@@ -241,7 +243,7 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 | GET | `/api/meta` | Public origin, scheme, proxy/TLS flags |
 | GET | `/api/territories` | Full registry JSON |
 | GET | `/api/territories/{id}` | One territory |
-| PUT | `/api/territories/{id}` | Create/update (persists to disk) |
+| PUT | `/api/territories/{id}` | Create/update (persists to the configured store — PostgreSQL or JSON) |
 | DELETE | `/api/territories/{id}` | Remove |
 | GET | `/api/resolve?world=&x=&z=` | Spatial lookup |
 
@@ -276,3 +278,31 @@ web:
 ### API token
 
 If `web.api-token` is non-empty, send `X-Api-Token: <token>` or `Authorization: Bearer <token>` on API calls (health/meta stay open).
+
+## Persistence
+
+Territories default to `plugins/AzothTerritory/territories.json`. To point the
+web thing at a **remote PostgreSQL** database instead, set `database.enabled:
+true` in `config.yml`:
+
+```yaml
+database:
+  enabled: true
+  host: db.example.com
+  port: 5432
+  name: azoth_territory
+  user: azoth
+  password: "…"
+  ssl: true
+  pool-size: 10
+```
+
+The database must exist and the role must be able to create tables (the
+`territories` table is created automatically). A `database.jdbc-url` override
+accepts any valid PostgreSQL JDBC URL and wins over `host`/`port`/`name`/`ssl`.
+
+Failure is loud: if Postgres is unreachable at startup the plugin logs SEVERE
+and the web submodule does not start — it never silently serves the JSON file
+when PostgreSQL was requested. API mutations (`PUT`/`DELETE`) commit to the
+database *before* updating the in-memory registry, so a failed remote save
+returns HTTP 500 and leaves the served data unchanged.
