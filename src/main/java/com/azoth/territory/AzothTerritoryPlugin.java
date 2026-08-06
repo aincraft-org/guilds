@@ -185,7 +185,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
     private void startWebIfEnabled() {
         try {
-            this.webConfig = WebConfigLoader.fromBukkit(getConfig(), getDataFolder().toPath());
+            this.webConfig = WebConfigLoader.fromValues(getConfig().getValues(true), getDataFolder().toPath());
             if (!webConfig.enabled()) {
                 getLogger().info("Territory web submodule disabled (web.enabled=false)");
                 return;
