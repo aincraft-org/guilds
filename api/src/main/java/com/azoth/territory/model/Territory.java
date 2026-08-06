@@ -176,7 +176,7 @@ public final class Territory {
     }
 
     /**
-     * Guild (town) id that governs this territory, if bound. The guilds
+     * Guild (guild) id that governs this territory, if bound. The guilds
      * subsystem is the source of truth for that guild's government and
      * permissions; the territory only records the binding.
      */
@@ -185,7 +185,7 @@ public final class Territory {
     }
 
     /**
-     * Bind a governing guild (town) to this territory.
+     * Bind a governing guild (guild) to this territory.
      */
     public Territory withGoverningGuild(String guildId) {
         String next = guildId == null || guildId.isBlank() ? null : guildId.trim();

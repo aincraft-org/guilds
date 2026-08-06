@@ -13,10 +13,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.commands.arguments.PlotTypeArgumentType;
 import org.aincraft.guilds.commands.arguments.PermissionArgumentType;
 import org.aincraft.guilds.commands.arguments.RoleArgumentType;
-import org.aincraft.guilds.commands.arguments.TownArgumentType;
+import org.aincraft.guilds.commands.arguments.GuildArgumentType;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.util.UUID;
 
@@ -28,15 +28,15 @@ public class PermBrigadierCommand {
     private final JavaPlugin plugin;
     private final PermissionService permissionService;
     private final PlotService plotService;
-    private final TownService townService;
+    private final GuildService guildService;
 
 
     public PermBrigadierCommand(JavaPlugin plugin, PermissionService permissionService,
-                                PlotService plotService, TownService townService) {
+                                PlotService plotService, GuildService guildService) {
         this.plugin = plugin;
         this.permissionService = permissionService;
         this.plotService = plotService;
-        this.townService = townService;
+        this.guildService = guildService;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -60,8 +60,8 @@ public class PermBrigadierCommand {
                     })
                     .executes(this::testPlotPermission)))
             .then(Commands.literal("town")
-                .then(Commands.argument("town", TownArgumentType.town(townService))
-                    .executes(this::testTownPermission)))
+                .then(Commands.argument("town", GuildArgumentType.guild(guildService))
+                    .executes(this::testGuildPermission)))
             .then(Commands.literal("flags")
                 .executes(this::showPermissionFlags))
             .then(Commands.literal("here")
@@ -180,21 +180,21 @@ public class PermBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int testTownPermission(CommandContext<CommandSourceStack> ctx) {
+    private int testGuildPermission(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         if (!(sender instanceof org.bukkit.entity.Player player)) {
             sender.sendMessage("§cThis command can only be used by players.");
             return 0;
         }
 
-        String townName = TownArgumentType.getTownName(ctx, "town");
+        String guildName = GuildArgumentType.getGuildName(ctx, "town");
         UUID playerUuid = player.getUniqueId();
 
-        player.sendMessage("§6Town Permission Test for " + townName + ":");
+        player.sendMessage("§6Town Permission Test for " + guildName + ":");
 
-        boolean isMayor = permissionService.isTownMayor(playerUuid, townName);
-        boolean isAssistant = permissionService.isTownAssistant(playerUuid, townName);
-        boolean hasAdmin = permissionService.hasTownAdmin(playerUuid, townName);
+        boolean isMayor = permissionService.isGuildMayor(playerUuid, guildName);
+        boolean isAssistant = permissionService.isGuildAssistant(playerUuid, guildName);
+        boolean hasAdmin = permissionService.hasGuildAdmin(playerUuid, guildName);
 
         player.sendMessage("§fMayor: " + (isMayor ? "§a✓" : "§c✗"));
         player.sendMessage("§fAssistant: " + (isAssistant ? "§a✓" : "§c✗"));
@@ -245,13 +245,13 @@ public class PermBrigadierCommand {
         player.sendMessage("§fChunk: " + chunkX + ", " + chunkZ);
         player.sendMessage("§fWorld: " + world);
 
-        // Check if in town block
-        plotService.getTownBlock(chunkX, chunkZ, world).ifPresent(townBlock -> {
+        // Check if in guild block
+        plotService.getGuildBlock(chunkX, chunkZ, world).ifPresent(guildBlock -> {
             player.sendMessage("§aIn Town Block!");
-            player.sendMessage("§fTown ID: " + townBlock.getTownId());
+            player.sendMessage("§fTown ID: " + guildBlock.getGuildId());
             player.sendMessage("§fOwner ID: " +
-                (townBlock.getOwnerId() != null ? townBlock.getOwnerId().toString() : "None (Town-owned)"));
-            player.sendMessage("§fPlot Type: " + townBlock.getPlotType());
+                (guildBlock.getOwnerId() != null ? guildBlock.getOwnerId().toString() : "None (Town-owned)"));
+            player.sendMessage("§fPlot Type: " + guildBlock.getPlotType());
         });
 
         return Command.SINGLE_SUCCESS;

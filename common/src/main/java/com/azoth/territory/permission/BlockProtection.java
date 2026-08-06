@@ -14,18 +14,18 @@ import java.util.Optional;
  *       (no formal authority grants apply; no seat-based lockdown).</li>
  *   <li>Assigned government — formal authority holders (the form's electorate:
  *       sovereign / councilors / representatives) always pass. Guild-governed
- *       land (town or nation) then falls through to the guilds permission
+ *       land (guild or nation) then falls through to the guilds permission
  *       model: members are evaluated by their effective permissions (global
  *       bypass → explicit grants → role defaults granting the basic build
- *       actions), alliance sibling-town members keep their basic rights across
- *       the alliance, and outsiders are allowed only when the town is public
+ *       actions), alliance sibling-guild members keep their basic rights across
+ *       the alliance, and outsiders are allowed only when the guild is public
  *       (build/interact, never break). Territory-local government stays a pure
  *       seat lockdown for non-authority actors.</li>
  * </ul>
  * Environmental protection:
  * <ul>
  *   <li>Fire burn/spread/ignite — {@link #isFireProtected}: governed land with
- *       fire disabled by the governing town's toggle (territory-local stays protected).</li>
+ *       fire disabled by the governing guild's toggle (territory-local stays protected).</li>
  *   <li>Explosions — {@link #areExplosionsProtected}: same, via the explosions toggle.</li>
  *   <li>Natural/hostile mob spawn — {@link #blocksMobSpawn}: same, via the mobs toggle.</li>
  *   <li>Entity-caused block change and crop trampling — {@link #blocksEntityGrief}.</li>
@@ -90,7 +90,7 @@ public final class BlockProtection {
      * <p>
      * Uncontained land and anarchy stay unrestricted. Under an assigned
      * government, formal authority holders may always attack; on guild-governed
-     * land everyone else may fight when the governing town's PvP toggle is on.
+     * land everyone else may fight when the governing guild's PvP toggle is on.
      * Territory-local government stays conservative (authority attackers only).
      */
     public boolean allowsPvp(String worldId, int blockX, int blockZ, String attackerId, String victimId) {
@@ -115,7 +115,7 @@ public final class BlockProtection {
     /**
      * Whether {@code actorId} may be teleported into the territory (spawn/home/tpa
      * commands, plugins, portals/gateways). Authority holders and guild members
-     * are never blocked from their own land; public towns admit outsiders.
+     * are never blocked from their own land; public guilds admit outsiders.
      * <p>
      * Only applies to player-forced teleports. Respawns to a player's own bed /
      * respawn anchor never fire a {@code PlayerTeleportEvent}, so setting spawn
@@ -139,7 +139,7 @@ public final class BlockProtection {
 
     /**
      * Whether fire may be blocked from burning, spreading, or igniting at this
-     * location. Governed land is fire-protected unless the governing town's
+     * location. Governed land is fire-protected unless the governing guild's
      * fire toggle is enabled (territory-local stays protected).
      */
     public boolean isFireProtected(String worldId, int blockX, int blockZ) {
@@ -153,7 +153,7 @@ public final class BlockProtection {
 
     /**
      * Whether explosions are blocked from damaging this location. Governed land
-     * is explosion-protected unless the governing town's explosions toggle is
+     * is explosion-protected unless the governing guild's explosions toggle is
      * enabled (territory-local stays protected).
      */
     public boolean areExplosionsProtected(String worldId, int blockX, int blockZ) {
@@ -176,7 +176,7 @@ public final class BlockProtection {
 
     /**
      * Whether natural/hostile mob spawning should be denied at this location.
-     * Governed land blocks spawns unless the governing town's mobs toggle is
+     * Governed land blocks spawns unless the governing guild's mobs toggle is
      * enabled (territory-local stays protected). Listener maps Bukkit spawn
      * reasons; eggs/spawners/commands stay unrestricted.
      */
@@ -237,7 +237,7 @@ public final class BlockProtection {
         if (perms.isPresent()) {
             return perms.get().allows(action);
         }
-        // Alliance sibling-town members keep their basic rights across the alliance.
+        // Alliance sibling-guild members keep their basic rights across the alliance.
         if (body.kind() == GoverningBody.Kind.ALLIANCE) {
             AllianceBody alliance = body.allianceBody().orElseThrow();
             for (String guildId : alliance.memberGuildIds()) {
@@ -251,7 +251,7 @@ public final class BlockProtection {
                 }
             }
         }
-        // Outsider: public towns mirror guilds town-owned plot defaults
+        // Outsider: public guilds mirror guilds guild-owned plot defaults
         // (build/switch/item-use allowed, destroy not).
         return guild.isPublic() && action != SovereignAction.BREAK_BLOCK;
     }

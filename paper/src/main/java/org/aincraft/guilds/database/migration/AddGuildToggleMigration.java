@@ -9,10 +9,10 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 /**
- * Database migration to add town toggle system with dedicated boolean columns
- * Version 6: Adds pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled columns to towns table
+ * Database migration to add guild toggle system with dedicated boolean columns
+ * Version 6: Adds pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled columns to guilds table
  */
-public class AddTownToggleMigration implements DatabaseMigration {
+public class AddGuildToggleMigration implements DatabaseMigration {
 
     private static final int VERSION = 6;
     private static final String DESCRIPTION = "Add town toggle system with dedicated boolean columns";
@@ -32,7 +32,7 @@ public class AddTownToggleMigration implements DatabaseMigration {
     }
 
     /**
-     * Execute the migration to add town toggle columns
+     * Execute the migration to add guild toggle columns
      */
     public void migrate(Connection connection) throws SQLException {
         Statement statement = null;
@@ -40,16 +40,16 @@ public class AddTownToggleMigration implements DatabaseMigration {
         try {
             statement = connection.createStatement();
 
-            // Add town toggle columns
-            statement.execute("ALTER TABLE towns ADD COLUMN pvp_enabled BOOLEAN DEFAULT FALSE");
-            statement.execute("ALTER TABLE towns ADD COLUMN fire_enabled BOOLEAN DEFAULT FALSE");
-            statement.execute("ALTER TABLE towns ADD COLUMN explosions_enabled BOOLEAN DEFAULT FALSE");
-            statement.execute("ALTER TABLE towns ADD COLUMN mobs_enabled BOOLEAN DEFAULT TRUE");
-            statement.execute("ALTER TABLE towns ADD COLUMN public_enabled BOOLEAN DEFAULT FALSE");
+            // Add guild toggle columns
+            statement.execute("ALTER TABLE guilds ADD COLUMN pvp_enabled BOOLEAN DEFAULT FALSE");
+            statement.execute("ALTER TABLE guilds ADD COLUMN fire_enabled BOOLEAN DEFAULT FALSE");
+            statement.execute("ALTER TABLE guilds ADD COLUMN explosions_enabled BOOLEAN DEFAULT FALSE");
+            statement.execute("ALTER TABLE guilds ADD COLUMN mobs_enabled BOOLEAN DEFAULT TRUE");
+            statement.execute("ALTER TABLE guilds ADD COLUMN public_enabled BOOLEAN DEFAULT FALSE");
 
-            // Update existing towns with default values
+            // Update existing guilds with default values
             statement.execute(
-                "UPDATE towns SET " +
+                "UPDATE guilds SET " +
                 "pvp_enabled = FALSE, " +
                 "fire_enabled = FALSE, " +
                 "explosions_enabled = FALSE, " +
@@ -117,7 +117,7 @@ public class AddTownToggleMigration implements DatabaseMigration {
     }
 
     /**
-     * Rollback this migration (remove town toggle columns)
+     * Rollback this migration (remove guild toggle columns)
      * Note: This is a destructive operation and should be used with caution
      */
     public void rollback(Connection connection) throws SQLException {
@@ -126,34 +126,34 @@ public class AddTownToggleMigration implements DatabaseMigration {
         try {
             statement = connection.createStatement();
 
-            // Remove town toggle columns if they exist
+            // Remove guild toggle columns if they exist
             // Use IF EXISTS for databases that support it, or ignore errors
             try {
-                statement.execute("ALTER TABLE towns DROP COLUMN pvp_enabled");
+                statement.execute("ALTER TABLE guilds DROP COLUMN pvp_enabled");
             } catch (SQLException e) {
                 // Column might not exist, ignore
             }
 
             try {
-                statement.execute("ALTER TABLE towns DROP COLUMN fire_enabled");
+                statement.execute("ALTER TABLE guilds DROP COLUMN fire_enabled");
             } catch (SQLException e) {
                 // Column might not exist, ignore
             }
 
             try {
-                statement.execute("ALTER TABLE towns DROP COLUMN explosions_enabled");
+                statement.execute("ALTER TABLE guilds DROP COLUMN explosions_enabled");
             } catch (SQLException e) {
                 // Column might not exist, ignore
             }
 
             try {
-                statement.execute("ALTER TABLE towns DROP COLUMN mobs_enabled");
+                statement.execute("ALTER TABLE guilds DROP COLUMN mobs_enabled");
             } catch (SQLException e) {
                 // Column might not exist, ignore
             }
 
             try {
-                statement.execute("ALTER TABLE towns DROP COLUMN public_enabled");
+                statement.execute("ALTER TABLE guilds DROP COLUMN public_enabled");
             } catch (SQLException e) {
                 // Column might not exist, ignore
             }
@@ -176,7 +176,7 @@ public class AddTownToggleMigration implements DatabaseMigration {
             statement = connection.createStatement();
             resultSet = statement.executeQuery(
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS " +
-                "WHERE table_name = 'towns' AND " +
+                "WHERE table_name = 'guilds' AND " +
                 "column_name IN ('pvp_enabled', 'fire_enabled', 'explosions_enabled', 'mobs_enabled', 'public_enabled')"
             );
 
@@ -216,7 +216,7 @@ public class AddTownToggleMigration implements DatabaseMigration {
 
             for (String column : columns) {
                 try {
-                    statement.executeQuery("SELECT " + column + " FROM towns LIMIT 1");
+                    statement.executeQuery("SELECT " + column + " FROM guilds LIMIT 1");
                     existingColumns++;
                 } catch (SQLException e) {
                     // Column doesn't exist

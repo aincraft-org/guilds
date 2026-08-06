@@ -19,10 +19,10 @@ import org.aincraft.guilds.commands.brigadier.PlotTypeBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.QuestBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.SpecializationBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.TechTreeBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownBroadcastBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownLevelBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownPermBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildBroadcastBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildLevelBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildPermBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.GuildsGeneralBrigadierCommand;
 import org.bukkit.command.CommandSender;
 
@@ -37,15 +37,15 @@ public class BrigadierCommandRegistry {
     private final JavaPlugin plugin;
 
     // Brigadier command handlers
-    private final TownBrigadierCommand townCommand;
+    private final GuildBrigadierCommand guildCommand;
     private final PlotBrigadierCommand plotCommand;
     private final GuildsGeneralBrigadierCommand guildsGeneralCommand;
-    private final TownLevelBrigadierCommand townLevelCommand;
+    private final GuildLevelBrigadierCommand guildLevelCommand;
     private final MapBrigadierCommand mapCommand;
     private final PermBrigadierCommand permCommand;
     private final PlotTypeBrigadierCommand plotTypeCommand;
-    private final TownBroadcastBrigadierCommand townBroadcastCommand;
-    private final TownPermBrigadierCommand townPermCommand;
+    private final GuildBroadcastBrigadierCommand guildBroadcastCommand;
+    private final GuildPermBrigadierCommand guildPermCommand;
     private final TechTreeBrigadierCommand techTreeCommand;
     private final ChatBrigadierCommand chatCommand;
     private final NationBrigadierCommand nationCommand;
@@ -54,15 +54,15 @@ public class BrigadierCommandRegistry {
     private final BlueprintBrigadierCommand blueprintCommand;
 
     public BrigadierCommandRegistry(JavaPlugin plugin,
-                                    TownBrigadierCommand townCommand,
+                                    GuildBrigadierCommand guildCommand,
                                     PlotBrigadierCommand plotCommand,
                                     GuildsGeneralBrigadierCommand guildsGeneralCommand,
-                                    TownLevelBrigadierCommand townLevelCommand,
+                                    GuildLevelBrigadierCommand guildLevelCommand,
                                     MapBrigadierCommand mapCommand,
                                     PermBrigadierCommand permCommand,
                                     PlotTypeBrigadierCommand plotTypeCommand,
-                                    TownBroadcastBrigadierCommand townBroadcastCommand,
-                                    TownPermBrigadierCommand townPermCommand,
+                                    GuildBroadcastBrigadierCommand guildBroadcastCommand,
+                                    GuildPermBrigadierCommand guildPermCommand,
                                     TechTreeBrigadierCommand techTreeCommand,
                                     ChatBrigadierCommand chatCommand,
                                     NationBrigadierCommand nationCommand,
@@ -70,15 +70,15 @@ public class BrigadierCommandRegistry {
                                     QuestBrigadierCommand questCommand,
                                     BlueprintBrigadierCommand blueprintCommand) {
         this.plugin = plugin;
-        this.townCommand = townCommand;
+        this.guildCommand = guildCommand;
         this.plotCommand = plotCommand;
         this.guildsGeneralCommand = guildsGeneralCommand;
-        this.townLevelCommand = townLevelCommand;
+        this.guildLevelCommand = guildLevelCommand;
         this.mapCommand = mapCommand;
         this.permCommand = permCommand;
         this.plotTypeCommand = plotTypeCommand;
-        this.townBroadcastCommand = townBroadcastCommand;
-        this.townPermCommand = townPermCommand;
+        this.guildBroadcastCommand = guildBroadcastCommand;
+        this.guildPermCommand = guildPermCommand;
         this.techTreeCommand = techTreeCommand;
         this.chatCommand = chatCommand;
         this.nationCommand = nationCommand;
@@ -94,10 +94,10 @@ public class BrigadierCommandRegistry {
             // Register all commands with Brigadier
             Commands commands = event.registrar();
 
-            // Register main town command with alias
-            commands.register(townCommand.buildCommand());
+            // Register main guild command with alias
+            commands.register(guildCommand.buildCommand());
             commands.register(Commands.literal("t")
-                .redirect(townCommand.buildCommand())
+                .redirect(guildCommand.buildCommand())
                 .build());
 
             // Register plot command
@@ -106,8 +106,8 @@ public class BrigadierCommandRegistry {
             // Register guilds general command
             commands.register(guildsGeneralCommand.buildCommand());
 
-            // Register town level command
-            commands.register(townLevelCommand.buildCommand());
+            // Register guild level command
+            commands.register(guildLevelCommand.buildCommand());
 
             // Register map command with alias
             commands.register(mapCommand.buildCommand());
@@ -125,16 +125,16 @@ public class BrigadierCommandRegistry {
                 .build());
 
             // Register broadcast command with aliases
-            commands.register(townBroadcastCommand.buildCommand());
+            commands.register(guildBroadcastCommand.buildCommand());
             commands.register(Commands.literal("townbroadcast")
-                .redirect(townBroadcastCommand.buildCommand())
+                .redirect(guildBroadcastCommand.buildCommand())
                 .build());
             commands.register(Commands.literal("tb")
-                .redirect(townBroadcastCommand.buildCommand())
+                .redirect(guildBroadcastCommand.buildCommand())
                 .build());
 
-            // Register new town perm command
-            commands.register(townPermCommand.buildCommand());
+            // Register new guild perm command
+            commands.register(guildPermCommand.buildCommand());
 
             // Register blueprint
             commands.register(blueprintCommand.buildCommand());

@@ -44,7 +44,7 @@ class InteractionProtectionTest {
     }
 
     /**
-     * Guild-governed monarchy: the town's mayor is the sovereign; the named
+     * Guild-governed monarchy: the guild's mayor is the sovereign; the named
      * members get the basic build actions.
      */
     private void registerMonarchyTerritory(String id, int min, int max, String king) {
@@ -56,7 +56,7 @@ class InteractionProtectionTest {
                 SovereignAction.BREAK_BLOCK, SovereignAction.PLACE_BLOCK, SovereignAction.INTERACT));
         source.putGuild(new GuildBody(id + "-town", "Town of " + id,
                 Government.monarchy(king), List.of(king, "member:" + id),
-                TownToggles.defaults(), Map.of(king, member, "member:" + id, member)));
+                GuildToggles.defaults(), Map.of(king, member, "member:" + id, member)));
     }
 
     @Test
@@ -78,10 +78,10 @@ class InteractionProtectionTest {
 
         assertTrue(protection.canInteract("world", 40, 40, "king:arthur"));
         assertTrue(protection.canInteractWithEntity("world", 40, 40, "king:arthur"));
-        // Member of the governing town (basic actions by role default)
+        // Member of the governing guild (basic actions by role default)
         assertTrue(protection.canInteract("world", 40, 40, "member:crownlands"));
         assertTrue(protection.canInteractWithEntity("world", 40, 40, "member:crownlands"));
-        // Outsider denied (town not public)
+        // Outsider denied (guild not public)
         assertFalse(protection.canInteract("world", 40, 40, "peasant:bob"));
         assertFalse(protection.canInteractWithEntity("world", 40, 40, "peasant:bob"));
     }

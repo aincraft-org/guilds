@@ -42,22 +42,22 @@ public class AddTechTreeSystemMigration implements DatabaseMigration {
                 )
             """);
 
-            // Town unlock tracking table
+            // Guild unlock tracking table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS town_unlocked_nodes (
-                    town_id TEXT NOT NULL,
+                CREATE TABLE IF NOT EXISTS guild_unlocked_nodes (
+                    guild_id TEXT NOT NULL,
                     node_id TEXT NOT NULL,
                     unlocked_at TEXT NOT NULL,
-                    PRIMARY KEY (town_id, node_id),
-                    FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
+                    PRIMARY KEY (guild_id, node_id),
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                     FOREIGN KEY (node_id) REFERENCES tech_tree_nodes(id) ON DELETE CASCADE
                 )
             """);
 
             // Indexes
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_tech_nodes_branch ON tech_tree_nodes(branch)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_town_unlocked_town ON town_unlocked_nodes(town_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_town_unlocked_node ON town_unlocked_nodes(node_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_unlocked_guild ON guild_unlocked_nodes(guild_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_unlocked_node ON guild_unlocked_nodes(node_id)");
         }
     }
 

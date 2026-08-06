@@ -5,9 +5,9 @@ package org.aincraft.guilds.services.impl;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Nation;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.NationService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -38,7 +38,7 @@ public class NationServiceImpl implements NationService {
     private final DatabaseManager databaseManager;
     private final DataSource dataSource;
     private final Logger logger;
-    private final TownService townService;
+    private final GuildService guildService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -47,12 +47,12 @@ public class NationServiceImpl implements NationService {
     private final Map<String, Nation> nationsByName = new HashMap<>();
 
 
-    public NationServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager, Logger logger, TownService townService) {
+    public NationServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager, Logger logger, GuildService guildService) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.dataSource = databaseManager.getDataSource();
         this.logger = logger;
-        this.townService = townService;
+        this.guildService = guildService;
 
         // Load all nations from database on startup
         loadAllNations();
@@ -60,8 +60,8 @@ public class NationServiceImpl implements NationService {
 
     private void loadAllNations() {
         String sql = """
-            SELECT n.id, n.name, n.capital_town_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at,
-                   GROUP_CONCAT(DISTINCT nm.town_id) as member_towns,
+            SELECT n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at,
+                   GROUP_CONCAT(DISTINCT nm.guild_id) as member_guilds,
                    GROUP_CONCAT(DISTINCT nmin.player_uuid) as ministers,
                    GROUP_CONCAT(DISTINCT nr.other_nation) as relations,
                    GROUP_CONCAT(DISTINCT nr.relation_type) as relation_types
@@ -69,7 +69,7 @@ public class NationServiceImpl implements NationService {
             LEFT JOIN nation_members nm ON n.id = nm.nation_id
             LEFT JOIN nation_ministers nmin ON n.id = nmin.nation_id
             LEFT JOIN nation_relations nr ON n.id = nr.nation_id
-            GROUP BY n.id, n.name, n.capital_town_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at
+            GROUP BY n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at
             """;
 
         try (Connection connection = dataSource.getConnection();
@@ -93,7 +93,7 @@ public class NationServiceImpl implements NationService {
 
         nation.setId(resultSet.getString("id"));
         nation.setName(resultSet.getString("name"));
-        nation.setCapitalTownId(resultSet.getString("capital_town_id"));
+        nation.setCapitalGuildId(resultSet.getString("capital_guild_id"));
         nation.setKingUuid(UUID.fromString(resultSet.getString("king_uuid")));
         nation.setTaxRate(resultSet.getDouble("tax_rate"));
         nation.setOpen(resultSet.getBoolean("is_open"));
@@ -103,10 +103,10 @@ public class NationServiceImpl implements NationService {
             nation.setCreatedAt(LocalDateTime.parse(createdAtStr, DATE_FORMATTER));
         }
 
-        // Load member towns
-        String memberTownsStr = resultSet.getString("member_towns");
-        if (memberTownsStr != null) {
-            nation.setMemberTownIds(new HashSet<>(Arrays.asList(memberTownsStr.split(","))));
+        // Load member guilds
+        String memberGuildsStr = resultSet.getString("member_guilds");
+        if (memberGuildsStr != null) {
+            nation.setMemberGuildIds(new HashSet<>(Arrays.asList(memberGuildsStr.split(","))));
         }
 
         // Load ministers
@@ -158,24 +158,24 @@ public class NationServiceImpl implements NationService {
     }
 
     @Override
-    public void createNation(String name, Town capitalTown, UUID kingUuid) {
+    public void createNation(String name, Guild capitalGuild, UUID kingUuid) {
         if (getNation(name).isPresent()) {
             throw new IllegalArgumentException("Nation already exists: " + name);
         }
-        Nation nation = new Nation(name, capitalTown.getId(), kingUuid);
+        Nation nation = new Nation(name, capitalGuild.getId(), kingUuid);
 
         databaseManager.executeTransaction(connection -> {
 
             // Insert nation
             String nationSql = """
-                INSERT INTO nations (id, name, capital_town_id, king_uuid, tax_rate, is_open, created_at)
+                INSERT INTO nations (id, name, capital_guild_id, king_uuid, tax_rate, is_open, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
             try (PreparedStatement statement = connection.prepareStatement(nationSql)) {
                 statement.setString(1, nation.getId());
                 statement.setString(2, nation.getName());
-                statement.setString(3, nation.getCapitalTownId());
+                statement.setString(3, nation.getCapitalGuildId());
                 statement.setString(4, kingUuid.toString());
                 statement.setDouble(5, nation.getTaxRate());
                 statement.setBoolean(6, nation.isOpen());
@@ -183,11 +183,11 @@ public class NationServiceImpl implements NationService {
                 statement.executeUpdate();
             }
 
-            // Add capital town as member
-            String memberSql = "INSERT INTO nation_members (nation_id, town_id) VALUES (?, ?)";
+            // Add capital guild as member
+            String memberSql = "INSERT INTO nation_members (nation_id, guild_id) VALUES (?, ?)";
             try (PreparedStatement statement = connection.prepareStatement(memberSql)) {
                 statement.setString(1, nation.getId());
-                statement.setString(2, nation.getCapitalTownId());
+                statement.setString(2, nation.getCapitalGuildId());
                 statement.executeUpdate();
             }
         });
@@ -247,35 +247,35 @@ public class NationServiceImpl implements NationService {
     }
 
     @Override
-    public void addTown(Nation nation, String townId) {
+    public void addGuild(Nation nation, String guildId) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "INSERT INTO nation_members (nation_id, town_id) VALUES (?, ?)";
+            String sql = "INSERT INTO nation_members (nation_id, guild_id) VALUES (?, ?)";
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, nation.getId());
-                statement.setString(2, townId);
+                statement.setString(2, guildId);
                 statement.executeUpdate();
             }
         });
 
-        nation.addTown(townId);
+        nation.addGuild(guildId);
     }
 
     @Override
-    public void removeTown(Nation nation, String townId) {
-        if (nation.getCapitalTownId().equals(townId)) {
+    public void removeGuild(Nation nation, String guildId) {
+        if (nation.getCapitalGuildId().equals(guildId)) {
             throw new IllegalArgumentException("Cannot remove capital town from nation");
         }
 
         databaseManager.executeTransaction(connection -> {
-            String sql = "DELETE FROM nation_members WHERE nation_id = ? AND town_id = ?";
+            String sql = "DELETE FROM nation_members WHERE nation_id = ? AND guild_id = ?";
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, nation.getId());
-                statement.setString(2, townId);
+                statement.setString(2, guildId);
                 statement.executeUpdate();
             }
         });
 
-        nation.removeTown(townId);
+        nation.removeGuild(guildId);
     }
 
     @Override
@@ -409,12 +409,12 @@ public class NationServiceImpl implements NationService {
         databaseManager.executeTransaction(connection -> {
             String sql = """
                 UPDATE nations
-                SET name = ?, capital_town_id = ?, king_uuid = ?, tax_rate = ?, is_open = ?
+                SET name = ?, capital_guild_id = ?, king_uuid = ?, tax_rate = ?, is_open = ?
                 WHERE id = ?
                 """;
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, nation.getName());
-                statement.setString(2, nation.getCapitalTownId());
+                statement.setString(2, nation.getCapitalGuildId());
                 statement.setString(3, nation.getKingUuid().toString());
                 statement.setDouble(4, nation.getTaxRate());
                 statement.setBoolean(5, nation.isOpen());

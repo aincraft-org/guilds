@@ -9,13 +9,13 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * A guild (town) as a governing entity — the DTO the guilds subsystem
- * materializes from its town database records.
+ * A guild (guild) as a governing entity — the DTO the guilds subsystem
+ * materializes from its guild database records.
  * <p>
  * Replaces the former standalone {@code RegionGuild} model: there is no
  * parallel in-memory guild world; the territory side sees only this snapshot.
  *
- * @param government derived from the town's chosen form + role holders
+ * @param government derived from the guild's chosen form + role holders
  * @param memberIds resident holder ids (player UUID strings)
  * @param memberPermissions effective territory permissions per member
  */
@@ -24,7 +24,7 @@ public record GuildBody(
         String name,
         Government government,
         List<String> memberIds,
-        TownToggles toggles,
+        GuildToggles toggles,
         Map<String, MemberPermissions> memberPermissions
 ) {
 

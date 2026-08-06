@@ -20,7 +20,7 @@ public class GuildsConfig {
      * Load default configuration values
      */
     private void loadDefaults() {
-        // Town settings
+        // Guild settings
         config.addDefault("town.default_tax", 0.0);
         config.addDefault("town.max_name_length", 20);
         config.addDefault("town.min_name_length", 3);
@@ -48,28 +48,28 @@ public class GuildsConfig {
         config.addDefault("debug", false);
     }
 
-    // Town configuration methods
-    public double getDefaultTownTax() {
+    // Guild configuration methods
+    public double getDefaultGuildTax() {
         return config.getDouble("town.default_tax", 0.0);
     }
 
-    public int getMaxTownNameLength() {
+    public int getMaxGuildNameLength() {
         return config.getInt("town.max_name_length", 20);
     }
 
-    public int getMinTownNameLength() {
+    public int getMinGuildNameLength() {
         return config.getInt("town.min_name_length", 3);
     }
 
-    public int getMaxTownResidents() {
+    public int getMaxGuildResidents() {
         return config.getInt("town.max_residents", 50);
     }
 
-    public double getTownCreationCost() {
+    public double getGuildCreationCost() {
         return config.getDouble("town.creation_cost", 0.0);
     }
 
-    public double getTownDeletionRefund() {
+    public double getGuildDeletionRefund() {
         return config.getDouble("town.deletion_refund", 0.0);
     }
 

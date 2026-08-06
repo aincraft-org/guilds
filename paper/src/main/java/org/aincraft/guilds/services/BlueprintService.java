@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Service interface for managing town blueprints.
+ * Service interface for managing guild blueprints.
  */
 public interface BlueprintService {
 
@@ -20,20 +20,20 @@ public interface BlueprintService {
     Optional<Blueprint> getBlueprint(String name);
 
     /**
-     * Gets all blueprints for a town.
-     * @param townId The town ID
-     * @return List of blueprints for the town
+     * Gets all blueprints for a guild.
+     * @param guildId The guild ID
+     * @return List of blueprints for the guild
      */
-    List<Blueprint> getTownBlueprints(String townId);
+    List<Blueprint> getGuildBlueprints(String guildId);
 
     /**
      * Saves a new blueprint.
      * @param name The blueprint name
      * @param author The author UUID
-     * @param townId The town ID
+     * @param guildId The guild ID
      * @param schematicData The serialized schematic data
      */
-    void saveBlueprint(String name, UUID author, String townId, byte[] schematicData);
+    void saveBlueprint(String name, UUID author, String guildId, byte[] schematicData);
 
     /**
      * Deletes a blueprint by name.

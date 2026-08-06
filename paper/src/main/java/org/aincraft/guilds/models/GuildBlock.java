@@ -8,15 +8,15 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Represents a town block (plot) in the Guilds system
+ * Represents a guild block (plot) in the Guilds system
  */
-public class TownBlock {
+public class GuildBlock {
 
     private UUID id;
     private int x;
     private int z;
     private String world;
-    private String townId;
+    private String guildId;
     private UUID ownerId;
     private String plotType;
     private String plotTypeDefinition; // Reference to PlotTypeDefinition
@@ -28,7 +28,7 @@ public class TownBlock {
     /**
      * Default constructor for database mapping
      */
-    public TownBlock() {
+    public GuildBlock() {
         this.id = UUID.randomUUID();
         this.permissionsFlags = PermissionSet.createDefaultPlot().toLegacyFlags();
         this.plotType = PlotTypes.DEFAULT;
@@ -37,18 +37,18 @@ public class TownBlock {
     }
 
     /**
-     * Constructor for creating a new town block
+     * Constructor for creating a new guild block
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
-     * @param townId Town ID
+     * @param guildId Guild ID
      */
-    public TownBlock(int x, int z, String world, String townId) {
+    public GuildBlock(int x, int z, String world, String guildId) {
         this();
         this.x = x;
         this.z = z;
         this.world = world;
-        this.townId = townId;
+        this.guildId = guildId;
     }
 
     // Getters and Setters
@@ -84,12 +84,12 @@ public class TownBlock {
         this.world = world;
     }
 
-    public String getTownId() {
-        return townId;
+    public String getGuildId() {
+        return guildId;
     }
 
-    public void setTownId(String townId) {
-        this.townId = townId;
+    public void setGuildId(String guildId) {
+        this.guildId = guildId;
     }
 
     public UUID getOwnerId() {
@@ -151,7 +151,7 @@ public class TownBlock {
     // Business methods
 
     /**
-     * Check if this plot has an owner (not town-owned)
+     * Check if this plot has an owner (not guild-owned)
      * @return True if has owner
      */
     public boolean hasOwner() {
@@ -159,10 +159,10 @@ public class TownBlock {
     }
 
     /**
-     * Check if this plot is town-owned
-     * @return True if town-owned
+     * Check if this plot is guild-owned
+     * @return True if guild-owned
      */
-    public boolean isTownOwned() {
+    public boolean isGuildOwned() {
         return ownerId == null;
     }
 
@@ -324,7 +324,7 @@ public class TownBlock {
             // Player-owned plots get full permissions for owner
             permissionsFlags = GuildPermission.ALL;
         } else {
-            // Town-owned plots get default permissions based on type
+            // Guild-owned plots get default permissions based on type
             permissionsFlags = PlotTypes.getDefaultPermissions(plotType);
         }
     }
@@ -421,7 +421,7 @@ public class TownBlock {
      * @param other Other plot
      * @return True if adjacent
      */
-    public boolean isAdjacentTo(TownBlock other) {
+    public boolean isAdjacentTo(GuildBlock other) {
         if (!this.world.equals(other.world)) {
             return false;
         }
@@ -451,7 +451,7 @@ public class TownBlock {
      * @param other Other plot
      * @return Distance in plot units
      */
-    public double distanceTo(TownBlock other) {
+    public double distanceTo(GuildBlock other) {
         if (!this.world.equals(other.world)) {
             return Double.MAX_VALUE;
         }
@@ -465,8 +465,8 @@ public class TownBlock {
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        TownBlock townBlock = (TownBlock) obj;
-        return id.equals(townBlock.id);
+        GuildBlock guildBlock = (GuildBlock) obj;
+        return id.equals(guildBlock.id);
     }
 
     @Override
@@ -476,12 +476,12 @@ public class TownBlock {
 
     @Override
     public String toString() {
-        return "TownBlock{" +
+        return "GuildBlock{" +
                 "id=" + id +
                 ", x=" + x +
                 ", z=" + z +
                 ", world='" + world + '\'' +
-                ", townId='" + townId + '\'' +
+                ", townId='" + guildId + '\'' +
                 ", plotType='" + plotType + '\'' +
                 ", hasOwner=" + hasOwner() +
                 ", price=" + price +

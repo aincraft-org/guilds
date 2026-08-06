@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Loads town level definitions from {@code town_levels} in config.yml.
+ * Loads guild level definitions from {@code town_levels} in config.yml.
  *
  * <p>Expected layout:</p>
  * <pre>
@@ -33,7 +33,7 @@ import java.util.logging.Logger;
  * </pre>
  */
 
-public class TownLevelConfigLoader {
+public class GuildLevelConfigLoader {
 
     private static final String CONFIG_SECTION = "town_levels";
     private static final String LEVELS_SECTION = CONFIG_SECTION + ".levels";
@@ -44,7 +44,7 @@ public class TownLevelConfigLoader {
     private int maxLevel = 150;
 
 
-    public TownLevelConfigLoader(FileConfiguration config, Logger logger) {
+    public GuildLevelConfigLoader(FileConfiguration config, Logger logger) {
         this.config = config;
         this.logger = logger;
     }
@@ -119,7 +119,7 @@ public class TownLevelConfigLoader {
     }
 
     /**
-     * @return the configured maximum town level
+     * @return the configured maximum guild level
      */
     public int getMaxLevel() {
         return maxLevel;

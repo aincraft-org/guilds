@@ -4,30 +4,30 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Represents a town blueprint containing serialized block data for building templates.
+ * Represents a guild blueprint containing serialized block data for building templates.
  */
 public class Blueprint {
     private String id;
     private String name;
     private UUID authorUuid;
-    private String townId;
+    private String guildId;
     private byte[] schematicData;
     private LocalDateTime createdAt;
 
-    public Blueprint(String id, String name, UUID authorUuid, String townId, byte[] schematicData, LocalDateTime createdAt) {
+    public Blueprint(String id, String name, UUID authorUuid, String guildId, byte[] schematicData, LocalDateTime createdAt) {
         this.id = id;
         this.name = name;
         this.authorUuid = authorUuid;
-        this.townId = townId;
+        this.guildId = guildId;
         this.schematicData = schematicData;
         this.createdAt = createdAt;
     }
 
-    public Blueprint(String id, String name, UUID authorUuid, String townId) {
+    public Blueprint(String id, String name, UUID authorUuid, String guildId) {
         this.id = id;
         this.name = name;
         this.authorUuid = authorUuid;
-        this.townId = townId;
+        this.guildId = guildId;
         this.createdAt = LocalDateTime.now();
     }
 
@@ -55,12 +55,12 @@ public class Blueprint {
         this.authorUuid = authorUuid;
     }
 
-    public String getTownId() {
-        return townId;
+    public String getGuildId() {
+        return guildId;
     }
 
-    public void setTownId(String townId) {
-        this.townId = townId;
+    public void setGuildId(String guildId) {
+        this.guildId = guildId;
     }
 
     public byte[] getSchematicData() {

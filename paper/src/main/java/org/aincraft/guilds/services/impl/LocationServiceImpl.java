@@ -2,18 +2,18 @@ package org.aincraft.guilds.services.impl;
 
 
 
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.services.LocationService;
 import org.aincraft.guilds.services.PlotService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
  * Implementation of LocationService
- * Provides location-based queries for towns and plots
+ * Provides location-based queries for guilds and plots
  */
 
 public class LocationServiceImpl implements LocationService {
@@ -21,30 +21,30 @@ public class LocationServiceImpl implements LocationService {
     private static final Logger logger = Logger.getLogger(LocationServiceImpl.class.getName());
 
     private final PlotService plotService;
-    private final TownService townService;
+    private final GuildService guildService;
 
 
-    public LocationServiceImpl(PlotService plotService, TownService townService) {
+    public LocationServiceImpl(PlotService plotService, GuildService guildService) {
         this.plotService = plotService;
-        this.townService = townService;
+        this.guildService = guildService;
     }
 
     @Override
-    public Optional<Town> getTownAtLocation(int x, int z, String world) {
+    public Optional<Guild> getGuildAtLocation(int x, int z, String world) {
         try {
             // Convert block coordinates to chunk coordinates
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
 
-            // Get the town block at this location
-            Optional<TownBlock> townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
-            if (townBlock.isEmpty()) {
+            // Get the guild block at this location
+            Optional<GuildBlock> guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
+            if (guildBlock.isEmpty()) {
                 return Optional.empty(); // Wilderness
             }
 
-            // Get the town from the town block
-            String townId = townBlock.get().getTownId();
-            return townService.getTownById(townId);
+            // Get the guild from the guild block
+            String guildId = guildBlock.get().getGuildId();
+            return guildService.getGuildById(guildId);
 
         } catch (Exception e) {
             logger.warning("Error getting town at location (" + x + ", " + z + ") in world " + world + ": " + e.getMessage());
@@ -53,13 +53,13 @@ public class LocationServiceImpl implements LocationService {
     }
 
     @Override
-    public Optional<TownBlock> getTownBlockAtLocation(int x, int z, String world) {
+    public Optional<GuildBlock> getGuildBlockAtLocation(int x, int z, String world) {
         try {
             // Convert block coordinates to chunk coordinates
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
 
-            return plotService.getTownBlock(chunkX, chunkZ, world);
+            return plotService.getGuildBlock(chunkX, chunkZ, world);
 
         } catch (Exception e) {
             logger.warning("Error getting town block at location (" + x + ", " + z + ") in world " + world + ": " + e.getMessage());
@@ -69,6 +69,6 @@ public class LocationServiceImpl implements LocationService {
 
     @Override
     public boolean isWilderness(int x, int z, String world) {
-        return getTownBlockAtLocation(x, z, world).isEmpty();
+        return getGuildBlockAtLocation(x, z, world).isEmpty();
     }
 }

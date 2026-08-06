@@ -9,13 +9,13 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.ResourceService;
-import org.aincraft.guilds.services.TownLevelService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildLevelService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -24,30 +24,30 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Brigadier implementation of the town level command
+ * Brigadier implementation of the guild level command
  */
-public class TownLevelBrigadierCommand {
+public class GuildLevelBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
     private final PermissionService permissionService;
-    private final TownLevelService townLevelService;
+    private final GuildLevelService guildLevelService;
     private final ResourceService resourceService;
 
 
-    public TownLevelBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                                   TownService townService, PlotService plotService,
+    public GuildLevelBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
+                                   GuildService guildService, PlotService plotService,
                                    PermissionService permissionService,
-                                   TownLevelService townLevelService,
+                                   GuildLevelService guildLevelService,
                                    ResourceService resourceService) {
         this.plugin = plugin;
         this.residentService = residentService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
-        this.townLevelService = townLevelService;
+        this.guildLevelService = guildLevelService;
         this.resourceService = resourceService;
     }
 
@@ -107,7 +107,7 @@ public class TownLevelBrigadierCommand {
         player.sendMessage("§f/townlevel bank§7 - View town resource bank");
         player.sendMessage("§f/townlevel upgrade§7 - Upgrade town to next level");
         player.sendMessage("§f/townlevel contributions§7 - View contribution statistics");
-        player.sendMessage("§f/townlevel top [type] [count]§7 - Show top towns (level/residents/balance/techpoints)");
+        player.sendMessage("§f/townlevel top [type] [count]§7 - Show top guilds (level/residents/balance/techpoints)");
 
         player.sendMessage("§7");
         player.sendMessage("§7Supported Resources: Any Minecraft item (DIAMOND, GOLD_INGOT, NETHERITE_INGOT, etc.)");
@@ -124,31 +124,31 @@ public class TownLevelBrigadierCommand {
             return 0;
         }
 
-        String playerTown = getPlayerTown(player);
-        if (playerTown == null) {
+        String playerGuild = getPlayerGuild(player);
+        if (playerGuild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        Optional<Town> townOpt = townService.getTown(playerTown);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cTown not found!");
             return 0;
         }
 
-        Town town = townOpt.get();
+        Guild guild = guildOpt.get();
 
         player.sendMessage("§e=== Town Level Information ===");
 
-        player.sendMessage("§eTown: §b" + town.getName());
-        player.sendMessage("§eCurrent Level: §a" + town.getTownLevel());
-        player.sendMessage("§eTech Points: §d" + town.getTechPoints());
-        player.sendMessage("§eClaim Limit: §a" + town.getMaxClaimLimit() + " chunks");
-        player.sendMessage("§eAssistant Slots: §a" + town.getMaxAssistantSlots());
-        player.sendMessage("§eDaily Income Bonus: §6§" + String.format("%.2f", town.getDailyIncomeBonus()));
+        player.sendMessage("§eTown: §b" + guild.getName());
+        player.sendMessage("§eCurrent Level: §a" + guild.getGuildLevel());
+        player.sendMessage("§eTech Points: §d" + guild.getTechPoints());
+        player.sendMessage("§eClaim Limit: §a" + guild.getMaxClaimLimit() + " chunks");
+        player.sendMessage("§eAssistant Slots: §a" + guild.getMaxAssistantSlots());
+        player.sendMessage("§eDaily Income Bonus: §6§" + String.format("%.2f", guild.getDailyIncomeBonus()));
 
-        if (town.getTownLevel() < townLevelService.getMaxLevel()) {
-            player.sendMessage("§eNext Level: §a" + (town.getTownLevel() + 1));
+        if (guild.getGuildLevel() < guildLevelService.getMaxLevel()) {
+            player.sendMessage("§eNext Level: §a" + (guild.getGuildLevel() + 1));
             player.sendMessage("§7  Progress: §eUse /town level deposit to contribute resources");
         } else {
             player.sendMessage("§aYour town is at the maximum level!");
@@ -164,19 +164,19 @@ public class TownLevelBrigadierCommand {
             return 0;
         }
 
-        String playerTown = getPlayerTown(player);
-        if (playerTown == null) {
+        String playerGuild = getPlayerGuild(player);
+        if (playerGuild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        Optional<Town> townOpt = townService.getTown(playerTown);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cTown not found!");
             return 0;
         }
 
-        Town town = townOpt.get();
+        Guild guild = guildOpt.get();
         String resourceType = StringArgumentType.getString(ctx, "resource").toUpperCase();
         int amount = IntegerArgumentType.getInteger(ctx, "amount");
 
@@ -199,17 +199,17 @@ public class TownLevelBrigadierCommand {
             return 0;
         }
 
-        // Add to town upgrade progress
-        int previousAmount = town.getUpgradeProgress().getOrDefault(resourceType, 0);
-        town.contributeToUpgrade(resourceType, amount);
-        townService.updateTown(town);
+        // Add to guild upgrade progress
+        int previousAmount = guild.getUpgradeProgress().getOrDefault(resourceType, 0);
+        guild.contributeToUpgrade(resourceType, amount);
+        guildService.updateGuild(guild);
 
-        int newAmount = town.getUpgradeProgress().getOrDefault(resourceType, 0);
+        int newAmount = guild.getUpgradeProgress().getOrDefault(resourceType, 0);
         player.sendMessage("§aSuccessfully contributed " + amount + " " + resourceType + " to town upgrade!");
         player.sendMessage("§eTotal contributed: " + newAmount + " " + resourceType);
 
         // Show upgrade progress if applicable
-        townLevelService.getNextTownLevel(town).ifPresent(nextLevel -> {
+        guildLevelService.getNextGuildLevel(guild).ifPresent(nextLevel -> {
             Map<String, Integer> requirements = nextLevel.getResourceCosts();
             if (requirements.containsKey(resourceType)) {
                 int required = requirements.get(resourceType);
@@ -231,23 +231,23 @@ public class TownLevelBrigadierCommand {
             return 0;
         }
 
-        String playerTown = getPlayerTown(player);
-        if (playerTown == null) {
+        String playerGuild = getPlayerGuild(player);
+        if (playerGuild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        Optional<Town> townOpt = townService.getTown(playerTown);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cTown not found!");
             return 0;
         }
 
-        Town town = townOpt.get();
+        Guild guild = guildOpt.get();
 
         player.sendMessage("§e=== Town Resource Bank ===");
 
-        Map<String, Integer> progress = town.getUpgradeProgress();
+        Map<String, Integer> progress = guild.getUpgradeProgress();
         if (progress.isEmpty()) {
             player.sendMessage("§7No resources contributed yet.");
             player.sendMessage("§eUse /town level deposit <resource> <amount> to contribute!");
@@ -275,26 +275,26 @@ public class TownLevelBrigadierCommand {
             return 0;
         }
 
-        String playerTown = getPlayerTown(player);
-        if (playerTown == null) {
+        String playerGuild = getPlayerGuild(player);
+        if (playerGuild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        Optional<Town> townOpt = townService.getTown(playerTown);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cTown not found!");
             return 0;
         }
 
-        Town town = townOpt.get();
+        Guild guild = guildOpt.get();
 
-        if (town.getTownLevel() >= townLevelService.getMaxLevel()) {
+        if (guild.getGuildLevel() >= guildLevelService.getMaxLevel()) {
             player.sendMessage("§aYour town is already at the maximum level!");
             return Command.SINGLE_SUCCESS;
         }
 
-        TownLevelService.UpgradeResult result = townLevelService.performTownUpgrade(town);
+        GuildLevelService.UpgradeResult result = guildLevelService.performGuildUpgrade(guild);
 
         if (result.isSuccessful()) {
             player.sendMessage("");
@@ -303,9 +303,9 @@ public class TownLevelBrigadierCommand {
             player.sendMessage("§eYou earned §d" + result.getTechPointsEarned() + "§e tech points!");
 
             player.sendMessage("§eNew Benefits:");
-            player.sendMessage("§7  Claim Limit: §a" + town.getMaxClaimLimit() + " chunks");
-            player.sendMessage("§7  Assistant Slots: §a" + town.getMaxAssistantSlots());
-            player.sendMessage("§7  Daily Income: §6§" + String.format("%.2f", town.getDailyIncomeBonus()));
+            player.sendMessage("§7  Claim Limit: §a" + guild.getMaxClaimLimit() + " chunks");
+            player.sendMessage("§7  Assistant Slots: §a" + guild.getMaxAssistantSlots());
+            player.sendMessage("§7  Daily Income: §6§" + String.format("%.2f", guild.getDailyIncomeBonus()));
         } else {
             player.sendMessage("§c" + result.getMessage());
             player.sendMessage("§eUse '/town level' to see requirements");
@@ -321,23 +321,23 @@ public class TownLevelBrigadierCommand {
             return 0;
         }
 
-        String playerTown = getPlayerTown(player);
-        if (playerTown == null) {
+        String playerGuild = getPlayerGuild(player);
+        if (playerGuild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        Optional<Town> townOpt = townService.getTown(playerTown);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cTown not found!");
             return 0;
         }
 
-        Town town = townOpt.get();
+        Guild guild = guildOpt.get();
 
         player.sendMessage("§e=== Town Contribution Status ===");
 
-        Map<String, Integer> contributions = town.getUpgradeProgress();
+        Map<String, Integer> contributions = guild.getUpgradeProgress();
         if (contributions.isEmpty()) {
             player.sendMessage("§7No resources contributed yet.");
             player.sendMessage("§eUse /town level deposit <resource> <amount> to contribute!");
@@ -347,7 +347,7 @@ public class TownLevelBrigadierCommand {
         int totalContributions = contributions.values().stream().mapToInt(Integer::intValue).sum();
 
         player.sendMessage("§eTotal Contributed Items: §a" + totalContributions);
-        player.sendMessage("§eTown Level: §a" + town.getTownLevel());
+        player.sendMessage("§eTown Level: §a" + guild.getGuildLevel());
 
         player.sendMessage("§eContributions by Type:");
         for (Map.Entry<String, Integer> entry : contributions.entrySet()) {
@@ -357,7 +357,7 @@ public class TownLevelBrigadierCommand {
         }
 
         // Show player's progress toward next level
-        townLevelService.getNextTownLevel(town).ifPresent(nextLevel -> {
+        guildLevelService.getNextGuildLevel(guild).ifPresent(nextLevel -> {
             Map<String, Integer> required = nextLevel.getResourceCosts();
             player.sendMessage("§eProgress to Level " + nextLevel.getLevel() + ":");
             for (Map.Entry<String, Integer> req : required.entrySet()) {
@@ -380,32 +380,32 @@ public class TownLevelBrigadierCommand {
 
         String criteria = StringArgumentType.getString(ctx, "type");
 
-        List<Town> topTowns = townService.getRankedTowns(criteria, limit);
+        List<Guild> topGuilds = guildService.getRankedGuilds(criteria, limit);
 
         player.sendMessage("§e=== Top Towns by " + criteria.substring(0, 1).toUpperCase() + criteria.substring(1) + " ===");
 
-        for (int i = 0; i < topTowns.size(); i++) {
-            Town town = topTowns.get(i);
+        for (int i = 0; i < topGuilds.size(); i++) {
+            Guild guild = topGuilds.get(i);
             String value = switch (criteria) {
-                case "level" -> String.valueOf(town.getTownLevel());
-                case "residents" -> String.valueOf(town.getResidentCount());
-                case "balance" -> String.format("%.2f", town.getBalance());
-                case "techpoints" -> String.valueOf(town.getTechPoints());
-                default -> String.valueOf(town.getTownLevel());
+                case "level" -> String.valueOf(guild.getGuildLevel());
+                case "residents" -> String.valueOf(guild.getResidentCount());
+                case "balance" -> String.format("%.2f", guild.getBalance());
+                case "techpoints" -> String.valueOf(guild.getTechPoints());
+                default -> String.valueOf(guild.getGuildLevel());
             };
 
-            player.sendMessage("§f" + String.valueOf(i + 1) + ". §b" + town.getName() +
+            player.sendMessage("§f" + String.valueOf(i + 1) + ". §b" + guild.getName() +
                              "§7 - §e" + value);
         }
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private String getPlayerTown(org.bukkit.entity.Player player) {
+    private String getPlayerGuild(org.bukkit.entity.Player player) {
         UUID playerUuid = player.getUniqueId();
         return residentService.getResident(playerUuid)
-                .filter(resident -> resident.hasTown())
-                .map(org.aincraft.guilds.models.Resident::getTown)
+                .filter(resident -> resident.hasGuild())
+                .map(org.aincraft.guilds.models.Resident::getGuild)
                 .orElse(null);
     }
 

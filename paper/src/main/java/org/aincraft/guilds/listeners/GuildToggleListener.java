@@ -28,15 +28,15 @@ import org.bukkit.Material;
 import java.util.logging.Level;
 
 /**
- * Event listener that enforces town toggle settings
+ * Event listener that enforces guild toggle settings
  */
-public class TownToggleListener implements Listener {
+public class GuildToggleListener implements Listener {
 
     private final JavaPlugin plugin;
     private final PermissionService permissionService;
 
 
-    public TownToggleListener(JavaPlugin plugin, PermissionService permissionService) {
+    public GuildToggleListener(JavaPlugin plugin, PermissionService permissionService) {
         this.plugin = plugin;
         this.permissionService = permissionService;
     }
@@ -67,7 +67,7 @@ public class TownToggleListener implements Listener {
     }
 
     /**
-     * Prevent player from shooting projectiles in non-PvP towns
+     * Prevent player from shooting projectiles in non-PvP guilds
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onProjectileLaunch(ProjectileLaunchEvent event) {
@@ -100,7 +100,7 @@ public class TownToggleListener implements Listener {
                 event.getBlock().getZ(),
                 event.getBlock().getWorld().getName())) {
 
-            // Allow fire from players in towns with fire disabled (for controlled fires)
+            // Allow fire from players in guilds with fire disabled (for controlled fires)
             if (event.getCause() != BlockIgniteEvent.IgniteCause.FLINT_AND_STEEL &&
                 event.getCause() != BlockIgniteEvent.IgniteCause.FIREBALL) {
                 event.setCancelled(true);
@@ -133,7 +133,7 @@ public class TownToggleListener implements Listener {
     }
 
     /**
-     * Prevent fire from burning blocks in towns with fire disabled
+     * Prevent fire from burning blocks in guilds with fire disabled
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBurn(BlockBurnEvent event) {
@@ -147,7 +147,7 @@ public class TownToggleListener implements Listener {
     }
 
     /**
-     * Prevent fire from burning entities in towns with fire disabled
+     * Prevent fire from burning entities in guilds with fire disabled
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityCombust(EntityCombustEvent event) {
@@ -178,7 +178,7 @@ public class TownToggleListener implements Listener {
             return;
         }
 
-        // Check if explosion would affect blocks in explosion-disabled towns
+        // Check if explosion would affect blocks in explosion-disabled guilds
         event.blockList().removeIf(block ->
             !permissionService.areExplosionsEnabledAtLocation(
                 block.getX(),
@@ -224,7 +224,7 @@ public class TownToggleListener implements Listener {
     }
 
     /**
-     * Prevent mob from targeting players in towns where PvP is disabled
+     * Prevent mob from targeting players in guilds where PvP is disabled
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityTarget(EntityTargetEvent event) {
@@ -235,7 +235,7 @@ public class TownToggleListener implements Listener {
                     player.getLocation().getBlockX(),
                     player.getLocation().getBlockZ(),
                     player.getWorld().getName())) {
-                // Reset target to prevent mob aggression in non-PvP towns
+                // Reset target to prevent mob aggression in non-PvP guilds
                 event.setCancelled(true);
                 event.setTarget(null);
             }

@@ -1,6 +1,6 @@
 package org.aincraft.guilds.events.plot;
 
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.plot.PlotTypeDefinition;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
@@ -11,17 +11,17 @@ import org.bukkit.event.HandlerList;
  */
 public abstract class PlotTypeEvent extends Event {
     private static final HandlerList handlers = new HandlerList();
-    private final TownBlock plot;
+    private final GuildBlock plot;
     private final PlotTypeDefinition plotType;
     private boolean cancelled = false;
     private String cancelReason = null;
 
-    public PlotTypeEvent(TownBlock plot, PlotTypeDefinition plotType) {
+    public PlotTypeEvent(GuildBlock plot, PlotTypeDefinition plotType) {
         this.plot = plot;
         this.plotType = plotType;
     }
 
-    public TownBlock getPlot() {
+    public GuildBlock getPlot() {
         return plot;
     }
 
@@ -61,7 +61,7 @@ public abstract class PlotTypeEvent extends Event {
     public static class PlayerEnterPlotEvent extends PlotTypeEvent {
         private final org.bukkit.entity.Player player;
 
-        public PlayerEnterPlotEvent(org.bukkit.entity.Player player, TownBlock plot, PlotTypeDefinition plotType) {
+        public PlayerEnterPlotEvent(org.bukkit.entity.Player player, GuildBlock plot, PlotTypeDefinition plotType) {
             super(plot, plotType);
             this.player = player;
         }
@@ -84,7 +84,7 @@ public abstract class PlotTypeEvent extends Event {
     public static class PlayerLeavePlotEvent extends PlotTypeEvent {
         private final org.bukkit.entity.Player player;
 
-        public PlayerLeavePlotEvent(org.bukkit.entity.Player player, TownBlock plot, PlotTypeDefinition plotType) {
+        public PlayerLeavePlotEvent(org.bukkit.entity.Player player, GuildBlock plot, PlotTypeDefinition plotType) {
             super(plot, plotType);
             this.player = player;
         }
@@ -110,7 +110,7 @@ public abstract class PlotTypeEvent extends Event {
         private final String oldType;
         private final String newType;
 
-        public PlotTypeChangeEvent(org.bukkit.entity.Player player, TownBlock plot, PlotTypeDefinition plotType, String oldType, String newType) {
+        public PlotTypeChangeEvent(org.bukkit.entity.Player player, GuildBlock plot, PlotTypeDefinition plotType, String oldType, String newType) {
             super(plot, plotType);
             this.player = player;
             this.oldType = oldType;

@@ -1,15 +1,15 @@
 package org.aincraft.guilds.services;
 
-import org.aincraft.guilds.models.TownSpecialization;
+import org.aincraft.guilds.models.GuildSpecialization;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface SpecializationService {
-    Optional<TownSpecialization> getSpecialization(String townId);
-    boolean canSpecialize(String townId);
-    void setSpecialization(String townId, TownSpecialization specialization);
-    void removeSpecialization(String townId);
-    List<TownSpecialization> getAvailableSpecializations(String townId);
-    TownSpecialization fromString(String name);
+    Optional<GuildSpecialization> getSpecialization(String guildId);
+    boolean canSpecialize(String guildId);
+    void setSpecialization(String guildId, GuildSpecialization specialization);
+    void removeSpecialization(String guildId);
+    List<GuildSpecialization> getAvailableSpecializations(String guildId);
+    GuildSpecialization fromString(String name);
 }

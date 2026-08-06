@@ -9,17 +9,17 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.commands.arguments.TownArgumentType;
+import org.aincraft.guilds.commands.arguments.GuildArgumentType;
 import org.aincraft.guilds.commands.arguments.GovernmentFormArgumentType;
 import org.aincraft.guilds.GuildsGovernanceSource;
 import org.aincraft.guilds.models.Location;
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.plot.PlotTypeDefinition;
 import org.aincraft.guilds.plot.PlotTypeRegistry;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.util.List;
 import java.util.Map;
@@ -27,13 +27,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Brigadier implementation of the town command
+ * Brigadier implementation of the guild command
  */
-public class TownBrigadierCommand {
+public class GuildBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
     private final PermissionService permissionService;
     private final TechTreeBrigadierCommand techTreeCommand;
@@ -41,15 +41,15 @@ public class TownBrigadierCommand {
     private final GuildsGovernanceSource governanceSource;
 
 
-    public TownBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                               TownService townService, PlotService plotService,
+    public GuildBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
+                               GuildService guildService, PlotService plotService,
                                PermissionService permissionService,
                                TechTreeBrigadierCommand techTreeCommand,
                                PlotTypeRegistry plotTypeRegistry,
                                GuildsGovernanceSource governanceSource) {
         this.plugin = plugin;
         this.residentService = residentService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
         this.techTreeCommand = techTreeCommand;
@@ -69,7 +69,7 @@ public class TownBrigadierCommand {
             // Join subcommand
             .then(Commands.literal("join")
                 .requires(source -> source.getSender().hasPermission("guilds.town.join"))
-                .then(Commands.argument("town", TownArgumentType.town(townService))
+                .then(Commands.argument("town", GuildArgumentType.guild(guildService))
                     .executes(this::handleJoin)))
             // Leave subcommand
             .then(Commands.literal("leave")
@@ -97,14 +97,14 @@ public class TownBrigadierCommand {
             .then(Commands.literal("info")
                 .requires(source -> source.getSender().hasPermission("guilds.town.info"))
                 .executes(this::handleOwnInfo)
-                .then(Commands.argument("town", TownArgumentType.town(townService))
-                    .executes(this::handleTownInfo)))
+                .then(Commands.argument("town", GuildArgumentType.guild(guildService))
+                    .executes(this::handleGuildInfo)))
             // Spawn subcommand
             .then(Commands.literal("spawn")
                 .requires(source -> source.getSender().hasPermission("guilds.town.spawn"))
                 .executes(this::handleOwnSpawn)
-                .then(Commands.argument("town", TownArgumentType.town(townService))
-                    .executes(this::handleTownSpawn)))
+                .then(Commands.argument("town", GuildArgumentType.guild(guildService))
+                    .executes(this::handleGuildSpawn)))
             // SetSpawn subcommand
             .then(Commands.literal("setspawn")
                 .requires(source -> source.getSender().hasPermission("guilds.town.setspawn"))
@@ -130,7 +130,7 @@ public class TownBrigadierCommand {
                         .executes(this::handleToggleValue))))
             // Tech tree subcommand
             .then(techTreeCommand.buildCommand())
-            // Government subcommand: the town (guild) picks its governance form
+            // Government subcommand: the guild (guild) picks its governance form
             .then(Commands.literal("government")
                 .then(Commands.argument("form", GovernmentFormArgumentType.form())
                     .executes(this::handleGovernment)))
@@ -164,7 +164,7 @@ public class TownBrigadierCommand {
         sender.sendMessage("§6║   §8» Show town information                  §6║");
         sender.sendMessage("§6║                                              §6║");
         sender.sendMessage("§6║ §f/town list                                 §6║");
-        sender.sendMessage("§6║   §8» List all towns                         §6║");
+        sender.sendMessage("§6║   §8» List all guilds                         §6║");
         sender.sendMessage("§6╚══════════════════════════════════════════════╝");
         return Command.SINGLE_SUCCESS;
     }
@@ -176,30 +176,30 @@ public class TownBrigadierCommand {
             return 0;
         }
 
-        String townName = StringArgumentType.getString(ctx, "name");
+        String guildName = StringArgumentType.getString(ctx, "name");
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player already has a town
+        // Check if player already has a guild
         var resident = residentService.getResident(playerUuid);
-        if (resident.isPresent() && resident.get().hasTown()) {
-            player.sendMessage("§cYou are already in a town: " + resident.get().getTown());
+        if (resident.isPresent() && resident.get().hasGuild()) {
+            player.sendMessage("§cYou are already in a town: " + resident.get().getGuild());
             return 0;
         }
 
-        // Check if town already exists
-        if (townService.townExists(townName)) {
+        // Check if guild already exists
+        if (guildService.guildExists(guildName)) {
             player.sendMessage("§cA town with that name already exists!");
             return 0;
         }
 
-        // Validate town name
-        if (townName.length() < 3 || townName.length() > 20) {
+        // Validate guild name
+        if (guildName.length() < 3 || guildName.length() > 20) {
             player.sendMessage("§cTown name must be between 3 and 20 characters!");
             return 0;
         }
 
         try {
-            // Ensure resident exists before creating town
+            // Ensure resident exists before creating guild
             if (!residentService.residentExists(playerUuid)) {
                 residentService.createResident(playerUuid, player.getName());
                 plugin.getLogger().info("Created resident record for player: " + player.getName() + " (" + playerUuid + ")");
@@ -216,8 +216,8 @@ public class TownBrigadierCommand {
                 bukkitLocation.getWorld().getName()
             );
 
-            // Create town with home block at player's current location
-            townService.createTown(townName, playerUuid, homeBlockLocation);
+            // Create guild with home block at player's current location
+            guildService.createGuild(guildName, playerUuid, homeBlockLocation);
 
             // Get chunk coordinates for display and auto-claim
             int[] chunkCoords = homeBlockLocation.getChunkCoordinates();
@@ -228,21 +228,21 @@ public class TownBrigadierCommand {
 
             // Auto-claim the home block chunk
             try {
-                plotService.claimTownBlock(chunkX, chunkZ, world, townName);
-                player.sendMessage("§aSuccessfully created town: §e" + townName);
-                player.sendMessage("§aYou are now the mayor of §e" + townName);
+                plotService.claimGuildBlock(chunkX, chunkZ, world, guildName);
+                player.sendMessage("§aSuccessfully created town: §e" + guildName);
+                player.sendMessage("§aYou are now the mayor of §e" + guildName);
                 player.sendMessage("§7Home block set at chunk [" + chunkCoords[0] + ", " + chunkCoords[1] + "] and automatically claimed!");
                 player.sendMessage("§7Town spawn automatically set at your current location");
             } catch (Exception claimError) {
-                player.sendMessage("§aSuccessfully created town: §e" + townName);
-                player.sendMessage("§aYou are now the mayor of §e" + townName);
+                player.sendMessage("§aSuccessfully created town: §e" + guildName);
+                player.sendMessage("§aYou are now the mayor of §e" + guildName);
                 player.sendMessage("§7Home block set at chunk [" + chunkCoords[0] + ", " + chunkCoords[1] + "]");
                 player.sendMessage("§7Town spawn automatically set at your current location");
                 player.sendMessage("§eWarning: Could not auto-claim home block chunk: " + claimError.getMessage());
             }
         } catch (Exception e) {
             player.sendMessage("§cFailed to create town: " + e.getMessage());
-            plugin.getLogger().warning("Failed to create town " + townName + " for player " + player.getName() + ": " + e.getMessage());
+            plugin.getLogger().warning("Failed to create town " + guildName + " for player " + player.getName() + ": " + e.getMessage());
         }
 
         return Command.SINGLE_SUCCESS;
@@ -255,26 +255,26 @@ public class TownBrigadierCommand {
             return 0;
         }
 
-        String townName = TownArgumentType.getTownName(ctx, "town");
+        String guildName = GuildArgumentType.getGuildName(ctx, "town");
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player already has a town
+        // Check if player already has a guild
         var resident = residentService.getResident(playerUuid);
-        if (resident.isPresent() && resident.get().hasTown()) {
-            player.sendMessage("§cYou are already in a town: " + resident.get().getTown());
+        if (resident.isPresent() && resident.get().hasGuild()) {
+            player.sendMessage("§cYou are already in a town: " + resident.get().getGuild());
             return 0;
         }
 
         try {
-            boolean success = townService.addResidentToTown(townName, playerUuid);
+            boolean success = guildService.addResidentToGuild(guildName, playerUuid);
             if (success) {
-                player.sendMessage("§aSuccessfully joined town: §e" + townName);
+                player.sendMessage("§aSuccessfully joined town: §e" + guildName);
             } else {
                 player.sendMessage("§cFailed to join town. It may be full or closed.");
             }
         } catch (Exception e) {
             player.sendMessage("§cFailed to join town: " + e.getMessage());
-            plugin.getLogger().warning("Failed to join town " + townName + " for player " + player.getName() + ": " + e.getMessage());
+            plugin.getLogger().warning("Failed to join town " + guildName + " for player " + player.getName() + ": " + e.getMessage());
         }
 
         return Command.SINGLE_SUCCESS;
@@ -291,23 +291,23 @@ public class TownBrigadierCommand {
 
         if (residentService.getResident(playerUuid).isPresent()) {
             var resident = residentService.getResident(playerUuid).get();
-            if (!resident.hasTown()) {
+            if (!resident.hasGuild()) {
                 player.sendMessage("§cYou are not in a town!");
                 return 0;
             }
 
-            String townName = resident.getTown();
+            String guildName = resident.getGuild();
 
             // Check if player is the mayor
-            if (permissionService.hasTownAdmin(playerUuid, townName)) {
+            if (permissionService.hasGuildAdmin(playerUuid, guildName)) {
                 player.sendMessage("§cYou cannot leave your town while you are the mayor! Set a new mayor first.");
                 return 0;
             }
 
             try {
-                boolean success = townService.removeResidentFromTown(townName, playerUuid);
+                boolean success = guildService.removeResidentFromGuild(guildName, playerUuid);
                 if (success) {
-                    player.sendMessage("§aYou have left town: §e" + townName);
+                    player.sendMessage("§aYou have left town: §e" + guildName);
                 } else {
                     player.sendMessage("§cFailed to leave town.");
                 }
@@ -331,39 +331,39 @@ public class TownBrigadierCommand {
 
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         if (residentService.getResident(playerUuid).isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
         var resident = residentService.getResident(playerUuid).get();
-        if (!resident.hasTown()) {
+        if (!resident.hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.getTown();
+        String guildName = resident.getGuild();
 
         // Check if player is the mayor
-        if (!permissionService.hasTownAdmin(playerUuid, townName)) {
+        if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
             player.sendMessage("§cOnly the mayor can delete the town!");
             return 0;
         }
 
-        // Get town info for confirmation
-        var townOpt = townService.getTown(townName);
-        if (townOpt.isEmpty()) {
+        // Get guild info for confirmation
+        var guildOpt = guildService.getGuild(guildName);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cFailed to load town data!");
             return 0;
         }
 
-        var town = townOpt.get();
-        int claimCount = plotService.getTownBlockCount(townName);
+        var guild = guildOpt.get();
+        int claimCount = plotService.getGuildBlockCount(guildName);
 
-        player.sendMessage("§cAre you sure you want to delete §e" + townName + "§c?");
+        player.sendMessage("§cAre you sure you want to delete §e" + guildName + "§c?");
         player.sendMessage("§eThis action cannot be undone!");
-        player.sendMessage("§7Town has " + town.getResidentCount() + " resident(s) and a balance of $" + String.format("%.2f", town.getBalance()));
+        player.sendMessage("§7Town has " + guild.getResidentCount() + " resident(s) and a balance of $" + String.format("%.2f", guild.getBalance()));
         player.sendMessage("§7Town has " + claimCount + " claimed chunk(s) that will be unclaimed");
         player.sendMessage("§aType §f/town delete confirm §ato confirm deletion.");
 
@@ -379,40 +379,40 @@ public class TownBrigadierCommand {
 
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         if (residentService.getResident(playerUuid).isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
         var resident = residentService.getResident(playerUuid).get();
-        if (!resident.hasTown()) {
+        if (!resident.hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.getTown();
+        String guildName = resident.getGuild();
 
         // Check if player is the mayor
-        if (!permissionService.hasTownAdmin(playerUuid, townName)) {
+        if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
             player.sendMessage("§cOnly the mayor can delete the town!");
             return 0;
         }
 
-        int claimCount = plotService.getTownBlockCount(townName);
+        int claimCount = plotService.getGuildBlockCount(guildName);
 
-        // Delete the town
+        // Delete the guild
         try {
-            boolean success = townService.deleteTown(townName);
+            boolean success = guildService.deleteGuild(guildName);
             if (success) {
-                player.sendMessage("§aTown §e" + townName + " §ahas been deleted!");
+                player.sendMessage("§aTown §e" + guildName + " §ahas been deleted!");
                 player.sendMessage("§7All residents have been removed and " + claimCount + " chunk(s) have been unclaimed.");
             } else {
                 player.sendMessage("§cFailed to delete town!");
             }
         } catch (Exception e) {
             player.sendMessage("§cFailed to delete town: " + e.getMessage());
-            plugin.getLogger().warning("Failed to delete town " + townName + " for player " + player.getName() + ": " + e.getMessage());
+            plugin.getLogger().warning("Failed to delete town " + guildName + " for player " + player.getName() + ": " + e.getMessage());
         }
 
         return Command.SINGLE_SUCCESS;
@@ -427,22 +427,22 @@ public class TownBrigadierCommand {
 
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         if (residentService.getResident(playerUuid).isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
         var resident = residentService.getResident(playerUuid).get();
-        if (!resident.hasTown()) {
+        if (!resident.hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.getTown();
+        String guildName = resident.getGuild();
 
         // Check if player has permission to claim
-        if (!permissionService.hasPermission(playerUuid, "claim", "town", townName)) {
+        if (!permissionService.hasPermission(playerUuid, "claim", "town", guildName)) {
             player.sendMessage("§cYou don't have permission to claim land for your town!");
             return 0;
         }
@@ -454,16 +454,16 @@ public class TownBrigadierCommand {
         String world = player.getWorld().getName();
 
         // Check if chunk is already claimed
-        if (plotService.townBlockExists(chunkX, chunkZ, world)) {
+        if (plotService.guildBlockExists(chunkX, chunkZ, world)) {
             player.sendMessage("§cThis chunk is already claimed!");
             return 0;
         }
 
-        // Check if town has reached its claim limit
-        int currentClaims = plotService.getTownBlockCount(townName);
-        var townOpt = townService.getTown(townName);
-        if (townOpt.isPresent()) {
-            var levelData = townOpt.get().getLevelData();
+        // Check if guild has reached its claim limit
+        int currentClaims = plotService.getGuildBlockCount(guildName);
+        var guildOpt = guildService.getGuild(guildName);
+        if (guildOpt.isPresent()) {
+            var levelData = guildOpt.get().getLevelData();
             int maxClaims = levelData.getMaxClaimLimit();
             if (levelData.isAtClaimLimit(currentClaims)) {
                 player.sendMessage("§cYour town has reached its claim limit! §7(" + currentClaims + "/" + maxClaims + " chunks)");
@@ -472,8 +472,8 @@ public class TownBrigadierCommand {
             }
         }
 
-        // Check if this claim is adjacent to an existing town claim
-        if (!isAdjacentToTownClaim(chunkX, chunkZ, world, townName)) {
+        // Check if this claim is adjacent to an existing guild claim
+        if (!isAdjacentToGuildClaim(chunkX, chunkZ, world, guildName)) {
             player.sendMessage("§cClaims must be adjacent to your existing town chunks!");
             player.sendMessage("§7You can only claim chunks that touch your town's territory.");
             return 0;
@@ -481,10 +481,10 @@ public class TownBrigadierCommand {
 
         // Claim the chunk
         try {
-            boolean success = plotService.claimTownBlock(chunkX, chunkZ, world, townName);
+            boolean success = plotService.claimGuildBlock(chunkX, chunkZ, world, guildName);
             if (success) {
-                player.sendMessage("§aSuccessfully claimed chunk [" + chunkX + ", " + chunkZ + "] for §e" + townName + "§a!");
-                plugin.getLogger().info("Player " + player.getName() + " claimed chunk [" + chunkX + ", " + chunkZ + "] for town " + townName);
+                player.sendMessage("§aSuccessfully claimed chunk [" + chunkX + ", " + chunkZ + "] for §e" + guildName + "§a!");
+                plugin.getLogger().info("Player " + player.getName() + " claimed chunk [" + chunkX + ", " + chunkZ + "] for town " + guildName);
             } else {
                 player.sendMessage("§cFailed to claim chunk!");
             }
@@ -505,22 +505,22 @@ public class TownBrigadierCommand {
 
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         if (residentService.getResident(playerUuid).isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
         var resident = residentService.getResident(playerUuid).get();
-        if (!resident.hasTown()) {
+        if (!resident.hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.getTown();
+        String guildName = resident.getGuild();
 
         // Check if player has permission to unclaim
-        if (!permissionService.hasPermission(playerUuid, "unclaim", "town", townName)) {
+        if (!permissionService.hasPermission(playerUuid, "unclaim", "town", guildName)) {
             player.sendMessage("§cYou don't have permission to unclaim land for your town!");
             return 0;
         }
@@ -531,26 +531,26 @@ public class TownBrigadierCommand {
         int chunkZ = chunk.getZ();
         String world = player.getWorld().getName();
 
-        // Check if chunk is claimed by this town
-        var townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
-        if (townBlock.isEmpty()) {
+        // Check if chunk is claimed by this guild
+        var guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
+        if (guildBlock.isEmpty()) {
             player.sendMessage("§cThis chunk is not claimed!");
             return 0;
         }
 
-        // Get the town that owns this chunk
-        var blockTown = townService.getTownById(townBlock.get().getTownId());
-        if (blockTown.isEmpty() || !blockTown.get().getName().equals(townName)) {
+        // Get the guild that owns this chunk
+        var blockGuild = guildService.getGuildById(guildBlock.get().getGuildId());
+        if (blockGuild.isEmpty() || !blockGuild.get().getName().equals(guildName)) {
             player.sendMessage("§cThis chunk doesn't belong to your town!");
             return 0;
         }
 
         // Unclaim the chunk
         try {
-            boolean success = plotService.unclaimTownBlock(chunkX, chunkZ, world);
+            boolean success = plotService.unclaimGuildBlock(chunkX, chunkZ, world);
             if (success) {
                 player.sendMessage("§aSuccessfully unclaimed chunk [" + chunkX + ", " + chunkZ + "]!");
-                plugin.getLogger().info("Player " + player.getName() + " unclaimed chunk [" + chunkX + ", " + chunkZ + "] from town " + townName);
+                plugin.getLogger().info("Player " + player.getName() + " unclaimed chunk [" + chunkX + ", " + chunkZ + "] from town " + guildName);
             } else {
                 player.sendMessage("§cFailed to unclaim chunk!");
             }
@@ -564,23 +564,23 @@ public class TownBrigadierCommand {
 
     private int handleList(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        var towns = townService.getAllTowns();
+        var guilds = guildService.getAllGuilds();
 
-        if (towns.isEmpty()) {
-            sender.sendMessage("§eThere are no towns yet.");
+        if (guilds.isEmpty()) {
+            sender.sendMessage("§eThere are no guilds yet.");
             return Command.SINGLE_SUCCESS;
         }
 
-        sender.sendMessage("§e=== Towns (" + towns.size() + ") ===");
-        for (int i = 0; i < Math.min(towns.size(), 10); i++) {
-            var town = towns.get(i);
-            int residentCount = townService.getTownResidentCount(town.getName());
+        sender.sendMessage("§e=== Towns (" + guilds.size() + ") ===");
+        for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
+            var guild = guilds.get(i);
+            int residentCount = guildService.getGuildResidentCount(guild.getName());
 
-            sender.sendMessage("§f" + (i + 1) + ". §a" + town.getName() + " §7(" + residentCount + " residents)");
+            sender.sendMessage("§f" + (i + 1) + ". §a" + guild.getName() + " §7(" + residentCount + " residents)");
         }
 
-        if (towns.size() > 10) {
-            sender.sendMessage("§7And " + (towns.size() - 10) + " more...");
+        if (guilds.size() > 10) {
+            sender.sendMessage("§7And " + (guilds.size() - 10) + " more...");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -597,20 +597,20 @@ public class TownBrigadierCommand {
 
         if (residentService.getResident(playerUuid).isPresent()) {
             var resident = residentService.getResident(playerUuid).get();
-            if (!resident.hasTown()) {
+            if (!resident.hasGuild()) {
                 player.sendMessage("§cYou are not in a town!");
                 return Command.SINGLE_SUCCESS;
             }
 
-            String townName = resident.getTown();
-            if (townService.getTown(townName).isPresent()) {
-                var town = townService.getTown(townName).get();
-                player.sendMessage("§e=== " + townName + " ===");
-                player.sendMessage("§fMayor: §a" + town.getMayorUuid());
-                player.sendMessage("§fResidents: §a" + town.getResidentCount());
-                player.sendMessage("§fBalance: §6$" + String.format("%.2f", town.getBalance()));
-                player.sendMessage("§fOpen: " + (town.isOpen() ? "§aYes" : "§cNo"));
-                sendPlotTypeBreakdown(player, townName);
+            String guildName = resident.getGuild();
+            if (guildService.getGuild(guildName).isPresent()) {
+                var guild = guildService.getGuild(guildName).get();
+                player.sendMessage("§e=== " + guildName + " ===");
+                player.sendMessage("§fMayor: §a" + guild.getMayorUuid());
+                player.sendMessage("§fResidents: §a" + guild.getResidentCount());
+                player.sendMessage("§fBalance: §6$" + String.format("%.2f", guild.getBalance()));
+                player.sendMessage("§fOpen: " + (guild.isOpen() ? "§aYes" : "§cNo"));
+                sendPlotTypeBreakdown(player, guildName);
             } else {
                 player.sendMessage("§cTown information could not be loaded.");
             }
@@ -621,18 +621,18 @@ public class TownBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleTownInfo(CommandContext<CommandSourceStack> ctx) {
+    private int handleGuildInfo(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        String townName = TownArgumentType.getTownName(ctx, "town");
+        String guildName = GuildArgumentType.getGuildName(ctx, "town");
 
-        if (townService.getTown(townName).isPresent()) {
-            var town = townService.getTown(townName).get();
-            sender.sendMessage("§e=== " + townName + " ===");
-            sender.sendMessage("§fMayor: §a" + town.getMayorUuid());
-            sender.sendMessage("§fResidents: §a" + town.getResidentCount());
-            sender.sendMessage("§fBalance: §6$" + String.format("%.2f", town.getBalance()));
-            sender.sendMessage("§fOpen: " + (town.isOpen() ? "§aYes" : "§cNo"));
-            sendPlotTypeBreakdown(sender, townName);
+        if (guildService.getGuild(guildName).isPresent()) {
+            var guild = guildService.getGuild(guildName).get();
+            sender.sendMessage("§e=== " + guildName + " ===");
+            sender.sendMessage("§fMayor: §a" + guild.getMayorUuid());
+            sender.sendMessage("§fResidents: §a" + guild.getResidentCount());
+            sender.sendMessage("§fBalance: §6$" + String.format("%.2f", guild.getBalance()));
+            sender.sendMessage("§fOpen: " + (guild.isOpen() ? "§aYes" : "§cNo"));
+            sendPlotTypeBreakdown(sender, guildName);
         } else {
             sender.sendMessage("§cTown information could not be loaded.");
         }
@@ -651,40 +651,40 @@ public class TownBrigadierCommand {
 
         if (residentService.getResident(playerUuid).isPresent()) {
             var resident = residentService.getResident(playerUuid).get();
-            if (!resident.hasTown()) {
+            if (!resident.hasGuild()) {
                 player.sendMessage("§cYou are not in a town!");
                 return 0;
             }
 
-            String townName = resident.getTown();
+            String guildName = resident.getGuild();
 
-            // Check if player can teleport to this town's spawn
-            if (!townService.canTeleportToSpawn(playerUuid, townName)) {
-                player.sendMessage("§cYou cannot teleport to " + townName + "'s spawn!");
+            // Check if player can teleport to this guild's spawn
+            if (!guildService.canTeleportToSpawn(playerUuid, guildName)) {
+                player.sendMessage("§cYou cannot teleport to " + guildName + "'s spawn!");
                 return 0;
             }
 
             // Get spawn location
-            var spawnLocation = townService.getTownSpawn(townName);
+            var spawnLocation = guildService.getGuildSpawn(guildName);
             if (spawnLocation.isEmpty()) {
-                player.sendMessage("§cTown " + townName + " does not have a spawn point set!");
+                player.sendMessage("§cTown " + guildName + " does not have a spawn point set!");
                 return 0;
             }
 
             // Convert our Location to Bukkit Location
-            Location townSpawn = spawnLocation.get();
+            Location guildSpawn = spawnLocation.get();
             org.bukkit.Location bukkitLocation = new org.bukkit.Location(
-                org.bukkit.Bukkit.getWorld(townSpawn.getWorld()),
-                townSpawn.getX(),
-                townSpawn.getY(),
-                townSpawn.getZ(),
-                townSpawn.getYaw(),
-                townSpawn.getPitch()
+                org.bukkit.Bukkit.getWorld(guildSpawn.getWorld()),
+                guildSpawn.getX(),
+                guildSpawn.getY(),
+                guildSpawn.getZ(),
+                guildSpawn.getYaw(),
+                guildSpawn.getPitch()
             );
 
             // Teleport player
             player.teleport(bukkitLocation);
-            player.sendMessage("§aTeleported to §e" + townName + " §aspawn!");
+            player.sendMessage("§aTeleported to §e" + guildName + " §aspawn!");
 
         } else {
             player.sendMessage("§cYour resident data could not be loaded!");
@@ -693,43 +693,43 @@ public class TownBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleTownSpawn(CommandContext<CommandSourceStack> ctx) {
+    private int handleGuildSpawn(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         if (!(sender instanceof org.bukkit.entity.Player player)) {
             sender.sendMessage("§cThis command can only be used by players.");
             return 0;
         }
 
-        String townName = TownArgumentType.getTownName(ctx, "town");
+        String guildName = GuildArgumentType.getGuildName(ctx, "town");
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player can teleport to this town's spawn
-        if (!townService.canTeleportToSpawn(playerUuid, townName)) {
-            player.sendMessage("§cYou cannot teleport to " + townName + "'s spawn!");
+        // Check if player can teleport to this guild's spawn
+        if (!guildService.canTeleportToSpawn(playerUuid, guildName)) {
+            player.sendMessage("§cYou cannot teleport to " + guildName + "'s spawn!");
             return 0;
         }
 
         // Get spawn location
-        var spawnLocation = townService.getTownSpawn(townName);
+        var spawnLocation = guildService.getGuildSpawn(guildName);
         if (spawnLocation.isEmpty()) {
-            player.sendMessage("§cTown " + townName + " does not have a spawn point set!");
+            player.sendMessage("§cTown " + guildName + " does not have a spawn point set!");
             return 0;
         }
 
         // Convert our Location to Bukkit Location
-        Location townSpawn = spawnLocation.get();
+        Location guildSpawn = spawnLocation.get();
         org.bukkit.Location bukkitLocation = new org.bukkit.Location(
-            org.bukkit.Bukkit.getWorld(townSpawn.getWorld()),
-            townSpawn.getX(),
-            townSpawn.getY(),
-            townSpawn.getZ(),
-            townSpawn.getYaw(),
-            townSpawn.getPitch()
+            org.bukkit.Bukkit.getWorld(guildSpawn.getWorld()),
+            guildSpawn.getX(),
+            guildSpawn.getY(),
+            guildSpawn.getZ(),
+            guildSpawn.getYaw(),
+            guildSpawn.getPitch()
         );
 
         // Teleport player
         player.teleport(bukkitLocation);
-        player.sendMessage("§aTeleported to §e" + townName + " §aspawn!");
+        player.sendMessage("§aTeleported to §e" + guildName + " §aspawn!");
 
         return Command.SINGLE_SUCCESS;
     }
@@ -743,35 +743,35 @@ public class TownBrigadierCommand {
 
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         if (residentService.getResident(playerUuid).isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
         var resident = residentService.getResident(playerUuid).get();
-        if (!resident.hasTown()) {
+        if (!resident.hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.getTown();
+        String guildName = resident.getGuild();
 
         // Check if player has permission to set spawn
-        if (!permissionService.hasPermission(playerUuid, "set_spawn", "town", townName)) {
+        if (!permissionService.hasPermission(playerUuid, "set_spawn", "town", guildName)) {
             player.sendMessage("§cYou don't have permission to set the town spawn!");
             return 0;
         }
 
-        // Get the town to check home block
-        var townOpt = townService.getTown(townName);
-        if (townOpt.isEmpty()) {
+        // Get the guild to check home block
+        var guildOpt = guildService.getGuild(guildName);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cFailed to load town data!");
             return 0;
         }
 
-        var town = townOpt.get();
-        if (town.getHomeBlock() == null) {
+        var guild = guildOpt.get();
+        if (guild.getHomeBlock() == null) {
             player.sendMessage("§cYour town does not have a home block set!");
             player.sendMessage("§7A home block must be set before setting a spawn.");
             return 0;
@@ -779,7 +779,7 @@ public class TownBrigadierCommand {
 
         // Get player's current location
         org.bukkit.Location bukkitLocation = player.getLocation();
-        Location townSpawn = new Location(
+        Location guildSpawn = new Location(
             bukkitLocation.getX(),
             bukkitLocation.getY(),
             bukkitLocation.getZ(),
@@ -789,8 +789,8 @@ public class TownBrigadierCommand {
         );
 
         // Check if player is in the home block chunk
-        int[] spawnChunk = townSpawn.getChunkCoordinates();
-        int[] homeBlockChunk = town.getHomeBlock().getChunkCoordinates();
+        int[] spawnChunk = guildSpawn.getChunkCoordinates();
+        int[] homeBlockChunk = guild.getHomeBlock().getChunkCoordinates();
 
         if (spawnChunk[0] != homeBlockChunk[0] || spawnChunk[1] != homeBlockChunk[1]) {
             player.sendMessage("§cYou must be in your town's home block chunk to set the spawn!");
@@ -800,15 +800,15 @@ public class TownBrigadierCommand {
         }
 
         // Check world matches
-        if (!townSpawn.getWorld().equals(town.getHomeBlock().getWorld())) {
+        if (!guildSpawn.getWorld().equals(guild.getHomeBlock().getWorld())) {
             player.sendMessage("§cYou must be in the same world as your town's home block!");
             return 0;
         }
 
-        // Set the town spawn
-        if (townService.setTownSpawn(townName, townSpawn)) {
-            player.sendMessage("§aTown spawn set for §e" + townName + "§a!");
-            player.sendMessage("§7Spawn location: " + townSpawn.toDisplayString());
+        // Set the guild spawn
+        if (guildService.setGuildSpawn(guildName, guildSpawn)) {
+            player.sendMessage("§aTown spawn set for §e" + guildName + "§a!");
+            player.sendMessage("§7Spawn location: " + guildSpawn.toDisplayString());
         } else {
             player.sendMessage("§cFailed to set town spawn!");
         }
@@ -841,34 +841,34 @@ public class TownBrigadierCommand {
 
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         var resident = residentService.getResident(playerUuid);
         if (resident.isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
-        if (!resident.get().hasTown()) {
+        if (!resident.get().hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.get().getTown();
+        String guildName = resident.get().getGuild();
 
-        // Check if player has permission to toggle town settings
-        if (!permissionService.hasTownAdmin(playerUuid, townName)) {
+        // Check if player has permission to toggle guild settings
+        if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
             player.sendMessage("§cYou don't have permission to toggle town settings!");
             return 0;
         }
 
         // Show current toggle states
-        var toggles = townService.getTownToggles(townName);
+        var toggles = guildService.getGuildToggles(guildName);
         if (toggles.isEmpty()) {
             player.sendMessage("§cFailed to load toggle states!");
             return 0;
         }
 
-        player.sendMessage("§e=== §a" + townName + " §eToggles ===");
+        player.sendMessage("§e=== §a" + guildName + " §eToggles ===");
         player.sendMessage("§7PvP: " + (toggles.get("pvp") ? "§aENABLED" : "§cDISABLED"));
         player.sendMessage("§7Fire: " + (toggles.get("fire") ? "§aENABLED" : "§cDISABLED"));
         player.sendMessage("§7Explosions: " + (toggles.get("explosions") ? "§aENABLED" : "§cDISABLED"));
@@ -888,22 +888,22 @@ public class TownBrigadierCommand {
         String toggleType = StringArgumentType.getString(ctx, "type");
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         var resident = residentService.getResident(playerUuid);
         if (resident.isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
-        if (!resident.get().hasTown()) {
+        if (!resident.get().hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.get().getTown();
+        String guildName = resident.get().getGuild();
 
-        // Check if player has permission to toggle town settings
-        if (!permissionService.hasTownAdmin(playerUuid, townName)) {
+        // Check if player has permission to toggle guild settings
+        if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
             player.sendMessage("§cYou don't have permission to toggle town settings!");
             return 0;
         }
@@ -914,9 +914,9 @@ public class TownBrigadierCommand {
             return 0;
         }
 
-        boolean success = townService.toggleTownPermission(townName, toggleType, playerUuid);
+        boolean success = guildService.toggleGuildPermission(guildName, toggleType, playerUuid);
         if (success) {
-            boolean newState = townService.getTownToggle(townName, toggleType);
+            boolean newState = guildService.getGuildToggle(guildName, toggleType);
             String displayName = getToggleDisplayName(toggleType);
             player.sendMessage("§aToggled §e" + displayName + " §a" +
                              (newState ? "§aON" : "§cOFF"));
@@ -938,22 +938,22 @@ public class TownBrigadierCommand {
         String valueStr = StringArgumentType.getString(ctx, "value").toLowerCase();
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         var resident = residentService.getResident(playerUuid);
         if (resident.isEmpty()) {
             player.sendMessage("§cYour resident data could not be loaded!");
             return 0;
         }
 
-        if (!resident.get().hasTown()) {
+        if (!resident.get().hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.get().getTown();
+        String guildName = resident.get().getGuild();
 
-        // Check if player has permission to toggle town settings
-        if (!permissionService.hasTownAdmin(playerUuid, townName)) {
+        // Check if player has permission to toggle guild settings
+        if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
             player.sendMessage("§cYou don't have permission to toggle town settings!");
             return 0;
         }
@@ -974,7 +974,7 @@ public class TownBrigadierCommand {
             return 0;
         }
 
-        boolean success = townService.setTownToggle(townName, toggleType, value, playerUuid);
+        boolean success = guildService.setGuildToggle(guildName, toggleType, value, playerUuid);
         if (success) {
             String displayName = getToggleDisplayName(toggleType);
             player.sendMessage("§aSet §e" + displayName + " §ato " +
@@ -1003,12 +1003,12 @@ public class TownBrigadierCommand {
         }
     }
 
-    private boolean isAdjacentToTownClaim(int chunkX, int chunkZ, String world, String townName) {
-        // Get all town blocks for this town
-        var townBlocks = plotService.getTownBlocksInTown(townName);
+    private boolean isAdjacentToGuildClaim(int chunkX, int chunkZ, String world, String guildName) {
+        // Get all guild blocks for this guild
+        var guildBlocks = plotService.getGuildBlocksInGuild(guildName);
 
-        // If town has no claims yet, allow first claim (should only happen if home block wasn't claimed)
-        if (townBlocks.isEmpty()) {
+        // If guild has no claims yet, allow first claim (should only happen if home block wasn't claimed)
+        if (guildBlocks.isEmpty()) {
             return true;
         }
 
@@ -1024,13 +1024,13 @@ public class TownBrigadierCommand {
             int adjacentX = chunkX + offset[0];
             int adjacentZ = chunkZ + offset[1];
 
-            // Check if there's a town block at this adjacent position
-            var adjacentBlock = plotService.getTownBlock(adjacentX, adjacentZ, world);
+            // Check if there's a guild block at this adjacent position
+            var adjacentBlock = plotService.getGuildBlock(adjacentX, adjacentZ, world);
             if (adjacentBlock.isPresent()) {
-                // Check if it belongs to this town
-                var blockTown = townService.getTownById(adjacentBlock.get().getTownId());
-                if (blockTown.isPresent() && blockTown.get().getName().equals(townName)) {
-                    return true; // Found an adjacent claim from this town
+                // Check if it belongs to this guild
+                var blockGuild = guildService.getGuildById(adjacentBlock.get().getGuildId());
+                if (blockGuild.isPresent() && blockGuild.get().getName().equals(guildName)) {
+                    return true; // Found an adjacent claim from this guild
                 }
             }
         }
@@ -1038,8 +1038,8 @@ public class TownBrigadierCommand {
         return false; // No adjacent claims found
     }
 
-    private void sendPlotTypeBreakdown(org.bukkit.command.CommandSender sender, String townName) {
-        List<TownBlock> blocks = plotService.getTownBlocksInTown(townName);
+    private void sendPlotTypeBreakdown(org.bukkit.command.CommandSender sender, String guildName) {
+        List<GuildBlock> blocks = plotService.getGuildBlocksInGuild(guildName);
 
         if (blocks.isEmpty()) {
             sender.sendMessage("§fPlots: §70 total");
@@ -1064,8 +1064,8 @@ public class TownBrigadierCommand {
     }
 
     /**
-     * /town government &lt;form&gt; — the town (guild) picks its governance form;
-     * seats derive from town roles (mayor, assistants, residents). Mayor only.
+     * /guild government &lt;form&gt; — the guild (guild) picks its governance form;
+     * seats derive from guild roles (mayor, assistants, residents). Mayor only.
      */
     private int handleGovernment(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
@@ -1078,27 +1078,27 @@ public class TownBrigadierCommand {
         com.azoth.territory.model.GovernmentForm form = GovernmentFormArgumentType.getForm(ctx, "form");
 
         var residentOpt = residentService.getResident(playerUuid);
-        if (residentOpt.isEmpty() || !residentOpt.get().hasTown()) {
+        if (residentOpt.isEmpty() || !residentOpt.get().hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = residentOpt.get().getTown();
-        var townOpt = townService.getTown(townName);
-        if (townOpt.isEmpty()) {
+        String guildName = residentOpt.get().getGuild();
+        var guildOpt = guildService.getGuild(guildName);
+        if (guildOpt.isEmpty()) {
             player.sendMessage("§cFailed to load town data!");
             return 0;
         }
 
-        var town = townOpt.get();
+        var guild = guildOpt.get();
 
-        // Governance-form changes are mayor-only (hasTownAdmin would admit assistants).
-        if (town.getMayorUuid() == null || !town.getMayorUuid().equals(playerUuid)) {
+        // Governance-form changes are mayor-only (hasGuildAdmin would admit assistants).
+        if (guild.getMayorUuid() == null || !guild.getMayorUuid().equals(playerUuid)) {
             player.sendMessage("§cOnly the mayor can change the town's government!");
             return 0;
         }
 
-        if (!governanceSource.setTownForm(town.getId(), form)) {
+        if (!governanceSource.setGuildForm(guild.getId(), form)) {
             player.sendMessage("§cFailed to persist the governance form!");
             return 0;
         }

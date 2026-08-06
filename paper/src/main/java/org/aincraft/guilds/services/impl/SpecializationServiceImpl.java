@@ -4,10 +4,10 @@ package org.aincraft.guilds.services.impl;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownSpecialization;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildSpecialization;
 import org.aincraft.guilds.services.SpecializationService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -26,76 +26,76 @@ public class SpecializationServiceImpl implements SpecializationService {
 
     private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
-    private final TownService townService;
+    private final GuildService guildService;
 
-    /** In-memory cache of town specializations */
-    private final Map<String, TownSpecialization> cache = new HashMap<>();
+    /** In-memory cache of guild specializations */
+    private final Map<String, GuildSpecialization> cache = new HashMap<>();
     private boolean initialized = false;
 
 
     public SpecializationServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager,
-                                     TownService townService) {
+                                     GuildService guildService) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
-        this.townService = townService;
+        this.guildService = guildService;
     }
 
     @Override
-    public Optional<TownSpecialization> getSpecialization(String townId) {
+    public Optional<GuildSpecialization> getSpecialization(String guildId) {
         ensureInitialized();
-        return Optional.ofNullable(cache.get(townId));
+        return Optional.ofNullable(cache.get(guildId));
     }
 
     @Override
-    public boolean canSpecialize(String townId) {
-        Optional<Town> town = townService.getTown(townId);
-        if (town.isEmpty()) {
+    public boolean canSpecialize(String guildId) {
+        Optional<Guild> guild = guildService.getGuild(guildId);
+        if (guild.isEmpty()) {
             return false;
         }
-        return town.get().getTownLevel() >= 10;
+        return guild.get().getGuildLevel() >= 10;
     }
 
     @Override
-    public void setSpecialization(String townId, TownSpecialization specialization) {
+    public void setSpecialization(String guildId, GuildSpecialization specialization) {
         databaseManager.executeTransaction(conn -> {
             String sql = """
-                INSERT OR REPLACE INTO town_specializations
-                (town_id, specialization, set_at)
+                INSERT OR REPLACE INTO guild_specializations
+                (guild_id, specialization, set_at)
                 VALUES (?, ?, ?)
                 """;
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, townId);
+                ps.setString(1, guildId);
                 ps.setString(2, specialization.name());
                 ps.setString(3, LocalDateTime.now().toString());
                 ps.executeUpdate();
-                cache.put(townId, specialization);
+                cache.put(guildId, specialization);
             }
         });
     }
 
     @Override
-    public void removeSpecialization(String townId) {
+    public void removeSpecialization(String guildId) {
         databaseManager.executeTransaction(conn -> {
-            String sql = "DELETE FROM town_specializations WHERE town_id = ?";
+            String sql = "DELETE FROM guild_specializations WHERE guild_id = ?";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, townId);
+                ps.setString(1, guildId);
                 ps.executeUpdate();
-                cache.remove(townId);
+                cache.remove(guildId);
             }
         });
     }
 
     @Override
-    public List<TownSpecialization> getAvailableSpecializations(String townId) {
-        return Arrays.stream(TownSpecialization.values())
-                .filter(spec -> getTownLevel(townId) >= spec.getRequiredLevel())
+    public List<GuildSpecialization> getAvailableSpecializations(String guildId) {
+        return Arrays.stream(GuildSpecialization.values())
+                .filter(spec -> getGuildLevel(guildId) >= spec.getRequiredLevel())
                 .toList();
     }
 
     @Override
-    public TownSpecialization fromString(String name) {
+    public GuildSpecialization fromString(String name) {
         try {
-            return TownSpecialization.valueOf(name.toUpperCase());
+            return GuildSpecialization.valueOf(name.toUpperCase());
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -109,18 +109,18 @@ public class SpecializationServiceImpl implements SpecializationService {
     }
 
     private void loadFromDatabase() {
-        String sql = "SELECT town_id, specialization FROM town_specializations";
+        String sql = "SELECT guild_id, specialization FROM guild_specializations";
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
-                String townId = rs.getString("town_id");
+                String guildId = rs.getString("guild_id");
                 String specName = rs.getString("specialization");
                 try {
-                    TownSpecialization specialization = TownSpecialization.valueOf(specName);
-                    cache.put(townId, specialization);
+                    GuildSpecialization specialization = GuildSpecialization.valueOf(specName);
+                    cache.put(guildId, specialization);
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().log(Level.WARNING, "Invalid specialization stored for town " + townId + ": " + specName);
+                    plugin.getLogger().log(Level.WARNING, "Invalid specialization stored for town " + guildId + ": " + specName);
                 }
             }
             plugin.getLogger().info("Loaded " + cache.size() + " town specializations from database");
@@ -129,9 +129,9 @@ public class SpecializationServiceImpl implements SpecializationService {
         }
     }
 
-    private int getTownLevel(String townId) {
-        return townService.getTown(townId)
-                .map(Town::getTownLevel)
+    private int getGuildLevel(String guildId) {
+        return guildService.getGuild(guildId)
+                .map(Guild::getGuildLevel)
                 .orElse(0);
     }
 }

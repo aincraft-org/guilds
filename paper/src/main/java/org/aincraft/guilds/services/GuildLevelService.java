@@ -1,72 +1,72 @@
 package org.aincraft.guilds.services;
 
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownLevel;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildLevel;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Service interface for town level system operations
+ * Service interface for guild level system operations
  */
-public interface TownLevelService {
+public interface GuildLevelService {
 
     /**
-     * Get a town level definition by level number
+     * Get a guild level definition by level number
      * @param level Level number
-     * @return Town level definition if found
+     * @return Guild level definition if found
      */
-    Optional<TownLevel> getTownLevel(int level);
+    Optional<GuildLevel> getGuildLevel(int level);
 
     /**
-     * Get the level definition for the next level of a town
-     * @param town Town to get next level for
+     * Get the level definition for the next level of a guild
+     * @param guild Guild to get next level for
      * @return Next level definition if available
      */
-    Optional<TownLevel> getNextTownLevel(Town town);
+    Optional<GuildLevel> getNextGuildLevel(Guild guild);
 
     /**
-     * Get all town level definitions
-     * @return List of all town levels
+     * Get all guild level definitions
+     * @return List of all guild levels
      */
-    List<TownLevel> getAllTownLevels();
+    List<GuildLevel> getAllGuildLevels();
 
     /**
-     * Get a range of town levels
+     * Get a range of guild levels
      * @param startLevel Starting level
      * @param endLevel Ending level
-     * @return List of town levels in the specified range
+     * @return List of guild levels in the specified range
      */
-    List<TownLevel> getTownLevelsInRange(int startLevel, int endLevel);
+    List<GuildLevel> getGuildLevelsInRange(int startLevel, int endLevel);
 
     /**
-     * Check if a town can upgrade to the next level
-     * @param town Town to check
+     * Check if a guild can upgrade to the next level
+     * @param guild Guild to check
      * @return Upgrade eligibility result
      */
-    UpgradeEligibility checkUpgradeEligibility(Town town);
+    UpgradeEligibility checkUpgradeEligibility(Guild guild);
 
     /**
-     * Process a town level upgrade
-     * @param town Town to upgrade
+     * Process a guild level upgrade
+     * @param guild Guild to upgrade
      * @return Upgrade result
      */
-    UpgradeResult performTownUpgrade(Town town);
+    UpgradeResult performGuildUpgrade(Guild guild);
 
     /**
-     * Calculate the total resources contributed by a town for the next level
-     * @param town Town to calculate for
+     * Calculate the total resources contributed by a guild for the next level
+     * @param guild Guild to calculate for
      * @return Map of resource types to contributed amounts
      */
-    Map<String, Integer> calculateTotalContributions(Town town);
+    Map<String, Integer> calculateTotalContributions(Guild guild);
 
     /**
-     * Calculate the upgrade progress percentage for a town
-     * @param town Town to calculate for
+     * Calculate the upgrade progress percentage for a guild
+     * @param guild Guild to calculate for
      * @return Progress percentage (0-100)
      */
-    double calculateUpgradeProgress(Town town);
+    double calculateUpgradeProgress(Guild guild);
 
     /**
      * Get the maximum level available in the system
@@ -75,11 +75,11 @@ public interface TownLevelService {
     int getMaxLevel();
 
     /**
-     * Check if a town has reached the maximum level
-     * @param town Town to check
+     * Check if a guild has reached the maximum level
+     * @param guild Guild to check
      * @return True if at maximum level
      */
-    boolean isAtMaxLevel(Town town);
+    boolean isAtMaxLevel(Guild guild);
 
     /**
      * Get the benefits unlocked at a specific level
@@ -89,29 +89,29 @@ public interface TownLevelService {
     LevelBenefits getLevelBenefits(int level);
 
     /**
-     * Get the current benefits for a town based on its level
-     * @param town Town to get benefits for
-     * @return Current town benefits
+     * Get the current benefits for a guild based on its level
+     * @param guild Guild to get benefits for
+     * @return Current guild benefits
      */
-    LevelBenefits getCurrentTownBenefits(Town town);
+    LevelBenefits getCurrentGuildBenefits(Guild guild);
 
     /**
-     * Calculate the total tech points a town should have based on its level
-     * @param town Town to calculate for
+     * Calculate the total tech points a guild should have based on its level
+     * @param guild Guild to calculate for
      * @return Total tech points
      */
-    int calculateTotalTechPoints(Town town);
+    int calculateTotalTechPoints(Guild guild);
 
     /**
-     * Synchronize town level data with the database
-     * @param town Town to synchronize
+     * Synchronize guild level data with the database
+     * @param guild Guild to synchronize
      */
-    void syncTownLevelData(Town town);
+    void syncGuildLevelData(Guild guild);
 
     /**
-     * Reset all town level data (for testing purposes)
+     * Reset all guild level data (for testing purposes)
      */
-    void resetAllTownLevelData();
+    void resetAllGuildLevelData();
 
     /**
      * Reload level definitions from config and sync to database
@@ -119,7 +119,7 @@ public interface TownLevelService {
     void reloadLevelDefinitions();
 
     /**
-     * Sync configuration-defined town levels to database
+     * Sync configuration-defined guild levels to database
      */
     void syncConfigToDatabase();
 
@@ -152,7 +152,7 @@ public interface TownLevelService {
     }
 
     /**
-     * Result of a town upgrade operation
+     * Result of a guild upgrade operation
      */
     class UpgradeResult {
         private final boolean successful;

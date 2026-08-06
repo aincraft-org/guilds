@@ -5,41 +5,41 @@ import org.bukkit.entity.Player;
 import java.util.UUID;
 
 /**
- * Service interface for managing town chat system
+ * Service interface for managing guild chat system
  */
 public interface ChatService {
 
     /**
-     * Send a message to all residents of a town
-     * @param townId The town ID
+     * Send a message to all residents of a guild
+     * @param guildId The guild ID
      * @param sender The player sending the message
      * @param message The message to send
      */
-    void sendTownChat(String townId, Player sender, String message);
+    void sendGuildChat(String guildId, Player sender, String message);
 
     /**
-     * Check if a player has town chat enabled
+     * Check if a player has guild chat enabled
      * @param playerUuid The player's UUID
-     * @return true if town chat is enabled for this player
+     * @return true if guild chat is enabled for this player
      */
-    boolean isTownChatEnabled(UUID playerUuid);
+    boolean isGuildChatEnabled(UUID playerUuid);
 
     /**
-     * Toggle town chat for a player
+     * Toggle guild chat for a player
      * @param playerUuid The player's UUID
-     * @param enabled Whether town chat should be enabled or disabled
+     * @param enabled Whether guild chat should be enabled or disabled
      */
-    void setTownChatEnabled(UUID playerUuid, boolean enabled);
+    void setGuildChatEnabled(UUID playerUuid, boolean enabled);
 
     /**
-     * Check if a player has admin spy enabled for town chat
+     * Check if a player has admin spy enabled for guild chat
      * @param playerUuid The player's UUID
      * @return true if admin spy is enabled for this player
      */
     boolean isAdminSpy(UUID playerUuid);
 
     /**
-     * Toggle admin spy for town chat for a player
+     * Toggle admin spy for guild chat for a player
      * @param playerUuid The player's UUID
      * @param enabled Whether admin spy should be enabled or disabled
      */

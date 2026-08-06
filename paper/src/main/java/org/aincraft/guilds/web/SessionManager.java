@@ -2,7 +2,7 @@ package org.aincraft.guilds.web;
 
 
 
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -34,14 +34,14 @@ public class SessionManager {
     }
 
     /**
-     * Creates a new session for the given player and town
+     * Creates a new session for the given player and guild
      */
-    public TechTreeSession createSession(Player player, Town town) {
-        TechTreeSession session = new TechTreeSession(player, town, config.getSessionTimeoutMinutes());
+    public TechTreeSession createSession(Player player, Guild guild) {
+        TechTreeSession session = new TechTreeSession(player, guild, config.getSessionTimeoutMinutes());
         sessions.put(session.getSessionId(), session);
         logger.info("Created tech tree session: " + session.getSessionId() +
                    " for player: " + session.getPlayerName() +
-                   " town: " + session.getTownName());
+                   " town: " + session.getGuildName());
         return session;
     }
 

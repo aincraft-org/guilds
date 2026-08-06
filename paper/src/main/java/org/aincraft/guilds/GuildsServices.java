@@ -11,24 +11,24 @@ import org.aincraft.guilds.commands.brigadier.PlotTypeBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.QuestBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.SpecializationBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.TechTreeBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownBroadcastBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownLevelBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.TownPermBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildBroadcastBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildLevelBrigadierCommand;
+import org.aincraft.guilds.commands.brigadier.GuildPermBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.GuildsGeneralBrigadierCommand;
 import org.aincraft.guilds.config.DatabaseConfig;
 import org.aincraft.guilds.config.TechTreeConfigLoader;
-import org.aincraft.guilds.config.TownLevelConfigLoader;
+import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.GuildsConfig;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
 import org.aincraft.guilds.gui.TechTreeGUI;
 import org.aincraft.guilds.listeners.NationListener;
 import org.aincraft.guilds.listeners.PlayerMovementListener;
-import org.aincraft.guilds.listeners.TownBroadcastListener;
-import org.aincraft.guilds.listeners.TownChatListener;
-import org.aincraft.guilds.listeners.TownPublicAccessListener;
-import org.aincraft.guilds.listeners.TownToggleListener;
+import org.aincraft.guilds.listeners.GuildBroadcastListener;
+import org.aincraft.guilds.listeners.GuildChatListener;
+import org.aincraft.guilds.listeners.GuildPublicAccessListener;
+import org.aincraft.guilds.listeners.GuildToggleListener;
 import org.aincraft.guilds.plot.PlotTypeHandlerManager;
 import org.aincraft.guilds.plot.PlotTypeRegistry;
 import org.aincraft.guilds.plot.PlotTypeRegistryImpl;
@@ -44,9 +44,9 @@ import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.ResourceService;
 import org.aincraft.guilds.services.SpecializationService;
 import org.aincraft.guilds.services.TechTreeService;
-import org.aincraft.guilds.services.TownLevelService;
-import org.aincraft.guilds.services.TownService;
-import org.aincraft.guilds.services.TownToggleService;
+import org.aincraft.guilds.services.GuildLevelService;
+import org.aincraft.guilds.services.GuildService;
+import org.aincraft.guilds.services.GuildToggleService;
 import org.aincraft.guilds.services.impl.BlueprintServiceImpl;
 import org.aincraft.guilds.services.impl.BroadcastServiceImpl;
 import org.aincraft.guilds.services.impl.ChatServiceImpl;
@@ -59,9 +59,9 @@ import org.aincraft.guilds.services.impl.ResidentServiceImpl;
 import org.aincraft.guilds.services.impl.ResourceServiceImpl;
 import org.aincraft.guilds.services.impl.SpecializationServiceImpl;
 import org.aincraft.guilds.services.impl.TechTreeServiceImpl;
-import org.aincraft.guilds.services.impl.TownLevelServiceImpl;
-import org.aincraft.guilds.services.impl.TownServiceImpl;
-import org.aincraft.guilds.services.impl.TownToggleServiceImpl;
+import org.aincraft.guilds.services.impl.GuildLevelServiceImpl;
+import org.aincraft.guilds.services.impl.GuildServiceImpl;
+import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
 import org.aincraft.guilds.web.SessionManager;
 import org.aincraft.guilds.web.WebServer;
 import org.aincraft.guilds.web.WebServerConfig;
@@ -84,7 +84,7 @@ import java.util.logging.Logger;
  *
  * <p>Plain constructor wiring replaces the former Guice {@code GuildsModule}: every
  * dependency is built here in topological order and handed to consumers via
- * constructors (or, for the single Town/Permission/Plot service cycle, a
+ * constructors (or, for the single Guild/Permission/Plot service cycle, a
  * post-construction setter). All instances are effectively singletons, matching
  * the old eager-singleton bindings.</p>
  */
@@ -100,7 +100,7 @@ public class GuildsServices {
     // Config
     private final GuildsConfig guildsConfig;
     private final DatabaseConfig databaseConfig;
-    private final TownLevelConfigLoader townLevelConfigLoader;
+    private final GuildLevelConfigLoader guildLevelConfigLoader;
     private final TechTreeConfigLoader techTreeConfigLoader;
 
     // Database
@@ -108,12 +108,12 @@ public class GuildsServices {
 
     // Services
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
     private final LocationService locationService;
-    private final TownToggleService townToggleService;
+    private final GuildToggleService guildToggleService;
     private final PermissionService permissionService;
-    private final TownLevelService townLevelService;
+    private final GuildLevelService guildLevelService;
     private final ResourceService resourceService;
     private final TechTreeService techTreeService;
     private final SpecializationService specializationService;
@@ -143,10 +143,10 @@ public class GuildsServices {
 
     // Listeners
     private final PlayerMovementListener playerMovementListener;
-    private final TownToggleListener townToggleListener;
-    private final TownPublicAccessListener townPublicAccessListener;
-    private final TownBroadcastListener townBroadcastListener;
-    private final TownChatListener townChatListener;
+    private final GuildToggleListener guildToggleListener;
+    private final GuildPublicAccessListener guildPublicAccessListener;
+    private final GuildBroadcastListener guildBroadcastListener;
+    private final GuildChatListener guildChatListener;
     private final NationListener nationListener;
 
     public GuildsServices(JavaPlugin plugin) {
@@ -167,45 +167,45 @@ public class GuildsServices {
         // Config (eager singletons in the old module)
         guildsConfig = new GuildsConfig(config);
         databaseConfig = new DatabaseConfig(plugin, databaseFile, databaseUrl);
-        townLevelConfigLoader = new TownLevelConfigLoader(config, plugin.getLogger());
+        guildLevelConfigLoader = new GuildLevelConfigLoader(config, plugin.getLogger());
         techTreeConfigLoader = new TechTreeConfigLoader(plugin);
 
         // Database (SchemaInitializer was JIT-injected once; keep one shared instance)
         SchemaInitializer schemaInitializer = new SchemaInitializer(plugin);
         databaseManager = new DatabaseManager(plugin, databaseConfig, schemaInitializer);
 
-        // Services. The TownService <-> PermissionService <-> PlotService cycle is
-        // broken deliberately: TownServiceImpl is built without PermissionService
+        // Services. The GuildService <-> PermissionService <-> PlotService cycle is
+        // broken deliberately: GuildServiceImpl is built without PermissionService
         // and receives it via setPermissionService once it exists.
         residentService = new ResidentServiceImpl(databaseManager,
                 Logger.getLogger(ResidentServiceImpl.class.getName()));
-        TownServiceImpl townImpl = new TownServiceImpl(databaseManager,
-                Logger.getLogger(TownServiceImpl.class.getName()), residentService);
-        townService = townImpl;
-        plotService = new PlotServiceImpl(databaseManager, townService,
+        GuildServiceImpl guildImpl = new GuildServiceImpl(databaseManager,
+                Logger.getLogger(GuildServiceImpl.class.getName()), residentService);
+        guildService = guildImpl;
+        plotService = new PlotServiceImpl(databaseManager, guildService,
                 Logger.getLogger(PlotServiceImpl.class.getName()));
-        locationService = new LocationServiceImpl(plotService, townService);
-        townToggleService = new TownToggleServiceImpl(locationService);
+        locationService = new LocationServiceImpl(plotService, guildService);
+        guildToggleService = new GuildToggleServiceImpl(locationService);
         permissionService = new PermissionServiceImpl(databaseManager,
-                Logger.getLogger(PermissionServiceImpl.class.getName()), plotService, townService,
-                residentService, townToggleService, locationService);
-        townImpl.setPermissionService(permissionService);
+                Logger.getLogger(PermissionServiceImpl.class.getName()), plotService, guildService,
+                residentService, guildToggleService, locationService);
+        guildImpl.setPermissionService(permissionService);
 
-        townLevelService = new TownLevelServiceImpl(plugin, databaseManager, townService, townLevelConfigLoader);
-        resourceService = new ResourceServiceImpl(plugin, databaseManager, townService);
-        techTreeService = new TechTreeServiceImpl(plugin, databaseManager, techTreeConfigLoader, townService);
-        specializationService = new SpecializationServiceImpl(plugin, databaseManager, townService);
+        guildLevelService = new GuildLevelServiceImpl(plugin, databaseManager, guildService, guildLevelConfigLoader);
+        resourceService = new ResourceServiceImpl(plugin, databaseManager, guildService);
+        techTreeService = new TechTreeServiceImpl(plugin, databaseManager, techTreeConfigLoader, guildService);
+        specializationService = new SpecializationServiceImpl(plugin, databaseManager, guildService);
         broadcastService = new BroadcastServiceImpl(databaseManager,
                 Logger.getLogger(BroadcastServiceImpl.class.getName()),
-                townService, residentService, permissionService);
-        chatService = new ChatServiceImpl(plugin, townService, residentService);
+                guildService, residentService, permissionService);
+        chatService = new ChatServiceImpl(plugin, guildService, residentService);
         nationService = new NationServiceImpl(plugin, databaseManager,
-                Logger.getLogger(NationServiceImpl.class.getName()), townService);
+                Logger.getLogger(NationServiceImpl.class.getName()), guildService);
         questService = new QuestServiceImpl(plugin, databaseManager);
         blueprintService = new BlueprintServiceImpl(plugin, databaseManager);
 
-        // Governance: towns as local governments, nations as alliances
-        governanceSource = new GuildsGovernanceSource(databaseManager, townService, nationService,
+        // Governance: guilds as local governments, nations as alliances
+        governanceSource = new GuildsGovernanceSource(databaseManager, guildService, nationService,
                 Logger.getLogger(GuildsGovernanceSource.class.getName()));
 
         // Plot type registry
@@ -216,51 +216,51 @@ public class GuildsServices {
         // Web
         webServerConfig = WebServerConfig.loadFromConfig(config);
         sessionManager = new SessionManager(webServerConfig, Logger.getLogger(SessionManager.class.getName()));
-        webServer = new WebServer(techTreeService, townService, sessionManager, webServerConfig,
+        webServer = new WebServer(techTreeService, guildService, sessionManager, webServerConfig,
                 Logger.getLogger(WebServer.class.getName()));
 
         // GUI
-        techTreeGUI = new TechTreeGUI(plugin, techTreeService, townService, residentService);
+        techTreeGUI = new TechTreeGUI(plugin, techTreeService, guildService, residentService);
 
         // Listeners
-        playerMovementListener = new PlayerMovementListener(plugin, plotService, townService,
+        playerMovementListener = new PlayerMovementListener(plugin, plotService, guildService,
                 residentService, plotTypeHandlerManager, plotTypeRegistry);
-        townToggleListener = new TownToggleListener(plugin, permissionService);
-        townPublicAccessListener = new TownPublicAccessListener(plugin, permissionService, residentService);
-        townBroadcastListener = new TownBroadcastListener(plugin, broadcastService, residentService,
-                townService, Logger.getLogger(TownBroadcastListener.class.getName()));
-        townChatListener = new TownChatListener(plugin, chatService, townService, residentService);
-        nationListener = new NationListener(nationService, townService, residentService);
+        guildToggleListener = new GuildToggleListener(plugin, permissionService);
+        guildPublicAccessListener = new GuildPublicAccessListener(plugin, permissionService, residentService);
+        guildBroadcastListener = new GuildBroadcastListener(plugin, broadcastService, residentService,
+                guildService, Logger.getLogger(GuildBroadcastListener.class.getName()));
+        guildChatListener = new GuildChatListener(plugin, chatService, guildService, residentService);
+        nationListener = new NationListener(nationService, guildService, residentService);
 
         // Commands (built before the registry, which owns them)
         TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(plugin, techTreeService,
-                townService, residentService, techTreeGUI, sessionManager, webServerConfig);
-        TownBrigadierCommand townCommand = new TownBrigadierCommand(plugin, residentService, townService,
+                guildService, residentService, techTreeGUI, sessionManager, webServerConfig);
+        GuildBrigadierCommand guildCommand = new GuildBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, techTreeCommand, plotTypeRegistry, governanceSource);
-        PlotBrigadierCommand plotCommand = new PlotBrigadierCommand(plugin, residentService, townService,
+        PlotBrigadierCommand plotCommand = new PlotBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, plotTypeRegistry);
         GuildsGeneralBrigadierCommand guildsGeneralCommand = new GuildsGeneralBrigadierCommand(plugin,
-                residentService, townService, plotService, permissionService);
-        TownLevelBrigadierCommand townLevelCommand = new TownLevelBrigadierCommand(plugin, residentService,
-                townService, plotService, permissionService, townLevelService, resourceService);
-        MapBrigadierCommand mapCommand = new MapBrigadierCommand(plugin, residentService, townService,
+                residentService, guildService, plotService, permissionService);
+        GuildLevelBrigadierCommand guildLevelCommand = new GuildLevelBrigadierCommand(plugin, residentService,
+                guildService, plotService, permissionService, guildLevelService, resourceService);
+        MapBrigadierCommand mapCommand = new MapBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService);
-        PermBrigadierCommand permCommand = new PermBrigadierCommand(plugin, permissionService, plotService, townService);
+        PermBrigadierCommand permCommand = new PermBrigadierCommand(plugin, permissionService, plotService, guildService);
         PlotTypeBrigadierCommand plotTypeCommand = new PlotTypeBrigadierCommand();
-        TownBroadcastBrigadierCommand townBroadcastCommand = new TownBroadcastBrigadierCommand();
-        TownPermBrigadierCommand townPermCommand = new TownPermBrigadierCommand(plugin, residentService,
-                townService, plotService, permissionService);
-        ChatBrigadierCommand chatCommand = new ChatBrigadierCommand(plugin, chatService, townService, residentService);
-        NationBrigadierCommand nationCommand = new NationBrigadierCommand(plugin, nationService, townService,
+        GuildBroadcastBrigadierCommand guildBroadcastCommand = new GuildBroadcastBrigadierCommand();
+        GuildPermBrigadierCommand guildPermCommand = new GuildPermBrigadierCommand(plugin, residentService,
+                guildService, plotService, permissionService);
+        ChatBrigadierCommand chatCommand = new ChatBrigadierCommand(plugin, chatService, guildService, residentService);
+        NationBrigadierCommand nationCommand = new NationBrigadierCommand(plugin, nationService, guildService,
                 residentService, governanceSource);
         SpecializationBrigadierCommand specializationCommand = new SpecializationBrigadierCommand(plugin,
-                specializationService, townService, residentService);
-        QuestBrigadierCommand questCommand = new QuestBrigadierCommand(plugin, questService, townService, residentService);
+                specializationService, guildService, residentService);
+        QuestBrigadierCommand questCommand = new QuestBrigadierCommand(plugin, questService, guildService, residentService);
         BlueprintBrigadierCommand blueprintCommand = new BlueprintBrigadierCommand(plugin, blueprintService,
-                townService, residentService);
+                guildService, residentService);
 
-        commandRegistry = new BrigadierCommandRegistry(plugin, townCommand, plotCommand, guildsGeneralCommand,
-                townLevelCommand, mapCommand, permCommand, plotTypeCommand, townBroadcastCommand, townPermCommand,
+        commandRegistry = new BrigadierCommandRegistry(plugin, guildCommand, plotCommand, guildsGeneralCommand,
+                guildLevelCommand, mapCommand, permCommand, plotTypeCommand, guildBroadcastCommand, guildPermCommand,
                 techTreeCommand, chatCommand, nationCommand, specializationCommand, questCommand, blueprintCommand);
     }
 
@@ -339,10 +339,10 @@ public class GuildsServices {
 
     private void initializeServices() {
         try {
-            townLevelConfigLoader.loadConfiguration();
+            guildLevelConfigLoader.loadConfiguration();
             plugin.getLogger().info("Town level configuration loaded successfully.");
 
-            townLevelService.syncConfigToDatabase();
+            guildLevelService.syncConfigToDatabase();
             plugin.getLogger().info("Town level data synchronized to database.");
 
             techTreeConfigLoader.loadConfiguration();
@@ -370,12 +370,12 @@ public class GuildsServices {
     }
 
     private void registerListeners() {
-        plugin.getServer().getPluginManager().registerEvents(townChatListener, plugin);
+        plugin.getServer().getPluginManager().registerEvents(guildChatListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(nationListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(playerMovementListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(townToggleListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(townPublicAccessListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(townBroadcastListener, plugin);
+        plugin.getServer().getPluginManager().registerEvents(guildToggleListener, plugin);
+        plugin.getServer().getPluginManager().registerEvents(guildPublicAccessListener, plugin);
+        plugin.getServer().getPluginManager().registerEvents(guildBroadcastListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(techTreeGUI, plugin);
 
         plugin.getLogger().info("Guilds event listeners registered.");
@@ -389,8 +389,8 @@ public class GuildsServices {
         return databaseConfig;
     }
 
-    public TownLevelConfigLoader getTownLevelConfigLoader() {
-        return townLevelConfigLoader;
+    public GuildLevelConfigLoader getGuildLevelConfigLoader() {
+        return guildLevelConfigLoader;
     }
 
     public TechTreeConfigLoader getTechTreeConfigLoader() {
@@ -405,8 +405,8 @@ public class GuildsServices {
         return residentService;
     }
 
-    public TownService getTownService() {
-        return townService;
+    public GuildService getGuildService() {
+        return guildService;
     }
 
     public PlotService getPlotService() {
@@ -417,16 +417,16 @@ public class GuildsServices {
         return locationService;
     }
 
-    public TownToggleService getTownToggleService() {
-        return townToggleService;
+    public GuildToggleService getGuildToggleService() {
+        return guildToggleService;
     }
 
     public PermissionService getPermissionService() {
         return permissionService;
     }
 
-    public TownLevelService getTownLevelService() {
-        return townLevelService;
+    public GuildLevelService getGuildLevelService() {
+        return guildLevelService;
     }
 
     public ResourceService getResourceService() {
@@ -497,20 +497,20 @@ public class GuildsServices {
         return playerMovementListener;
     }
 
-    public TownToggleListener getTownToggleListener() {
-        return townToggleListener;
+    public GuildToggleListener getGuildToggleListener() {
+        return guildToggleListener;
     }
 
-    public TownPublicAccessListener getTownPublicAccessListener() {
-        return townPublicAccessListener;
+    public GuildPublicAccessListener getGuildPublicAccessListener() {
+        return guildPublicAccessListener;
     }
 
-    public TownBroadcastListener getTownBroadcastListener() {
-        return townBroadcastListener;
+    public GuildBroadcastListener getGuildBroadcastListener() {
+        return guildBroadcastListener;
     }
 
-    public TownChatListener getTownChatListener() {
-        return townChatListener;
+    public GuildChatListener getGuildChatListener() {
+        return guildChatListener;
     }
 
     public NationListener getNationListener() {

@@ -9,7 +9,6 @@ import org.aincraft.guilds.database.migration.SchemaInitializer;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Optional;
 import java.util.logging.Level;
 
@@ -75,108 +74,6 @@ public class DatabaseManager {
      */
     public DataSource getDataSource() {
         return dataSource;
-    }
-
-    /**
-     * Create all necessary database tables
-     */
-    private void createTables() {
-        try (Connection connection = getConnection();
-             Statement statement = connection.createStatement()) {
-
-            // Create residents table
-            statement.execute("""
-                CREATE TABLE IF NOT EXISTS residents (
-                    uuid TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    town_name TEXT,
-                    last_online INTEGER NOT NULL,
-                    is_online BOOLEAN DEFAULT FALSE,
-                    joined_at TEXT NOT NULL,
-                    permissions_flags INTEGER DEFAULT 0
-                )
-            """);
-
-            // Create towns table
-            statement.execute("""
-                CREATE TABLE IF NOT EXISTS towns (
-                    id TEXT PRIMARY KEY,
-                    name TEXT UNIQUE NOT NULL,
-                    mayor_uuid TEXT NOT NULL,
-                    balance REAL DEFAULT 0.0,
-                    home_block_x INTEGER,
-                    home_block_z INTEGER,
-                    home_block_world TEXT,
-                    is_open BOOLEAN DEFAULT TRUE,
-                    created_at TEXT NOT NULL,
-                    permissions_flags INTEGER DEFAULT 0,
-                    tax_rates TEXT, -- JSON string for tax rates
-                    FOREIGN KEY (mayor_uuid) REFERENCES residents(uuid) ON DELETE SET NULL
-                )
-            """);
-
-            // Create town residents mapping table
-            statement.execute("""
-                CREATE TABLE IF NOT EXISTS town_residents (
-                    town_id TEXT,
-                    resident_uuid TEXT,
-                    role TEXT DEFAULT 'resident', -- resident, assistant, mayor
-                    joined_at TEXT NOT NULL,
-                    PRIMARY KEY (town_id, resident_uuid),
-                    FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
-                    FOREIGN KEY (resident_uuid) REFERENCES residents(uuid) ON DELETE CASCADE
-                )
-            """);
-
-            // Create town blocks table
-            statement.execute("""
-                CREATE TABLE IF NOT EXISTS town_blocks (
-                    id TEXT PRIMARY KEY,
-                    x INTEGER NOT NULL,
-                    z INTEGER NOT NULL,
-                    world TEXT NOT NULL,
-                    town_id TEXT,
-                    owner_uuid TEXT,
-                    plot_type TEXT DEFAULT 'default',
-                    price REAL DEFAULT 0.0,
-                    permissions_flags INTEGER DEFAULT 0,
-                    claimed_at TEXT NOT NULL,
-                    custom_name TEXT,
-                    FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE SET NULL,
-                    FOREIGN KEY (owner_uuid) REFERENCES residents(uuid) ON DELETE SET NULL,
-                    UNIQUE(x, z, world)
-                )
-            """);
-
-            // Create permissions table (using bitwise flags)
-            statement.execute("""
-                CREATE TABLE IF NOT EXISTS permissions (
-                    id TEXT PRIMARY KEY,
-                    context TEXT NOT NULL, -- town, plot, resident, global
-                    context_id TEXT NOT NULL,
-                    target_type TEXT NOT NULL, -- resident, town, all, assistant, mayor
-                    target_id TEXT, -- can be null for 'all'
-                    permissions_flags INTEGER NOT NULL,
-                    granted_at TEXT NOT NULL,
-                    granted_by_uuid TEXT,
-                    FOREIGN KEY (granted_by_uuid) REFERENCES residents(uuid) ON DELETE SET NULL
-                )
-            """);
-
-            // Create indexes for better performance
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_residents_town ON residents(town_name)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_towns_name ON towns(name)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_location ON town_blocks(x, z, world)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_town ON town_blocks(town_id)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_owner ON town_blocks(owner_uuid)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_context ON permissions(context, context_id)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_target ON permissions(target_type, target_id)");
-
-            plugin.getLogger().info("Database tables and indexes created/verified successfully.");
-
-        } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to create database tables: " + e.getMessage(), e);
-        }
     }
 
     /**

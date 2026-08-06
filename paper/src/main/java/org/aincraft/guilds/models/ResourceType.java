@@ -4,8 +4,8 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * Enum representing resource types used in the town upgrade system
- * Consolidates resource type logic previously duplicated across ResourceContribution and TownResource
+ * Enum representing resource types used in the guild upgrade system
+ * Consolidates resource type logic previously duplicated across ResourceContribution and GuildResource
  */
 public enum ResourceType {
 

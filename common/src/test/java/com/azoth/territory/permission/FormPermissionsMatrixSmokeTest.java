@@ -52,7 +52,7 @@ class FormPermissionsMatrixSmokeTest {
         // Alliance (nation) governs mon-land with a monarchy (king seat)
         source.putGuild(new GuildBody("crown-town", "Crown Town",
                 Government.monarchy("mayor:1"), List.of("mayor:1", "citizen:1"),
-                TownToggles.defaults(),
+                GuildToggles.defaults(),
                 Map.of("mayor:1", MemberPermissions.of(List.of(
                         SovereignAction.BREAK_BLOCK, SovereignAction.PLACE_BLOCK, SovereignAction.INTERACT)),
                         "citizen:1", MemberPermissions.of(List.of(
@@ -60,10 +60,10 @@ class FormPermissionsMatrixSmokeTest {
         source.putAlliance(new AllianceBody("royal", "Royal",
                 Government.monarchy("king:1"), List.of("crown-town")));
 
-        // Guild (town) governs oli-land with an oligarchy (council seats)
+        // Guild (guild) governs oli-land with an oligarchy (council seats)
         source.putGuild(new GuildBody("council-town", "Council Town",
                 Government.oligarchy(List.of("c1", "c2", "c3")),
-                List.of("c1", "c2", "c3", "member:1"), TownToggles.defaults(),
+                List.of("c1", "c2", "c3", "member:1"), GuildToggles.defaults(),
                 Map.of("c1", MemberPermissions.of(List.of(
                         SovereignAction.BREAK_BLOCK, SovereignAction.PLACE_BLOCK, SovereignAction.INTERACT)),
                         "c2", MemberPermissions.of(List.of(

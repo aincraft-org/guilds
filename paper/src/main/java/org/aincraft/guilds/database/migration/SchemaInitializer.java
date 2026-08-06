@@ -39,24 +39,24 @@ public class SchemaInitializer {
         migrations.add(new InitialSchemaMigration());
 
         // Add spawn location support
-        migrations.add(new AddTownSpawnMigration());
+        migrations.add(new AddGuildSpawnMigration());
 
         // Add home_block_y column for better spawn fallback support
         migrations.add(new AddHomeBlockYMigration());
 
-        // Add town level system
-        migrations.add(new AddTownLevelSystemMigration());
+        // Add guild level system
+        migrations.add(new AddGuildLevelSystemMigration());
 
-        // Migrate TownBlock permissions to bitwise system
-        migrations.add(new MigrateTownBlockToBitwiseMigration());
+        // Migrate GuildBlock permissions to bitwise system
+        migrations.add(new MigrateGuildBlockToBitwiseMigration());
 
-        // Add town toggle system
-        migrations.add(new AddTownToggleMigration());
+        // Add guild toggle system
+        migrations.add(new AddGuildToggleMigration());
 
         // Add plot type system with extensible registry
         migrations.add(new AddPlotTypeSystemMigration());
 
-        // Add town broadcasting system
+        // Add guild broadcasting system
         migrations.add(new AddBroadcastSystemMigration());
 
         // Add tech tree system
@@ -66,15 +66,18 @@ public class SchemaInitializer {
         // Add nation system
         migrations.add(new AddNationMigration());
 
-        // Add town specialization system
+        // Add guild specialization system
         migrations.add(new AddSpecializationMigration());
 
-        // Add town quest system
+        // Add guild quest system
         migrations.add(new AddQuestMigration());
         migrations.add(new AddBlueprintMigration());
 
         // Add governance forms for guild (town) and alliance (nation) entities
         migrations.add(new AddGovernanceFormMigration());
+
+        // Rename legacy town* schema objects to guild* naming (idempotent for fresh installs)
+        migrations.add(new AddGuildRenameMigration());
 
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
@@ -237,7 +240,7 @@ public class SchemaInitializer {
                     CREATE TABLE IF NOT EXISTS residents (
                         uuid TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
-                        town_name TEXT,
+                        guild_name TEXT,
                         last_online INTEGER NOT NULL,
                         is_online BOOLEAN DEFAULT FALSE,
                         joined_at TEXT NOT NULL,
@@ -245,9 +248,9 @@ public class SchemaInitializer {
                     )
                 """);
 
-                // Create towns table
+                // Create guilds table
                 statement.execute("""
-                    CREATE TABLE IF NOT EXISTS towns (
+                    CREATE TABLE IF NOT EXISTS guilds (
                         id TEXT PRIMARY KEY,
                         name TEXT UNIQUE NOT NULL,
                         mayor_uuid TEXT NOT NULL,
@@ -263,34 +266,34 @@ public class SchemaInitializer {
                     )
                 """);
 
-                // Create town residents mapping table
+                // Create guild residents mapping table
                 statement.execute("""
-                    CREATE TABLE IF NOT EXISTS town_residents (
-                        town_id TEXT,
+                    CREATE TABLE IF NOT EXISTS guild_residents (
+                        guild_id TEXT,
                         resident_uuid TEXT,
                         role TEXT DEFAULT 'resident',
                         joined_at TEXT NOT NULL,
-                        PRIMARY KEY (town_id, resident_uuid),
-                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
+                        PRIMARY KEY (guild_id, resident_uuid),
+                        FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                         FOREIGN KEY (resident_uuid) REFERENCES residents(uuid) ON DELETE CASCADE
                     )
                 """);
 
-                // Create town blocks table
+                // Create guild blocks table
                 statement.execute("""
-                    CREATE TABLE IF NOT EXISTS town_blocks (
+                    CREATE TABLE IF NOT EXISTS guild_blocks (
                         id TEXT PRIMARY KEY,
                         x INTEGER NOT NULL,
                         z INTEGER NOT NULL,
                         world TEXT NOT NULL,
-                        town_id TEXT,
+                        guild_id TEXT,
                         owner_uuid TEXT,
                         plot_type TEXT DEFAULT 'default',
                         price REAL DEFAULT 0.0,
                         permissions_flags INTEGER DEFAULT 0,
                         claimed_at TEXT NOT NULL,
                         custom_name TEXT,
-                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE SET NULL,
+                        FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE SET NULL,
                         FOREIGN KEY (owner_uuid) REFERENCES residents(uuid) ON DELETE SET NULL,
                         UNIQUE(x, z, world)
                     )
@@ -312,11 +315,11 @@ public class SchemaInitializer {
                 """);
 
                 // Create indexes
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_residents_town ON residents(town_name)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_towns_name ON towns(name)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_location ON town_blocks(x, z, world)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_town ON town_blocks(town_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_owner ON town_blocks(owner_uuid)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_residents_guild ON residents(guild_name)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guilds_name ON guilds(name)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_location ON guild_blocks(x, z, world)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_guild ON guild_blocks(guild_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_owner ON guild_blocks(owner_uuid)");
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_context ON permissions(context, context_id)");
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_target ON permissions(target_type, target_id)");
             }
@@ -352,9 +355,9 @@ public class SchemaInitializer {
     }
 
     /**
-     * Migration to add spawn location columns to towns table
+     * Migration to add spawn location columns to guilds table
      */
-    private static class AddTownSpawnMigration implements DatabaseMigration {
+    private static class AddGuildSpawnMigration implements DatabaseMigration {
 
         @Override
         public int getVersion() {
@@ -363,30 +366,30 @@ public class SchemaInitializer {
 
         @Override
         public String getDescription() {
-            return "Add spawn location columns to towns table";
+            return "Add spawn location columns to guilds table";
         }
 
         @Override
         public void migrate(Connection connection) throws SQLException {
             try (Statement statement = connection.createStatement()) {
-                // Add spawn location columns to towns table
+                // Add spawn location columns to guilds table
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN spawn_x REAL DEFAULT NULL
+                    ALTER TABLE guilds ADD COLUMN spawn_x REAL DEFAULT NULL
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN spawn_y REAL DEFAULT NULL
+                    ALTER TABLE guilds ADD COLUMN spawn_y REAL DEFAULT NULL
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN spawn_z REAL DEFAULT NULL
+                    ALTER TABLE guilds ADD COLUMN spawn_z REAL DEFAULT NULL
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN spawn_yaw REAL DEFAULT NULL
+                    ALTER TABLE guilds ADD COLUMN spawn_yaw REAL DEFAULT NULL
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN spawn_pitch REAL DEFAULT NULL
+                    ALTER TABLE guilds ADD COLUMN spawn_pitch REAL DEFAULT NULL
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN spawn_world TEXT DEFAULT NULL
+                    ALTER TABLE guilds ADD COLUMN spawn_world TEXT DEFAULT NULL
                 """);
             }
         }
@@ -395,7 +398,7 @@ public class SchemaInitializer {
         public boolean isApplied(Connection connection) throws SQLException {
             // Check if spawn_x column exists
             try (Statement statement = connection.createStatement()) {
-                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(towns)")) {
+                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(guilds)")) {
                     while (resultSet.next()) {
                         String columnName = resultSet.getString("name");
                         if ("spawn_x".equals(columnName)) {
@@ -424,7 +427,7 @@ public class SchemaInitializer {
     }
 
     /**
-     * Migration to add home_block_y column to towns table
+     * Migration to add home_block_y column to guilds table
      */
     private static class AddHomeBlockYMigration implements DatabaseMigration {
 
@@ -435,15 +438,15 @@ public class SchemaInitializer {
 
         @Override
         public String getDescription() {
-            return "Add home_block_y column to towns table for better spawn fallback";
+            return "Add home_block_y column to guilds table for better spawn fallback";
         }
 
         @Override
         public void migrate(Connection connection) throws SQLException {
             try (Statement statement = connection.createStatement()) {
-                // Add home_block_y column to towns table
+                // Add home_block_y column to guilds table
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN home_block_y INTEGER DEFAULT NULL
+                    ALTER TABLE guilds ADD COLUMN home_block_y INTEGER DEFAULT NULL
                 """);
             }
         }
@@ -452,7 +455,7 @@ public class SchemaInitializer {
         public boolean isApplied(Connection connection) throws SQLException {
             // Check if home_block_y column exists
             try (Statement statement = connection.createStatement()) {
-                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(towns)")) {
+                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(guilds)")) {
                     while (resultSet.next()) {
                         String columnName = resultSet.getString("name");
                         if ("home_block_y".equals(columnName)) {
@@ -481,9 +484,9 @@ public class SchemaInitializer {
     }
 
     /**
-     * Migration to add town level system tables and columns
+     * Migration to add guild level system tables and columns
      */
-    private static class AddTownLevelSystemMigration implements DatabaseMigration {
+    private static class AddGuildLevelSystemMigration implements DatabaseMigration {
 
         @Override
         public int getVersion() {
@@ -498,20 +501,20 @@ public class SchemaInitializer {
         @Override
         public void migrate(Connection connection) throws SQLException {
             try (Statement statement = connection.createStatement()) {
-                // Add town level columns to towns table
+                // Add guild level columns to guilds table
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN town_level INTEGER DEFAULT 1
+                    ALTER TABLE guilds ADD COLUMN guild_level INTEGER DEFAULT 1
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN tech_points INTEGER DEFAULT 0
+                    ALTER TABLE guilds ADD COLUMN tech_points INTEGER DEFAULT 0
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN upgrade_progress TEXT DEFAULT '{}'
+                    ALTER TABLE guilds ADD COLUMN upgrade_progress TEXT DEFAULT '{}'
                 """);
 
-                // Create town levels table (level definitions)
+                // Create guild levels table (level definitions)
                 statement.execute("""
-                    CREATE TABLE IF NOT EXISTS town_levels (
+                    CREATE TABLE IF NOT EXISTS guild_levels (
                         level INTEGER PRIMARY KEY,
                         resource_costs_json TEXT NOT NULL DEFAULT '{}',
                         tech_points_reward INTEGER NOT NULL DEFAULT 0,
@@ -523,16 +526,16 @@ public class SchemaInitializer {
                     )
                 """);
 
-                // Create town resource bank table
+                // Create guild resource bank table
                 statement.execute("""
-                    CREATE TABLE IF NOT EXISTS town_resources (
+                    CREATE TABLE IF NOT EXISTS guild_resources (
                         id TEXT PRIMARY KEY,
-                        town_id TEXT NOT NULL,
+                        guild_id TEXT NOT NULL,
                         resource_type TEXT NOT NULL,
                         amount INTEGER NOT NULL DEFAULT 0,
                         last_updated TEXT NOT NULL,
-                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
-                        UNIQUE(town_id, resource_type)
+                        FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
+                        UNIQUE(guild_id, resource_type)
                     )
                 """);
 
@@ -540,41 +543,41 @@ public class SchemaInitializer {
                 statement.execute("""
                     CREATE TABLE IF NOT EXISTS resource_contributions (
                         id TEXT PRIMARY KEY,
-                        town_id TEXT NOT NULL,
+                        guild_id TEXT NOT NULL,
                         contributor_uuid TEXT NOT NULL,
                         resource_type TEXT NOT NULL,
                         amount INTEGER NOT NULL,
                         contribution_time TEXT NOT NULL,
-                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
+                        FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                         FOREIGN KEY (contributor_uuid) REFERENCES residents(uuid) ON DELETE CASCADE
                     )
                 """);
 
                 // Create level benefits table for tracking unlocked benefits
                 statement.execute("""
-                    CREATE TABLE IF NOT EXISTS town_level_benefits (
+                    CREATE TABLE IF NOT EXISTS guild_level_benefits (
                         id TEXT PRIMARY KEY,
-                        town_id TEXT NOT NULL,
+                        guild_id TEXT NOT NULL,
                         level INTEGER NOT NULL,
                         benefit_type TEXT NOT NULL,
                         benefit_value TEXT NOT NULL,
                         unlocked_at TEXT NOT NULL,
-                        FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE,
-                        UNIQUE(town_id, level, benefit_type)
+                        FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
+                        UNIQUE(guild_id, level, benefit_type)
                     )
                 """);
 
                 // Level data will be populated from config.yml on plugin startup
-                // See TownLevelConfigLoader and TownLevelService.syncConfigToDatabase()
+                // See GuildLevelConfigLoader and GuildLevelService.syncConfigToDatabase()
 
                 // Create indexes for performance
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_resources_town ON town_resources(town_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_resources_type ON town_resources(resource_type)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_town ON resource_contributions(town_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_resources_guild ON guild_resources(guild_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_resources_type ON guild_resources(resource_type)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_guild ON resource_contributions(guild_id)");
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_contributor ON resource_contributions(contributor_uuid)");
                 statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_time ON resource_contributions(contribution_time)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_level_benefits_town ON town_level_benefits(town_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_town_level_benefits_level ON town_level_benefits(level)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_level_benefits_guild ON guild_level_benefits(guild_id)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_level_benefits_level ON guild_level_benefits(level)");
             }
         }
 
@@ -583,10 +586,10 @@ public class SchemaInitializer {
         public boolean isApplied(Connection connection) throws SQLException {
             // Check if town_level column exists
             try (Statement statement = connection.createStatement()) {
-                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(towns)")) {
+                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(guilds)")) {
                     while (resultSet.next()) {
                         String columnName = resultSet.getString("name");
-                        if ("town_level".equals(columnName)) {
+                        if ("guild_level".equals(columnName)) {
                             return true;
                         }
                     }
@@ -611,9 +614,9 @@ public class SchemaInitializer {
     }
 
     /**
-     * Migration to convert TownBlock permissions from Map<String, Boolean> to bitwise flags
+     * Migration to convert GuildBlock permissions from Map<String, Boolean> to bitwise flags
      */
-    private static class MigrateTownBlockToBitwiseMigration implements DatabaseMigration {
+    private static class MigrateGuildBlockToBitwiseMigration implements DatabaseMigration {
 
         @Override
         public int getVersion() {
@@ -622,19 +625,19 @@ public class SchemaInitializer {
 
         @Override
         public String getDescription() {
-            return "Convert TownBlock permissions to bitwise system using GuildPermission flag values";
+            return "Convert GuildBlock permissions to bitwise system using GuildPermission flag values";
         }
 
         @Override
         public void migrate(Connection connection) throws SQLException {
             try (Statement statement = connection.createStatement()) {
-                // The town_blocks table already has permissions_flags column, so we don't need to convert from string permissions
-                // Just ensure all existing town_blocks have proper permissions_flags set
+                // The guild_blocks table already has permissions_flags column, so we don't need to convert from string permissions
+                // Just ensure all existing guild_blocks have proper permissions_flags set
 
-                // Set default permissions for town-owned plots (no owner_uuid)
-                // Town-owned plots get basic build permissions for residents
+                // Set default permissions for guild-owned plots (no owner_uuid)
+                // Guild-owned plots get basic build permissions for residents
                 statement.execute("""
-                    UPDATE town_blocks
+                    UPDATE guild_blocks
                     SET permissions_flags = 15
                     WHERE owner_uuid IS NULL
                     AND (permissions_flags = 0 OR permissions_flags IS NULL)
@@ -643,7 +646,7 @@ public class SchemaInitializer {
                 // Set full permissions for player-owned plots
                 // Player-owned plots get all permissions for the owner
                 statement.execute("""
-                    UPDATE town_blocks
+                    UPDATE guild_blocks
                     SET permissions_flags = 65535
                     WHERE owner_uuid IS NOT NULL
                     AND (permissions_flags = 0 OR permissions_flags IS NULL)
@@ -651,7 +654,7 @@ public class SchemaInitializer {
 
                 // Set specific permissions based on plot type
                 statement.execute("""
-                    UPDATE town_blocks
+                    UPDATE guild_blocks
                     SET permissions_flags = 13
                     WHERE plot_type = 'shop'
                     AND owner_uuid IS NULL
@@ -659,16 +662,16 @@ public class SchemaInitializer {
                 """);
 
                 statement.execute("""
-                    UPDATE town_blocks
+                    UPDATE guild_blocks
                     SET permissions_flags = 15
                     WHERE plot_type = 'farm'
                     AND owner_uuid IS NULL
                     AND (permissions_flags = 0 OR permissions_flags = 15)
                 """);
 
-                // Ensure all town_blocks have non-null permissions_flags
+                // Ensure all guild_blocks have non-null permissions_flags
                 statement.execute("""
-                    UPDATE town_blocks
+                    UPDATE guild_blocks
                     SET permissions_flags = 15
                     WHERE permissions_flags IS NULL OR permissions_flags = 0
                 """);
@@ -705,9 +708,9 @@ public class SchemaInitializer {
     }
 
     /**
-     * Add town toggle system - adds dedicated columns for town toggles
+     * Add guild toggle system - adds dedicated columns for guild toggles
      */
-    private static class AddTownToggleMigration implements DatabaseMigration {
+    private static class AddGuildToggleMigration implements DatabaseMigration {
 
         @Override
         public int getVersion() {
@@ -722,27 +725,27 @@ public class SchemaInitializer {
         @Override
         public void migrate(Connection connection) throws SQLException {
             try (Statement statement = connection.createStatement()) {
-                // Add toggle columns to towns table
+                // Add toggle columns to guilds table
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN pvp_enabled BOOLEAN DEFAULT FALSE
+                    ALTER TABLE guilds ADD COLUMN pvp_enabled BOOLEAN DEFAULT FALSE
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN fire_enabled BOOLEAN DEFAULT FALSE
+                    ALTER TABLE guilds ADD COLUMN fire_enabled BOOLEAN DEFAULT FALSE
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN explosions_enabled BOOLEAN DEFAULT FALSE
+                    ALTER TABLE guilds ADD COLUMN explosions_enabled BOOLEAN DEFAULT FALSE
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN mobs_enabled BOOLEAN DEFAULT TRUE
+                    ALTER TABLE guilds ADD COLUMN mobs_enabled BOOLEAN DEFAULT TRUE
                 """);
                 statement.execute("""
-                    ALTER TABLE towns ADD COLUMN public_enabled BOOLEAN DEFAULT FALSE
+                    ALTER TABLE guilds ADD COLUMN public_enabled BOOLEAN DEFAULT FALSE
                 """);
 
-                // Initialize existing towns with default values from permissions map if it exists
-                // For now, set defaults - towns can be migrated from JSON permissions later
+                // Initialize existing guilds with default values from permissions map if it exists
+                // For now, set defaults - guilds can be migrated from JSON permissions later
                 statement.execute("""
-                    UPDATE towns
+                    UPDATE guilds
                     SET pvp_enabled = FALSE,
                         fire_enabled = FALSE,
                         explosions_enabled = FALSE,

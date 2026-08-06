@@ -25,16 +25,16 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 /**
- * Event listener that enforces town public access settings
+ * Event listener that enforces guild public access settings
  */
-public class TownPublicAccessListener implements Listener {
+public class GuildPublicAccessListener implements Listener {
 
     private final JavaPlugin plugin;
     private final PermissionService permissionService;
     private final ResidentService residentService;
 
 
-    public TownPublicAccessListener(JavaPlugin plugin, PermissionService permissionService, ResidentService residentService) {
+    public GuildPublicAccessListener(JavaPlugin plugin, PermissionService permissionService, ResidentService residentService) {
         this.plugin = plugin;
         this.permissionService = permissionService;
         this.residentService = residentService;
@@ -43,7 +43,7 @@ public class TownPublicAccessListener implements Listener {
     // ==================== BLOCK PROTECTION ====================
 
     /**
-     * Prevent non-residents from breaking blocks in private towns
+     * Prevent non-residents from breaking blocks in private guilds
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
@@ -63,7 +63,7 @@ public class TownPublicAccessListener implements Listener {
     }
 
     /**
-     * Prevent non-residents from placing blocks in private towns
+     * Prevent non-residents from placing blocks in private guilds
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
@@ -94,7 +94,7 @@ public class TownPublicAccessListener implements Listener {
         Player damager = (Player) event.getDamager();
         UUID damagerUuid = damager.getUniqueId();
 
-        // Check if this is not PvP (PvP handled by TownToggleListener)
+        // Check if this is not PvP (PvP handled by GuildToggleListener)
         if (event.getEntity() instanceof Player) return;
 
         int x = event.getEntity().getLocation().getBlockX();
@@ -154,7 +154,7 @@ public class TownPublicAccessListener implements Listener {
     // ==================== ITEM PROTECTION ====================
 
     /**
-     * Prevent non-residents from using items that modify blocks in private towns
+     * Prevent non-residents from using items that modify blocks in private guilds
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
@@ -165,8 +165,8 @@ public class TownPublicAccessListener implements Listener {
         UUID playerUuid = player.getUniqueId();
         org.bukkit.Material blockType = event.getClickedBlock().getType();
 
-        // Check for interactable blocks that could modify the town
-        if (isTownModifyingBlock(blockType)) {
+        // Check for interactable blocks that could modify the guild
+        if (isGuildModifyingBlock(blockType)) {
             if (!permissionService.canSwitch(playerUuid, event.getClickedBlock().getX(),
                     event.getClickedBlock().getZ(), event.getClickedBlock().getWorld().getName())) {
                 event.setCancelled(true);
@@ -177,7 +177,7 @@ public class TownPublicAccessListener implements Listener {
     }
 
     /**
-     * Prevent non-residents from opening containers in private towns
+     * Prevent non-residents from opening containers in private guilds
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInventoryOpen(InventoryOpenEvent event) {
@@ -242,9 +242,9 @@ public class TownPublicAccessListener implements Listener {
     // ==================== HELPER METHODS ====================
 
     /**
-     * Check if a block type can modify town structure
+     * Check if a block type can modify guild structure
      */
-    private boolean isTownModifyingBlock(org.bukkit.Material material) {
+    private boolean isGuildModifyingBlock(org.bukkit.Material material) {
         return switch (material) {
             case CHEST, TRAPPED_CHEST, ENDER_CHEST, BARREL, SHULKER_BOX, HOPPER,
             DISPENSER, DROPPER, BREWING_STAND, FURNACE, SMOKER, BLAST_FURNACE,

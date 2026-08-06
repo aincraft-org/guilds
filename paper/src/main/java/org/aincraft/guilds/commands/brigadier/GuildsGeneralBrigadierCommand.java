@@ -11,7 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.util.UUID;
 
@@ -22,17 +22,17 @@ public class GuildsGeneralBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
     private final PermissionService permissionService;
 
 
     public GuildsGeneralBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                                       TownService townService, PlotService plotService,
+                                       GuildService guildService, PlotService plotService,
                                        PermissionService permissionService) {
         this.plugin = plugin;
         this.residentService = residentService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
     }
@@ -55,8 +55,8 @@ public class GuildsGeneralBrigadierCommand {
                 .executes(this::showTopHelp)
                 .then(Commands.literal("residents")
                     .executes(this::handleTopResidents))
-                .then(Commands.literal("towns")
-                    .executes(this::handleTopTowns))
+                .then(Commands.literal("guilds")
+                    .executes(this::handleTopGuilds))
                 .then(Commands.literal("land")
                     .executes(this::handleTopLand)))
             // Prices subcommand
@@ -69,9 +69,9 @@ public class GuildsGeneralBrigadierCommand {
                 .executes(this::handleChatHelp)
                 .then(Commands.literal("tc")
                     .then(Commands.argument("message", StringArgumentType.greedyString())
-                        .executes(this::handleTownChat)))
+                        .executes(this::handleGuildChat)))
                 .then(Commands.argument("message", StringArgumentType.greedyString())
-                        .executes(this::handleTownChat)))
+                        .executes(this::handleGuildChat)))
             // Universe subcommand
             .then(Commands.literal("universe")
                 .requires(source -> source.getSender().hasPermission("guilds.general.universe"))
@@ -131,8 +131,8 @@ public class GuildsGeneralBrigadierCommand {
         var sender = ctx.getSource().getSender();
         sender.sendMessage("§e=== Top Commands ===");
         sender.sendMessage("§f/guilds top residents§7 - Top residents by town count");
-        sender.sendMessage("§f/guilds top towns§7 - Top towns by resident count");
-        sender.sendMessage("§f/guilds top land§7 - Top towns by land count");
+        sender.sendMessage("§f/guilds top guilds§7 - Top guilds by resident count");
+        sender.sendMessage("§f/guilds top land§7 - Top guilds by land count");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -143,28 +143,28 @@ public class GuildsGeneralBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleTopTowns(CommandContext<CommandSourceStack> ctx) {
+    private int handleTopGuilds(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        var towns = townService.getAllTowns();
+        var guilds = guildService.getAllGuilds();
 
-        if (towns.isEmpty()) {
-            sender.sendMessage("§eNo towns found yet.");
+        if (guilds.isEmpty()) {
+            sender.sendMessage("§eNo guilds found yet.");
             return Command.SINGLE_SUCCESS;
         }
 
         sender.sendMessage("§e=== Top Towns by Residents ===");
 
-        // Sort towns by resident count
-        towns.sort((a, b) -> Integer.compare(b.getResidentCount(), a.getResidentCount()));
+        // Sort guilds by resident count
+        guilds.sort((a, b) -> Integer.compare(b.getResidentCount(), a.getResidentCount()));
 
-        for (int i = 0; i < Math.min(towns.size(), 10); i++) {
-            var town = towns.get(i);
-            int residentCount = townService.getTownResidentCount(town.getName());
-            sender.sendMessage("§f" + (i + 1) + ". §a" + town.getName() + " §7- §e" + residentCount + " residents");
+        for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
+            var guild = guilds.get(i);
+            int residentCount = guildService.getGuildResidentCount(guild.getName());
+            sender.sendMessage("§f" + (i + 1) + ". §a" + guild.getName() + " §7- §e" + residentCount + " residents");
         }
 
-        if (towns.size() > 10) {
-            sender.sendMessage("§7And " + (towns.size() - 10) + " more towns...");
+        if (guilds.size() > 10) {
+            sender.sendMessage("§7And " + (guilds.size() - 10) + " more guilds...");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -172,23 +172,23 @@ public class GuildsGeneralBrigadierCommand {
 
     private int handleTopLand(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        var towns = townService.getAllTowns();
+        var guilds = guildService.getAllGuilds();
 
-        if (towns.isEmpty()) {
-            sender.sendMessage("§eNo towns found yet.");
+        if (guilds.isEmpty()) {
+            sender.sendMessage("§eNo guilds found yet.");
             return Command.SINGLE_SUCCESS;
         }
 
         sender.sendMessage("§e=== Top Towns by Land ===");
 
-        for (int i = 0; i < Math.min(towns.size(), 10); i++) {
-            var town = towns.get(i);
-            int landCount = plotService.getTownBlockCount(town.getName());
-            sender.sendMessage("§f" + (i + 1) + ". §a" + town.getName() + " §7- §e" + landCount + " chunks");
+        for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
+            var guild = guilds.get(i);
+            int landCount = plotService.getGuildBlockCount(guild.getName());
+            sender.sendMessage("§f" + (i + 1) + ". §a" + guild.getName() + " §7- §e" + landCount + " chunks");
         }
 
-        if (towns.size() > 10) {
-            sender.sendMessage("§7And " + (towns.size() - 10) + " more towns...");
+        if (guilds.size() > 10) {
+            sender.sendMessage("§7And " + (guilds.size() - 10) + " more guilds...");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -214,7 +214,7 @@ public class GuildsGeneralBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleTownChat(CommandContext<CommandSourceStack> ctx) {
+    private int handleGuildChat(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         if (!(sender instanceof org.bukkit.entity.Player player)) {
             sender.sendMessage("§cThis command can only be used by players.");
@@ -224,34 +224,34 @@ public class GuildsGeneralBrigadierCommand {
         String message = StringArgumentType.getString(ctx, "message");
         UUID playerUuid = player.getUniqueId();
 
-        // Check if player is in a town
+        // Check if player is in a guild
         var resident = residentService.getResident(playerUuid);
-        if (resident.isEmpty() || !resident.get().hasTown()) {
+        if (resident.isEmpty() || !resident.get().hasGuild()) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        String townName = resident.get().getTown();
+        String guildName = resident.get().getGuild();
         String playerName = player.getName();
 
         // Format the message
         String formattedMessage = "§2[TC] §f" + playerName + "§7: §f" + message;
 
-        // Broadcast to all online town residents
+        // Broadcast to all online guild residents
         int messageCount = 0;
         for (var onlinePlayer : org.bukkit.Bukkit.getOnlinePlayers()) {
             UUID onlineUuid = onlinePlayer.getUniqueId();
             var onlineResident = residentService.getResident(onlineUuid);
 
-            if (onlineResident.isPresent() && onlineResident.get().hasTown() &&
-                onlineResident.get().getTown().equals(townName)) {
+            if (onlineResident.isPresent() && onlineResident.get().hasGuild() &&
+                onlineResident.get().getGuild().equals(guildName)) {
                 onlinePlayer.sendMessage(formattedMessage);
                 messageCount++;
             }
         }
 
         // Log to console
-        plugin.getLogger().info("[TownChat] " + playerName + " -> " + townName + " (" + messageCount + " recipients): " + message);
+        plugin.getLogger().info("[TownChat] " + playerName + " -> " + guildName + " (" + messageCount + " recipients): " + message);
 
         if (messageCount == 0) {
             player.sendMessage("§7No other town members are currently online.");
@@ -263,20 +263,20 @@ public class GuildsGeneralBrigadierCommand {
     private int handleUniverse(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
 
-        int totalTowns = townService.getAllTowns().size();
+        int totalGuilds = guildService.getAllGuilds().size();
         int totalResidents = residentService.getAllResidents().size();
-        int totalPlots = plotService.getAllTownBlocks().size();
+        int totalPlots = plotService.getAllGuildBlocks().size();
         int onlinePlayers = org.bukkit.Bukkit.getOnlinePlayers().size();
 
         sender.sendMessage("§6=== Universe Statistics ===");
-        sender.sendMessage("§fTotal Towns: §a" + totalTowns);
+        sender.sendMessage("§fTotal Towns: §a" + totalGuilds);
         sender.sendMessage("§fTotal Residents: §a" + totalResidents);
         sender.sendMessage("§fTotal Plots: §a" + totalPlots);
         sender.sendMessage("§fOnline Players: §a" + onlinePlayers);
 
-        if (totalTowns > 0) {
-            double avgResidents = (double) totalResidents / totalTowns;
-            double avgPlots = (double) totalPlots / totalTowns;
+        if (totalGuilds > 0) {
+            double avgResidents = (double) totalResidents / totalGuilds;
+            double avgPlots = (double) totalPlots / totalGuilds;
             sender.sendMessage("§fAvg Residents/Town: §e" + String.format("%.1f", avgResidents));
             sender.sendMessage("§fAvg Plots/Town: §e" + String.format("%.1f", avgPlots));
         }

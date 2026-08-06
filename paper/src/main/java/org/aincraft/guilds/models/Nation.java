@@ -12,8 +12,8 @@ public class Nation {
 
     private String id;
     private String name;
-    private String capitalTownId;
-    private Set<String> memberTownIds;
+    private String capitalGuildId;
+    private Set<String> memberGuildIds;
     private UUID kingUuid;
     private Set<UUID> ministers;
     private Set<String> alliances;
@@ -26,7 +26,7 @@ public class Nation {
      * Default constructor for database mapping
      */
     public Nation() {
-        this.memberTownIds = new HashSet<>();
+        this.memberGuildIds = new HashSet<>();
         this.ministers = new HashSet<>();
         this.alliances = new HashSet<>();
         this.enemies = new HashSet<>();
@@ -38,16 +38,16 @@ public class Nation {
     /**
      * Constructor for creating a new nation
      * @param name Nation name
-     * @param capitalTownId Capital town ID
+     * @param capitalGuildId Capital guild ID
      * @param kingUuid King's UUID
      */
-    public Nation(String name, String capitalTownId, UUID kingUuid) {
+    public Nation(String name, String capitalGuildId, UUID kingUuid) {
         this();
         this.name = name;
         this.id = UUID.randomUUID().toString();
-        this.capitalTownId = capitalTownId;
+        this.capitalGuildId = capitalGuildId;
         this.kingUuid = kingUuid;
-        this.memberTownIds.add(capitalTownId);
+        this.memberGuildIds.add(capitalGuildId);
     }
 
     // Getters and Setters
@@ -67,20 +67,20 @@ public class Nation {
         this.name = name;
     }
 
-    public String getCapitalTownId() {
-        return capitalTownId;
+    public String getCapitalGuildId() {
+        return capitalGuildId;
     }
 
-    public void setCapitalTownId(String capitalTownId) {
-        this.capitalTownId = capitalTownId;
+    public void setCapitalGuildId(String capitalGuildId) {
+        this.capitalGuildId = capitalGuildId;
     }
 
-    public Set<String> getMemberTownIds() {
-        return memberTownIds;
+    public Set<String> getMemberGuildIds() {
+        return memberGuildIds;
     }
 
-    public void setMemberTownIds(Set<String> memberTownIds) {
-        this.memberTownIds = memberTownIds != null ? memberTownIds : new HashSet<>();
+    public void setMemberGuildIds(Set<String> memberGuildIds) {
+        this.memberGuildIds = memberGuildIds != null ? memberGuildIds : new HashSet<>();
     }
 
     public UUID getKingUuid() {
@@ -142,42 +142,42 @@ public class Nation {
     // Business methods
 
     /**
-     * Add a town to the nation
-     * @param townId Town ID to add
+     * Add a guild to the nation
+     * @param guildId Guild ID to add
      * @return True if added successfully, false if already a member
      */
-    public boolean addTown(String townId) {
-        return memberTownIds.add(townId);
+    public boolean addGuild(String guildId) {
+        return memberGuildIds.add(guildId);
     }
 
     /**
-     * Remove a town from the nation
-     * @param townId Town ID to remove
-     * @return True if removed successfully, false if town was not a member
+     * Remove a guild from the nation
+     * @param guildId Guild ID to remove
+     * @return True if removed successfully, false if guild was not a member
      */
-    public boolean removeTown(String townId) {
-        // Cannot remove capital town
-        if (capitalTownId.equals(townId)) {
+    public boolean removeGuild(String guildId) {
+        // Cannot remove capital guild
+        if (capitalGuildId.equals(guildId)) {
             return false;
         }
-        return memberTownIds.remove(townId);
+        return memberGuildIds.remove(guildId);
     }
 
     /**
-     * Check if a town is a member of this nation
-     * @param townId Town ID to check
-     * @return True if town is a member
+     * Check if a guild is a member of this nation
+     * @param guildId Guild ID to check
+     * @return True if guild is a member
      */
-    public boolean hasTown(String townId) {
-        return memberTownIds.contains(townId);
+    public boolean hasGuild(String guildId) {
+        return memberGuildIds.contains(guildId);
     }
 
     /**
-     * Get the number of towns in this nation
-     * @return Town count
+     * Get the number of guilds in this nation
+     * @return Guild count
      */
-    public int getTownCount() {
-        return memberTownIds.size();
+    public int getGuildCount() {
+        return memberGuildIds.size();
     }
 
     /**
@@ -311,8 +311,8 @@ public class Nation {
         return "Nation{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
-                ", capitalTownId='" + capitalTownId + '\'' +
-                ", townCount=" + getTownCount() +
+                ", capitalTownId='" + capitalGuildId + '\'' +
+                ", townCount=" + getGuildCount() +
                 ", kingUuid=" + kingUuid +
                 ", ministerCount=" + ministers.size() +
                 ", allyCount=" + alliances.size() +

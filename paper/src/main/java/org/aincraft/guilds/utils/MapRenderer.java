@@ -1,9 +1,9 @@
 package org.aincraft.guilds.utils;
 
-import org.aincraft.guilds.models.TownBlock;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.GuildBlock;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.PlotTypes;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.PlotService;
 
 import java.util.List;
@@ -14,32 +14,32 @@ import java.util.Map;
 import java.awt.Color;
 
 /**
- * Utility class for rendering ASCII maps of town claims
+ * Utility class for rendering ASCII maps of guild claims
  */
 public class MapRenderer {
 
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
 
     // Map symbols for different terrain types
     private static final char WILDERNESS = '-';
-    private static final char TOWN_BLOCK = '+';
+    private static final char GUILD_BLOCK = '+';
     private static final char PLAYER_LOCATION = '●'; // Bullet point for better visibility
-    private static final char TOWN_SPAWN = 'S';
+    private static final char GUILD_SPAWN = 'S';
 
     // Colors for map display (using chat color codes)
     private static final String COLOR_WILDERNESS = "§2"; // Dark Green
-    private static final String COLOR_TOWN_BLOCK = "§e"; // Yellow
+    private static final String COLOR_GUILD_BLOCK = "§e"; // Yellow
     private static final String COLOR_PLAYER_LOCATION = "§a"; // Green
-    private static final String COLOR_TOWN_SPAWN = "§6"; // Gold
+    private static final String COLOR_GUILD_SPAWN = "§6"; // Gold
     private static final String COLOR_RESET = "§f";
 
     // Map size in chunks (default 11x11 = 121 chunks total)
     private static final int DEFAULT_MAP_SIZE = 11;
     private static final int MAP_RADIUS = DEFAULT_MAP_SIZE / 2;
 
-    public MapRenderer(TownService townService, PlotService plotService) {
-        this.townService = townService;
+    public MapRenderer(GuildService guildService, PlotService plotService) {
+        this.guildService = guildService;
         this.plotService = plotService;
     }
 
@@ -48,10 +48,10 @@ public class MapRenderer {
      * @param playerChunkX Player's chunk X coordinate
      * @param playerChunkZ Player's chunk Z coordinate
      * @param world World name
-     * @param playerTown Player's town name (can be null)
+     * @param playerGuild Player's guild name (can be null)
      * @return Rendered map as a list of strings
      */
-    public List<String> renderMap(int playerChunkX, int playerChunkZ, String world, String playerTown) {
+    public List<String> renderMap(int playerChunkX, int playerChunkZ, String world, String playerGuild) {
         List<String> mapLines = new ArrayList<>();
 
         // Add stylized header
@@ -63,7 +63,7 @@ public class MapRenderer {
         mapLines.add("§6╚═══════════════════════════════════════╝");
         mapLines.add("");
 
-        // Create a grid of town blocks
+        // Create a grid of guild blocks
         Map<MapPoint, Character> mapGrid = new HashMap<>();
         Map<MapPoint, String> colorGrid = new HashMap<>();
 
@@ -81,14 +81,14 @@ public class MapRenderer {
                     continue;
                 }
 
-                // Check if there's a town block at this location
-                Optional<TownBlock> townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
-                if (townBlock.isPresent()) {
-                    TownBlock block = townBlock.get();
-                    mapGrid.put(point, TOWN_BLOCK);
+                // Check if there's a guild block at this location
+                Optional<GuildBlock> guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
+                if (guildBlock.isPresent()) {
+                    GuildBlock block = guildBlock.get();
+                    mapGrid.put(point, GUILD_BLOCK);
 
                     // Color based on ownership
-                    String color = getColorForTownBlock(block, playerTown);
+                    String color = getColorForGuildBlock(block, playerGuild);
                     colorGrid.put(point, color);
                 } else {
                     // Wilderness
@@ -157,34 +157,34 @@ public class MapRenderer {
     }
 
     /**
-     * Get the appropriate color for a town block
-     * @param townBlock The town block
-     * @param playerTown Player's town (can be null)
-     * @return Color code for the town block
+     * Get the appropriate color for a guild block
+     * @param guildBlock The guild block
+     * @param playerGuild Player's guild (can be null)
+     * @return Color code for the guild block
      */
-    private String getColorForTownBlock(TownBlock townBlock, String playerTown) {
-        // Get town information
-        String townId = townBlock.getTownId();
-        Optional<Town> town = townService.getTownById(townId);
+    private String getColorForGuildBlock(GuildBlock guildBlock, String playerGuild) {
+        // Get guild information
+        String guildId = guildBlock.getGuildId();
+        Optional<Guild> guild = guildService.getGuildById(guildId);
 
-        if (town.isEmpty()) {
-            return COLOR_TOWN_BLOCK; // Default yellow
+        if (guild.isEmpty()) {
+            return COLOR_GUILD_BLOCK; // Default yellow
         }
 
-        Town blockTown = town.get();
+        Guild blockGuild = guild.get();
 
-        // Check if this is the player's own town
-        if (playerTown != null && playerTown.equals(blockTown.getName())) {
-            return "§a"; // Green for own town
+        // Check if this is the player's own guild
+        if (playerGuild != null && playerGuild.equals(blockGuild.getName())) {
+            return "§a"; // Green for own guild
         }
 
         // Check if it's personally owned
-        if (townBlock.hasOwner()) {
+        if (guildBlock.hasOwner()) {
             return "§b"; // Aqua for personal plots
         }
 
         // Different colors based on plot type
-        switch (townBlock.getPlotType()) {
+        switch (guildBlock.getPlotType()) {
             case PlotTypes.SHOP:
                 return "§6"; // Gold for shops
             case PlotTypes.FARM:
@@ -194,7 +194,7 @@ public class MapRenderer {
             case PlotTypes.INN:
                 return "§d"; // Purple for inns
             default:
-                return COLOR_TOWN_BLOCK; // Default yellow
+                return COLOR_GUILD_BLOCK; // Default yellow
         }
     }
 
@@ -203,10 +203,10 @@ public class MapRenderer {
      * @param playerChunkX Player's chunk X coordinate
      * @param playerChunkZ Player's chunk Z coordinate
      * @param world World name
-     * @param playerTown Player's town name (can be null)
+     * @param playerGuild Player's guild name (can be null)
      * @return Compact map as a list of strings
      */
-    public List<String> renderCompactMap(int playerChunkX, int playerChunkZ, String world, String playerTown) {
+    public List<String> renderCompactMap(int playerChunkX, int playerChunkZ, String world, String playerGuild) {
         List<String> mapLines = new ArrayList<>();
         int compactSize = 7;
         int compactRadius = compactSize / 2;
@@ -227,11 +227,11 @@ public class MapRenderer {
 
                 if (x == 0 && z == 0) {
                     row.append(COLOR_PLAYER_LOCATION).append(PLAYER_LOCATION);
-                } else if (plotService.getTownBlock(chunkX, chunkZ, world).isPresent()) {
-                    Optional<TownBlock> townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
-                    String color = townBlock.map(block -> getColorForTownBlock(block, playerTown))
-                                          .orElse(COLOR_TOWN_BLOCK);
-                    row.append(color).append(TOWN_BLOCK);
+                } else if (plotService.getGuildBlock(chunkX, chunkZ, world).isPresent()) {
+                    Optional<GuildBlock> guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
+                    String color = guildBlock.map(block -> getColorForGuildBlock(block, playerGuild))
+                                          .orElse(COLOR_GUILD_BLOCK);
+                    row.append(color).append(GUILD_BLOCK);
                 } else {
                     row.append(COLOR_WILDERNESS).append(WILDERNESS);
                 }
@@ -277,35 +277,35 @@ public class MapRenderer {
      * @param playerChunkX Player's chunk X coordinate
      * @param playerChunkZ Player's chunk Z coordinate
      * @param world World name
-     * @param playerTown Player's town name (can be null)
+     * @param playerGuild Player's guild name (can be null)
      * @return Area summary as a string
      */
-    public String getAreaSummary(int playerChunkX, int playerChunkZ, String world, String playerTown) {
+    public String getAreaSummary(int playerChunkX, int playerChunkZ, String world, String playerGuild) {
         int radius = 3; // Check 3x3 chunks around player
         int wildernessCount = 0;
-        int ownTownBlocks = 0;
-        int otherTownBlocks = 0;
-        String nearbyTown = null;
+        int ownGuildBlocks = 0;
+        int otherGuildBlocks = 0;
+        String nearbyGuild = null;
 
         for (int z = -radius; z <= radius; z++) {
             for (int x = -radius; x <= radius; x++) {
                 int chunkX = playerChunkX + x;
                 int chunkZ = playerChunkZ + z;
 
-                Optional<TownBlock> townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
-                if (townBlock.isPresent()) {
-                    TownBlock block = townBlock.get();
-                    String blockTownId = block.getTownId();
+                Optional<GuildBlock> guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
+                if (guildBlock.isPresent()) {
+                    GuildBlock block = guildBlock.get();
+                    String blockGuildId = block.getGuildId();
 
-                    Optional<Town> blockTown = townService.getTownById(blockTownId);
-                    if (blockTown.isPresent()) {
-                        String blockTownName = blockTown.get().getName();
+                    Optional<Guild> blockGuild = guildService.getGuildById(blockGuildId);
+                    if (blockGuild.isPresent()) {
+                        String blockGuildName = blockGuild.get().getName();
 
-                        if (playerTown != null && playerTown.equals(blockTownName)) {
-                            ownTownBlocks++;
+                        if (playerGuild != null && playerGuild.equals(blockGuildName)) {
+                            ownGuildBlocks++;
                         } else {
-                            otherTownBlocks++;
-                            nearbyTown = blockTownName;
+                            otherGuildBlocks++;
+                            nearbyGuild = blockGuildName;
                         }
                     }
                 } else {
@@ -321,14 +321,14 @@ public class MapRenderer {
             summary.append(COLOR_WILDERNESS).append(wildernessCount).append(" wilderness ");
         }
 
-        if (ownTownBlocks > 0) {
-            summary.append("§a").append(ownTownBlocks).append(" your town ");
+        if (ownGuildBlocks > 0) {
+            summary.append("§a").append(ownGuildBlocks).append(" your town ");
         }
 
-        if (otherTownBlocks > 0) {
-            summary.append("§6").append(otherTownBlocks).append(" other towns");
-            if (nearbyTown != null) {
-                summary.append(" (near ").append(nearbyTown).append(")");
+        if (otherGuildBlocks > 0) {
+            summary.append("§6").append(otherGuildBlocks).append(" other guilds");
+            if (nearbyGuild != null) {
+                summary.append(" (near ").append(nearbyGuild).append(")");
             }
         }
 

@@ -5,10 +5,10 @@ package org.aincraft.guilds.services.impl;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.ChatService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -17,40 +17,40 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Implementation of ChatService for managing town chat functionality
+ * Implementation of ChatService for managing guild chat functionality
  */
 
 public class ChatServiceImpl implements ChatService {
 
     private final JavaPlugin plugin;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
     // Store chat preferences in memory
-    private final Map<UUID, Boolean> townChatToggle = new ConcurrentHashMap<>();
+    private final Map<UUID, Boolean> guildChatToggle = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> adminSpyToggle = new ConcurrentHashMap<>();
 
 
-    public ChatServiceImpl(JavaPlugin plugin, TownService townService, ResidentService residentService) {
+    public ChatServiceImpl(JavaPlugin plugin, GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
     @Override
-    public void sendTownChat(String townId, Player sender, String message) {
-        Town town = townService.getTownById(townId).orElse(null);
-        if (town == null) {
+    public void sendGuildChat(String guildId, Player sender, String message) {
+        Guild guild = guildService.getGuildById(guildId).orElse(null);
+        if (guild == null) {
             return;
         }
 
         // Format message using Guilds chat format
-        String townName = town.getName();
+        String guildName = guild.getName();
         String playerName = sender.getName();
 
-        Component townChatComponent = Component.text("[TownChat] ")
+        Component guildChatComponent = Component.text("[TownChat] ")
                 .color(NamedTextColor.GOLD)
-                .append(Component.text("[" + townName + "] ")
+                .append(Component.text("[" + guildName + "] ")
                         .color(NamedTextColor.GREEN))
                 .append(Component.text(playerName + ": ")
                         .color(NamedTextColor.WHITE))
@@ -59,10 +59,10 @@ public class ChatServiceImpl implements ChatService {
 
         // Send to all online residents
         int sentCount = 0;
-        for (UUID residentUuid : town.getResidents()) {
+        for (UUID residentUuid : guild.getResidents()) {
             Player resident = Bukkit.getPlayer(residentUuid);
             if (resident != null && resident.isOnline()) {
-                resident.sendMessage(townChatComponent);
+                resident.sendMessage(guildChatComponent);
                 sentCount++;
             }
         }
@@ -70,25 +70,25 @@ public class ChatServiceImpl implements ChatService {
         // Also send to admins with spy enabled
         for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
             if (isAdminSpy(onlinePlayer.getUniqueId()) &&
-                !town.getResidents().contains(onlinePlayer.getUniqueId())) {
-                onlinePlayer.sendMessage(townChatComponent);
+                !guild.getResidents().contains(onlinePlayer.getUniqueId())) {
+                onlinePlayer.sendMessage(guildChatComponent);
                 sentCount++;
             }
         }
 
         if (plugin.isEnabled()) {
-            plugin.getLogger().info("Sent town chat from " + playerName + " to " + sentCount + " recipients in town " + townName);
+            plugin.getLogger().info("Sent town chat from " + playerName + " to " + sentCount + " recipients in town " + guildName);
         }
     }
 
     @Override
-    public boolean isTownChatEnabled(UUID playerUuid) {
-        return townChatToggle.getOrDefault(playerUuid, false);
+    public boolean isGuildChatEnabled(UUID playerUuid) {
+        return guildChatToggle.getOrDefault(playerUuid, false);
     }
 
     @Override
-    public void setTownChatEnabled(UUID playerUuid, boolean enabled) {
-        townChatToggle.put(playerUuid, enabled);
+    public void setGuildChatEnabled(UUID playerUuid, boolean enabled) {
+        guildChatToggle.put(playerUuid, enabled);
     }
 
     @Override

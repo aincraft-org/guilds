@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Represents a town level definition with costs and benefits
+ * Represents a guild level definition with costs and benefits
  */
-public class TownLevel {
+public class GuildLevel {
 
     private int level;
     private Map<String, Integer> resourceCosts; // Material name -> quantity
@@ -23,16 +23,16 @@ public class TownLevel {
     /**
      * Default constructor for database mapping
      */
-    public TownLevel() {
+    public GuildLevel() {
         this.createdAt = LocalDateTime.now();
         this.unlockedPlotTypes = List.of();
         this.resourceCosts = new HashMap<>();
     }
 
     /**
-     * Constructor for creating a new town level
+     * Constructor for creating a new guild level
      */
-    public TownLevel(int level, Map<String, Integer> resourceCosts, int techPointsReward,
+    public GuildLevel(int level, Map<String, Integer> resourceCosts, int techPointsReward,
                      int claimLimitBonus, int assistantSlotsBonus, double dailyIncomeBonus,
                      List<String> unlockedPlotTypes) {
         this();
@@ -214,8 +214,8 @@ public class TownLevel {
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        TownLevel townLevel = (TownLevel) obj;
-        return level == townLevel.level;
+        GuildLevel guildLevel = (GuildLevel) obj;
+        return level == guildLevel.level;
     }
 
     @Override

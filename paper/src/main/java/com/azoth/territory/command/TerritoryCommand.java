@@ -53,9 +53,9 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Bind/unbind a governing guild (town) to a territory.
+     * Bind/unbind a governing guild (guild) to a territory.
      * <pre>
-     * /territory govern &lt;territoryId&gt; &lt;townId|-&gt;
+     * /territory govern &lt;territoryId&gt; &lt;guildId|-&gt;
      * </pre>
      * A dash ({@code -}) removes the binding, falling back to the territory's
      * local government. The guild's own governance form + role holders decide
@@ -73,7 +73,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         String territoryId = args[1];
-        String townId = args[2];
+        String guildId = args[2];
         var registry = plugin.getRegistry();
         Optional<Territory> existing = registry.get(territoryId);
         if (existing.isEmpty()) {
@@ -81,7 +81,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         Territory next;
-        if ("-".equals(townId)) {
+        if ("-".equals(guildId)) {
             next = existing.get().withoutGoverningGuild();
             sender.sendMessage(Component.text(
                     "Cleared governing guild for " + territoryId + ".", NamedTextColor.GREEN));
@@ -92,14 +92,14 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
                         "Guilds subsystem unavailable — cannot bind a governing guild.", NamedTextColor.RED));
                 return true;
             }
-            boolean townExists = guilds.getGovernanceSource().guild(townId).isPresent();
-            if (!townExists) {
-                sender.sendMessage(Component.text("Unknown town (guild): " + townId, NamedTextColor.RED));
+            boolean guildExists = guilds.getGovernanceSource().guild(guildId).isPresent();
+            if (!guildExists) {
+                sender.sendMessage(Component.text("Unknown town (guild): " + guildId, NamedTextColor.RED));
                 return true;
             }
-            next = existing.get().withGoverningGuild(townId);
+            next = existing.get().withGoverningGuild(guildId);
             sender.sendMessage(Component.text(
-                    "Territory " + territoryId + " is now governed by guild " + townId + ".", NamedTextColor.GREEN));
+                    "Territory " + territoryId + " is now governed by guild " + guildId + ".", NamedTextColor.GREEN));
         }
         registry.register(next);
         try {

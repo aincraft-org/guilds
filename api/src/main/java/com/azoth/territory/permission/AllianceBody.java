@@ -11,11 +11,11 @@ import java.util.Objects;
  * materializes from its nation database records.
  * <p>
  * Replaces the former standalone {@code TerritoryAlliance} model: an alliance
- * governs through its member guilds (nation member towns), not through a list
+ * governs through its member guilds (nation member guilds), not through a list
  * of territory ids.
  *
  * @param government derived from the nation's chosen form + role holders
- * @param memberGuildIds nation member town ids
+ * @param memberGuildIds nation member guild ids
  */
 public record AllianceBody(
         String id,

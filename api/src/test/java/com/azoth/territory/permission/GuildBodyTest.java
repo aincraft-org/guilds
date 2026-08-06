@@ -19,7 +19,7 @@ class GuildBodyTest {
     @Test
     void containsMember_trimsAndIgnoresBlanks() {
         GuildBody body = new GuildBody("t1", "Town", Government.monarchy("m1"),
-                List.of("m1", "r1"), TownToggles.defaults(), Map.of());
+                List.of("m1", "r1"), GuildToggles.defaults(), Map.of());
 
         assertTrue(body.containsMember("m1"));
         assertTrue(body.containsMember("  m1 "));
@@ -33,7 +33,7 @@ class GuildBodyTest {
         MemberPermissions perms = MemberPermissions.of(List.of(
                 SovereignAction.BREAK_BLOCK, SovereignAction.PLACE_BLOCK));
         GuildBody body = new GuildBody("t1", "Town", Government.monarchy("m1"),
-                List.of("m1", "r1"), TownToggles.defaults(),
+                List.of("m1", "r1"), GuildToggles.defaults(),
                 Map.of("m1", perms));
 
         assertTrue(body.permissionsOf("m1").isPresent());
@@ -70,9 +70,9 @@ class GuildBodyTest {
     @Test
     void isPublic_reflectsToggle() {
         assertFalse(new GuildBody("t1", "T", Government.monarchy("m"),
-                List.of("m"), TownToggles.defaults(), Map.of()).isPublic());
+                List.of("m"), GuildToggles.defaults(), Map.of()).isPublic());
         assertTrue(new GuildBody("t1", "T", Government.monarchy("m"),
-                List.of("m"), new TownToggles(false, false, false, true, true), Map.of()).isPublic());
+                List.of("m"), new GuildToggles(false, false, false, true, true), Map.of()).isPublic());
     }
 
     @Test

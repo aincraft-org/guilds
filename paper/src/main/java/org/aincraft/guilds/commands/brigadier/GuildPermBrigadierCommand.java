@@ -10,26 +10,26 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 /**
- * Brigadier implementation of the town perm command (NEW)
+ * Brigadier implementation of the guild perm command (NEW)
  */
-public class TownPermBrigadierCommand {
+public class GuildPermBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
     private final PermissionService permissionService;
 
 
-    public TownPermBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                                   TownService townService, PlotService plotService,
+    public GuildPermBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
+                                   GuildService guildService, PlotService plotService,
                                    PermissionService permissionService) {
         this.plugin = plugin;
         this.residentService = residentService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
     }

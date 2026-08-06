@@ -2,7 +2,7 @@ package org.aincraft.guilds.listeners;
 
 import org.aincraft.guilds.services.ChatService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -11,19 +11,19 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * Listener for handling town chat functionality
+ * Listener for handling guild chat functionality
  */
-public class TownChatListener implements Listener {
+public class GuildChatListener implements Listener {
 
     private final JavaPlugin plugin;
     private final ChatService chatService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
-    public TownChatListener(JavaPlugin plugin, ChatService chatService, TownService townService, ResidentService residentService) {
+    public GuildChatListener(JavaPlugin plugin, ChatService chatService, GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
         this.chatService = chatService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
@@ -31,35 +31,35 @@ public class TownChatListener implements Listener {
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
 
-        // Check if player has town chat enabled
-        if (!chatService.isTownChatEnabled(player.getUniqueId())) {
+        // Check if player has guild chat enabled
+        if (!chatService.isGuildChatEnabled(player.getUniqueId())) {
             return;
         }
 
-        // Check if player is in a town
-        String townName = residentService.getResident(player.getUniqueId())
-                .filter(resident -> resident.hasTown())
-                .map(org.aincraft.guilds.models.Resident::getTown)
+        // Check if player is in a guild
+        String guildName = residentService.getResident(player.getUniqueId())
+                .filter(resident -> resident.hasGuild())
+                .map(org.aincraft.guilds.models.Resident::getGuild)
                 .orElse(null);
 
-        if (townName == null) {
+        if (guildName == null) {
             return;
         }
 
-        // Get the town object
-        org.aincraft.guilds.models.Town town = townService.getTown(townName).orElse(null);
-        if (town == null) {
+        // Get the guild object
+        org.aincraft.guilds.models.Guild guild = guildService.getGuild(guildName).orElse(null);
+        if (guild == null) {
             return;
         }
 
         // Cancel original event
         event.setCancelled(true);
 
-        // Send town chat (run on main thread to handle Bukkit calls safely)
+        // Send guild chat (run on main thread to handle Bukkit calls safely)
         String message = event.getMessage();
         plugin.getServer().getScheduler().runTask(
             plugin,
-            () -> chatService.sendTownChat(town.getId(), player, message)
+            () -> chatService.sendGuildChat(guild.getId(), player, message)
         );
     }
 }

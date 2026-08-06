@@ -1,6 +1,6 @@
 package org.aincraft.guilds.web;
 
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.bukkit.entity.Player;
 
 import java.time.Instant;
@@ -13,15 +13,15 @@ public class TechTreeSession {
 
     private final String sessionId;
     private final String playerName;
-    private final String townId;
-    private final String townName;
+    private final String guildId;
+    private final String guildName;
     private final Instant expiresAt;
 
-    public TechTreeSession(Player player, Town town, int timeoutMinutes) {
+    public TechTreeSession(Player player, Guild guild, int timeoutMinutes) {
         this.sessionId = UUID.randomUUID().toString();
         this.playerName = player.getName();
-        this.townId = town.getId();
-        this.townName = town.getName();
+        this.guildId = guild.getId();
+        this.guildName = guild.getName();
         this.expiresAt = Instant.now().plusSeconds(timeoutMinutes * 60L);
     }
 
@@ -33,12 +33,12 @@ public class TechTreeSession {
         return playerName;
     }
 
-    public String getTownId() {
-        return townId;
+    public String getGuildId() {
+        return guildId;
     }
 
-    public String getTownName() {
-        return townName;
+    public String getGuildName() {
+        return guildName;
     }
 
     public Instant getExpiresAt() {

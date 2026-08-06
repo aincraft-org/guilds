@@ -7,12 +7,12 @@ import com.azoth.territory.permission.GovernanceSource;
 import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.permission.MemberPermissions;
 import com.azoth.territory.permission.SovereignAction;
-import com.azoth.territory.permission.TownToggles;
+import com.azoth.territory.permission.GuildToggles;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Nation;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.NationService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -30,22 +30,22 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * {@link GovernanceSource} backed by the guilds database: towns materialize as
+ * {@link GovernanceSource} backed by the guilds database: guilds materialize as
  * {@link GuildBody} (local government entities), nations as {@link AllianceBody}
  * (alliance entities).
  * <p>
  * Government derivation: each entity picks a governance form (stored in the
  * {@code governance_form} column, default {@code MONARCHY}); seats are derived
- * from role holders — town mayor/assistants/residents, nation
- * king/ministers/member-town mayors — via {@link Government#fromRoles}.
+ * from role holders — guild mayor/assistants/residents, nation
+ * king/ministers/member-guild mayors — via {@link Government#fromRoles}.
  * <p>
- * Member permissions mirror the guilds town-level hierarchy:
+ * Member permissions mirror the guilds guild-level hierarchy:
  * <ol>
  *   <li>global {@code bypass} grants every sovereign action;</li>
- *   <li>explicit town-context grants (permissions table) add actions;</li>
- *   <li>role default — every town member gets the basic build actions
+ *   <li>explicit guild-context grants (permissions table) add actions;</li>
+ *   <li>role default — every guild member gets the basic build actions
  *       (break/place/switch/item-use) by default, matching the guilds
- *       {@code hasRoleBasedTownPermission} town semantics.</li>
+ *       {@code hasRoleBasedGuildPermission} guild semantics.</li>
  * </ol>
  */
 public final class GuildsGovernanceSource implements GovernanceSource {
@@ -53,18 +53,18 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     private static final String DEFAULT_FORM = "MONARCHY";
 
     private final DatabaseManager databaseManager;
-    private final TownService townService;
+    private final GuildService guildService;
     private final NationService nationService;
     private final Logger logger;
 
     public GuildsGovernanceSource(
             DatabaseManager databaseManager,
-            TownService townService,
+            GuildService guildService,
             NationService nationService,
             Logger logger
     ) {
         this.databaseManager = databaseManager;
-        this.townService = townService;
+        this.guildService = guildService;
         this.nationService = nationService;
         this.logger = logger;
     }
@@ -74,7 +74,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
         if (guildId == null || guildId.isBlank()) {
             return Optional.empty();
         }
-        return townService.getTownById(guildId.trim()).map(this::toGuildBody);
+        return guildService.getGuildById(guildId.trim()).map(this::toGuildBody);
     }
 
     @Override
@@ -87,9 +87,9 @@ public final class GuildsGovernanceSource implements GovernanceSource {
             return List.of();
         }
         List<GuildBody> matches = new ArrayList<>();
-        for (Town town : townService.getAllTowns()) {
-            if (town.isResident(uuid)) {
-                matches.add(toGuildBody(town));
+        for (Guild guild : guildService.getAllGuilds()) {
+            if (guild.isResident(uuid)) {
+                matches.add(toGuildBody(guild));
             }
         }
         matches.sort((a, b) -> a.id().compareTo(b.id()));
@@ -103,7 +103,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
         }
         String id = guildId.trim();
         for (Nation nation : nationService.getAllNations()) {
-            if (nation.hasTown(id)) {
+            if (nation.hasGuild(id)) {
                 return Optional.of(toAllianceBody(nation));
             }
         }
@@ -113,8 +113,8 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     @Override
     public List<GuildBody> allGuilds() {
         List<GuildBody> bodies = new ArrayList<>();
-        for (Town town : townService.getAllTowns()) {
-            bodies.add(toGuildBody(town));
+        for (Guild guild : guildService.getAllGuilds()) {
+            bodies.add(toGuildBody(guild));
         }
         return List.copyOf(bodies);
     }
@@ -129,16 +129,16 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     }
 
     /**
-     * Set the governance form for a guild (town).
+     * Set the governance form for a guild (guild).
      *
-     * @return true if the town exists and the form was persisted
+     * @return true if the guild exists and the form was persisted
      */
-    public boolean setTownForm(String townId, GovernmentForm form) {
-        if (townId == null || townId.isBlank() || form == null) {
+    public boolean setGuildForm(String guildId, GovernmentForm form) {
+        if (guildId == null || guildId.isBlank() || form == null) {
             return false;
         }
-        return townService.getTownById(townId.trim())
-                .map(town -> setForm("towns", "id", town.getId(), form))
+        return guildService.getGuildById(guildId.trim())
+                .map(guild -> setForm("guilds", "id", guild.getId(), form))
                 .orElse(false);
     }
 
@@ -158,46 +158,46 @@ public final class GuildsGovernanceSource implements GovernanceSource {
 
     // ---- materialization -------------------------------------------------
 
-    private GuildBody toGuildBody(Town town) {
-        GovernmentForm form = readForm("towns", "id", town.getId());
-        List<String> authorityIds = townAuthorityIds(town, form);
+    private GuildBody toGuildBody(Guild guild) {
+        GovernmentForm form = readForm("guilds", "id", guild.getId());
+        List<String> authorityIds = guildAuthorityIds(guild, form);
         Government government = Government.fromRoles(form, authorityIds);
 
         List<String> memberIds = new ArrayList<>();
-        for (UUID resident : town.getResidents()) {
+        for (UUID resident : guild.getResidents()) {
             memberIds.add(resident.toString());
         }
         memberIds.sort(String::compareTo);
 
         Map<String, MemberPermissions> permissions = new java.util.HashMap<>();
-        for (UUID resident : town.getResidents()) {
-            permissions.put(resident.toString(), memberPermissions(town, resident));
+        for (UUID resident : guild.getResidents()) {
+            permissions.put(resident.toString(), memberPermissions(guild, resident));
         }
 
-        TownToggles toggles = new TownToggles(
-                town.isPvpEnabled(),
-                town.isFireEnabled(),
-                town.isExplosionsEnabled(),
-                town.isMobsEnabled(),
-                town.isPublicEnabled()
+        GuildToggles toggles = new GuildToggles(
+                guild.isPvpEnabled(),
+                guild.isFireEnabled(),
+                guild.isExplosionsEnabled(),
+                guild.isMobsEnabled(),
+                guild.isPublicEnabled()
         );
-        return new GuildBody(town.getId(), town.getName(), government, memberIds, toggles, permissions);
+        return new GuildBody(guild.getId(), guild.getName(), government, memberIds, toggles, permissions);
     }
 
-    private List<String> townAuthorityIds(Town town, GovernmentForm form) {
+    private List<String> guildAuthorityIds(Guild guild, GovernmentForm form) {
         return switch (form) {
-            case MONARCHY -> List.of(town.getMayorUuid().toString());
+            case MONARCHY -> List.of(guild.getMayorUuid().toString());
             case OLIGARCHY -> {
                 Set<String> ids = new LinkedHashSet<>();
-                ids.add(town.getMayorUuid().toString());
-                for (UUID assistant : sorted(town.getAssistants())) {
+                ids.add(guild.getMayorUuid().toString());
+                for (UUID assistant : sorted(guild.getAssistants())) {
                     ids.add(assistant.toString());
                 }
                 yield new ArrayList<>(ids);
             }
             case DEMOCRACY -> {
                 List<String> ids = new ArrayList<>();
-                for (UUID resident : sorted(town.getResidents())) {
+                for (UUID resident : sorted(guild.getResidents())) {
                     ids.add(resident.toString());
                 }
                 yield ids;
@@ -211,7 +211,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
         List<String> authorityIds = nationAuthorityIds(nation, form);
         Government government = Government.fromRoles(form, authorityIds);
 
-        List<String> memberGuildIds = new ArrayList<>(nation.getMemberTownIds());
+        List<String> memberGuildIds = new ArrayList<>(nation.getMemberGuildIds());
         memberGuildIds.sort(String::compareTo);
         return new AllianceBody(nation.getId(), nation.getName(), government, memberGuildIds);
     }
@@ -232,11 +232,11 @@ public final class GuildsGovernanceSource implements GovernanceSource {
                 yield new ArrayList<>(ids);
             }
             case DEMOCRACY -> {
-                // Every member-town mayor is a representative.
+                // Every member-guild mayor is a representative.
                 List<String> ids = new ArrayList<>();
-                for (String townId : nation.getMemberTownIds()) {
-                    townService.getTownById(townId)
-                            .map(Town::getMayorUuid)
+                for (String guildId : nation.getMemberGuildIds()) {
+                    guildService.getGuildById(guildId)
+                            .map(Guild::getMayorUuid)
                             .map(UUID::toString)
                             .ifPresent(ids::add);
                 }
@@ -248,9 +248,9 @@ public final class GuildsGovernanceSource implements GovernanceSource {
 
     /**
      * Effective territory permissions for one member, mirroring the guilds
-     * town-level hierarchy (bypass → explicit town grants → role default).
+     * guild-level hierarchy (bypass → explicit guild grants → role default).
      */
-    private MemberPermissions memberPermissions(Town town, UUID resident) {
+    private MemberPermissions memberPermissions(Guild guild, UUID resident) {
         Set<SovereignAction> granted = EnumSet.noneOf(SovereignAction.class);
         boolean bypass = false;
 
@@ -267,18 +267,18 @@ public final class GuildsGovernanceSource implements GovernanceSource {
             addMappedActions(granted, flags);
         }
 
-        // 2. Explicit town-context grants
-        List<Integer> townFlags = queryFlags(
+        // 2. Explicit guild-context grants
+        List<Integer> guildFlags = queryFlags(
                 "SELECT permissions_flags FROM permissions WHERE context = 'town' AND context_id = ? "
                         + "AND (target_type = 'all' OR (target_type = 'resident' AND target_id = ?))",
-                town.getName(), resident.toString()
+                guild.getName(), resident.toString()
         );
-        for (int flags : townFlags) {
+        for (int flags : guildFlags) {
             addMappedActions(granted, flags);
         }
 
-        // 3. Role default: all town members get the basic build actions
-        //    (matches hasRoleBasedTownPermission: build/destroy/switch/item_use).
+        // 3. Role default: all guild members get the basic build actions
+        //    (matches hasRoleBasedGuildPermission: build/destroy/switch/item_use).
         granted.add(SovereignAction.BREAK_BLOCK);
         granted.add(SovereignAction.PLACE_BLOCK);
         granted.add(SovereignAction.INTERACT);

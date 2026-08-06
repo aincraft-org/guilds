@@ -8,12 +8,12 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 
 /**
- * Add the chosen governance form to towns and nations.
+ * Add the chosen governance form to guilds and nations.
  * <p>
  * The governance form (MONARCHY / OLIGARCHY / DEMOCRACY / ANARCHY) is the
  * governance-layer decision for a guild or alliance entity: it determines the
  * seat structure derived from the entity's role holders. Defaults to MONARCHY
- * so existing towns/nations are governed by their mayor/king until changed.
+ * so existing guilds/nations are governed by their mayor/king until changed.
  * Version 15 — after AddBlueprintMigration (v14).
  */
 public class AddGovernanceFormMigration implements DatabaseMigration {
@@ -27,13 +27,13 @@ public class AddGovernanceFormMigration implements DatabaseMigration {
 
     @Override
     public String getDescription() {
-        return "Add governance form columns to towns and nations";
+        return "Add governance form columns to guilds and nations";
     }
 
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            stmt.execute("ALTER TABLE towns ADD COLUMN governance_form TEXT NOT NULL DEFAULT 'MONARCHY'");
+            stmt.execute("ALTER TABLE guilds ADD COLUMN governance_form TEXT NOT NULL DEFAULT 'MONARCHY'");
             stmt.execute("ALTER TABLE nations ADD COLUMN governance_form TEXT NOT NULL DEFAULT 'MONARCHY'");
         }
     }

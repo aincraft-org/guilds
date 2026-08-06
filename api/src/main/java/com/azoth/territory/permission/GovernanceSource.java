@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /**
  * Source of governing-entity snapshots, implemented by the guilds subsystem
- * (towns as guilds, nations as alliances).
+ * (guilds as guilds, nations as alliances).
  * <p>
  * The territory side resolves governance exclusively through this interface —
  * there is no parallel in-memory guild/alliance world anymore.
@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface GovernanceSource {
 
     /**
-     * Guild (town) snapshot by guild id (town id).
+     * Guild (guild) snapshot by guild id (guild id).
      */
     Optional<GuildBody> guild(String guildId);
 

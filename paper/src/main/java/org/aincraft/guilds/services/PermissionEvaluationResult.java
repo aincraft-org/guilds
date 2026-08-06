@@ -5,7 +5,7 @@ package org.aincraft.guilds.services;
  */
 public class PermissionEvaluationResult {
     private final boolean hasPermission;
-    private final String source; // "global", "town", "plot", "owner", "admin"
+    private final String source; // "global", "guild", "plot", "owner", "admin"
     private final String reason;
 
     public PermissionEvaluationResult(boolean hasPermission, String source, String reason) {

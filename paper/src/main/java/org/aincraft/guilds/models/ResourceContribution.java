@@ -4,12 +4,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Represents a resource contribution made by a player to their town's upgrade progress
+ * Represents a resource contribution made by a player to their guild's upgrade progress
  */
 public class ResourceContribution {
 
     private String id;
-    private String townId;
+    private String guildId;
     private UUID contributorUuid;
     private ResourceType resourceType;
     private int amount;
@@ -24,15 +24,15 @@ public class ResourceContribution {
 
     /**
      * Constructor for creating a new resource contribution
-     * @param townId Town ID
+     * @param guildId Guild ID
      * @param contributorUuid Contributor's UUID
      * @param resourceType Type of resource
      * @param amount Amount contributed
      */
-    public ResourceContribution(String townId, UUID contributorUuid, ResourceType resourceType, int amount) {
+    public ResourceContribution(String guildId, UUID contributorUuid, ResourceType resourceType, int amount) {
         this();
         this.id = UUID.randomUUID().toString();
-        this.townId = townId;
+        this.guildId = guildId;
         this.contributorUuid = contributorUuid;
         this.resourceType = resourceType;
         this.setAmount(amount);
@@ -41,16 +41,16 @@ public class ResourceContribution {
     /**
      * Constructor with ID for database reconstruction
      * @param id Contribution ID
-     * @param townId Town ID
+     * @param guildId Guild ID
      * @param contributorUuid Contributor's UUID
      * @param resourceType Type of resource
      * @param amount Amount contributed
      * @param contributionTime When the contribution was made
      */
-    public ResourceContribution(String id, String townId, UUID contributorUuid,
+    public ResourceContribution(String id, String guildId, UUID contributorUuid,
                                 ResourceType resourceType, int amount, LocalDateTime contributionTime) {
         this.id = id;
-        this.townId = townId;
+        this.guildId = guildId;
         this.contributorUuid = contributorUuid;
         this.resourceType = resourceType;
         this.setAmount(amount);
@@ -66,12 +66,12 @@ public class ResourceContribution {
         this.id = id;
     }
 
-    public String getTownId() {
-        return townId;
+    public String getGuildId() {
+        return guildId;
     }
 
-    public void setTownId(String townId) {
-        this.townId = townId;
+    public void setGuildId(String guildId) {
+        this.guildId = guildId;
     }
 
     public UUID getContributorUuid() {
@@ -190,7 +190,7 @@ public class ResourceContribution {
      */
     public boolean isValid() {
         return id != null && !id.isEmpty() &&
-               townId != null && !townId.isEmpty() &&
+               guildId != null && !guildId.isEmpty() &&
                contributorUuid != null &&
                isValidResourceType() &&
                amount > 0 &&
@@ -214,7 +214,7 @@ public class ResourceContribution {
     public String toString() {
         return "ResourceContribution{" +
                 "id='" + id + '\'' +
-                ", townId='" + townId + '\'' +
+                ", townId='" + guildId + '\'' +
                 ", contributorUuid=" + contributorUuid +
                 ", resourceType=" + (resourceType != null ? resourceType.name() : "null") +
                 ", amount=" + amount +

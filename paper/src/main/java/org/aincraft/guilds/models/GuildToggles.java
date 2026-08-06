@@ -4,10 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Encapsulates town toggle settings (pvp, fire, explosions, mobs, public)
- * Extracted from Town.java to follow Single Responsibility Principle
+ * Encapsulates guild toggle settings (pvp, fire, explosions, mobs, public)
+ * Extracted from Guild.java to follow Single Responsibility Principle
  */
-public class TownToggles {
+public class GuildToggles {
 
     private boolean pvpEnabled;
     private boolean fireEnabled;
@@ -18,7 +18,7 @@ public class TownToggles {
     /**
      * Default constructor with default toggle values
      */
-    public TownToggles() {
+    public GuildToggles() {
         this.pvpEnabled = false;
         this.fireEnabled = false;
         this.explosionsEnabled = false;
@@ -34,7 +34,7 @@ public class TownToggles {
      * @param mobsEnabled Mobs enabled
      * @param publicEnabled Public access enabled
      */
-    public TownToggles(boolean pvpEnabled, boolean fireEnabled, boolean explosionsEnabled,
+    public GuildToggles(boolean pvpEnabled, boolean fireEnabled, boolean explosionsEnabled,
                       boolean mobsEnabled, boolean publicEnabled) {
         this.pvpEnabled = pvpEnabled;
         this.fireEnabled = fireEnabled;
@@ -88,7 +88,7 @@ public class TownToggles {
     // Business methods
 
     /**
-     * Toggle PvP setting for the town
+     * Toggle PvP setting for the guild
      * @return New PvP state after toggle
      */
     public boolean togglePvp() {
@@ -97,7 +97,7 @@ public class TownToggles {
     }
 
     /**
-     * Toggle fire setting for the town
+     * Toggle fire setting for the guild
      * @return New fire state after toggle
      */
     public boolean toggleFire() {
@@ -106,7 +106,7 @@ public class TownToggles {
     }
 
     /**
-     * Toggle explosions setting for the town
+     * Toggle explosions setting for the guild
      * @return New explosions state after toggle
      */
     public boolean toggleExplosions() {
@@ -115,7 +115,7 @@ public class TownToggles {
     }
 
     /**
-     * Toggle mobs setting for the town
+     * Toggle mobs setting for the guild
      * @return New mobs state after toggle
      */
     public boolean toggleMobs() {
@@ -124,7 +124,7 @@ public class TownToggles {
     }
 
     /**
-     * Toggle public setting for the town
+     * Toggle public setting for the guild
      * @return New public state after toggle
      */
     public boolean togglePublic() {
@@ -133,7 +133,7 @@ public class TownToggles {
     }
 
     /**
-     * Get all town toggle states
+     * Get all guild toggle states
      * @return Map of toggle names to their current states
      */
     public Map<String, Boolean> getAllToggles() {
@@ -212,10 +212,10 @@ public class TownToggles {
     }
 
     /**
-     * Copy toggle values from another TownToggles instance
-     * @param other TownToggles to copy from
+     * Copy toggle values from another GuildToggles instance
+     * @param other GuildToggles to copy from
      */
-    public void copyFrom(TownToggles other) {
+    public void copyFrom(GuildToggles other) {
         if (other != null) {
             this.pvpEnabled = other.pvpEnabled;
             this.fireEnabled = other.fireEnabled;
@@ -226,11 +226,11 @@ public class TownToggles {
     }
 
     /**
-     * Create a copy of this TownToggles
-     * @return New TownToggles instance with same values
+     * Create a copy of this GuildToggles
+     * @return New GuildToggles instance with same values
      */
-    public TownToggles copy() {
-        return new TownToggles(pvpEnabled, fireEnabled, explosionsEnabled, mobsEnabled, publicEnabled);
+    public GuildToggles copy() {
+        return new GuildToggles(pvpEnabled, fireEnabled, explosionsEnabled, mobsEnabled, publicEnabled);
     }
 
     @Override

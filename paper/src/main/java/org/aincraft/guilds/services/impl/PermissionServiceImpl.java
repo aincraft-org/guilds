@@ -4,8 +4,8 @@ package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Permission;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.models.GuildPermission;
 import org.aincraft.guilds.models.PermissionSet;
 import org.aincraft.guilds.services.LocationService;
@@ -13,8 +13,8 @@ import org.aincraft.guilds.services.PermissionEvaluationResult;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
-import org.aincraft.guilds.services.TownToggleService;
+import org.aincraft.guilds.services.GuildService;
+import org.aincraft.guilds.services.GuildToggleService;
 import org.aincraft.guilds.services.PermissionEvaluationResult;
 
 import javax.sql.DataSource;
@@ -44,25 +44,25 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     private final DataSource dataSource;
     private final Logger logger;
     private final PlotService plotService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
-    private final TownToggleService townToggleService;
+    private final GuildToggleService guildToggleService;
     private final LocationService locationService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 
     public PermissionServiceImpl(DatabaseManager databaseManager, Logger logger,
-                                PlotService plotService, TownService townService, ResidentService residentService,
-                                TownToggleService townToggleService, LocationService locationService) {
+                                PlotService plotService, GuildService guildService, ResidentService residentService,
+                                GuildToggleService guildToggleService, LocationService locationService) {
         this.databaseManager = databaseManager;
         this.dataSource = databaseManager.getDataSource();
         this.logger = logger;
         this.plotService = plotService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
         this.locationService = locationService;
-        this.townToggleService = townToggleService;
+        this.guildToggleService = guildToggleService;
     }
 
     @Override
@@ -70,7 +70,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         // Handle specific permission checks based on context
         switch (context.toLowerCase()) {
             case "town":
-                return hasTownPermission(residentUuid, permission, contextId);
+                return hasGuildPermission(residentUuid, permission, contextId);
             case "plot":
                 return hasPlotPermission(residentUuid, permission, contextId);
             case "global":
@@ -207,15 +207,15 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     @Override
-    public boolean setTownPermissions(String townName, List<Permission> permissions) {
+    public boolean setGuildPermissions(String guildName, List<Permission> permissions) {
         final boolean[] result = new boolean[1];
 
         databaseManager.executeTransaction(connection -> {
             try {
-                // Delete existing town permissions
+                // Delete existing guild permissions
                 String deleteSql = "DELETE FROM permissions WHERE context = 'town' AND context_id = ?";
                 try (PreparedStatement deleteStatement = connection.prepareStatement(deleteSql)) {
-                    deleteStatement.setString(1, townName);
+                    deleteStatement.setString(1, guildName);
                     deleteStatement.executeUpdate();
                 }
 
@@ -237,11 +237,11 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                     insertStatement.executeBatch();
                 }
 
-                logger.info("Set permissions for town: " + townName);
+                logger.info("Set permissions for town: " + guildName);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to set permissions for town: " + townName, e);
+                logger.log(Level.SEVERE, "Failed to set permissions for town: " + guildName, e);
                 throw new RuntimeException("Failed to set town permissions", e);
             }
         });
@@ -321,7 +321,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     /**
      * Centralized method to check permissions at a specific location
-     * Uses hierarchical permission evaluation: Plot > Town > Global
+     * Uses hierarchical permission evaluation: Plot > Guild > Global
      */
     private boolean checkLocationPermission(UUID residentUuid, int x, int z, String world, int permissionFlag) {
         try {
@@ -329,23 +329,23 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
 
-            // Get town block at this location
-            Optional<TownBlock> townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
+            // Get guild block at this location
+            Optional<GuildBlock> guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
 
-            if (!townBlock.isPresent()) {
+            if (!guildBlock.isPresent()) {
                 // Wilderness - apply wilderness toggle defaults
                 return checkWildernessPermission(permissionFlag);
             }
 
-            // Town block exists - apply town toggle checks first
-            if (!checkTownToggles(residentUuid, x, z, world, permissionFlag)) {
+            // Guild block exists - apply guild toggle checks first
+            if (!checkGuildToggles(residentUuid, x, z, world, permissionFlag)) {
                 logger.fine(String.format("Permission denied by town toggle for %s at (%d,%d,%s)",
                     residentUuid, x, z, world));
                 return false;
             }
 
-            // Town block exists - use hierarchical permission evaluation
-            TownBlock block = townBlock.get();
+            // Guild block exists - use hierarchical permission evaluation
+            GuildBlock block = guildBlock.get();
             PermissionEvaluationResult result = evaluatePlotPermission(residentUuid, block.getId(), permissionFlag);
 
             // Log the evaluation result for debugging
@@ -362,7 +362,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     /**
-     * Check town toggles that might affect the permission
+     * Check guild toggles that might affect the permission
      * @param residentUuid Resident UUID
      * @param x X coordinate
      * @param z Z coordinate
@@ -370,19 +370,19 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
      * @param permissionFlag Permission flag being checked
      * @return True if toggles allow the permission, false otherwise
      */
-    private boolean checkTownToggles(UUID residentUuid, int x, int z, String world, int permissionFlag) {
-        Optional<Town> town = locationService.getTownAtLocation(x, z, world);
-        if (town.isEmpty()) {
-            return true; // No town - no toggle restrictions
+    private boolean checkGuildToggles(UUID residentUuid, int x, int z, String world, int permissionFlag) {
+        Optional<Guild> guild = locationService.getGuildAtLocation(x, z, world);
+        if (guild.isEmpty()) {
+            return true; // No guild - no toggle restrictions
         }
 
-        Town t = town.get();
+        Guild t = guild.get();
 
-        // Check if town is public access (for non-residents)
+        // Check if guild is public access (for non-residents)
         try {
             var resident = residentService.getResident(residentUuid);
-            if (resident.isPresent() && !resident.get().hasTown()) {
-                // Non-resident trying to access town
+            if (resident.isPresent() && !resident.get().hasGuild()) {
+                // Non-resident trying to access guild
                 if (!t.isPublicEnabled()) {
                     logger.fine("Non-resident access denied - town is not public");
                     return false;
@@ -409,13 +409,13 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     @Override
-    public List<Permission> getDefaultTownPermissions() {
+    public List<Permission> getDefaultGuildPermissions() {
         List<Permission> permissions = new ArrayList<>();
 
-        // Create default town permissions with bitwise flags
+        // Create default guild permissions with bitwise flags
         Permission residentPerms = new Permission(
             PermissionSet.createResident().toLegacyFlags(),
-            Permission.Context.TOWN,
+            Permission.Context.GUILD,
             "default",
             Permission.Target.RESIDENT,
             "all"
@@ -423,7 +423,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
         Permission assistantPerms = new Permission(
             PermissionSet.createAssistant().toLegacyFlags(),
-            Permission.Context.TOWN,
+            Permission.Context.GUILD,
             "default",
             Permission.Target.ASSISTANT,
             "all"
@@ -431,7 +431,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
         Permission mayorPerms = new Permission(
             PermissionSet.createMayor().toLegacyFlags(),
-            Permission.Context.TOWN,
+            Permission.Context.GUILD,
             "default",
             Permission.Target.MAYOR,
             "all"
@@ -462,13 +462,13 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     @Override
-    public boolean isTownMayor(UUID residentUuid, String townName) {
-        String sql = "SELECT COUNT(*) FROM towns WHERE name = ? AND mayor_uuid = ?";
+    public boolean isGuildMayor(UUID residentUuid, String guildName) {
+        String sql = "SELECT COUNT(*) FROM guilds WHERE name = ? AND mayor_uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
             statement.setString(2, residentUuid.toString());
 
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -478,24 +478,24 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check if resident is town mayor: " + residentUuid + " in town " + townName, e);
+            logger.log(Level.SEVERE, "Failed to check if resident is town mayor: " + residentUuid + " in town " + guildName, e);
         }
 
         return false;
     }
 
     @Override
-    public boolean isTownAssistant(UUID residentUuid, String townName) {
+    public boolean isGuildAssistant(UUID residentUuid, String guildName) {
         String sql = """
-            SELECT COUNT(*) FROM town_residents tr
-            JOIN towns t ON tr.town_id = t.id
+            SELECT COUNT(*) FROM guild_residents tr
+            JOIN guilds t ON tr.guild_id = t.id
             WHERE t.name = ? AND tr.resident_uuid = ? AND tr.role = 'assistant'
             """;
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
             statement.setString(2, residentUuid.toString());
 
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -505,7 +505,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check if resident is town assistant: " + residentUuid + " in town " + townName, e);
+            logger.log(Level.SEVERE, "Failed to check if resident is town assistant: " + residentUuid + " in town " + guildName, e);
         }
 
         return false;
@@ -513,7 +513,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public boolean ownsPlot(UUID residentUuid, UUID plotId) {
-        String sql = "SELECT COUNT(*) FROM town_blocks WHERE id = ? AND owner_uuid = ?";
+        String sql = "SELECT COUNT(*) FROM guild_blocks WHERE id = ? AND owner_uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -535,9 +535,9 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     /**
-     * Check if a resident has a specific town permission
+     * Check if a resident has a specific guild permission
      */
-    private boolean hasTownPermission(UUID residentUuid, String permission, String townName) {
+    private boolean hasGuildPermission(UUID residentUuid, String permission, String guildName) {
         // Check database for explicit permission grants first
         String sql = "SELECT permissions_flags FROM permissions WHERE " +
                     "context = 'town' AND context_id = ? AND " +
@@ -546,7 +546,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
             statement.setString(2, residentUuid.toString());
 
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -559,55 +559,55 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check town permission: " + permission + " for " + residentUuid + " in " + townName, e);
+            logger.log(Level.SEVERE, "Failed to check town permission: " + permission + " for " + residentUuid + " in " + guildName, e);
         }
 
         // Fall back to role-based permissions if no explicit permissions found
-        return hasRoleBasedTownPermission(residentUuid, permission, townName);
+        return hasRoleBasedGuildPermission(residentUuid, permission, guildName);
     }
 
     /**
-     * Check if a resident has permission based on their town role
+     * Check if a resident has permission based on their guild role
      */
-    private boolean hasRoleBasedTownPermission(UUID residentUuid, String permission, String townName) {
+    private boolean hasRoleBasedGuildPermission(UUID residentUuid, String permission, String guildName) {
         switch (permission.toLowerCase()) {
             case "set_spawn":
                 // Mayors and assistants can set spawn
-                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+                return isGuildMayor(residentUuid, guildName) || isGuildAssistant(residentUuid, guildName);
 
             case "spawn":
-                // All residents and town members can spawn
+                // All residents and guild members can spawn
                 return true;
 
             case "claim":
             case "unclaim":
                 // Mayors and assistants can claim/unclaim
-                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+                return isGuildMayor(residentUuid, guildName) || isGuildAssistant(residentUuid, guildName);
 
             case "invite":
                 // Mayors and assistants can invite
-                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+                return isGuildMayor(residentUuid, guildName) || isGuildAssistant(residentUuid, guildName);
 
             case "kick":
                 // Mayors and assistants can kick (but not other assistants)
-                return isTownMayor(residentUuid, townName) ||
-                       (isTownAssistant(residentUuid, townName) && !isTownAssistant(residentUuid, townName));
+                return isGuildMayor(residentUuid, guildName) ||
+                       (isGuildAssistant(residentUuid, guildName) && !isGuildAssistant(residentUuid, guildName));
 
             case "promote":
             case "demote":
                 // Only mayors can promote/demote
-                return isTownMayor(residentUuid, townName);
+                return isGuildMayor(residentUuid, guildName);
 
             case "withdraw":
             case "deposit":
                 // Mayors and assistants can manage economy
-                return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+                return isGuildMayor(residentUuid, guildName) || isGuildAssistant(residentUuid, guildName);
 
             case "build":
             case "destroy":
             case "switch":
             case "item_use":
-                // All town members have basic build permissions by default
+                // All guild members have basic build permissions by default
                 return true;
 
             default:
@@ -639,7 +639,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             case "plot_set": return (flags & GuildPermission.PLOT_SET.getLegacyBitwiseValue()) != 0;
             case "plot_owner": return (flags & GuildPermission.PLOT_OWNER.getLegacyBitwiseValue()) != 0;
             case "admin": return (flags & GuildPermission.ADMIN.getLegacyBitwiseValue()) != 0;
-            case "admin_town": return (flags & GuildPermission.ADMIN_TOWN.getLegacyBitwiseValue()) != 0;
+            case "admin_town": return (flags & GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue()) != 0;
             case "admin_plot": return (flags & GuildPermission.ADMIN_PLOT.getLegacyBitwiseValue()) != 0;
             case "admin_resident": return (flags & GuildPermission.ADMIN_RESIDENT.getLegacyBitwiseValue()) != 0;
             case "bypass": return (flags & GuildPermission.BYPASS.getLegacyBitwiseValue()) != 0;
@@ -683,18 +683,18 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     @Override
-    public boolean hasTownAdmin(UUID residentUuid, String townName) {
+    public boolean hasGuildAdmin(UUID residentUuid, String guildName) {
         // Check if resident is mayor or assistant
-        return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+        return isGuildMayor(residentUuid, guildName) || isGuildAssistant(residentUuid, guildName);
     }
 
     @Override
-    public boolean grantTownPermission(UUID residentUuid, String townName, int permissionFlag) {
-        return grantTownPermissions(residentUuid, townName, permissionFlag);
+    public boolean grantGuildPermission(UUID residentUuid, String guildName, int permissionFlag) {
+        return grantGuildPermissions(residentUuid, guildName, permissionFlag);
     }
 
     @Override
-    public boolean grantTownPermissions(UUID residentUuid, String townName, int permissionFlags) {
+    public boolean grantGuildPermissions(UUID residentUuid, String guildName, int permissionFlags) {
         final boolean[] result = new boolean[1];
         final String targetType = (residentUuid == null) ? "all" : "resident";
         final String targetId = (residentUuid == null) ? null : residentUuid.toString();
@@ -706,7 +706,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                                 "context = 'town' AND context_id = ? AND target_type = ? AND target_id = ?";
 
                 try (PreparedStatement checkStatement = connection.prepareStatement(checkSql)) {
-                    checkStatement.setString(1, townName);
+                    checkStatement.setString(1, guildName);
                     checkStatement.setString(2, targetType);
                     checkStatement.setString(3, targetId);
 
@@ -724,7 +724,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                                 updateStatement.executeUpdate();
                             }
 
-                            logger.info("Updated town permissions for " + targetType + " in " + townName + ": added flags " + permissionFlags);
+                            logger.info("Updated town permissions for " + targetType + " in " + guildName + ": added flags " + permissionFlags);
                         } else {
                             // Insert new permission
                             String insertSql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
@@ -732,7 +732,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                             try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
                                 insertStatement.setString(1, UUID.randomUUID().toString());
                                 insertStatement.setString(2, "town");
-                                insertStatement.setString(3, townName);
+                                insertStatement.setString(3, guildName);
                                 insertStatement.setString(4, targetType);
                                 insertStatement.setString(5, targetId);
                                 insertStatement.setInt(6, permissionFlags);
@@ -742,7 +742,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                                 insertStatement.executeUpdate();
                             }
 
-                            logger.info("Granted town permissions for " + targetType + " in " + townName + ": flags " + permissionFlags);
+                            logger.info("Granted town permissions for " + targetType + " in " + guildName + ": flags " + permissionFlags);
                         }
                     }
                 }
@@ -750,7 +750,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to grant town permissions: " + permissionFlags + " to " + targetType + " in " + townName, e);
+                logger.log(Level.SEVERE, "Failed to grant town permissions: " + permissionFlags + " to " + targetType + " in " + guildName, e);
                 result[0] = false;
             }
         });
@@ -823,7 +823,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             case "plot_set": return GuildPermission.PLOT_SET.getLegacyBitwiseValue();
             case "plot_owner": return GuildPermission.PLOT_OWNER.getLegacyBitwiseValue();
             case "admin": return GuildPermission.ADMIN.getLegacyBitwiseValue();
-            case "admin_town": return GuildPermission.ADMIN_TOWN.getLegacyBitwiseValue();
+            case "admin_town": return GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue();
             case "admin_plot": return GuildPermission.ADMIN_PLOT.getLegacyBitwiseValue();
             case "admin_resident": return GuildPermission.ADMIN_RESIDENT.getLegacyBitwiseValue();
             case "bypass": return GuildPermission.BYPASS.getLegacyBitwiseValue();
@@ -847,8 +847,8 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public boolean canClaimPlot(UUID residentUuid, int x, int z, String world) {
-        // Check if resident is in a town and has claim permission
-        // This would integrate with TownService to verify town membership
+        // Check if resident is in a guild and has claim permission
+        // This would integrate with GuildService to verify guild membership
         return hasPermission(residentUuid, "claim", "town", null);
     }
 
@@ -860,8 +860,8 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public boolean canManagePlot(UUID residentUuid, UUID plotId) {
-        // Plot owners and town assistants/mayors can manage plots
-        return ownsPlot(residentUuid, plotId) || hasTownAdmin(residentUuid, null);
+        // Plot owners and guild assistants/mayors can manage plots
+        return ownsPlot(residentUuid, plotId) || hasGuildAdmin(residentUuid, null);
     }
 
     @Override
@@ -878,14 +878,14 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     @Override
-    public boolean canClaimForTown(UUID residentUuid, String townName) {
-        // Check if resident has town management permissions
-        return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+    public boolean canClaimForGuild(UUID residentUuid, String guildName) {
+        // Check if resident has guild management permissions
+        return isGuildMayor(residentUuid, guildName) || isGuildAssistant(residentUuid, guildName);
     }
 
     @Override
-    public boolean hasPlotManagementPermissions(UUID residentUuid, String townName) {
-        return isTownMayor(residentUuid, townName) || isTownAssistant(residentUuid, townName);
+    public boolean hasPlotManagementPermissions(UUID residentUuid, String guildName) {
+        return isGuildMayor(residentUuid, guildName) || isGuildAssistant(residentUuid, guildName);
     }
 
     @Override
@@ -896,13 +896,13 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         }
 
         // Get plot information
-        Optional<TownBlock> townBlock = plotService.getTownBlock(plotId);
-        if (!townBlock.isPresent()) {
+        Optional<GuildBlock> guildBlock = plotService.getGuildBlock(plotId);
+        if (!guildBlock.isPresent()) {
             return new PermissionEvaluationResult(false, "default", "Plot does not exist");
         }
 
-        TownBlock block = townBlock.get();
-        String townId = block.getTownId();
+        GuildBlock block = guildBlock.get();
+        String guildId = block.getGuildId();
 
         // Priority 2: Plot owner - has absolute rights over their plot
         if (ownsPlot(residentUuid, plotId)) {
@@ -918,37 +918,37 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
         }
 
-        // Priority 4: Town permissions (fallback for town-owned plots or town members)
-        String townName = getTownNameFromId(townId);
-        if (townName != null) {
-            // Check if user is member of the town
-            if (isResidentInTown(residentUuid, townName)) {
-                // Check town-specific permissions for this resident
-                List<Permission> townPerms = getResidentPermissions(residentUuid, Permission.Context.TOWN, townName);
-                for (Permission perm : townPerms) {
+        // Priority 4: Guild permissions (fallback for guild-owned plots or guild members)
+        String guildName = getGuildNameFromId(guildId);
+        if (guildName != null) {
+            // Check if user is member of the guild
+            if (isResidentInGuild(residentUuid, guildName)) {
+                // Check guild-specific permissions for this resident
+                List<Permission> guildPerms = getResidentPermissions(residentUuid, Permission.Context.GUILD, guildName);
+                for (Permission perm : guildPerms) {
                     if (perm.appliesTo(residentUuid) && perm.hasFlag(permissionFlag)) {
                         return new PermissionEvaluationResult(true, "town", "Town permission granted");
                     }
                 }
 
-                // Check default town permissions based on resident's role
-                if (isTownMayor(residentUuid, townName)) {
+                // Check default guild permissions based on resident's role
+                if (isGuildMayor(residentUuid, guildName)) {
                     if ((PermissionSet.createMayor().toLegacyFlags() & permissionFlag) != 0) {
                         return new PermissionEvaluationResult(true, "town", "Default mayor permissions");
                     }
-                } else if (isTownAssistant(residentUuid, townName)) {
+                } else if (isGuildAssistant(residentUuid, guildName)) {
                     if ((PermissionSet.createAssistant().toLegacyFlags() & permissionFlag) != 0) {
                         return new PermissionEvaluationResult(true, "town", "Default assistant permissions");
                     }
                 } else {
-                    // Regular town resident
+                    // Regular guild resident
                     if ((PermissionSet.createResident().toLegacyFlags() & permissionFlag) != 0) {
                         return new PermissionEvaluationResult(true, "town", "Default resident permissions");
                     }
                 }
             }
 
-            // Check if plot is town-owned and apply default plot permissions
+            // Check if plot is guild-owned and apply default plot permissions
             if (block.getOwnerId() == null) {
                 if ((PermissionSet.createDefaultPlot().toLegacyFlags() & permissionFlag) != 0) {
                     return new PermissionEvaluationResult(true, "plot", "Default town plot permissions");
@@ -961,25 +961,25 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     /**
-     * Helper method to get town name from town ID
+     * Helper method to get guild name from guild ID
      */
-    private String getTownNameFromId(String townId) {
+    private String getGuildNameFromId(String guildId) {
         try {
-            Optional<Town> town = townService.getTownById(townId);
-            return town.map(Town::getName).orElse(null);
+            Optional<Guild> guild = guildService.getGuildById(guildId);
+            return guild.map(Guild::getName).orElse(null);
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to get town name from ID: " + townId, e);
+            logger.log(Level.WARNING, "Failed to get town name from ID: " + guildId, e);
             return null;
         }
     }
 
     /**
-     * Helper method to check if resident is member of town
+     * Helper method to check if resident is member of guild
      */
-    private boolean isResidentInTown(UUID residentUuid, String townName) {
+    private boolean isResidentInGuild(UUID residentUuid, String guildName) {
         try {
-            String residentTown = getResidentTown(residentUuid);
-            return townName.equals(residentTown);
+            String residentGuild = getResidentGuild(residentUuid);
+            return guildName.equals(residentGuild);
         } catch (Exception e) {
             logger.log(Level.WARNING, "Failed to check town membership for resident: " + residentUuid, e);
             return false;
@@ -987,10 +987,10 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     /**
-     * Helper method to get resident's town name
+     * Helper method to get resident's guild name
      */
-    private String getResidentTown(UUID residentUuid) {
-        String sql = "SELECT town_name FROM residents WHERE uuid = ?";
+    private String getResidentGuild(UUID residentUuid) {
+        String sql = "SELECT guild_name FROM residents WHERE uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -999,7 +999,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    return resultSet.getString("town_name");
+                    return resultSet.getString("guild_name");
                 }
             }
 
@@ -1100,36 +1100,36 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         logger.info("Permission cache cleared for resident: " + residentUuid);
     }
 
-    // ==================== TOWN TOGGLE METHODS (DELEGATED) ====================
+    // ==================== GUILD TOGGLE METHODS (DELEGATED) ====================
 
     @Override
     public boolean isPvpEnabledAtLocation(int x, int z, String world) {
-        return townToggleService.isPvpEnabledAtLocation(x, z, world);
+        return guildToggleService.isPvpEnabledAtLocation(x, z, world);
     }
 
     @Override
     public boolean isFireEnabledAtLocation(int x, int z, String world) {
-        return townToggleService.isFireEnabledAtLocation(x, z, world);
+        return guildToggleService.isFireEnabledAtLocation(x, z, world);
     }
 
     @Override
     public boolean areExplosionsEnabledAtLocation(int x, int z, String world) {
-        return townToggleService.areExplosionsEnabledAtLocation(x, z, world);
+        return guildToggleService.areExplosionsEnabledAtLocation(x, z, world);
     }
 
     @Override
     public boolean areMobsEnabledAtLocation(int x, int z, String world) {
-        return townToggleService.areMobsEnabledAtLocation(x, z, world);
+        return guildToggleService.areMobsEnabledAtLocation(x, z, world);
     }
 
     @Override
     public boolean isPublicAccessEnabledAtLocation(int x, int z, String world) {
-        return townToggleService.isPublicAccessEnabledAtLocation(x, z, world);
+        return guildToggleService.isPublicAccessEnabledAtLocation(x, z, world);
     }
 
     @Override
     public Map<String, Boolean> getTogglesAtLocation(int x, int z, String world) {
-        return townToggleService.getTogglesAtLocation(x, z, world);
+        return guildToggleService.getTogglesAtLocation(x, z, world);
     }
 
     // ==================== ENUM HELPER METHODS ====================

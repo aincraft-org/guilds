@@ -33,7 +33,7 @@ public class AddNationMigration implements DatabaseMigration {
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE,
                     king_uuid TEXT NOT NULL,
-                    capital_town_id TEXT NOT NULL,
+                    capital_guild_id TEXT NOT NULL,
                     tax_rate REAL DEFAULT 0.0,
                     is_open INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL
@@ -43,8 +43,8 @@ public class AddNationMigration implements DatabaseMigration {
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS nation_members (
                     nation_id TEXT NOT NULL,
-                    town_id TEXT NOT NULL,
-                    PRIMARY KEY (nation_id, town_id)
+                    guild_id TEXT NOT NULL,
+                    PRIMARY KEY (nation_id, guild_id)
                 )
             """);
 
@@ -65,10 +65,10 @@ public class AddNationMigration implements DatabaseMigration {
                 )
             """);
 
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nations_capital ON nations(capital_town_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nations_capital ON nations(capital_guild_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_nations_king ON nations(king_uuid)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_members_nation ON nation_members(nation_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_members_town ON nation_members(town_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_members_guild ON nation_members(guild_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_ministers_nation ON nation_ministers(nation_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_relations_nation ON nation_relations(nation_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_relations_type ON nation_relations(relation_type)");

@@ -8,7 +8,7 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 
 /**
- * Migration to add town specialization system.
+ * Migration to add guild specialization system.
  * Version 12 — after AddTravelAbilitiesMigration (v11).
  */
 public class AddSpecializationMigration implements DatabaseMigration {
@@ -28,18 +28,18 @@ public class AddSpecializationMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            // Town specializations table
+            // Guild specializations table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS town_specializations (
-                    town_id TEXT PRIMARY KEY,
+                CREATE TABLE IF NOT EXISTS guild_specializations (
+                    guild_id TEXT PRIMARY KEY,
                     specialization TEXT NOT NULL,
                     set_at TEXT NOT NULL,
-                    FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
                 )
                 """);
 
             // Index
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_town_specialization ON town_specializations(specialization)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_specialization ON guild_specializations(specialization)");
         }
     }
 

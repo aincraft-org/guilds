@@ -11,10 +11,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.gui.TechTreeGUI;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.aincraft.guilds.models.TechTreeBranch;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.TechTreeService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.web.SessionManager;
 import org.aincraft.guilds.web.WebServerConfig;
 import org.aincraft.guilds.web.TechTreeSession;
@@ -39,7 +39,7 @@ public class TechTreeBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final TechTreeService techTreeService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
     private final TechTreeGUI techTreeGUI;
     private final SessionManager sessionManager;
@@ -47,12 +47,12 @@ public class TechTreeBrigadierCommand {
 
 
     public TechTreeBrigadierCommand(JavaPlugin plugin, TechTreeService techTreeService,
-                                    TownService townService, ResidentService residentService,
+                                    GuildService guildService, ResidentService residentService,
                                     TechTreeGUI techTreeGUI, SessionManager sessionManager,
                                     WebServerConfig webServerConfig) {
         this.plugin = plugin;
         this.techTreeService = techTreeService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
         this.techTreeGUI = techTreeGUI;
         this.sessionManager = sessionManager;
@@ -77,10 +77,10 @@ public class TechTreeBrigadierCommand {
             .then(Commands.literal("unlock")
                 .then(Commands.argument("node", StringArgumentType.word())
                     .suggests((ctx, builder) -> {
-                        // Suggest available nodes for the player's town
-                        Town town = getPlayerTown(ctx.getSource().getSender());
-                        if (town != null) {
-                            for (TechTreeNode node : techTreeService.getAvailableNodes(town)) {
+                        // Suggest available nodes for the player's guild
+                        Guild guild = getPlayerGuild(ctx.getSource().getSender());
+                        if (guild != null) {
+                            for (TechTreeNode node : techTreeService.getAvailableNodes(guild)) {
                                 if (node.getId().toLowerCase().startsWith(builder.getRemainingLowerCase())) {
                                     builder.suggest(node.getId());
                                 }
@@ -113,14 +113,14 @@ public class TechTreeBrigadierCommand {
             return 0;
         }
 
-        Town town = getPlayerTown(player);
-        if (town == null) {
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
-        techTreeService.loadTownTechData(town);
-        techTreeGUI.openTechTree(player, town);
+        techTreeService.loadGuildTechData(guild);
+        techTreeGUI.openTechTree(player, guild);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -160,17 +160,17 @@ public class TechTreeBrigadierCommand {
             }
         }
 
-        // Show unlock status if player is in a town
+        // Show unlock status if player is in a guild
         if (sender instanceof org.bukkit.entity.Player player) {
-            Town town = getPlayerTown(player);
-            if (town != null) {
-                boolean unlocked = techTreeService.isTechNodeUnlocked(town, nodeId);
-                boolean available = techTreeService.canUnlockNode(town, nodeId);
+            Guild guild = getPlayerGuild(player);
+            if (guild != null) {
+                boolean unlocked = techTreeService.isTechNodeUnlocked(guild, nodeId);
+                boolean available = techTreeService.canUnlockNode(guild, nodeId);
                 sender.sendMessage("");
                 if (unlocked) {
                     sender.sendMessage("§a✓ Already unlocked");
                 } else if (available) {
-                    sender.sendMessage("§e▸ Available to unlock (§d" + town.getTechPoints() + "§e tech points)");
+                    sender.sendMessage("§e▸ Available to unlock (§d" + guild.getTechPoints() + "§e tech points)");
                 } else {
                     sender.sendMessage("§c✗ Locked — prerequisites not met or insufficient tech points");
                 }
@@ -187,8 +187,8 @@ public class TechTreeBrigadierCommand {
             return 0;
         }
 
-        Town town = getPlayerTown(player);
-        if (town == null) {
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
@@ -202,19 +202,19 @@ public class TechTreeBrigadierCommand {
 
         TechTreeNode node = nodeOpt.get();
 
-        if (techTreeService.isTechNodeUnlocked(town, nodeId)) {
+        if (techTreeService.isTechNodeUnlocked(guild, nodeId)) {
             player.sendMessage("§e" + node.getName() + " is already unlocked!");
             return 0;
         }
 
-        if (!techTreeService.canUnlockNode(town, nodeId)) {
+        if (!techTreeService.canUnlockNode(guild, nodeId)) {
             player.sendMessage("§cCannot unlock " + node.getName() + "!");
-            if (town.getTechPoints() < node.getCost()) {
-                player.sendMessage("§7  Not enough tech points. Need §d" + node.getCost() + "§7, have §d" + town.getTechPoints());
+            if (guild.getTechPoints() < node.getCost()) {
+                player.sendMessage("§7  Not enough tech points. Need §d" + node.getCost() + "§7, have §d" + guild.getTechPoints());
             }
             if (node.getPrerequisites() != null) {
                 for (String prereqId : node.getPrerequisites()) {
-                    if (!techTreeService.isTechNodeUnlocked(town, prereqId)) {
+                    if (!techTreeService.isTechNodeUnlocked(guild, prereqId)) {
                         techTreeService.getNode(prereqId).ifPresent(prereq ->
                             player.sendMessage("§7  Missing prerequisite: §f" + prereq.getName())
                         );
@@ -224,10 +224,10 @@ public class TechTreeBrigadierCommand {
             return 0;
         }
 
-        boolean success = techTreeService.unlockTechNode(town, nodeId);
+        boolean success = techTreeService.unlockTechNode(guild, nodeId);
         if (success) {
             player.sendMessage("§a✓ Unlocked " + (node.getBranch() != null ? node.getBranch().getColorCode() : "§f") + node.getName() + "§a!");
-            player.sendMessage("§7Tech points remaining: §d" + town.getTechPoints());
+            player.sendMessage("§7Tech points remaining: §d" + guild.getTechPoints());
         } else {
             player.sendMessage("§cFailed to unlock " + node.getName() + ". Try again.");
         }
@@ -292,12 +292,12 @@ public class TechTreeBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private Town getPlayerTown(org.bukkit.command.CommandSender sender) {
+    private Guild getPlayerGuild(org.bukkit.command.CommandSender sender) {
         if (!(sender instanceof org.bukkit.entity.Player player)) return null;
         return residentService.getResident(player.getUniqueId())
-                .filter(resident -> resident.hasTown())
-                .map(org.aincraft.guilds.models.Resident::getTown)
-                .flatMap(townName -> townService.getTown(townName))
+                .filter(resident -> resident.hasGuild())
+                .map(org.aincraft.guilds.models.Resident::getGuild)
+                .flatMap(guildName -> guildService.getGuild(guildName))
                 .orElse(null);
     }
 
@@ -309,14 +309,14 @@ public class TechTreeBrigadierCommand {
             return 0;
         }
 
-        Town town = getPlayerTown(sender);
-        if (town == null) {
+        Guild guild = getPlayerGuild(sender);
+        if (guild == null) {
             player.sendMessage(net.kyori.adventure.text.Component.text("You must be in a town to use the web tech tree.",
                     net.kyori.adventure.text.format.NamedTextColor.RED));
             return 0;
         }
 
-        TechTreeSession session = sessionManager.createSession(player, town);
+        TechTreeSession session = sessionManager.createSession(player, guild);
         String host = plugin.getServer().getIp().isEmpty() ? "localhost" : plugin.getServer().getIp();
         String port = String.valueOf(webServerConfig.getPort());
         String url = "https://guilds-techtree.vercel.app/s/" + session.getSessionId() + "?host=" + host + ":" + port;

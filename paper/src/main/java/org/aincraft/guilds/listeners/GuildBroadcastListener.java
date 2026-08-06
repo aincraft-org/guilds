@@ -4,10 +4,10 @@ package org.aincraft.guilds.listeners;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.models.BroadcastMessage;
 import org.aincraft.guilds.models.Resident;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.BroadcastService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.utils.BroadcastFormatter;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -23,24 +23,24 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 /**
- * Listener for town broadcasting system events
+ * Listener for guild broadcasting system events
  * Handles automatic broadcast creation and delivery
  */
-public class TownBroadcastListener implements Listener {
+public class GuildBroadcastListener implements Listener {
 
     private final JavaPlugin plugin;
     private final BroadcastService broadcastService;
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final Logger logger;
 
 
-    public TownBroadcastListener(JavaPlugin plugin, BroadcastService broadcastService,
-                               ResidentService residentService, TownService townService, Logger logger) {
+    public GuildBroadcastListener(JavaPlugin plugin, BroadcastService broadcastService,
+                               ResidentService residentService, GuildService guildService, Logger logger) {
         this.plugin = plugin;
         this.broadcastService = broadcastService;
         this.residentService = residentService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.logger = logger;
     }
 
@@ -76,19 +76,19 @@ public class TownBroadcastListener implements Listener {
      * Process player join for broadcasting
      */
     private void processPlayerJoin(Player player, UUID playerUuid) {
-        // Check if player is in a town
+        // Check if player is in a guild
         residentService.getResident(playerUuid).ifPresent(resident -> {
-            if (!resident.hasTown()) {
-                return; // Player is not in a town
+            if (!resident.hasGuild()) {
+                return; // Player is not in a guild
             }
 
-            String townName = resident.getTown();
-            townService.getTown(townName).ifPresent(town -> {
-                String townId = town.getId();
+            String guildName = resident.getGuild();
+            guildService.getGuild(guildName).ifPresent(guild -> {
+                String guildId = guild.getId();
 
                 // Get broadcasts for this player
                 List<BroadcastMessage> broadcasts = broadcastService.getBroadcastsForPlayer(
-                    townId, playerUuid, getPlayerRole(playerUuid, town)
+                    guildId, playerUuid, getPlayerRole(playerUuid, guild)
                 );
 
                 if (!broadcasts.isEmpty()) {
@@ -100,7 +100,7 @@ public class TownBroadcastListener implements Listener {
 
                 // Check if this is a new resident and create welcome message if needed
                 if (shouldCreateWelcomeMessage(resident)) {
-                    createWelcomeBroadcast(townId, player.getName());
+                    createWelcomeBroadcast(guildId, player.getName());
                 }
             });
         });
@@ -128,12 +128,12 @@ public class TownBroadcastListener implements Listener {
     }
 
     /**
-     * Get player's role in the town
+     * Get player's role in the guild
      */
-    private String getPlayerRole(UUID playerUuid, Town town) {
-        if (town.getMayorUuid().equals(playerUuid)) {
+    private String getPlayerRole(UUID playerUuid, Guild guild) {
+        if (guild.getMayorUuid().equals(playerUuid)) {
             return "mayor";
-        } else if (town.getAssistants().contains(playerUuid)) {
+        } else if (guild.getAssistants().contains(playerUuid)) {
             return "assistant";
         } else {
             return "resident";
@@ -144,7 +144,7 @@ public class TownBroadcastListener implements Listener {
      * Check if a welcome message should be created for this resident
      */
     private boolean shouldCreateWelcomeMessage(Resident resident) {
-        // Check if resident is new (has been town member for less than 5 minutes)
+        // Check if resident is new (has been guild member for less than 5 minutes)
         return resident.getJoinedAt() != null &&
                System.currentTimeMillis() - resident.getJoinedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli() < 300000; // 5 minutes
     }
@@ -152,9 +152,9 @@ public class TownBroadcastListener implements Listener {
     /**
      * Create a welcome broadcast for a new resident
      */
-    private void createWelcomeBroadcast(String townId, String playerName) {
+    private void createWelcomeBroadcast(String guildId, String playerName) {
         try {
-            BroadcastMessage welcome = broadcastService.createWelcomeMessage(townId, playerName);
+            BroadcastMessage welcome = broadcastService.createWelcomeMessage(guildId, playerName);
             welcome.setTitle("Welcome " + playerName + "!");
             welcome.setContent("Please give a warm welcome to our newest resident! " +
                              playerName + " has just joined our town. Feel free to help them get settled in.");
@@ -163,9 +163,9 @@ public class TownBroadcastListener implements Listener {
 
             broadcastService.updateBroadcast(welcome);
 
-            // Send the welcome message to all online town members
+            // Send the welcome message to all online guild members
             int sentCount = broadcastService.sendBroadcastToOnlineMembers(welcome);
-            logger.info("Created welcome broadcast for " + playerName + " in town " + townId +
+            logger.info("Created welcome broadcast for " + playerName + " in town " + guildId +
                        " (sent to " + sentCount + " players)");
 
         } catch (Exception e) {
@@ -174,10 +174,10 @@ public class TownBroadcastListener implements Listener {
     }
 
     /**
-     * Create an automatic alert when a town reaches a new level
+     * Create an automatic alert when a guild reaches a new level
      */
-    public void createTownLevelUpAlert(Town town, int newLevel) {
-        if (town == null) {
+    public void createGuildLevelUpAlert(Guild guild, int newLevel) {
+        if (guild == null) {
             return;
         }
 
@@ -185,11 +185,11 @@ public class TownBroadcastListener implements Listener {
             String title = "Town Level Up! 🎉";
             String content = String.format("Congratulations! %s has reached level %d! " +
                                           "New benefits and features have been unlocked.",
-                                          town.getName(), newLevel);
+                                          guild.getName(), newLevel);
 
             BroadcastMessage alert = broadcastService.createAlertMessage(
-                town.getId(), title, content,
-                town.getMayorUuid(), "Town System",
+                guild.getId(), title, content,
+                guild.getMayorUuid(), "Town System",
                 BroadcastMessage.Priority.HIGH
             );
 
@@ -199,25 +199,25 @@ public class TownBroadcastListener implements Listener {
             broadcastService.updateBroadcast(alert);
             broadcastService.sendBroadcastToOnlineMembers(alert);
 
-            logger.info("Created level up alert for town " + town.getName() + " level " + newLevel);
+            logger.info("Created level up alert for town " + guild.getName() + " level " + newLevel);
 
         } catch (Exception e) {
-            logger.warning("Failed to create level up alert for town " + town.getName() + ": " + e.getMessage());
+            logger.warning("Failed to create level up alert for town " + guild.getName() + ": " + e.getMessage());
         }
     }
 
     /**
-     * Create an economic alert for the town
+     * Create an economic alert for the guild
      */
-    public void createEconomicAlert(Town town, String title, String content, int priority) {
-        if (town == null) {
+    public void createEconomicAlert(Guild guild, String title, String content, int priority) {
+        if (guild == null) {
             return;
         }
 
         try {
             BroadcastMessage economicAlert = broadcastService.createBroadcast(
-                town.getId(), BroadcastMessage.Type.ECONOMIC, title, content,
-                town.getMayorUuid(), "Economy System"
+                guild.getId(), BroadcastMessage.Type.ECONOMIC, title, content,
+                guild.getMayorUuid(), "Economy System"
             );
 
             economicAlert.setPriority(priority);
@@ -227,10 +227,10 @@ public class TownBroadcastListener implements Listener {
             broadcastService.updateBroadcast(economicAlert);
             broadcastService.sendBroadcastToOnlineMembers(economicAlert);
 
-            logger.info("Created economic alert for town " + town.getName() + ": " + title);
+            logger.info("Created economic alert for town " + guild.getName() + ": " + title);
 
         } catch (Exception e) {
-            logger.warning("Failed to create economic alert for town " + town.getName() + ": " + e.getMessage());
+            logger.warning("Failed to create economic alert for town " + guild.getName() + ": " + e.getMessage());
         }
     }
 }

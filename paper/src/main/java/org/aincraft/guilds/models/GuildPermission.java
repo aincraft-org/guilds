@@ -19,11 +19,11 @@ public enum GuildPermission {
     SWITCH("Switch", "Use switches, doors, buttons", Category.BUILD, 1 << 2, 3),
     ITEM_USE("Item Use", "Use items and interact", Category.BUILD, 1 << 3, 4),
 
-    // Town Management Permissions (Category: TOWN_MANAGEMENT)
-    CLAIM("Claim", "Claim land for town", Category.TOWN_MANAGEMENT, 1 << 4, 5),
-    UNCLAIM("Unclaim", "Unclaim town land", Category.TOWN_MANAGEMENT, 1 << 5, 6),
-    SPAWN("Spawn", "Teleport to town spawn", Category.TOWN_MANAGEMENT, 1 << 6, 7),
-    SET_SPAWN("Set Spawn", "Set town spawn location", Category.TOWN_MANAGEMENT, 1 << 7, 8),
+    // Guild Management Permissions (Category: GUILD_MANAGEMENT)
+    CLAIM("Claim", "Claim land for town", Category.GUILD_MANAGEMENT, 1 << 4, 5),
+    UNCLAIM("Unclaim", "Unclaim town land", Category.GUILD_MANAGEMENT, 1 << 5, 6),
+    SPAWN("Spawn", "Teleport to town spawn", Category.GUILD_MANAGEMENT, 1 << 6, 7),
+    SET_SPAWN("Set Spawn", "Set town spawn location", Category.GUILD_MANAGEMENT, 1 << 7, 8),
 
     // Member Management Permissions (Category: MEMBER_MANAGEMENT)
     INVITE("Invite", "Invite residents to town", Category.MEMBER_MANAGEMENT, 1 << 8, 9),
@@ -42,7 +42,7 @@ public enum GuildPermission {
 
     // Admin Permissions (Category: ADMIN)
     ADMIN("Admin", "Full administrative access", Category.ADMIN, 1 << 17, 18),
-    ADMIN_TOWN("Admin Town", "Town administration access", Category.ADMIN, 1 << 18, 19),
+    ADMIN_GUILD("Admin Town", "Town administration access", Category.ADMIN, 1 << 18, 19),
     ADMIN_PLOT("Admin Plot", "Plot administration access", Category.ADMIN, 1 << 19, 20),
     ADMIN_RESIDENT("Admin Resident", "Resident administration access", Category.ADMIN, 1 << 20, 21),
     BYPASS("Bypass", "Bypass all permission checks", Category.ADMIN, 1 << 21, 22);
@@ -66,7 +66,7 @@ public enum GuildPermission {
      */
     public enum Category {
         BUILD("Build Permissions", "Permissions related to building and interacting with blocks"),
-        TOWN_MANAGEMENT("Town Management", "Permissions for managing town territory and infrastructure"),
+        GUILD_MANAGEMENT("Town Management", "Permissions for managing town territory and infrastructure"),
         MEMBER_MANAGEMENT("Member Management", "Permissions for managing town members"),
         ECONOMIC("Economic", "Permissions related to town finances"),
         PLOT("Plot", "Permissions for managing individual plots"),
@@ -175,10 +175,10 @@ public enum GuildPermission {
     }
 
     /**
-     * Check if this is a town management permission
+     * Check if this is a guild management permission
      */
-    public boolean isTownManagementPermission() {
-        return category == Category.TOWN_MANAGEMENT;
+    public boolean isGuildManagementPermission() {
+        return category == Category.GUILD_MANAGEMENT;
     }
 
     /**
@@ -218,9 +218,9 @@ public enum GuildPermission {
                                          SWITCH.legacyBitwiseValue | ITEM_USE.legacyBitwiseValue;
 
     /**
-     * Legacy compatibility - get town management permissions combination
+     * Legacy compatibility - get guild management permissions combination
      */
-    public static final int TOWN_MANAGE = CLAIM.legacyBitwiseValue | UNCLAIM.legacyBitwiseValue |
+    public static final int GUILD_MANAGE = CLAIM.legacyBitwiseValue | UNCLAIM.legacyBitwiseValue |
                                          SPAWN.legacyBitwiseValue | SET_SPAWN.legacyBitwiseValue;
 
     /**
@@ -243,14 +243,14 @@ public enum GuildPermission {
     /**
      * Legacy compatibility - get all admin permissions combination
      */
-    public static final int ADMIN_ALL = ADMIN.legacyBitwiseValue | ADMIN_TOWN.legacyBitwiseValue |
+    public static final int ADMIN_ALL = ADMIN.legacyBitwiseValue | ADMIN_GUILD.legacyBitwiseValue |
                                         ADMIN_PLOT.legacyBitwiseValue | ADMIN_RESIDENT.legacyBitwiseValue |
                                         BYPASS.legacyBitwiseValue;
 
     /**
      * Legacy compatibility - get all permissions combination
      */
-    public static final int ALL = BUILD_ALL | TOWN_MANAGE | MEMBER_MANAGE | ECONOMIC | PLOT_MANAGE | ADMIN_ALL;
+    public static final int ALL = BUILD_ALL | GUILD_MANAGE | MEMBER_MANAGE | ECONOMIC | PLOT_MANAGE | ADMIN_ALL;
 
     @Override
     public String toString() {

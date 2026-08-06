@@ -181,9 +181,9 @@ public class PermissionSet {
     }
 
     /**
-     * Create a PermissionSet with default town permissions
+     * Create a PermissionSet with default guild permissions
      */
-    public static PermissionSet createDefaultTown() {
+    public static PermissionSet createDefaultGuild() {
         Set<GuildPermission> defaults = Set.of(
             GuildPermission.BUILD,
             GuildPermission.SWITCH,
@@ -206,10 +206,10 @@ public class PermissionSet {
     }
 
     /**
-     * Create a PermissionSet for town assistants
+     * Create a PermissionSet for guild assistants
      */
     public static PermissionSet createAssistant() {
-        PermissionSet perms = createDefaultTown();
+        PermissionSet perms = createDefaultGuild();
         perms.grantPermission(GuildPermission.CLAIM);
         perms.grantPermission(GuildPermission.UNCLAIM);
         perms.grantPermission(GuildPermission.KICK);
@@ -217,7 +217,7 @@ public class PermissionSet {
     }
 
     /**
-     * Create a PermissionSet for town mayors
+     * Create a PermissionSet for guild mayors
      */
     public static PermissionSet createMayor() {
         PermissionSet perms = createAssistant();
@@ -230,7 +230,7 @@ public class PermissionSet {
     }
 
     /**
-     * Create a PermissionSet for regular town residents
+     * Create a PermissionSet for regular guild residents
      */
     public static PermissionSet createResident() {
         Set<GuildPermission> defaults = Set.of(

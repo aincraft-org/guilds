@@ -8,7 +8,7 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 
 /**
- * Migration to add town quests system.
+ * Migration to add guild quests system.
  * Version 13 — after AddAllianceSystemMigration (v12).
  */
 public class AddQuestMigration implements DatabaseMigration {
@@ -28,11 +28,11 @@ public class AddQuestMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            // Town quests table
+            // Guild quests table
             stmt.execute("""
-                CREATE TABLE IF NOT EXISTS town_quests (
+                CREATE TABLE IF NOT EXISTS guild_quests (
                     id TEXT PRIMARY KEY,
-                    town_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
                     quest_type TEXT NOT NULL,
                     description TEXT NOT NULL,
                     target_amount INTEGER NOT NULL DEFAULT 1,
@@ -42,12 +42,12 @@ public class AddQuestMigration implements DatabaseMigration {
                     is_completed INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL,
                     completed_at TEXT,
-                    FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
                 )
                 """);
 
             // Indexes
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_town_quests_town_id ON town_quests(town_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_quests_guild_id ON guild_quests(guild_id)");
         }
     }
 

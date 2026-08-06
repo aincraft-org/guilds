@@ -11,9 +11,9 @@ import io.javalin.websocket.WsConfig;
 import io.javalin.websocket.WsContext;
 import io.javalin.websocket.WsMessageContext;
 import org.aincraft.guilds.models.TechTreeNode;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.TechTreeService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 public class WebServer {
 
     private final TechTreeService techTreeService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final SessionManager sessionManager;
     private final WebServerConfig config;
     private final Logger logger;
@@ -45,10 +45,10 @@ public class WebServer {
     private Javalin app;
 
 
-    public WebServer(TechTreeService techTreeService, TownService townService,
+    public WebServer(TechTreeService techTreeService, GuildService guildService,
                     SessionManager sessionManager, WebServerConfig config, Logger logger) {
         this.techTreeService = techTreeService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.sessionManager = sessionManager;
         this.config = config;
         this.logger = logger;
@@ -113,27 +113,27 @@ public class WebServer {
 
             TechTreeSession session = sessionOpt.get();
 
-            // Get town data
-            Optional<Town> townOpt = townService.getTown(session.getTownId());
-            if (townOpt.isEmpty()) {
+            // Get guild data
+            Optional<Guild> guildOpt = guildService.getGuild(session.getGuildId());
+            if (guildOpt.isEmpty()) {
                 ctx.status(HttpStatus.NOT_FOUND);
                 ctx.json(Map.of("error", "Town not found"));
                 return;
             }
 
-            Town town = townOpt.get();
-            techTreeService.loadTownTechData(town);
+            Guild guild = guildOpt.get();
+            techTreeService.loadGuildTechData(guild);
 
             Map<String, Object> response = new HashMap<>();
             response.put("session", Map.of(
                 "playerName", session.getPlayerName(),
-                "townName", session.getTownName(),
+                "townName", session.getGuildName(),
                 "expiresAt", session.getExpiresAt().toString()
             ));
             response.put("town", Map.of(
-                "name", town.getName(),
-                "level", town.getTownLevel(),
-                "techPoints", town.getTechPoints()
+                "name", guild.getName(),
+                "level", guild.getGuildLevel(),
+                "techPoints", guild.getTechPoints()
             ));
 
             ctx.json(response);
@@ -161,22 +161,22 @@ public class WebServer {
 
         TechTreeSession session = sessionOpt.get();
 
-        // Get town data
-        Optional<Town> townOpt = townService.getTown(session.getTownId());
-        if (townOpt.isEmpty()) {
+        // Get guild data
+        Optional<Guild> guildOpt = guildService.getGuild(session.getGuildId());
+        if (guildOpt.isEmpty()) {
             ctx.send("{\"error\":\"Town not found\"}");
             ctx.closeSession();
             return;
         }
 
-        Town town = townOpt.get();
-        techTreeService.loadTownTechData(town);
+        Guild guild = guildOpt.get();
+        techTreeService.loadGuildTechData(guild);
 
         // Initialize pending unlocks for this session
         pendingUnlocks.putIfAbsent(sessionId, new HashSet<>());
 
         // Send initial tree state
-        ctx.send(buildTreeStateJson(session, town));
+        ctx.send(buildTreeStateJson(session, guild));
     }
 
     private void handleWebSocketMessage(WsMessageContext ctx) {
@@ -196,24 +196,24 @@ public class WebServer {
             }
 
             TechTreeSession session = sessionOpt.get();
-            Optional<Town> townOpt = townService.getTown(session.getTownId());
-            if (townOpt.isEmpty()) {
+            Optional<Guild> guildOpt = guildService.getGuild(session.getGuildId());
+            if (guildOpt.isEmpty()) {
                 ctx.send("{\"error\":\"Town not found\"}");
                 ctx.closeSession();
                 return;
             }
 
-            Town town = townOpt.get();
-            techTreeService.loadTownTechData(town);
+            Guild guild = guildOpt.get();
+            techTreeService.loadGuildTechData(guild);
 
             Set<String> pending = pendingUnlocks.getOrDefault(sessionId, new HashSet<>());
 
             switch (action) {
                 case "unlock":
-                    handleUnlockAction(ctx, session, town, messageData, pending);
+                    handleUnlockAction(ctx, session, guild, messageData, pending);
                     break;
                 case "confirm":
-                    handleConfirmAction(ctx, session, town, pending);
+                    handleConfirmAction(ctx, session, guild, pending);
                     break;
                 case "cancel":
                     handleCancelAction(ctx, sessionId, pending);
@@ -228,7 +228,7 @@ public class WebServer {
         }
     }
 
-    private void handleUnlockAction(WsContext ctx, TechTreeSession session, Town town,
+    private void handleUnlockAction(WsContext ctx, TechTreeSession session, Guild guild,
                                    Map<String, Object> messageData, Set<String> pending) {
         String nodeId = (String) messageData.get("nodeId");
         if (nodeId == null) {
@@ -244,7 +244,7 @@ public class WebServer {
 
         TechTreeNode node = nodeOpt.get();
 
-        if (!techTreeService.canUnlockNode(town, nodeId)) {
+        if (!techTreeService.canUnlockNode(guild, nodeId)) {
             ctx.send("{\"error\":\"Cannot unlock this node\"}");
             return;
         }
@@ -253,10 +253,10 @@ public class WebServer {
         pending.add(nodeId);
 
         // Send updated state
-        ctx.send(buildTreeStateJson(session, town));
+        ctx.send(buildTreeStateJson(session, guild));
     }
 
-    private void handleConfirmAction(WsContext ctx, TechTreeSession session, Town town, Set<String> pending) {
+    private void handleConfirmAction(WsContext ctx, TechTreeSession session, Guild guild, Set<String> pending) {
         if (pending.isEmpty()) {
             ctx.send("{\"error\":\"No pending unlocks\"}");
             return;
@@ -270,24 +270,24 @@ public class WebServer {
             }
         }
 
-        if (town.getTechPoints() < totalCost) {
+        if (guild.getTechPoints() < totalCost) {
             ctx.send("{\"error\":\"Insufficient tech points\"}");
             return;
         }
 
         // Apply all pending unlocks
         for (String nodeId : pending) {
-            techTreeService.unlockTechNode(town, nodeId);
+            techTreeService.unlockTechNode(guild, nodeId);
         }
 
-        // Save town data
-        techTreeService.saveTownTechData(town);
+        // Save guild data
+        techTreeService.saveGuildTechData(guild);
 
         // Clear pending
         pending.clear();
 
         // Send final state and close
-        ctx.send(buildTreeStateJson(session, town));
+        ctx.send(buildTreeStateJson(session, guild));
         ctx.closeSession();
     }
 
@@ -307,7 +307,7 @@ public class WebServer {
         logger.warning("WebSocket error in session: " + ctx.pathParam("sessionId"));
     }
 
-    private String buildTreeStateJson(TechTreeSession session, Town town) {
+    private String buildTreeStateJson(TechTreeSession session, Guild guild) {
         Map<String, Object> treeState = new HashMap<>();
         treeState.put("type", "tree_state");
 
@@ -316,15 +316,15 @@ public class WebServer {
         // Session info
         payload.put("session", Map.of(
             "playerName", session.getPlayerName(),
-            "townName", session.getTownName(),
+            "townName", session.getGuildName(),
             "expiresAt", session.getExpiresAt().toString()
         ));
 
-        // Town info
+        // Guild info
         payload.put("town", Map.of(
-            "name", town.getName(),
-            "level", town.getTownLevel(),
-            "techPoints", town.getTechPoints()
+            "name", guild.getName(),
+            "level", guild.getGuildLevel(),
+            "techPoints", guild.getTechPoints()
         ));
 
         // Nodes
@@ -342,9 +342,9 @@ public class WebServer {
 
             // Determine node status
             String status = "locked";
-            if (town.isTechNodeUnlocked(node.getId())) {
+            if (guild.isTechNodeUnlocked(node.getId())) {
                 status = "unlocked";
-            } else if (techTreeService.canUnlockNode(town, node.getId())) {
+            } else if (techTreeService.canUnlockNode(guild, node.getId())) {
                 status = "available";
             }
 

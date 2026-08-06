@@ -4,12 +4,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Represents a broadcast message for town communication
+ * Represents a broadcast message for guild communication
  */
 public class BroadcastMessage {
 
     private String id;
-    private String townId;
+    private String guildId;
     private String messageType;
     private String title;
     private String content;
@@ -33,18 +33,18 @@ public class BroadcastMessage {
 
     /**
      * Constructor for creating a new broadcast message
-     * @param townId Town ID this broadcast belongs to
+     * @param guildId Guild ID this broadcast belongs to
      * @param messageType Type of message (announcement, alert, welcome)
      * @param title Message title
      * @param content Message content
      * @param senderUuid UUID of the sender
      * @param senderName Name of the sender
      */
-    public BroadcastMessage(String townId, String messageType, String title, String content,
+    public BroadcastMessage(String guildId, String messageType, String title, String content,
                            UUID senderUuid, String senderName) {
         this();
         this.id = UUID.randomUUID().toString();
-        this.townId = townId;
+        this.guildId = guildId;
         this.messageType = messageType;
         this.title = title;
         this.content = content;
@@ -95,12 +95,12 @@ public class BroadcastMessage {
         this.id = id;
     }
 
-    public String getTownId() {
-        return townId;
+    public String getGuildId() {
+        return guildId;
     }
 
-    public void setTownId(String townId) {
-        this.townId = townId;
+    public void setGuildId(String guildId) {
+        this.guildId = guildId;
     }
 
     public String getMessageType() {
@@ -226,7 +226,7 @@ public class BroadcastMessage {
     public String toString() {
         return "BroadcastMessage{" +
                 "id='" + id + '\'' +
-                ", townId='" + townId + '\'' +
+                ", townId='" + guildId + '\'' +
                 ", messageType='" + messageType + '\'' +
                 ", title='" + title + '\'' +
                 ", senderName='" + senderName + '\'' +

@@ -16,10 +16,10 @@ import org.aincraft.guilds.GuildsGovernanceSource;
 import org.aincraft.guilds.commands.arguments.GovernmentFormArgumentType;
 import org.aincraft.guilds.models.Nation;
 import org.aincraft.guilds.models.Resident;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.NationService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.entity.Player;
 
 import java.util.Optional;
@@ -27,15 +27,15 @@ import java.util.UUID;
 
 /**
  * Brigadier command for nation system management.
- * /nation create <name> — create a nation (mayor of a town)
- * /nation invite <town> — invite a town (king/minister only)
+ * /nation create <name> — create a nation (mayor of a guild)
+ * /nation invite <guild> — invite a guild (king/minister only)
  * /nation join <nation> — accept invite (mayor only)
  * /nation leave — leave nation
  * /nation list — list all nations
  * /nation info [nation] — show nation details
  * /nation ally <nation> — add ally (king/minister only)
  * /nation enemy <nation> — add enemy (king/minister only)
- * /nation kick <town> — kick a town (king/minister only)
+ * /nation kick <guild> — kick a guild (king/minister only)
  * /nation set king <player> — transfer kingship
  * /nation set tax <rate> — set tax rate
  * /nation set open <true|false> — toggle open/closed
@@ -46,17 +46,17 @@ public class NationBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final NationService nationService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
     private final GuildsGovernanceSource governanceSource;
 
 
     public NationBrigadierCommand(JavaPlugin plugin, NationService nationService,
-                                  TownService townService, ResidentService residentService,
+                                  GuildService guildService, ResidentService residentService,
                                   GuildsGovernanceSource governanceSource) {
         this.plugin = plugin;
         this.nationService = nationService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
         this.governanceSource = governanceSource;
     }
@@ -125,16 +125,16 @@ public class NationBrigadierCommand {
         return player;
     }
 
-    private Optional<Town> getPlayerTown(Player player) {
+    private Optional<Guild> getPlayerGuild(Player player) {
         return residentService.getResident(player.getUniqueId())
-                .filter(Resident::hasTown)
-                .flatMap(r -> townService.getTown(r.getTown()));
+                .filter(Resident::hasGuild)
+                .flatMap(r -> guildService.getGuild(r.getGuild()));
     }
 
     private Optional<Nation> getPlayerNation(Player player) {
-        return getPlayerTown(player)
-                .flatMap(town -> nationService.getAllNations().stream()
-                        .filter(n -> n.hasTown(town.getId()))
+        return getPlayerGuild(player)
+                .flatMap(guild -> nationService.getAllNations().stream()
+                        .filter(n -> n.hasGuild(guild.getId()))
                         .findFirst());
     }
 
@@ -142,10 +142,10 @@ public class NationBrigadierCommand {
         return nation.isKing(player.getUniqueId()) || nation.isMinister(player.getUniqueId());
     }
 
-    private boolean isMayorOfTown(Player player, String townName) {
+    private boolean isMayorOfGuild(Player player, String guildName) {
         return residentService.getResident(player.getUniqueId())
-                .filter(r -> r.hasTown() && r.getTown().equalsIgnoreCase(townName))
-                .flatMap(r -> townService.getTown(r.getTown()))
+                .filter(r -> r.hasGuild() && r.getGuild().equalsIgnoreCase(guildName))
+                .flatMap(r -> guildService.getGuild(r.getGuild()))
                 .map(t -> t.getMayorUuid() != null && t.getMayorUuid().equals(player.getUniqueId()))
                 .orElse(false);
     }
@@ -163,20 +163,20 @@ public class NationBrigadierCommand {
             return 0;
         }
 
-        Optional<Town> townOpt = getPlayerTown(player);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = getPlayerGuild(player);
+        if (guildOpt.isEmpty()) {
             player.sendMessage(Component.text("You must be in a town to create a nation!", NamedTextColor.RED));
             return 0;
         }
 
-        Town town = townOpt.get();
-        if (!town.getMayorUuid().equals(player.getUniqueId())) {
+        Guild guild = guildOpt.get();
+        if (!guild.getMayorUuid().equals(player.getUniqueId())) {
             player.sendMessage(Component.text("Only town mayors can create nations!", NamedTextColor.RED));
             return 0;
         }
 
         try {
-            nationService.createNation(name, town, player.getUniqueId());
+            nationService.createNation(name, guild, player.getUniqueId());
             player.sendMessage(Component.text("Nation " + name + " created! Your town is now the capital.", NamedTextColor.GREEN));
         } catch (IllegalArgumentException e) {
             player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
@@ -189,7 +189,7 @@ public class NationBrigadierCommand {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
-        String townName = StringArgumentType.getString(ctx, "town");
+        String guildName = StringArgumentType.getString(ctx, "town");
         Optional<Nation> nationOpt = getPlayerNation(player);
 
         if (nationOpt.isEmpty()) {
@@ -198,25 +198,25 @@ public class NationBrigadierCommand {
         }
 
         if (!hasNationAuthority(player, nationOpt.get())) {
-            player.sendMessage(Component.text("Only the king or ministers can invite towns!", NamedTextColor.RED));
+            player.sendMessage(Component.text("Only the king or ministers can invite guilds!", NamedTextColor.RED));
             return 0;
         }
 
-        Optional<Town> targetTown = townService.getTown(townName);
-        if (targetTown.isEmpty()) {
-            player.sendMessage(Component.text("Town not found: " + townName, NamedTextColor.RED));
+        Optional<Guild> targetGuild = guildService.getGuild(guildName);
+        if (targetGuild.isEmpty()) {
+            player.sendMessage(Component.text("Town not found: " + guildName, NamedTextColor.RED));
             return 0;
         }
 
-        // Check if town is already in a nation
+        // Check if guild is already in a nation
         boolean alreadyInNation = nationService.getAllNations().stream()
-                .anyMatch(n -> n.hasTown(targetTown.get().getId()));
+                .anyMatch(n -> n.hasGuild(targetGuild.get().getId()));
         if (alreadyInNation) {
             player.sendMessage(Component.text("That town is already in a nation!", NamedTextColor.RED));
             return 0;
         }
 
-        player.sendMessage(Component.text("Invitation sent to " + townName + "!", NamedTextColor.GREEN));
+        player.sendMessage(Component.text("Invitation sent to " + guildName + "!", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -232,23 +232,23 @@ public class NationBrigadierCommand {
             return 0;
         }
 
-        Optional<Town> townOpt = getPlayerTown(player);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = getPlayerGuild(player);
+        if (guildOpt.isEmpty()) {
             player.sendMessage(Component.text("You must be in a town to join a nation!", NamedTextColor.RED));
             return 0;
         }
 
-        if (!townOpt.get().getMayorUuid().equals(player.getUniqueId())) {
+        if (!guildOpt.get().getMayorUuid().equals(player.getUniqueId())) {
             player.sendMessage(Component.text("Only town mayors can join nations!", NamedTextColor.RED));
             return 0;
         }
 
         if (!nationOpt.get().isOpen()) {
-            player.sendMessage(Component.text("That nation is not accepting new towns!", NamedTextColor.RED));
+            player.sendMessage(Component.text("That nation is not accepting new guilds!", NamedTextColor.RED));
             return 0;
         }
 
-        nationService.addTown(nationOpt.get(), townOpt.get().getId());
+        nationService.addGuild(nationOpt.get(), guildOpt.get().getId());
         player.sendMessage(Component.text("Your town has joined " + nationName + "!", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
@@ -257,8 +257,8 @@ public class NationBrigadierCommand {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
-        Optional<Town> townOpt = getPlayerTown(player);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = getPlayerGuild(player);
+        if (guildOpt.isEmpty()) {
             player.sendMessage(Component.text("You are not in a town!", NamedTextColor.RED));
             return 0;
         }
@@ -270,12 +270,12 @@ public class NationBrigadierCommand {
         }
 
         Nation nation = nationOpt.get();
-        if (nation.getCapitalTownId().equals(townOpt.get().getId())) {
+        if (nation.getCapitalGuildId().equals(guildOpt.get().getId())) {
             player.sendMessage(Component.text("The capital town cannot leave the nation! Transfer or disband first.", NamedTextColor.RED));
             return 0;
         }
 
-        nationService.removeTown(nation, townOpt.get().getId());
+        nationService.removeGuild(nation, guildOpt.get().getId());
         player.sendMessage(Component.text("Your town has left " + nation.getName() + ".", NamedTextColor.YELLOW));
         return Command.SINGLE_SUCCESS;
     }
@@ -292,7 +292,7 @@ public class NationBrigadierCommand {
 
         player.sendMessage(Component.text("=== Nations ===", NamedTextColor.GOLD));
         for (Nation nation : nations) {
-            player.sendMessage(Component.text("  " + nation.getName() + " (" + nation.getTownCount() + " towns, King: " + nation.getKingUuid() + ")",
+            player.sendMessage(Component.text("  " + nation.getName() + " (" + nation.getGuildCount() + " guilds, King: " + nation.getKingUuid() + ")",
                     NamedTextColor.YELLOW));
         }
         return Command.SINGLE_SUCCESS;
@@ -330,9 +330,9 @@ public class NationBrigadierCommand {
         player.sendMessage(Component.text("King: ", NamedTextColor.GRAY)
                 .append(Component.text(nation.getKingUuid().toString(), NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("Capital: ", NamedTextColor.GRAY)
-                .append(Component.text(nation.getCapitalTownId(), NamedTextColor.YELLOW)));
+                .append(Component.text(nation.getCapitalGuildId(), NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("Towns: ", NamedTextColor.GRAY)
-                .append(Component.text(String.valueOf(nation.getTownCount()), NamedTextColor.YELLOW)));
+                .append(Component.text(String.valueOf(nation.getGuildCount()), NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("Tax Rate: ", NamedTextColor.GRAY)
                 .append(Component.text(nation.getTaxRate() + "%", NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("Open: ", NamedTextColor.GRAY)
@@ -403,23 +403,23 @@ public class NationBrigadierCommand {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
-        String townName = StringArgumentType.getString(ctx, "town");
+        String guildName = StringArgumentType.getString(ctx, "town");
         Optional<Nation> nationOpt = getPlayerNation(player);
 
         if (nationOpt.isEmpty() || !hasNationAuthority(player, nationOpt.get())) {
-            player.sendMessage(Component.text("Only nation leaders can kick towns!", NamedTextColor.RED));
+            player.sendMessage(Component.text("Only nation leaders can kick guilds!", NamedTextColor.RED));
             return 0;
         }
 
-        Optional<Town> targetTown = townService.getTown(townName);
-        if (targetTown.isEmpty()) {
-            player.sendMessage(Component.text("Town not found: " + townName, NamedTextColor.RED));
+        Optional<Guild> targetGuild = guildService.getGuild(guildName);
+        if (targetGuild.isEmpty()) {
+            player.sendMessage(Component.text("Town not found: " + guildName, NamedTextColor.RED));
             return 0;
         }
 
         try {
-            nationService.removeTown(nationOpt.get(), targetTown.get().getId());
-            player.sendMessage(Component.text(townName + " has been kicked from the nation.", NamedTextColor.YELLOW));
+            nationService.removeGuild(nationOpt.get(), targetGuild.get().getId());
+            player.sendMessage(Component.text(guildName + " has been kicked from the nation.", NamedTextColor.YELLOW));
         } catch (IllegalArgumentException e) {
             player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
         }
@@ -485,7 +485,7 @@ public class NationBrigadierCommand {
         }
 
         nationService.setOpen(nationOpt.get(), open);
-        player.sendMessage(Component.text("Nation is now " + (open ? "open" : "closed") + " for new towns.", NamedTextColor.GREEN));
+        player.sendMessage(Component.text("Nation is now " + (open ? "open" : "closed") + " for new guilds.", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -541,7 +541,7 @@ public class NationBrigadierCommand {
 
     /**
      * /nation government &lt;form&gt; — the nation (alliance) picks its governance
-     * form; seats derive from nation roles (king, ministers, member-town mayors).
+     * form; seats derive from nation roles (king, ministers, member-guild mayors).
      * King only.
      */
     private int handleGovernment(CommandContext<CommandSourceStack> ctx) {

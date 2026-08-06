@@ -12,7 +12,7 @@ public class  Resident {
 
     private UUID uuid;
     private String name;
-    private String town;
+    private String guild;
     private long lastOnline;
     private boolean isOnline;
     private Map<String, Boolean> permissions;
@@ -55,12 +55,12 @@ public class  Resident {
         this.name = name;
     }
 
-    public String getTown() {
-        return town;
+    public String getGuild() {
+        return guild;
     }
 
-    public void setTown(String town) {
-        this.town = town;
+    public void setGuild(String guild) {
+        this.guild = guild;
     }
 
     public long getLastOnline() {
@@ -119,25 +119,25 @@ public class  Resident {
     }
 
     /**
-     * Check if resident has a town
-     * @return True if has town
+     * Check if resident has a guild
+     * @return True if has guild
      */
-    public boolean hasTown() {
-        return town != null && !town.isEmpty();
+    public boolean hasGuild() {
+        return guild != null && !guild.isEmpty();
     }
 
     /**
-     * Check if resident is the mayor of their town
-     * @return True if is mayor (would need town service to verify)
+     * Check if resident is the mayor of their guild
+     * @return True if is mayor (would need guild service to verify)
      */
     public boolean isMayor() {
-        // This would typically be checked against the town service
+        // This would typically be checked against the guild service
         // For now, we can check if resident has mayor permission
         return hasPermission("guilds.mayor");
     }
 
     /**
-     * Check if resident is an assistant in their town
+     * Check if resident is an assistant in their guild
      * @return True if is assistant
      */
     public boolean isAssistant() {
@@ -145,20 +145,20 @@ public class  Resident {
     }
 
     /**
-     * Join a town
-     * @param townName Town name
+     * Join a guild
+     * @param guildName Guild name
      */
-    public void joinTown(String townName) {
-        this.town = townName;
+    public void joinGuild(String guildName) {
+        this.guild = guildName;
         this.lastOnline = System.currentTimeMillis();
     }
 
     /**
-     * Leave current town
+     * Leave current guild
      */
-    public void leaveTown() {
-        this.town = null;
-        // Remove town-specific permissions
+    public void leaveGuild() {
+        this.guild = null;
+        // Remove guild-specific permissions
         permissions.remove("guilds.mayor");
         permissions.remove("guilds.assistant");
     }
@@ -204,7 +204,7 @@ public class  Resident {
         return "Resident{" +
                 "uuid=" + uuid +
                 ", name='" + name + '\'' +
-                ", town='" + town + '\'' +
+                ", town='" + guild + '\'' +
                 ", isOnline=" + isOnline +
                 '}';
     }

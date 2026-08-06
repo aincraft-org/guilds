@@ -17,8 +17,8 @@ public interface PermissionService {
      * Check if a resident has a specific permission in a context
      * @param residentUuid Resident UUID
      * @param permission Permission node
-     * @param context Permission context (town, plot, etc.)
-     * @param contextId Context ID (town name, plot ID, etc.)
+     * @param context Permission context (guild, plot, etc.)
+     * @param contextId Context ID (guild name, plot ID, etc.)
      * @return True if permission is granted
      */
     boolean hasPermission(UUID residentUuid, String permission, String context, String contextId);
@@ -62,12 +62,12 @@ public interface PermissionService {
     List<Permission> getContextPermissions(String context, String contextId);
 
     /**
-     * Set town permissions
-     * @param townName Town name
+     * Set guild permissions
+     * @param guildName Guild name
      * @param permissions Map of permission nodes to values
      * @return True if set successfully
      */
-    boolean setTownPermissions(String townName, List<Permission> permissions);
+    boolean setGuildPermissions(String guildName, List<Permission> permissions);
 
     /**
      * Set plot permissions
@@ -120,7 +120,7 @@ public interface PermissionService {
     /**
      * Check if a resident can interact with entities (damage, use) in a specific location
      * This includes item frames, armor stands, animals, vehicles, etc.
-     * Uses the same permission hierarchy as canDestroy (owner > plot perms > town perms > public)
+     * Uses the same permission hierarchy as canDestroy (owner > plot perms > guild perms > public)
      * @param residentUuid Resident UUID
      * @param x X coordinate
      * @param z Z coordinate
@@ -130,10 +130,10 @@ public interface PermissionService {
     boolean canInteractWithEntity(UUID residentUuid, int x, int z, String world);
 
     /**
-     * Get default permissions for new towns
+     * Get default permissions for new guilds
      * @return List of default permissions
      */
-    List<Permission> getDefaultTownPermissions();
+    List<Permission> getDefaultGuildPermissions();
 
     /**
      * Get default permissions for new plots
@@ -142,20 +142,20 @@ public interface PermissionService {
     List<Permission> getDefaultPlotPermissions();
 
     /**
-     * Check if a resident is town mayor
+     * Check if a resident is guild mayor
      * @param residentUuid Resident UUID
-     * @param townName Town name
+     * @param guildName Guild name
      * @return True if is mayor
      */
-    boolean isTownMayor(UUID residentUuid, String townName);
+    boolean isGuildMayor(UUID residentUuid, String guildName);
 
     /**
-     * Check if a resident is town assistant
+     * Check if a resident is guild assistant
      * @param residentUuid Resident UUID
-     * @param townName Town name
+     * @param guildName Guild name
      * @return True if is assistant
      */
-    boolean isTownAssistant(UUID residentUuid, String townName);
+    boolean isGuildAssistant(UUID residentUuid, String guildName);
 
     /**
      * Check if a resident owns a plot
@@ -166,30 +166,30 @@ public interface PermissionService {
     boolean ownsPlot(UUID residentUuid, UUID plotId);
 
     /**
-     * Check if a resident has town-level admin permissions
+     * Check if a resident has guild-level admin permissions
      * @param residentUuid Resident UUID
-     * @param townName Town name
+     * @param guildName Guild name
      * @return True if has admin permissions
      */
-    boolean hasTownAdmin(UUID residentUuid, String townName);
+    boolean hasGuildAdmin(UUID residentUuid, String guildName);
 
     /**
-     * Grant a specific permission flag to a resident in a town
+     * Grant a specific permission flag to a resident in a guild
      * @param residentUuid Resident UUID (null for all residents)
-     * @param townName Town name
+     * @param guildName Guild name
      * @param permissionFlag Permission flag (e.g., GuildPermission.SET_SPAWN.getLegacyBitwiseValue())
      * @return True if granted successfully
      */
-    boolean grantTownPermission(UUID residentUuid, String townName, int permissionFlag);
+    boolean grantGuildPermission(UUID residentUuid, String guildName, int permissionFlag);
 
     /**
-     * Grant multiple permission flags to a resident in a town
+     * Grant multiple permission flags to a resident in a guild
      * @param residentUuid Resident UUID (null for all residents)
-     * @param townName Town name
+     * @param guildName Guild name
      * @param permissionFlags Combined permission flags
      * @return True if granted successfully
      */
-    boolean grantTownPermissions(UUID residentUuid, String townName, int permissionFlags);
+    boolean grantGuildPermissions(UUID residentUuid, String guildName, int permissionFlags);
 
     /**
      * Get all permission nodes available
@@ -235,23 +235,23 @@ public interface PermissionService {
     boolean hasPlotPermission(UUID residentUuid, UUID plotId, int permissionFlag);
 
     /**
-     * Check if a resident can claim plots for their town
+     * Check if a resident can claim plots for their guild
      * @param residentUuid Resident UUID
-     * @param townName Town name
-     * @return True if can claim for town
+     * @param guildName Guild name
+     * @return True if can claim for guild
      */
-    boolean canClaimForTown(UUID residentUuid, String townName);
+    boolean canClaimForGuild(UUID residentUuid, String guildName);
 
     /**
-     * Check if a resident has plot management permissions in their town
+     * Check if a resident has plot management permissions in their guild
      * @param residentUuid Resident UUID
-     * @param townName Town name
+     * @param guildName Guild name
      * @return True if has plot management permissions
      */
-    boolean hasPlotManagementPermissions(UUID residentUuid, String townName);
+    boolean hasPlotManagementPermissions(UUID residentUuid, String guildName);
 
     /**
-     * Evaluate plot permission with inheritance (global -> town -> plot)
+     * Evaluate plot permission with inheritance (global -> guild -> plot)
      * @param residentUuid Resident UUID
      * @param plotId Plot ID
      * @param permissionFlag Permission flag to check
@@ -265,8 +265,8 @@ public interface PermissionService {
      * Check if a resident has a specific permission using the new enum system
      * @param residentUuid Resident UUID
      * @param permission Permission enum
-     * @param context Permission context (town, plot, etc.)
-     * @param contextId Context ID (town name, plot ID, etc.)
+     * @param context Permission context (guild, plot, etc.)
+     * @param contextId Context ID (guild name, plot ID, etc.)
      * @return Permission evaluation result with details
      */
     PermissionEvaluationResult hasPermission(UUID residentUuid, GuildPermission permission, String context, String contextId);
@@ -354,10 +354,10 @@ public interface PermissionService {
      */
     void clearResidentCache(UUID residentUuid);
 
-    // Town toggle system integration methods
+    // Guild toggle system integration methods
 
     /**
-     * Check if PvP is enabled in a town at the specified location
+     * Check if PvP is enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -366,7 +366,7 @@ public interface PermissionService {
     boolean isPvpEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if fire spread is enabled in a town at the specified location
+     * Check if fire spread is enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -375,7 +375,7 @@ public interface PermissionService {
     boolean isFireEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if explosions are enabled in a town at the specified location
+     * Check if explosions are enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -384,7 +384,7 @@ public interface PermissionService {
     boolean areExplosionsEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if mob spawning is enabled in a town at the specified location
+     * Check if mob spawning is enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -393,7 +393,7 @@ public interface PermissionService {
     boolean areMobsEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if a town has public access at the specified location
+     * Check if a guild has public access at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -402,11 +402,11 @@ public interface PermissionService {
     boolean isPublicAccessEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Get all toggle states for a town at the specified location
+     * Get all toggle states for a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
-     * @return Map of toggle states, empty if no town found at location
+     * @return Map of toggle states, empty if no guild found at location
      */
     java.util.Map<String, Boolean> getTogglesAtLocation(int x, int z, String world);
 }

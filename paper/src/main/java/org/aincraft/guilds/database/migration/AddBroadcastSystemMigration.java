@@ -9,8 +9,8 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 /**
- * Database migration to add town broadcasting system
- * Version 8: Adds broadcast_messages table for town communication
+ * Database migration to add guild broadcasting system
+ * Version 8: Adds broadcast_messages table for guild communication
  */
 public class AddBroadcastSystemMigration implements DatabaseMigration {
 
@@ -44,7 +44,7 @@ public class AddBroadcastSystemMigration implements DatabaseMigration {
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS broadcast_messages (
                     id TEXT PRIMARY KEY,
-                    town_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
                     message_type TEXT NOT NULL,
                     title TEXT NOT NULL,
                     content TEXT NOT NULL,
@@ -55,7 +55,7 @@ public class AddBroadcastSystemMigration implements DatabaseMigration {
                     is_active BOOLEAN DEFAULT TRUE,
                     priority INTEGER DEFAULT 1,
                     target_audience TEXT DEFAULT 'all',
-                    FOREIGN KEY (town_id) REFERENCES towns(id) ON DELETE CASCADE
+                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
                 )
             """);
 
@@ -73,7 +73,7 @@ public class AddBroadcastSystemMigration implements DatabaseMigration {
             """);
 
             // Create indexes for performance
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_messages_town ON broadcast_messages(town_id)");
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_messages_guild ON broadcast_messages(guild_id)");
             statement.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_messages_type ON broadcast_messages(message_type)");
             statement.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_messages_active ON broadcast_messages(is_active)");
             statement.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_messages_priority ON broadcast_messages(priority)");
@@ -82,7 +82,7 @@ public class AddBroadcastSystemMigration implements DatabaseMigration {
             statement.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_read_status_broadcast ON broadcast_read_status(broadcast_id)");
             statement.execute("CREATE INDEX IF NOT EXISTS idx_broadcast_read_status_resident ON broadcast_read_status(resident_uuid)");
 
-            // Insert some default broadcast templates for existing towns
+            // Insert some default broadcast templates for existing guilds
             insertDefaultBroadcastTemplates(statement);
 
         } finally {
@@ -93,10 +93,10 @@ public class AddBroadcastSystemMigration implements DatabaseMigration {
     }
 
     /**
-     * Insert default broadcast templates for existing towns
+     * Insert default broadcast templates for existing guilds
      */
     private void insertDefaultBroadcastTemplates(Statement statement) throws SQLException {
-        // This could be used to create welcome messages for existing towns
+        // This could be used to create welcome messages for existing guilds
         // or provide templates for different types of broadcasts
         String currentTime = LocalDateTime.now().toString();
 
@@ -209,7 +209,7 @@ public class AddBroadcastSystemMigration implements DatabaseMigration {
             }
 
             try {
-                statement.execute("DROP INDEX IF EXISTS idx_broadcast_messages_town");
+                statement.execute("DROP INDEX IF EXISTS idx_broadcast_messages_guild");
             } catch (SQLException e) {
                 // Index might not exist, ignore
             }

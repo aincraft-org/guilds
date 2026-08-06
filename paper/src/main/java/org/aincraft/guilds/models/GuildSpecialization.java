@@ -3,7 +3,7 @@ package org.aincraft.guilds.models;
 import java.util.HashMap;
 import java.util.Map;
 
-public enum TownSpecialization {
+public enum GuildSpecialization {
     MINING("Mining", "Increases ore yield and mining speed for town members", 2, new HashMap<>()),
     TRADE_HUB("Trade Hub", "Reduces market taxes and increases trading profits", 3, new HashMap<>()),
     MILITARY("Military", "Increases defense bonuses and combat effectiveness", 4, new HashMap<>()),
@@ -32,7 +32,7 @@ public enum TownSpecialization {
         AGRICULTURAL.perks.put("hungerReduction", 0.2);
     }
 
-    TownSpecialization(String displayName, String description, int requiredLevel, Map<String, Object> perks) {
+    GuildSpecialization(String displayName, String description, int requiredLevel, Map<String, Object> perks) {
         this.displayName = displayName;
         this.description = description;
         this.requiredLevel = requiredLevel;

@@ -59,7 +59,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             getLogger().log(Level.SEVERE, "Failed to load territories from " + dataFile, e);
         }
 
-        // Guilds subsystem is the governance source (towns as local governments,
+        // Guilds subsystem is the governance source (guilds as local governments,
         // nations as alliances). Constructed before the governance registry so
         // permission checks resolve through real guild data; the web server and
         // commands start later in enableGuildsSubsystem().

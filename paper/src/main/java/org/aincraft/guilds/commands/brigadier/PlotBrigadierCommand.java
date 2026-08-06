@@ -13,12 +13,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.commands.arguments.PlotTypeArgumentType;
 import org.aincraft.guilds.commands.arguments.ResidentArgumentType;
 import org.aincraft.guilds.commands.arguments.RoleArgumentType;
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.plot.PlotTypeRegistry;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -30,18 +30,18 @@ public class PlotBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
     private final PermissionService permissionService;
     private final PlotTypeRegistry plotTypeRegistry;
 
 
     public PlotBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                               TownService townService, PlotService plotService,
+                               GuildService guildService, PlotService plotService,
                                PermissionService permissionService, PlotTypeRegistry plotTypeRegistry) {
         this.plugin = plugin;
         this.residentService = residentService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
         this.plotTypeRegistry = plotTypeRegistry;
@@ -152,7 +152,7 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        // Check if plot exists and is owned by town (not a resident)
+        // Check if plot exists and is owned by guild (not a resident)
         if (!plotService.canResidentClaimPlot(playerUuid, chunkX, chunkZ, world)) {
             player.sendMessage("§cYou cannot claim this plot. The town must claim the territory first.");
             return 0;
@@ -179,24 +179,24 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
         if (!plot.isOwner(playerUuid)) {
             player.sendMessage("§cYou don't own this plot.");
             return 0;
         }
 
-        // Unclaim plot by making it town-owned
-        Optional<TownBlock> plotUpdate = plotService.getTownBlock(chunkX, chunkZ, world);
+        // Unclaim plot by making it guild-owned
+        Optional<GuildBlock> plotUpdate = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotUpdate.isPresent()) {
-            TownBlock existingPlot = plotUpdate.get();
-            existingPlot.setOwnerId(null); // Make it town-owned
-            plotService.updateTownBlock(existingPlot);
+            GuildBlock existingPlot = plotUpdate.get();
+            existingPlot.setOwnerId(null); // Make it guild-owned
+            plotService.updateGuildBlock(existingPlot);
             player.sendMessage("§aPlot unclaimed successfully!");
         } else {
             player.sendMessage("§cFailed to unclaim plot.");
@@ -216,13 +216,13 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return Command.SINGLE_SUCCESS;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
         displayPlotInfo(player, plot);
 
         return Command.SINGLE_SUCCESS;
@@ -241,13 +241,13 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
         if (!plot.isOwner(playerUuid)) {
             player.sendMessage("§cYou don't own this plot.");
             return 0;
@@ -278,13 +278,13 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
         if (!plot.isOwner(playerUuid)) {
             player.sendMessage("§cYou don't own this plot.");
             return 0;
@@ -311,13 +311,13 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
         if (!plot.isForSale()) {
             player.sendMessage("§cThis plot is not for sale.");
             return 0;
@@ -378,14 +378,14 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
-        if (!plot.isOwner(playerUuid) && !permissionService.hasPermission(playerUuid, "plot_owner", "plot", plot.getTownId())) {
+        GuildBlock plot = plotOpt.get();
+        if (!plot.isOwner(playerUuid) && !permissionService.hasPermission(playerUuid, "plot_owner", "plot", plot.getGuildId())) {
             player.sendMessage("§cYou don't own this plot and don't have permission to modify it.");
             return 0;
         }
@@ -395,7 +395,7 @@ public class PlotBrigadierCommand {
             int currentPerms = plot.getPermissionsFlags();
             int newPerms = updatePermissionFlags(currentPerms, role, permission, value);
             plot.setPermissionsFlags(newPerms);
-            plotService.updateTownBlock(plot);
+            plotService.updateGuildBlock(plot);
             player.sendMessage("§aSet " + role + " " + permission + " permission to " + (value ? "§atrue" : "§cfalse") + "§a.");
         } catch (Exception e) {
             player.sendMessage("§cFailed to set plot permission: " + e.getMessage());
@@ -415,13 +415,13 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
         displayPlotPermissions(player, plot, null);
 
         return Command.SINGLE_SUCCESS;
@@ -439,13 +439,13 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
         displayPlotPermissions(player, plot, role);
 
         return Command.SINGLE_SUCCESS;
@@ -483,21 +483,21 @@ public class PlotBrigadierCommand {
         int chunkZ = player.getLocation().getChunk().getZ();
         String world = player.getWorld().getName();
 
-        Optional<TownBlock> plotOpt = plotService.getTownBlock(chunkX, chunkZ, world);
+        Optional<GuildBlock> plotOpt = plotService.getGuildBlock(chunkX, chunkZ, world);
         if (plotOpt.isEmpty()) {
             player.sendMessage("§cNo plot found at this location.");
             return 0;
         }
 
-        TownBlock plot = plotOpt.get();
+        GuildBlock plot = plotOpt.get();
 
-        // Check if player is plot owner, town admin, or has plot_set permission
-        var townOpt = townService.getTownById(plot.getTownId());
-        boolean isTownAdmin = townOpt.isPresent() && permissionService.hasTownAdmin(playerUuid, townOpt.get().getName());
+        // Check if player is plot owner, guild admin, or has plot_set permission
+        var guildOpt = guildService.getGuildById(plot.getGuildId());
+        boolean isGuildAdmin = guildOpt.isPresent() && permissionService.hasGuildAdmin(playerUuid, guildOpt.get().getName());
         boolean isPlotOwner = plot.isOwner(playerUuid);
-        boolean hasPermission = permissionService.hasPermission(playerUuid, "plot_set", "plot", plot.getTownId());
+        boolean hasPermission = permissionService.hasPermission(playerUuid, "plot_set", "plot", plot.getGuildId());
 
-        if (!isPlotOwner && !isTownAdmin && !hasPermission) {
+        if (!isPlotOwner && !isGuildAdmin && !hasPermission) {
             player.sendMessage("§cYou don't have permission to modify this plot.");
             return 0;
         }
@@ -524,7 +524,7 @@ public class PlotBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private void displayPlotInfo(org.bukkit.entity.Player player, TownBlock plot) {
+    private void displayPlotInfo(org.bukkit.entity.Player player, GuildBlock plot) {
         player.sendMessage("§6=== Plot Information ===");
         player.sendMessage("§fType: §a" + plot.getPlotType());
         player.sendMessage("§fChunk: §7[" + plot.getX() + ", " + plot.getZ() + "]");
@@ -546,7 +546,7 @@ public class PlotBrigadierCommand {
             player.sendMessage("§fOwner: §7Town-owned");
         }
 
-        player.sendMessage("§fTown: §a" + plot.getTownId());
+        player.sendMessage("§fTown: §a" + plot.getGuildId());
 
         if (plot.isForSale()) {
             player.sendMessage("§fPrice: §6$" + String.format("%.2f", plot.getPrice()));
@@ -556,7 +556,7 @@ public class PlotBrigadierCommand {
         displayPlotPermissions(player, plot, null);
     }
 
-    private void displayPlotPermissions(org.bukkit.entity.Player player, TownBlock plot, String specificRole) {
+    private void displayPlotPermissions(org.bukkit.entity.Player player, GuildBlock plot, String specificRole) {
         int permissions = plot.getPermissionsFlags();
 
         if (specificRole != null) {

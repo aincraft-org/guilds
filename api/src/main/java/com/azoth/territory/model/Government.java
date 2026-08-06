@@ -126,8 +126,8 @@ public final class Government {
      *   <li>{@code DEMOCRACY} — all ids become REPRESENTATIVE seats (min 1)</li>
      *   <li>{@code ANARCHY} — no seats</li>
      * </ul>
-     * Used to derive guild (town) and alliance (nation) governments from their
-     * role holders (mayor/assistants/residents, king/ministers/town mayors).
+     * Used to derive guild (guild) and alliance (nation) governments from their
+     * role holders (mayor/assistants/residents, king/ministers/guild mayors).
      */
     public static Government fromRoles(GovernmentForm form, Collection<String> authorityIds) {
         Objects.requireNonNull(form, "form");

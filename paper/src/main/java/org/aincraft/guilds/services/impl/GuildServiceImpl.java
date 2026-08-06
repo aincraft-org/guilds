@@ -3,7 +3,7 @@ package org.aincraft.guilds.services.impl;
 
 
 import org.aincraft.guilds.database.DatabaseManager;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Location;
 
 import javax.sql.DataSource;
@@ -27,10 +27,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Implementation of TownService with database operations
+ * Implementation of GuildService with database operations
  */
 
-public class TownServiceImpl implements org.aincraft.guilds.services.TownService {
+public class GuildServiceImpl implements org.aincraft.guilds.services.GuildService {
 
     private final DatabaseManager databaseManager;
     private final DataSource dataSource;
@@ -40,7 +40,7 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    public TownServiceImpl(DatabaseManager databaseManager, Logger logger,
+    public GuildServiceImpl(DatabaseManager databaseManager, Logger logger,
                          org.aincraft.guilds.services.ResidentService residentService) {
         this.databaseManager = databaseManager;
         this.dataSource = databaseManager.getDataSource();
@@ -57,28 +57,28 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public Town createTown(String name, UUID mayorUuid) {
-        // Check if town already exists
-        if (townExists(name)) {
+    public Guild createGuild(String name, UUID mayorUuid) {
+        // Check if guild already exists
+        if (guildExists(name)) {
             throw new IllegalArgumentException("Town already exists: " + name);
         }
 
-        // Use transaction for town creation
+        // Use transaction for guild creation
         return databaseManager.executeTransactionWithResult(connection -> {
             try {
-                // Insert town
-                String townSql = "INSERT INTO towns (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
+                // Insert guild
+                String guildSql = "INSERT INTO guilds (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
                                 "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled) " +
                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-                String townId = UUID.randomUUID().toString();
+                String guildId = UUID.randomUUID().toString();
                 String createdAt = LocalDateTime.now().format(DATE_FORMATTER);
 
                 // Default tax rates as JSON
                 String taxRates = "{\"resident\":0.0,\"plot\":0.0,\"shop\":0.0}";
 
-                try (PreparedStatement statement = connection.prepareStatement(townSql)) {
-                    statement.setString(1, townId);
+                try (PreparedStatement statement = connection.prepareStatement(guildSql)) {
+                    statement.setString(1, guildId);
                     statement.setString(2, name);
                     statement.setString(3, mayorUuid.toString());
                     statement.setDouble(4, 0.0); // Starting balance
@@ -97,10 +97,10 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                 }
 
                 // Add mayor as resident
-                String residentSql = "INSERT INTO town_residents (town_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
+                String residentSql = "INSERT INTO guild_residents (guild_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
 
                 try (PreparedStatement statement = connection.prepareStatement(residentSql)) {
-                    statement.setString(1, townId);
+                    statement.setString(1, guildId);
                     statement.setString(2, mayorUuid.toString());
                     statement.setString(3, "mayor");
                     statement.setString(4, createdAt);
@@ -108,8 +108,8 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                     statement.executeUpdate();
                 }
 
-                // Update resident's town
-                String updateResidentSql = "UPDATE residents SET town_name = ? WHERE uuid = ?";
+                // Update resident's guild
+                String updateResidentSql = "UPDATE residents SET guild_name = ? WHERE uuid = ?";
 
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
                     statement.setString(1, name);
@@ -118,13 +118,13 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                     statement.executeUpdate();
                 }
 
-                Town town = new Town(name, mayorUuid);
-                town.setId(townId);
-                town.setCreatedAt(LocalDateTime.parse(createdAt, DATE_FORMATTER));
+                Guild guild = new Guild(name, mayorUuid);
+                guild.setId(guildId);
+                guild.setCreatedAt(LocalDateTime.parse(createdAt, DATE_FORMATTER));
 
                 logger.info("Created new town: " + name + " with mayor: " + mayorUuid);
 
-                return town;
+                return guild;
 
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to create town: " + name, e);
@@ -134,14 +134,14 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public Town createTown(String name, UUID mayorUuid, Location homeBlockLocation) {
-        // Check if town already exists
-        if (townExists(name)) {
+    public Guild createGuild(String name, UUID mayorUuid, Location homeBlockLocation) {
+        // Check if guild already exists
+        if (guildExists(name)) {
             throw new IllegalArgumentException("Town already exists: " + name);
         }
 
         // Get block coordinates from location
-        // TownBlock stores BLOCK coordinates (not chunk coordinates)
+        // GuildBlock stores BLOCK coordinates (not chunk coordinates)
         int[] blockCoords = homeBlockLocation.getBlockCoordinates();
         int blockX = blockCoords[0];
         int blockZ = blockCoords[2]; // blockCoords returns [x, y, z], we need z
@@ -151,24 +151,24 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
         int chunkX = chunkCoords[0];
         int chunkZ = chunkCoords[1];
 
-        // Use transaction for town creation
+        // Use transaction for guild creation
         return databaseManager.executeTransactionWithResult(connection -> {
             try {
-                // Insert town with home block and spawn (storing BLOCK coordinates)
-                String townSql = "INSERT INTO towns (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
+                // Insert guild with home block and spawn (storing BLOCK coordinates)
+                String guildSql = "INSERT INTO guilds (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
                                 "home_block_x, home_block_z, home_block_world, " +
                                 "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
                                 "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled) " +
                                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-                String townId = UUID.randomUUID().toString();
+                String guildId = UUID.randomUUID().toString();
                 String createdAt = LocalDateTime.now().format(DATE_FORMATTER);
 
                 // Default tax rates as JSON
                 String taxRates = "{\"resident\":0.0,\"plot\":0.0,\"shop\":0.0}";
 
-                try (PreparedStatement statement = connection.prepareStatement(townSql)) {
-                    statement.setString(1, townId);
+                try (PreparedStatement statement = connection.prepareStatement(guildSql)) {
+                    statement.setString(1, guildId);
                     statement.setString(2, name);
                     statement.setString(3, mayorUuid.toString());
                     statement.setDouble(4, 0.0); // Starting balance
@@ -197,10 +197,10 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                 }
 
                 // Add mayor as resident
-                String residentSql = "INSERT INTO town_residents (town_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
+                String residentSql = "INSERT INTO guild_residents (guild_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
 
                 try (PreparedStatement statement = connection.prepareStatement(residentSql)) {
-                    statement.setString(1, townId);
+                    statement.setString(1, guildId);
                     statement.setString(2, mayorUuid.toString());
                     statement.setString(3, "mayor");
                     statement.setString(4, createdAt);
@@ -208,8 +208,8 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                     statement.executeUpdate();
                 }
 
-                // Update resident's town
-                String updateResidentSql = "UPDATE residents SET town_name = ? WHERE uuid = ?";
+                // Update resident's guild
+                String updateResidentSql = "UPDATE residents SET guild_name = ? WHERE uuid = ?";
 
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
                     statement.setString(1, name);
@@ -218,22 +218,22 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                     statement.executeUpdate();
                 }
 
-                Town town = new Town(name, mayorUuid);
-                town.setId(townId);
-                town.setCreatedAt(LocalDateTime.parse(createdAt, DATE_FORMATTER));
+                Guild guild = new Guild(name, mayorUuid);
+                guild.setId(guildId);
+                guild.setCreatedAt(LocalDateTime.parse(createdAt, DATE_FORMATTER));
 
                 // Set home block with BLOCK coordinates
-                org.aincraft.guilds.models.TownBlock homeBlock = new org.aincraft.guilds.models.TownBlock(
-                    blockX, blockZ, homeBlockLocation.getWorld(), townId
+                org.aincraft.guilds.models.GuildBlock homeBlock = new org.aincraft.guilds.models.GuildBlock(
+                    blockX, blockZ, homeBlockLocation.getWorld(), guildId
                 );
-                town.setHomeBlock(homeBlock);
+                guild.setHomeBlock(homeBlock);
 
                 // Set spawn location
-                town.setSpawnLocation(homeBlockLocation);
+                guild.setSpawnLocation(homeBlockLocation);
 
                 logger.info("Created new town: " + name + " with mayor: " + mayorUuid + " at chunk [" + chunkX + ", " + chunkZ + "] with spawn at " + homeBlockLocation.toDisplayString());
 
-                return town;
+                return guild;
 
             } catch (SQLException e) {
                 logger.log(Level.SEVERE, "Failed to create town: " + name, e);
@@ -243,13 +243,13 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public Optional<Town> getTown(String name) {
+    public Optional<Guild> getGuild(String name) {
         // Try query with spawn columns first
         try {
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
                                "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE name = ?";
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE name = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -258,9 +258,9 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
 
                 try (ResultSet resultSet = statement.executeQuery()) {
                     if (resultSet.next()) {
-                        Town town = mapResultSetToTown(resultSet);
-                        loadTownResidents(connection, town);
-                        return Optional.of(town);
+                        Guild guild = mapResultSetToGuild(resultSet);
+                        loadGuildResidents(connection, guild);
+                        return Optional.of(guild);
                     }
                 }
             }
@@ -270,7 +270,7 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE name = ?";
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE name = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -279,9 +279,9 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
 
                         try (ResultSet resultSet = statement.executeQuery()) {
                             if (resultSet.next()) {
-                                Town town = mapResultSetToTownWithoutSpawn(resultSet);
-                                loadTownResidents(connection, town);
-                                return Optional.of(town);
+                                Guild guild = mapResultSetToGuildWithoutSpawn(resultSet);
+                                loadGuildResidents(connection, guild);
+                                return Optional.of(guild);
                             }
                         }
                     }
@@ -297,7 +297,7 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public Optional<Town> getTown(UUID uuid) {
+    public Optional<Guild> getGuild(UUID uuid) {
         logger.info("Looking for town with UUID: " + uuid.toString());
 
         // Try query with spawn columns first
@@ -305,7 +305,7 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
                                "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -314,10 +314,10 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
 
                 try (ResultSet resultSet = statement.executeQuery()) {
                     if (resultSet.next()) {
-                        Town town = mapResultSetToTown(resultSet);
-                        loadTownResidents(connection, town);
-                        logger.info("Found town: " + town.getName() + " with ID: " + town.getId());
-                        return Optional.of(town);
+                        Guild guild = mapResultSetToGuild(resultSet);
+                        loadGuildResidents(connection, guild);
+                        logger.info("Found town: " + guild.getName() + " with ID: " + guild.getId());
+                        return Optional.of(guild);
                     }
                 }
             }
@@ -329,7 +329,7 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -338,9 +338,9 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
 
                         try (ResultSet resultSet = statement.executeQuery()) {
                             if (resultSet.next()) {
-                                Town town = mapResultSetToTownWithoutSpawn(resultSet);
-                                loadTownResidents(connection, town);
-                                return Optional.of(town);
+                                Guild guild = mapResultSetToGuildWithoutSpawn(resultSet);
+                                loadGuildResidents(connection, guild);
+                                return Optional.of(guild);
                             }
                         }
                     }
@@ -356,24 +356,24 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public Optional<Town> getTownById(String townId) {
+    public Optional<Guild> getGuildById(String guildId) {
         // Try query with spawn columns first
         try {
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
                                "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
 
-                statement.setString(1, townId);
+                statement.setString(1, guildId);
 
                 try (ResultSet resultSet = statement.executeQuery()) {
                     if (resultSet.next()) {
-                        Town town = mapResultSetToTown(resultSet);
-                        loadTownResidents(connection, town);
-                        return Optional.of(town);
+                        Guild guild = mapResultSetToGuild(resultSet);
+                        loadGuildResidents(connection, guild);
+                        return Optional.of(guild);
                     }
                 }
             }
@@ -383,26 +383,26 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM towns WHERE id = ?";
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
 
-                        statement.setString(1, townId);
+                        statement.setString(1, guildId);
 
                         try (ResultSet resultSet = statement.executeQuery()) {
                             if (resultSet.next()) {
-                                Town town = mapResultSetToTownWithoutSpawn(resultSet);
-                                loadTownResidents(connection, town);
-                                return Optional.of(town);
+                                Guild guild = mapResultSetToGuildWithoutSpawn(resultSet);
+                                loadGuildResidents(connection, guild);
+                                return Optional.of(guild);
                             }
                         }
                     }
                 } catch (SQLException e2) {
-                    logger.log(Level.SEVERE, "Failed to get town by ID with fallback query: " + townId, e2);
+                    logger.log(Level.SEVERE, "Failed to get town by ID with fallback query: " + guildId, e2);
                 }
             } else {
-                logger.log(Level.SEVERE, "Failed to get town by ID: " + townId, e);
+                logger.log(Level.SEVERE, "Failed to get town by ID: " + guildId, e);
             }
         }
 
@@ -410,8 +410,8 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public Town updateTown(Town town) {
-        String sql = "UPDATE towns SET name = ?, mayor_uuid = ?, balance = ?, home_block_x = ?, " +
+    public Guild updateGuild(Guild guild) {
+        String sql = "UPDATE guilds SET name = ?, mayor_uuid = ?, balance = ?, home_block_x = ?, " +
                     "home_block_z = ?, home_block_world = ?, spawn_x = ?, spawn_y = ?, spawn_z = ?, " +
                     "spawn_yaw = ?, spawn_pitch = ?, spawn_world = ?, is_open = ?, permissions_flags = ?, tax_rates = ?, " +
                     "pvp_enabled = ?, fire_enabled = ?, explosions_enabled = ?, mobs_enabled = ?, public_enabled = ? WHERE id = ?";
@@ -419,14 +419,14 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, town.getName());
-            statement.setString(2, town.getMayorUuid().toString());
-            statement.setDouble(3, town.getBalance());
+            statement.setString(1, guild.getName());
+            statement.setString(2, guild.getMayorUuid().toString());
+            statement.setDouble(3, guild.getBalance());
 
-            if (town.getHomeBlock() != null) {
-                statement.setInt(4, town.getHomeBlock().getX());
-                statement.setInt(5, town.getHomeBlock().getZ());
-                statement.setString(6, town.getHomeBlock().getWorld());
+            if (guild.getHomeBlock() != null) {
+                statement.setInt(4, guild.getHomeBlock().getX());
+                statement.setInt(5, guild.getHomeBlock().getZ());
+                statement.setString(6, guild.getHomeBlock().getWorld());
             } else {
                 statement.setNull(4, Types.INTEGER);
                 statement.setNull(5, Types.INTEGER);
@@ -434,8 +434,8 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             }
 
             // Handle spawn location
-            if (town.getSpawnLocation() != null) {
-                Location spawn = town.getSpawnLocation();
+            if (guild.getSpawnLocation() != null) {
+                Location spawn = guild.getSpawnLocation();
                 statement.setDouble(7, spawn.getX());
                 statement.setDouble(8, spawn.getY());
                 statement.setDouble(9, spawn.getZ());
@@ -451,80 +451,80 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                 statement.setNull(12, Types.VARCHAR);
             }
 
-            statement.setBoolean(13, town.isOpen());
+            statement.setBoolean(13, guild.isOpen());
             statement.setInt(14, 0); // Permission flags will be implemented later
             statement.setString(15, "{}"); // Tax rates as JSON
 
             // Toggle fields
-            statement.setBoolean(16, town.isPvpEnabled());
-            statement.setBoolean(17, town.isFireEnabled());
-            statement.setBoolean(18, town.isExplosionsEnabled());
-            statement.setBoolean(19, town.isMobsEnabled());
-            statement.setBoolean(20, town.isPublicEnabled());
+            statement.setBoolean(16, guild.isPvpEnabled());
+            statement.setBoolean(17, guild.isFireEnabled());
+            statement.setBoolean(18, guild.isExplosionsEnabled());
+            statement.setBoolean(19, guild.isMobsEnabled());
+            statement.setBoolean(20, guild.isPublicEnabled());
 
-            statement.setString(21, town.getId());
+            statement.setString(21, guild.getId());
 
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Updated town: " + town.getName());
+                logger.info("Updated town: " + guild.getName());
             }
 
-            return town;
+            return guild;
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to update town: " + town.getName(), e);
+            logger.log(Level.SEVERE, "Failed to update town: " + guild.getName(), e);
             throw new RuntimeException("Failed to update town", e);
         }
     }
 
     @Override
-    public boolean deleteTown(String name) {
+    public boolean deleteGuild(String name) {
         final boolean[] result = new boolean[1];
 
         databaseManager.executeTransaction(connection -> {
             try {
-                // Get town ID
-                String getIdSql = "SELECT id FROM towns WHERE name = ?";
-                String townId = null;
+                // Get guild ID
+                String getIdSql = "SELECT id FROM guilds WHERE name = ?";
+                String guildId = null;
 
                 try (PreparedStatement statement = connection.prepareStatement(getIdSql)) {
                     statement.setString(1, name);
                     try (ResultSet resultSet = statement.executeQuery()) {
                         if (resultSet.next()) {
-                            townId = resultSet.getString("id");
+                            guildId = resultSet.getString("id");
                         } else {
-                            result[0] = false; // Town doesn't exist
+                            result[0] = false; // Guild doesn't exist
                             return;
                         }
                     }
                 }
 
-                // Delete all town blocks (claims) for this town
-                String deleteTownBlocksSql = "DELETE FROM town_blocks WHERE town_id = ?";
-                try (PreparedStatement statement = connection.prepareStatement(deleteTownBlocksSql)) {
-                    statement.setString(1, townId);
+                // Delete all guild blocks (claims) for this guild
+                String deleteGuildBlocksSql = "DELETE FROM guild_blocks WHERE guild_id = ?";
+                try (PreparedStatement statement = connection.prepareStatement(deleteGuildBlocksSql)) {
+                    statement.setString(1, guildId);
                     int blocksDeleted = statement.executeUpdate();
                     logger.info("Deleted " + blocksDeleted + " town blocks for town: " + name);
                 }
 
-                // Delete town residents associations
-                String deleteTownResidentsSql = "DELETE FROM town_residents WHERE town_id = ?";
-                try (PreparedStatement statement = connection.prepareStatement(deleteTownResidentsSql)) {
-                    statement.setString(1, townId);
+                // Delete guild residents associations
+                String deleteGuildResidentsSql = "DELETE FROM guild_residents WHERE guild_id = ?";
+                try (PreparedStatement statement = connection.prepareStatement(deleteGuildResidentsSql)) {
+                    statement.setString(1, guildId);
                     statement.executeUpdate();
                 }
 
-                // Remove residents from town
-                String updateResidentsSql = "UPDATE residents SET town_name = NULL WHERE town_name = ?";
+                // Remove residents from guild
+                String updateResidentsSql = "UPDATE residents SET guild_name = NULL WHERE guild_name = ?";
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentsSql)) {
                     statement.setString(1, name);
                     statement.executeUpdate();
                 }
 
-                // Delete town
-                String deleteTownSql = "DELETE FROM towns WHERE name = ?";
-                try (PreparedStatement statement = connection.prepareStatement(deleteTownSql)) {
+                // Delete guild
+                String deleteGuildSql = "DELETE FROM guilds WHERE name = ?";
+                try (PreparedStatement statement = connection.prepareStatement(deleteGuildSql)) {
                     statement.setString(1, name);
                     int rowsDeleted = statement.executeUpdate();
 
@@ -544,106 +544,106 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public List<Town> getAllTowns() {
+    public List<Guild> getAllGuilds() {
         String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                     "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates FROM towns ORDER BY name";
-        List<Town> towns = new ArrayList<>();
+                    "is_open, created_at, permissions_flags, tax_rates FROM guilds ORDER BY name";
+        List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
 
             while (resultSet.next()) {
-                Town town = mapResultSetToTown(resultSet);
-                towns.add(town);
+                Guild guild = mapResultSetToGuild(resultSet);
+                guilds.add(guild);
             }
 
-            // Load residents for all towns
-            for (Town town : towns) {
-                loadTownResidents(connection, town);
+            // Load residents for all guilds
+            for (Guild guild : guilds) {
+                loadGuildResidents(connection, guild);
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get all towns", e);
+            logger.log(Level.SEVERE, "Failed to get all guilds", e);
         }
 
-        return towns;
+        return guilds;
     }
 
     @Override
-    public List<Town> getTownsByPopulation() {
-        // Get towns with resident counts
+    public List<Guild> getGuildsByPopulation() {
+        // Get guilds with resident counts
         String sql = """
             SELECT t.id, t.name, t.mayor_uuid, t.balance, t.home_block_x, t.home_block_z, t.home_block_world,
                    t.spawn_x, t.spawn_y, t.spawn_z, t.spawn_yaw, t.spawn_pitch, t.spawn_world,
                    t.is_open, t.created_at, t.permissions_flags, t.tax_rates,
                    COUNT(tr.resident_uuid) as resident_count
-            FROM towns t
-            LEFT JOIN town_residents tr ON t.id = tr.town_id
+            FROM guilds t
+            LEFT JOIN guild_residents tr ON t.id = tr.guild_id
             GROUP BY t.id
             ORDER BY resident_count DESC
             """;
 
-        List<Town> towns = new ArrayList<>();
+        List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
 
             while (resultSet.next()) {
-                Town town = mapResultSetToTown(resultSet);
-                towns.add(town);
+                Guild guild = mapResultSetToGuild(resultSet);
+                guilds.add(guild);
             }
 
-            // Load residents for all towns
-            for (Town town : towns) {
-                loadTownResidents(connection, town);
+            // Load residents for all guilds
+            for (Guild guild : guilds) {
+                loadGuildResidents(connection, guild);
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get towns by population", e);
+            logger.log(Level.SEVERE, "Failed to get guilds by population", e);
         }
 
-        return towns;
+        return guilds;
     }
 
     @Override
-    public List<Town> getTownsByBalance() {
+    public List<Guild> getGuildsByBalance() {
         String sql = """
             SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world,
                    spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world,
                    is_open, created_at, permissions_flags, tax_rates
-            FROM towns
+            FROM guilds
             ORDER BY balance DESC
             """;
 
-        List<Town> towns = new ArrayList<>();
+        List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
 
             while (resultSet.next()) {
-                Town town = mapResultSetToTown(resultSet);
-                towns.add(town);
+                Guild guild = mapResultSetToGuild(resultSet);
+                guilds.add(guild);
             }
 
-            // Load residents for all towns
-            for (Town town : towns) {
-                loadTownResidents(connection, town);
+            // Load residents for all guilds
+            for (Guild guild : guilds) {
+                loadGuildResidents(connection, guild);
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get towns by balance", e);
+            logger.log(Level.SEVERE, "Failed to get guilds by balance", e);
         }
 
-        return towns;
+        return guilds;
     }
 
     @Override
-    public boolean townExists(String name) {
-        String sql = "SELECT COUNT(*) FROM towns WHERE name = ?";
+    public boolean guildExists(String name) {
+        String sql = "SELECT COUNT(*) FROM guilds WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -664,44 +664,44 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public boolean addResidentToTown(String townName, UUID residentUuid) {
+    public boolean addResidentToGuild(String guildName, UUID residentUuid) {
         final boolean[] result = new boolean[1];
 
         databaseManager.executeTransaction(connection -> {
             try {
-                // Get town ID
-                String getTownIdSql = "SELECT id FROM towns WHERE name = ?";
-                String townId = null;
+                // Get guild ID
+                String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+                String guildId = null;
 
-                try (PreparedStatement statement = connection.prepareStatement(getTownIdSql)) {
-                    statement.setString(1, townName);
+                try (PreparedStatement statement = connection.prepareStatement(getGuildIdSql)) {
+                    statement.setString(1, guildName);
                     try (ResultSet resultSet = statement.executeQuery()) {
                         if (resultSet.next()) {
-                            townId = resultSet.getString("id");
+                            guildId = resultSet.getString("id");
                         } else {
-                            result[0] = false; // Town doesn't exist
+                            result[0] = false; // Guild doesn't exist
                             return;
                         }
                     }
                 }
 
-                // Check if resident already in town
-                String checkResidentSql = "SELECT COUNT(*) FROM town_residents WHERE town_id = ? AND resident_uuid = ?";
+                // Check if resident already in guild
+                String checkResidentSql = "SELECT COUNT(*) FROM guild_residents WHERE guild_id = ? AND resident_uuid = ?";
                 try (PreparedStatement statement = connection.prepareStatement(checkResidentSql)) {
-                    statement.setString(1, townId);
+                    statement.setString(1, guildId);
                     statement.setString(2, residentUuid.toString());
                     try (ResultSet resultSet = statement.executeQuery()) {
                         if (resultSet.next() && resultSet.getInt(1) > 0) {
-                            result[0] = false; // Already in town
+                            result[0] = false; // Already in guild
                             return;
                         }
                     }
                 }
 
-                // Add resident to town
-                String insertSql = "INSERT INTO town_residents (town_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
+                // Add resident to guild
+                String insertSql = "INSERT INTO guild_residents (guild_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
-                    statement.setString(1, townId);
+                    statement.setString(1, guildId);
                     statement.setString(2, residentUuid.toString());
                     statement.setString(3, "resident");
                     statement.setString(4, LocalDateTime.now().format(DATE_FORMATTER));
@@ -709,20 +709,20 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                     statement.executeUpdate();
                 }
 
-                // Update resident's town name
-                String updateResidentSql = "UPDATE residents SET town_name = ? WHERE uuid = ?";
+                // Update resident's guild name
+                String updateResidentSql = "UPDATE residents SET guild_name = ? WHERE uuid = ?";
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
-                    statement.setString(1, townName);
+                    statement.setString(1, guildName);
                     statement.setString(2, residentUuid.toString());
 
                     statement.executeUpdate();
                 }
 
-                logger.info("Added resident " + residentUuid + " to town " + townName);
+                logger.info("Added resident " + residentUuid + " to town " + guildName);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to add resident to town: " + townName, e);
+                logger.log(Level.SEVERE, "Failed to add resident to town: " + guildName, e);
                 throw new RuntimeException("Failed to add resident to town", e);
             }
         });
@@ -731,49 +731,49 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public boolean removeResidentFromTown(String townName, UUID residentUuid) {
+    public boolean removeResidentFromGuild(String guildName, UUID residentUuid) {
         final boolean[] result = new boolean[1];
 
         databaseManager.executeTransaction(connection -> {
             try {
-                // Get town ID
-                String getTownIdSql = "SELECT id FROM towns WHERE name = ?";
-                String townId = null;
+                // Get guild ID
+                String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+                String guildId = null;
 
-                try (PreparedStatement statement = connection.prepareStatement(getTownIdSql)) {
-                    statement.setString(1, townName);
+                try (PreparedStatement statement = connection.prepareStatement(getGuildIdSql)) {
+                    statement.setString(1, guildName);
                     try (ResultSet resultSet = statement.executeQuery()) {
                         if (resultSet.next()) {
-                            townId = resultSet.getString("id");
+                            guildId = resultSet.getString("id");
                         } else {
-                            result[0] = false; // Town doesn't exist
+                            result[0] = false; // Guild doesn't exist
                             return;
                         }
                     }
                 }
 
-                // Remove resident from town
-                String deleteSql = "DELETE FROM town_residents WHERE town_id = ? AND resident_uuid = ?";
+                // Remove resident from guild
+                String deleteSql = "DELETE FROM guild_residents WHERE guild_id = ? AND resident_uuid = ?";
                 try (PreparedStatement statement = connection.prepareStatement(deleteSql)) {
-                    statement.setString(1, townId);
+                    statement.setString(1, guildId);
                     statement.setString(2, residentUuid.toString());
 
                     statement.executeUpdate();
                 }
 
-                // Update resident's town name
-                String updateResidentSql = "UPDATE residents SET town_name = NULL WHERE uuid = ?";
+                // Update resident's guild name
+                String updateResidentSql = "UPDATE residents SET guild_name = NULL WHERE uuid = ?";
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
                     statement.setString(1, residentUuid.toString());
 
                     statement.executeUpdate();
                 }
 
-                logger.info("Removed resident " + residentUuid + " from town " + townName);
+                logger.info("Removed resident " + residentUuid + " from town " + guildName);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to remove resident from town: " + townName, e);
+                logger.log(Level.SEVERE, "Failed to remove resident from town: " + guildName, e);
                 throw new RuntimeException("Failed to remove resident from town", e);
             }
         });
@@ -782,39 +782,39 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public boolean setTownMayor(String townName, UUID mayorUuid) {
+    public boolean setGuildMayor(String guildName, UUID mayorUuid) {
         final boolean[] result = new boolean[1];
 
         databaseManager.executeTransaction(connection -> {
             try {
-                // Update town's mayor
-                String updateTownSql = "UPDATE towns SET mayor_uuid = ? WHERE name = ?";
-                try (PreparedStatement statement = connection.prepareStatement(updateTownSql)) {
+                // Update guild's mayor
+                String updateGuildSql = "UPDATE guilds SET mayor_uuid = ? WHERE name = ?";
+                try (PreparedStatement statement = connection.prepareStatement(updateGuildSql)) {
                     statement.setString(1, mayorUuid.toString());
-                    statement.setString(2, townName);
+                    statement.setString(2, guildName);
 
                     int rowsUpdated = statement.executeUpdate();
 
                     if (rowsUpdated == 0) {
-                        result[0] = false; // Town doesn't exist
+                        result[0] = false; // Guild doesn't exist
                         return;
                     }
                 }
 
-                // Update resident's role in town
-                String updateRoleSql = "UPDATE town_residents SET role = 'mayor' WHERE town_id = (SELECT id FROM towns WHERE name = ?) AND resident_uuid = ?";
+                // Update resident's role in guild
+                String updateRoleSql = "UPDATE guild_residents SET role = 'mayor' WHERE guild_id = (SELECT id FROM guilds WHERE name = ?) AND resident_uuid = ?";
                 try (PreparedStatement statement = connection.prepareStatement(updateRoleSql)) {
-                    statement.setString(1, townName);
+                    statement.setString(1, guildName);
                     statement.setString(2, mayorUuid.toString());
 
                     statement.executeUpdate();
                 }
 
-                logger.info("Set mayor for town " + townName + ": " + mayorUuid);
+                logger.info("Set mayor for town " + guildName + ": " + mayorUuid);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to set mayor for town: " + townName, e);
+                logger.log(Level.SEVERE, "Failed to set mayor for town: " + guildName, e);
                 throw new RuntimeException("Failed to set mayor for town", e);
             }
         });
@@ -823,61 +823,61 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public boolean addTownAssistant(String townName, UUID assistantUuid) {
-        String sql = "UPDATE town_residents SET role = 'assistant' WHERE town_id = (SELECT id FROM towns WHERE name = ?) AND resident_uuid = ?";
+    public boolean addGuildAssistant(String guildName, UUID assistantUuid) {
+        String sql = "UPDATE guild_residents SET role = 'assistant' WHERE guild_id = (SELECT id FROM guilds WHERE name = ?) AND resident_uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
             statement.setString(2, assistantUuid.toString());
 
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Added assistant to town " + townName + ": " + assistantUuid);
+                logger.info("Added assistant to town " + guildName + ": " + assistantUuid);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to add assistant to town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to add assistant to town: " + guildName, e);
         }
 
         return false;
     }
 
     @Override
-    public boolean removeTownAssistant(String townName, UUID assistantUuid) {
-        String sql = "UPDATE town_residents SET role = 'resident' WHERE town_id = (SELECT id FROM towns WHERE name = ?) AND resident_uuid = ?";
+    public boolean removeGuildAssistant(String guildName, UUID assistantUuid) {
+        String sql = "UPDATE guild_residents SET role = 'resident' WHERE guild_id = (SELECT id FROM guilds WHERE name = ?) AND resident_uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
             statement.setString(2, assistantUuid.toString());
 
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Removed assistant from town " + townName + ": " + assistantUuid);
+                logger.info("Removed assistant from town " + guildName + ": " + assistantUuid);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to remove assistant from town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to remove assistant from town: " + guildName, e);
         }
 
         return false;
     }
 
     @Override
-    public int getTownResidentCount(String townName) {
-        String sql = "SELECT COUNT(*) FROM town_residents WHERE town_id = (SELECT id FROM towns WHERE name = ?)";
+    public int getGuildResidentCount(String guildName) {
+        String sql = "SELECT COUNT(*) FROM guild_residents WHERE guild_id = (SELECT id FROM guilds WHERE name = ?)";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
@@ -886,71 +886,71 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get resident count for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get resident count for town: " + guildName, e);
         }
 
         return 0;
     }
 
     @Override
-    public double updateTownBalance(String townName, double amount) {
-        String sql = "UPDATE towns SET balance = balance + ? WHERE name = ? RETURNING balance";
+    public double updateGuildBalance(String guildName, double amount) {
+        String sql = "UPDATE guilds SET balance = balance + ? WHERE name = ? RETURNING balance";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setDouble(1, amount);
-            statement.setString(2, townName);
+            statement.setString(2, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     double newBalance = resultSet.getDouble(1);
-                    logger.info("Updated balance for town " + townName + ": " + amount + " (new total: " + newBalance + ")");
+                    logger.info("Updated balance for town " + guildName + ": " + amount + " (new total: " + newBalance + ")");
                     return newBalance;
                 }
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to update balance for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to update balance for town: " + guildName, e);
         }
 
         return 0;
     }
 
     @Override
-    public List<Town> getOpenTowns() {
+    public List<Guild> getOpenGuilds() {
         String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                     "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE is_open = TRUE ORDER BY name";
-        List<Town> towns = new ArrayList<>();
+                    "is_open, created_at, permissions_flags, tax_rates FROM guilds WHERE is_open = TRUE ORDER BY name";
+        List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
 
             while (resultSet.next()) {
-                Town town = mapResultSetToTown(resultSet);
-                towns.add(town);
+                Guild guild = mapResultSetToGuild(resultSet);
+                guilds.add(guild);
             }
 
-            // Load residents for all towns
-            for (Town town : towns) {
-                loadTownResidents(connection, town);
+            // Load residents for all guilds
+            for (Guild guild : guilds) {
+                loadGuildResidents(connection, guild);
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get open towns", e);
+            logger.log(Level.SEVERE, "Failed to get open guilds", e);
         }
 
-        return towns;
+        return guilds;
     }
 
     @Override
-    public List<Town> searchTowns(String query) {
+    public List<Guild> searchGuilds(String query) {
         String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                     "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates FROM towns WHERE name LIKE ? ORDER BY name";
-        List<Town> towns = new ArrayList<>();
+                    "is_open, created_at, permissions_flags, tax_rates FROM guilds WHERE name LIKE ? ORDER BY name";
+        List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -959,27 +959,27 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    Town town = mapResultSetToTown(resultSet);
-                    towns.add(town);
+                    Guild guild = mapResultSetToGuild(resultSet);
+                    guilds.add(guild);
                 }
             }
 
-            // Load residents for all towns
-            for (Town town : towns) {
-                loadTownResidents(connection, town);
+            // Load residents for all guilds
+            for (Guild guild : guilds) {
+                loadGuildResidents(connection, guild);
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to search towns: " + query, e);
+            logger.log(Level.SEVERE, "Failed to search guilds: " + query, e);
         }
 
-        return towns;
+        return guilds;
     }
 
     /**
-     * Map a ResultSet to a Town object
+     * Map a ResultSet to a Guild object
      */
-    private Town mapResultSetToTown(ResultSet resultSet) throws SQLException {
+    private Guild mapResultSetToGuild(ResultSet resultSet) throws SQLException {
         String id = resultSet.getString("id");
         String name = resultSet.getString("name");
         UUID mayorUuid = UUID.fromString(resultSet.getString("mayor_uuid"));
@@ -987,10 +987,10 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
         boolean isOpen = resultSet.getBoolean("is_open");
         String createdAtStr = resultSet.getString("created_at");
 
-        Town town = new Town(name, mayorUuid);
-        town.setId(id);
-        town.setBalance(balance);
-        town.setOpen(isOpen);
+        Guild guild = new Guild(name, mayorUuid);
+        guild.setId(id);
+        guild.setBalance(balance);
+        guild.setOpen(isOpen);
 
         // Handle home block
         try {
@@ -1001,10 +1001,10 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             String homeBlockWorld = resultSet.getString("home_block_world");
 
             if (!xNull && !zNull && homeBlockWorld != null) {
-                org.aincraft.guilds.models.TownBlock homeBlock = new org.aincraft.guilds.models.TownBlock(
+                org.aincraft.guilds.models.GuildBlock homeBlock = new org.aincraft.guilds.models.GuildBlock(
                     homeBlockX, homeBlockZ, homeBlockWorld, id
                 );
-                town.setHomeBlock(homeBlock);
+                guild.setHomeBlock(homeBlock);
             }
         } catch (SQLException e) {
             // Home block columns might not exist, just skip
@@ -1034,7 +1034,7 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                     pitchNull ? 0.0f : spawnPitch,
                     spawnWorld
                 );
-                town.setSpawnLocation(spawnLocation);
+                guild.setSpawnLocation(spawnLocation);
             }
         } catch (SQLException e) {
             // Spawn columns might not exist or have issues, just skip
@@ -1042,29 +1042,29 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
         }
 
         if (createdAtStr != null) {
-            town.setCreatedAt(LocalDateTime.parse(createdAtStr, DATE_FORMATTER));
+            guild.setCreatedAt(LocalDateTime.parse(createdAtStr, DATE_FORMATTER));
         }
 
         // Handle toggle fields (new in migration v6)
         try {
-            town.setPvpEnabled(resultSet.getBoolean("pvp_enabled"));
-            town.setFireEnabled(resultSet.getBoolean("fire_enabled"));
-            town.setExplosionsEnabled(resultSet.getBoolean("explosions_enabled"));
-            town.setMobsEnabled(resultSet.getBoolean("mobs_enabled"));
-            town.setPublicEnabled(resultSet.getBoolean("public_enabled"));
+            guild.setPvpEnabled(resultSet.getBoolean("pvp_enabled"));
+            guild.setFireEnabled(resultSet.getBoolean("fire_enabled"));
+            guild.setExplosionsEnabled(resultSet.getBoolean("explosions_enabled"));
+            guild.setMobsEnabled(resultSet.getBoolean("mobs_enabled"));
+            guild.setPublicEnabled(resultSet.getBoolean("public_enabled"));
         } catch (SQLException e) {
             // Toggle columns might not exist yet, use defaults
             logger.fine("Could not load toggle fields for town: " + name + " - " + e.getMessage());
-            // Town constructor already sets default values
+            // Guild constructor already sets default values
         }
 
-        return town;
+        return guild;
     }
 
     /**
-     * Map a ResultSet to a Town object (without spawn columns for fallback)
+     * Map a ResultSet to a Guild object (without spawn columns for fallback)
      */
-    private Town mapResultSetToTownWithoutSpawn(ResultSet resultSet) throws SQLException {
+    private Guild mapResultSetToGuildWithoutSpawn(ResultSet resultSet) throws SQLException {
         String id = resultSet.getString("id");
         String name = resultSet.getString("name");
         UUID mayorUuid = UUID.fromString(resultSet.getString("mayor_uuid"));
@@ -1072,10 +1072,10 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
         boolean isOpen = resultSet.getBoolean("is_open");
         String createdAtStr = resultSet.getString("created_at");
 
-        Town town = new Town(name, mayorUuid);
-        town.setId(id);
-        town.setBalance(balance);
-        town.setOpen(isOpen);
+        Guild guild = new Guild(name, mayorUuid);
+        guild.setId(id);
+        guild.setBalance(balance);
+        guild.setOpen(isOpen);
 
         // Handle home block
         try {
@@ -1086,56 +1086,56 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             String homeBlockWorld = resultSet.getString("home_block_world");
 
             if (!xNull && !zNull && homeBlockWorld != null) {
-                org.aincraft.guilds.models.TownBlock homeBlock = new org.aincraft.guilds.models.TownBlock(
+                org.aincraft.guilds.models.GuildBlock homeBlock = new org.aincraft.guilds.models.GuildBlock(
                     homeBlockX, homeBlockZ, homeBlockWorld, id
                 );
-                town.setHomeBlock(homeBlock);
+                guild.setHomeBlock(homeBlock);
             }
         } catch (SQLException e) {
             // Home block columns might not exist, just skip
             logger.fine("Could not load home block for town: " + name + " - " + e.getMessage());
         }
 
-        // Note: spawn location will be null, getTownSpawn() will use fallback logic
+        // Note: spawn location will be null, getGuildSpawn() will use fallback logic
 
         if (createdAtStr != null) {
-            town.setCreatedAt(LocalDateTime.parse(createdAtStr, DATE_FORMATTER));
+            guild.setCreatedAt(LocalDateTime.parse(createdAtStr, DATE_FORMATTER));
         }
 
         // Handle toggle fields (new in migration v6)
         try {
-            town.setPvpEnabled(resultSet.getBoolean("pvp_enabled"));
-            town.setFireEnabled(resultSet.getBoolean("fire_enabled"));
-            town.setExplosionsEnabled(resultSet.getBoolean("explosions_enabled"));
-            town.setMobsEnabled(resultSet.getBoolean("mobs_enabled"));
-            town.setPublicEnabled(resultSet.getBoolean("public_enabled"));
+            guild.setPvpEnabled(resultSet.getBoolean("pvp_enabled"));
+            guild.setFireEnabled(resultSet.getBoolean("fire_enabled"));
+            guild.setExplosionsEnabled(resultSet.getBoolean("explosions_enabled"));
+            guild.setMobsEnabled(resultSet.getBoolean("mobs_enabled"));
+            guild.setPublicEnabled(resultSet.getBoolean("public_enabled"));
         } catch (SQLException e) {
             // Toggle columns might not exist yet, use defaults
             logger.fine("Could not load toggle fields for town: " + name + " - " + e.getMessage());
-            // Town constructor already sets default values
+            // Guild constructor already sets default values
         }
 
-        return town;
+        return guild;
     }
 
     /**
-     * Load residents for a town
+     * Load residents for a guild
      */
-    private void loadTownResidents(Connection connection, Town town) throws SQLException {
-        String sql = "SELECT resident_uuid, role FROM town_residents WHERE town_id = ?";
+    private void loadGuildResidents(Connection connection, Guild guild) throws SQLException {
+        String sql = "SELECT resident_uuid, role FROM guild_residents WHERE guild_id = ?";
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, town.getId());
+            statement.setString(1, guild.getId());
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     UUID residentUuid = UUID.fromString(resultSet.getString("resident_uuid"));
                     String role = resultSet.getString("role");
 
-                    town.getResidents().add(residentUuid);
+                    guild.getResidents().add(residentUuid);
 
                     if ("assistant".equals(role)) {
-                        town.getAssistants().add(residentUuid);
+                        guild.getAssistants().add(residentUuid);
                     }
                 }
             }
@@ -1143,23 +1143,23 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public boolean setTownSpawn(String townName, Location location) {
-        // First, validate that the spawn location is within the town's home block chunk
-        Optional<Town> townOpt = getTown(townName);
-        if (townOpt.isEmpty()) {
-            logger.warning("Cannot set spawn - town does not exist: " + townName);
+    public boolean setGuildSpawn(String guildName, Location location) {
+        // First, validate that the spawn location is within the guild's home block chunk
+        Optional<Guild> guildOpt = getGuild(guildName);
+        if (guildOpt.isEmpty()) {
+            logger.warning("Cannot set spawn - town does not exist: " + guildName);
             return false;
         }
 
-        Town town = townOpt.get();
-        if (town.getHomeBlock() == null) {
-            logger.warning("Cannot set spawn - town does not have a home block set: " + townName);
+        Guild guild = guildOpt.get();
+        if (guild.getHomeBlock() == null) {
+            logger.warning("Cannot set spawn - town does not have a home block set: " + guildName);
             return false;
         }
 
         // Get the chunk coordinates for both the spawn location and home block
         int[] spawnChunk = location.getChunkCoordinates();
-        int[] homeBlockChunk = town.getHomeBlock().getChunkCoordinates();
+        int[] homeBlockChunk = guild.getHomeBlock().getChunkCoordinates();
 
         // Validate spawn is in home block chunk
         if (spawnChunk[0] != homeBlockChunk[0] || spawnChunk[1] != homeBlockChunk[1]) {
@@ -1170,12 +1170,12 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
         }
 
         // Validate world matches
-        if (!location.getWorld().equals(town.getHomeBlock().getWorld())) {
+        if (!location.getWorld().equals(guild.getHomeBlock().getWorld())) {
             logger.warning("Cannot set spawn - spawn must be in the same world as home block");
             return false;
         }
 
-        String sql = "UPDATE towns SET spawn_x = ?, spawn_y = ?, spawn_z = ?, spawn_yaw = ?, spawn_pitch = ?, spawn_world = ? WHERE name = ?";
+        String sql = "UPDATE guilds SET spawn_x = ?, spawn_y = ?, spawn_z = ?, spawn_yaw = ?, spawn_pitch = ?, spawn_world = ? WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1186,22 +1186,22 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             statement.setDouble(4, location.getYaw());
             statement.setDouble(5, location.getPitch());
             statement.setString(6, location.getWorld());
-            statement.setString(7, townName);
+            statement.setString(7, guildName);
 
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Set spawn for town " + townName + ": " + location.toDisplayString());
+                logger.info("Set spawn for town " + guildName + ": " + location.toDisplayString());
                 return true;
             }
 
         } catch (SQLException e) {
             if (e.getMessage().contains("no such column")) {
-                logger.warning("Cannot set spawn - spawn columns don't exist. Database migration may not have run: " + townName);
+                logger.warning("Cannot set spawn - spawn columns don't exist. Database migration may not have run: " + guildName);
                 // Fallback: update home_block instead
-                return setHomeBlockAsSpawnFallback(townName, location);
+                return setHomeBlockAsSpawnFallback(guildName, location);
             } else {
-                logger.log(Level.SEVERE, "Failed to set spawn for town: " + townName, e);
+                logger.log(Level.SEVERE, "Failed to set spawn for town: " + guildName, e);
             }
         }
 
@@ -1211,11 +1211,11 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     /**
      * Fallback method to set home_block as spawn if spawn columns don't exist
      */
-    private boolean setHomeBlockAsSpawnFallback(String townName, Location location) {
-        logger.info("Setting home_block fallback spawn for town " + townName + " at location: " + location.toDisplayString());
+    private boolean setHomeBlockAsSpawnFallback(String guildName, Location location) {
+        logger.info("Setting home_block fallback spawn for town " + guildName + " at location: " + location.toDisplayString());
 
         // Try with home_block_y first
-        String sqlWithY = "UPDATE towns SET home_block_x = ?, home_block_z = ?, home_block_y = ?, home_block_world = ? WHERE name = ?";
+        String sqlWithY = "UPDATE guilds SET home_block_x = ?, home_block_z = ?, home_block_y = ?, home_block_world = ? WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sqlWithY)) {
@@ -1231,24 +1231,24 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             statement.setInt(2, blockZ);
             statement.setInt(3, blockY);
             statement.setString(4, location.getWorld());
-            statement.setString(5, townName);
+            statement.setString(5, guildName);
 
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("SUCCESS: Set home_block as fallback spawn for town " + townName + ": " + blockX + ", " + blockY + ", " + blockZ);
+                logger.info("SUCCESS: Set home_block as fallback spawn for town " + guildName + ": " + blockX + ", " + blockY + ", " + blockZ);
                 return true;
             } else {
-                logger.warning("FAILED: No rows updated for town " + townName);
+                logger.warning("FAILED: No rows updated for town " + guildName);
             }
 
         } catch (SQLException e) {
             // If home_block_y column doesn't exist, try without it
             if (e.getMessage().contains("no such column")) {
                 logger.info("home_block_y column not found, using fallback without Y coordinate: " + e.getMessage());
-                return setHomeBlockAsSpawnFallbackWithoutY(townName, location);
+                return setHomeBlockAsSpawnFallbackWithoutY(guildName, location);
             } else {
-                logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town: " + townName, e);
+                logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town: " + guildName, e);
             }
         }
 
@@ -1258,10 +1258,10 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     /**
      * Fallback method to set home_block without Y coordinate
      */
-    private boolean setHomeBlockAsSpawnFallbackWithoutY(String townName, Location location) {
-        logger.info("Setting home_block fallback WITHOUT Y for town " + townName + " at location: " + location.toDisplayString());
+    private boolean setHomeBlockAsSpawnFallbackWithoutY(String guildName, Location location) {
+        logger.info("Setting home_block fallback WITHOUT Y for town " + guildName + " at location: " + location.toDisplayString());
 
-        String sql = "UPDATE towns SET home_block_x = ?, home_block_z = ?, home_block_world = ? WHERE name = ?";
+        String sql = "UPDATE guilds SET home_block_x = ?, home_block_z = ?, home_block_world = ? WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1275,38 +1275,38 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             statement.setInt(1, blockX);
             statement.setInt(2, blockZ);
             statement.setString(3, location.getWorld());
-            statement.setString(4, townName);
+            statement.setString(4, guildName);
 
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("SUCCESS: Set home_block as fallback spawn for town " + townName + ": " + blockX + ", " + blockZ + " (no Y saved)");
+                logger.info("SUCCESS: Set home_block as fallback spawn for town " + guildName + ": " + blockX + ", " + blockZ + " (no Y saved)");
                 return true;
             } else {
-                logger.warning("FAILED: No rows updated for town " + townName + " (no Y)");
+                logger.warning("FAILED: No rows updated for town " + guildName + " (no Y)");
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town (without Y): " + townName, e);
+            logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town (without Y): " + guildName, e);
         }
 
         return false;
     }
 
     @Override
-    public Optional<Location> getTownSpawn(String townName) {
-        logger.info("Getting spawn for town: " + townName);
+    public Optional<Location> getGuildSpawn(String guildName) {
+        logger.info("Getting spawn for town: " + guildName);
 
-        String sql = "SELECT spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world FROM towns WHERE name = ?";
+        String sql = "SELECT spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world FROM guilds WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    logger.info("Found spawn columns data for town: " + townName);
+                    logger.info("Found spawn columns data for town: " + guildName);
 
                     // Use wasNull() to properly check for NULL values
                     double spawnX = resultSet.getDouble("spawn_x");
@@ -1335,20 +1335,20 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
                         logger.info("Returning spawn location: " + spawnLocation.toDisplayString());
                         return Optional.of(spawnLocation);
                     } else {
-                        logger.warning("Spawn columns exist but some are null for town: " + townName);
+                        logger.warning("Spawn columns exist but some are null for town: " + guildName);
                     }
                 } else {
-                    logger.info("No spawn data found for town: " + townName);
+                    logger.info("No spawn data found for town: " + guildName);
                 }
             }
 
         } catch (SQLException e) {
             // If spawn columns don't exist, try to use home_block as fallback
             if (e.getMessage().contains("no such column")) {
-                logger.info("Spawn columns not found, using home_block as fallback for town: " + townName + " - " + e.getMessage());
-                return getHomeBlockAsSpawn(townName);
+                logger.info("Spawn columns not found, using home_block as fallback for town: " + guildName + " - " + e.getMessage());
+                return getHomeBlockAsSpawn(guildName);
             } else {
-                logger.log(Level.SEVERE, "Failed to get spawn for town: " + townName, e);
+                logger.log(Level.SEVERE, "Failed to get spawn for town: " + guildName, e);
             }
         }
 
@@ -1356,43 +1356,43 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     }
 
     @Override
-    public boolean canTeleportToSpawn(UUID playerUuid, String townName) {
-        // Check if town exists
-        if (!townExists(townName)) {
+    public boolean canTeleportToSpawn(UUID playerUuid, String guildName) {
+        // Check if guild exists
+        if (!guildExists(guildName)) {
             return false;
         }
 
-        // Check if town has a spawn set
-        Optional<Location> spawnLocation = getTownSpawn(townName);
+        // Check if guild has a spawn set
+        Optional<Location> spawnLocation = getGuildSpawn(guildName);
         if (spawnLocation.isEmpty()) {
             return false;
         }
 
-        // Check if player is a resident of the town
-        Optional<Town> town = getTown(townName);
-        if (town.isEmpty()) {
+        // Check if player is a resident of the guild
+        Optional<Guild> guild = getGuild(guildName);
+        if (guild.isEmpty()) {
             return false;
         }
 
         // Allow teleportation if:
-        // 1. Player is a resident of the town
-        // 2. Town is open to public
+        // 1. Player is a resident of the guild
+        // 2. Guild is open to public
         // 3. Player has permission (could be extended with permission system)
 
-        return town.get().isResident(playerUuid) || town.get().isOpen();
+        return guild.get().isResident(playerUuid) || guild.get().isOpen();
     }
 
     /**
      * Fallback method to use home_block as spawn if spawn columns don't exist
      */
-    private Optional<Location> getHomeBlockAsSpawn(String townName) {
+    private Optional<Location> getHomeBlockAsSpawn(String guildName) {
         // Try with home_block_y first
-        String sqlWithY = "SELECT home_block_x, home_block_y, home_block_z, home_block_world FROM towns WHERE name = ?";
+        String sqlWithY = "SELECT home_block_x, home_block_y, home_block_z, home_block_world FROM guilds WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sqlWithY)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
@@ -1422,9 +1422,9 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             // If home_block_y column doesn't exist, try without it
             if (e.getMessage().contains("no such column")) {
                 logger.info("home_block_y column not found, using fallback without Y coordinate");
-                return getHomeBlockAsSpawnWithoutY(townName);
+                return getHomeBlockAsSpawnWithoutY(guildName);
             } else {
-                logger.log(Level.SEVERE, "Failed to get home block for town: " + townName, e);
+                logger.log(Level.SEVERE, "Failed to get home block for town: " + guildName, e);
             }
         }
 
@@ -1434,13 +1434,13 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
     /**
      * Fallback method to use home_block without Y coordinate
      */
-    private Optional<Location> getHomeBlockAsSpawnWithoutY(String townName) {
-        String sql = "SELECT home_block_x, home_block_z, home_block_world FROM towns WHERE name = ?";
+    private Optional<Location> getHomeBlockAsSpawnWithoutY(String guildName) {
+        String sql = "SELECT home_block_x, home_block_z, home_block_world FROM guilds WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
@@ -1464,248 +1464,248 @@ public class TownServiceImpl implements org.aincraft.guilds.services.TownService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get home block without Y for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get home block without Y for town: " + guildName, e);
         }
 
         return Optional.empty();
     }
 
-    // Town level system methods - basic implementations for compilation
+    // Guild level system methods - basic implementations for compilation
 
     @Override
-    public List<org.aincraft.guilds.models.Town> getTownsByLevel() {
-        List<org.aincraft.guilds.models.Town> towns = getAllTowns();
-        towns.sort((t1, t2) -> Integer.compare(t2.getTownLevel(), t1.getTownLevel()));
-        return towns;
+    public List<org.aincraft.guilds.models.Guild> getGuildsByLevel() {
+        List<org.aincraft.guilds.models.Guild> guilds = getAllGuilds();
+        guilds.sort((t1, t2) -> Integer.compare(t2.getGuildLevel(), t1.getGuildLevel()));
+        return guilds;
     }
 
     @Override
-    public List<org.aincraft.guilds.models.Town> getTownsByLevelRange(int minLevel, int maxLevel) {
-        return getAllTowns().stream()
-                .filter(town -> town.getTownLevel() >= minLevel && town.getTownLevel() <= maxLevel)
+    public List<org.aincraft.guilds.models.Guild> getGuildsByLevelRange(int minLevel, int maxLevel) {
+        return getAllGuilds().stream()
+                .filter(guild -> guild.getGuildLevel() >= minLevel && guild.getGuildLevel() <= maxLevel)
                 .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
-    public List<org.aincraft.guilds.models.Town> getTownsByMinimumLevel(int minimumLevel) {
-        return getAllTowns().stream()
-                .filter(town -> town.getTownLevel() >= minimumLevel)
+    public List<org.aincraft.guilds.models.Guild> getGuildsByMinimumLevel(int minimumLevel) {
+        return getAllGuilds().stream()
+                .filter(guild -> guild.getGuildLevel() >= minimumLevel)
                 .collect(java.util.stream.Collectors.toList());
     }
 
     @Override
-    public List<org.aincraft.guilds.models.Town> getTownsByTechPoints() {
-        List<org.aincraft.guilds.models.Town> towns = getAllTowns();
-        towns.sort((t1, t2) -> Integer.compare(t2.getTechPoints(), t1.getTechPoints()));
-        return towns;
+    public List<org.aincraft.guilds.models.Guild> getGuildsByTechPoints() {
+        List<org.aincraft.guilds.models.Guild> guilds = getAllGuilds();
+        guilds.sort((t1, t2) -> Integer.compare(t2.getTechPoints(), t1.getTechPoints()));
+        return guilds;
     }
 
     @Override
     public int getTotalTechPoints() {
-        return getAllTowns().stream()
-                .mapToInt(org.aincraft.guilds.models.Town::getTechPoints)
+        return getAllGuilds().stream()
+                .mapToInt(org.aincraft.guilds.models.Guild::getTechPoints)
                 .sum();
     }
 
     @Override
-    public TownStatistics getTownStatistics() {
-        List<org.aincraft.guilds.models.Town> towns = getAllTowns();
+    public GuildStatistics getGuildStatistics() {
+        List<org.aincraft.guilds.models.Guild> guilds = getAllGuilds();
 
-        int totalTowns = towns.size();
-        double averageLevel = towns.stream()
-                .mapToInt(org.aincraft.guilds.models.Town::getTownLevel)
+        int totalGuilds = guilds.size();
+        double averageLevel = guilds.stream()
+                .mapToInt(org.aincraft.guilds.models.Guild::getGuildLevel)
                 .average()
                 .orElse(0.0);
-        int maxLevel = towns.stream()
-                .mapToInt(org.aincraft.guilds.models.Town::getTownLevel)
+        int maxLevel = guilds.stream()
+                .mapToInt(org.aincraft.guilds.models.Guild::getGuildLevel)
                 .max()
                 .orElse(0);
         int totalTechPoints = getTotalTechPoints();
-        int totalResidents = towns.stream()
-                .mapToInt(org.aincraft.guilds.models.Town::getResidentCount)
+        int totalResidents = guilds.stream()
+                .mapToInt(org.aincraft.guilds.models.Guild::getResidentCount)
                 .sum();
-        double totalBalance = towns.stream()
-                .mapToDouble(org.aincraft.guilds.models.Town::getBalance)
+        double totalBalance = guilds.stream()
+                .mapToDouble(org.aincraft.guilds.models.Guild::getBalance)
                 .sum();
 
         // Simple level distribution (1-10, 11-20, etc.)
         java.util.Map<String, Integer> levelDistribution = new java.util.HashMap<>();
-        for (org.aincraft.guilds.models.Town town : towns) {
-            int level = town.getTownLevel();
+        for (org.aincraft.guilds.models.Guild guild : guilds) {
+            int level = guild.getGuildLevel();
             String range = ((level - 1) / 10 * 10 + 1) + "-" + ((level - 1) / 10 * 10 + 10);
             levelDistribution.put(range, levelDistribution.getOrDefault(range, 0) + 1);
         }
 
-        return new TownStatistics(totalTowns, (int) averageLevel, maxLevel,
+        return new GuildStatistics(totalGuilds, (int) averageLevel, maxLevel,
                                  totalTechPoints, totalResidents, totalBalance, levelDistribution);
     }
 
     @Override
-    public boolean updateTownLevel(String townName, int newLevel, int techPoints) {
-        Optional<org.aincraft.guilds.models.Town> townOpt = getTown(townName);
-        if (townOpt.isEmpty()) {
+    public boolean updateGuildLevel(String guildName, int newLevel, int techPoints) {
+        Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
+        if (guildOpt.isEmpty()) {
             return false;
         }
 
-        org.aincraft.guilds.models.Town town = townOpt.get();
-        town.setTownLevel(newLevel);
-        town.addTechPoints(techPoints);
+        org.aincraft.guilds.models.Guild guild = guildOpt.get();
+        guild.setGuildLevel(newLevel);
+        guild.addTechPoints(techPoints);
 
-        return updateTown(town) != null;
+        return updateGuild(guild) != null;
     }
 
     @Override
-    public boolean updateTownUpgradeProgress(String townName, java.util.Map<String, Integer> upgradeProgress) {
-        Optional<org.aincraft.guilds.models.Town> townOpt = getTown(townName);
-        if (townOpt.isEmpty()) {
+    public boolean updateGuildUpgradeProgress(String guildName, java.util.Map<String, Integer> upgradeProgress) {
+        Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
+        if (guildOpt.isEmpty()) {
             return false;
         }
 
-        org.aincraft.guilds.models.Town town = townOpt.get();
-        town.setUpgradeProgress(upgradeProgress);
+        org.aincraft.guilds.models.Guild guild = guildOpt.get();
+        guild.setUpgradeProgress(upgradeProgress);
 
-        return updateTown(town) != null;
+        return updateGuild(guild) != null;
     }
 
     @Override
-    public List<org.aincraft.guilds.models.Town> getRankedTowns(String criteria, int limit) {
-        List<org.aincraft.guilds.models.Town> towns = getAllTowns();
+    public List<org.aincraft.guilds.models.Guild> getRankedGuilds(String criteria, int limit) {
+        List<org.aincraft.guilds.models.Guild> guilds = getAllGuilds();
 
         switch (criteria.toLowerCase()) {
             case "level":
-                towns.sort((t1, t2) -> Integer.compare(t2.getTownLevel(), t1.getTownLevel()));
+                guilds.sort((t1, t2) -> Integer.compare(t2.getGuildLevel(), t1.getGuildLevel()));
                 break;
             case "residents":
-                towns.sort((t1, t2) -> Integer.compare(t2.getResidentCount(), t1.getResidentCount()));
+                guilds.sort((t1, t2) -> Integer.compare(t2.getResidentCount(), t1.getResidentCount()));
                 break;
             case "balance":
-                towns.sort((t1, t2) -> Double.compare(t2.getBalance(), t1.getBalance()));
+                guilds.sort((t1, t2) -> Double.compare(t2.getBalance(), t1.getBalance()));
                 break;
             case "techpoints":
-                towns.sort((t1, t2) -> Integer.compare(t2.getTechPoints(), t1.getTechPoints()));
+                guilds.sort((t1, t2) -> Integer.compare(t2.getTechPoints(), t1.getTechPoints()));
                 break;
             default:
                 // Default to level
-                towns.sort((t1, t2) -> Integer.compare(t2.getTownLevel(), t1.getTownLevel()));
+                guilds.sort((t1, t2) -> Integer.compare(t2.getGuildLevel(), t1.getGuildLevel()));
                 break;
         }
 
-        return towns.stream().limit(limit).collect(java.util.stream.Collectors.toList());
+        return guilds.stream().limit(limit).collect(java.util.stream.Collectors.toList());
     }
 
     @Override
-    public List<org.aincraft.guilds.models.Town> getTopLevelTowns(int limit) {
-        return getRankedTowns("level", limit);
+    public List<org.aincraft.guilds.models.Guild> getTopLevelGuilds(int limit) {
+        return getRankedGuilds("level", limit);
     }
 
     @Override
-    public List<org.aincraft.guilds.models.Town> getTownsReadyForUpgrade() {
-        // Basic implementation - would need TownLevelService integration for real functionality
+    public List<org.aincraft.guilds.models.Guild> getGuildsReadyForUpgrade() {
+        // Basic implementation - would need GuildLevelService integration for real functionality
         return java.util.Collections.emptyList();
     }
 
     @Override
-    public double getAverageTownLevel() {
-        return getAllTowns().stream()
-                .mapToInt(org.aincraft.guilds.models.Town::getTownLevel)
+    public double getAverageGuildLevel() {
+        return getAllGuilds().stream()
+                .mapToInt(org.aincraft.guilds.models.Guild::getGuildLevel)
                 .average()
                 .orElse(0.0);
     }
 
-    // Town toggle system implementation
+    // Guild toggle system implementation
 
     @Override
-    public boolean toggleTownPermission(String townName, String permissionType, UUID playerUuid) {
+    public boolean toggleGuildPermission(String guildName, String permissionType, UUID playerUuid) {
         try {
-            Optional<org.aincraft.guilds.models.Town> townOpt = getTown(townName);
-            if (townOpt.isEmpty()) {
-                logger.warning("Cannot toggle permission - town does not exist: " + townName);
+            Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
+            if (guildOpt.isEmpty()) {
+                logger.warning("Cannot toggle permission - town does not exist: " + guildName);
                 return false;
             }
 
-            org.aincraft.guilds.models.Town town = townOpt.get();
+            org.aincraft.guilds.models.Guild guild = guildOpt.get();
 
-            // Check if player has permission to toggle town settings
-            if (!permissionService.hasTownAdmin(playerUuid, townName)) {
-                logger.warning("Player " + playerUuid + " attempted to toggle town permission without admin rights: " + townName);
+            // Check if player has permission to toggle guild settings
+            if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
+                logger.warning("Player " + playerUuid + " attempted to toggle town permission without admin rights: " + guildName);
                 return false;
             }
 
-            // Toggle the permission using the town's method
-            boolean currentState = town.getToggle(permissionType);
+            // Toggle the permission using the guild's method
+            boolean currentState = guild.getToggle(permissionType);
             boolean newValue = !currentState;
-            town.setToggle(permissionType, newValue);
+            guild.setToggle(permissionType, newValue);
 
-            // Save the updated town to database
-            return updateTown(town) != null;
+            // Save the updated guild to database
+            return updateGuild(guild) != null;
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to toggle town permission: " + permissionType + " for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to toggle town permission: " + permissionType + " for town: " + guildName, e);
             return false;
         }
     }
 
     @Override
-    public java.util.Map<String, Boolean> getTownToggles(String townName) {
+    public java.util.Map<String, Boolean> getGuildToggles(String guildName) {
         try {
-            Optional<org.aincraft.guilds.models.Town> townOpt = getTown(townName);
-            if (townOpt.isEmpty()) {
+            Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
+            if (guildOpt.isEmpty()) {
                 return new HashMap<>();
             }
 
-            return townOpt.get().getAllToggles();
+            return guildOpt.get().getAllToggles();
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to get town toggles for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get town toggles for town: " + guildName, e);
             return new HashMap<>();
         }
     }
 
     @Override
-    public boolean setTownToggle(String townName, String permissionType, boolean value, UUID playerUuid) {
+    public boolean setGuildToggle(String guildName, String permissionType, boolean value, UUID playerUuid) {
         try {
-            Optional<org.aincraft.guilds.models.Town> townOpt = getTown(townName);
-            if (townOpt.isEmpty()) {
-                logger.warning("Cannot set toggle - town does not exist: " + townName);
+            Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
+            if (guildOpt.isEmpty()) {
+                logger.warning("Cannot set toggle - town does not exist: " + guildName);
                 return false;
             }
 
-            org.aincraft.guilds.models.Town town = townOpt.get();
+            org.aincraft.guilds.models.Guild guild = guildOpt.get();
 
-            // Check if player has permission to set town settings
-            if (!permissionService.hasTownAdmin(playerUuid, townName)) {
-                logger.warning("Player " + playerUuid + " attempted to set town toggle without admin rights: " + townName);
+            // Check if player has permission to set guild settings
+            if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
+                logger.warning("Player " + playerUuid + " attempted to set town toggle without admin rights: " + guildName);
                 return false;
             }
 
-            // Set the toggle using the town's method
-            boolean success = town.setToggle(permissionType, value);
+            // Set the toggle using the guild's method
+            boolean success = guild.setToggle(permissionType, value);
             if (!success) {
-                logger.warning("Invalid toggle type: " + permissionType + " for town: " + townName);
+                logger.warning("Invalid toggle type: " + permissionType + " for town: " + guildName);
                 return false;
             }
 
-            // Save the updated town to database
-            return updateTown(town) != null;
+            // Save the updated guild to database
+            return updateGuild(guild) != null;
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to set town toggle: " + permissionType + " for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to set town toggle: " + permissionType + " for town: " + guildName, e);
             return false;
         }
     }
 
     @Override
-    public boolean getTownToggle(String townName, String permissionType) {
+    public boolean getGuildToggle(String guildName, String permissionType) {
         try {
-            Optional<org.aincraft.guilds.models.Town> townOpt = getTown(townName);
-            if (townOpt.isEmpty()) {
+            Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
+            if (guildOpt.isEmpty()) {
                 return false;
             }
 
-            return townOpt.get().getToggle(permissionType);
+            return guildOpt.get().getToggle(permissionType);
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to get town toggle: " + permissionType + " for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get town toggle: " + permissionType + " for town: " + guildName, e);
             return false;
         }
     }

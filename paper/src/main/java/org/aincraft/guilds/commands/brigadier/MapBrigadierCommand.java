@@ -12,7 +12,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.utils.MapRenderer;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -27,21 +27,21 @@ public class MapBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final ResidentService residentService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final PlotService plotService;
     private final PermissionService permissionService;
     private final MapRenderer mapRenderer;
 
 
     public MapBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                              TownService townService, PlotService plotService,
+                              GuildService guildService, PlotService plotService,
                               PermissionService permissionService) {
         this.plugin = plugin;
         this.residentService = residentService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
-        this.mapRenderer = new MapRenderer(townService, plotService);
+        this.mapRenderer = new MapRenderer(guildService, plotService);
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -79,19 +79,19 @@ public class MapBrigadierCommand {
             return 0;
         }
 
-        String playerTown = getPlayerTown(player);
+        String playerGuild = getPlayerGuild(player);
         int playerChunkX = player.getLocation().getChunk().getX();
         int playerChunkZ = player.getLocation().getChunk().getZ();
         String world = player.getLocation().getWorld().getName();
 
         try {
-            var mapLines = mapRenderer.renderMap(playerChunkX, playerChunkZ, world, playerTown);
+            var mapLines = mapRenderer.renderMap(playerChunkX, playerChunkZ, world, playerGuild);
 
             for (String line : mapLines) {
                 player.sendMessage(line);
             }
 
-            String areaSummary = mapRenderer.getAreaSummary(playerChunkX, playerChunkZ, world, playerTown);
+            String areaSummary = mapRenderer.getAreaSummary(playerChunkX, playerChunkZ, world, playerGuild);
             player.sendMessage(areaSummary);
 
             plugin.getLogger().info("Map displayed for player: " + player.getName() + " at (" + playerChunkX + ", " + playerChunkZ + ")");
@@ -116,19 +116,19 @@ public class MapBrigadierCommand {
             return 0;
         }
 
-        String playerTown = getPlayerTown(player);
+        String playerGuild = getPlayerGuild(player);
         int playerChunkX = player.getLocation().getChunk().getX();
         int playerChunkZ = player.getLocation().getChunk().getZ();
         String world = player.getLocation().getWorld().getName();
 
         try {
-            var mapLines = mapRenderer.renderCompactMap(playerChunkX, playerChunkZ, world, playerTown);
+            var mapLines = mapRenderer.renderCompactMap(playerChunkX, playerChunkZ, world, playerGuild);
 
             for (String line : mapLines) {
                 player.sendMessage(line);
             }
 
-            String areaSummary = mapRenderer.getAreaSummary(playerChunkX, playerChunkZ, world, playerTown);
+            String areaSummary = mapRenderer.getAreaSummary(playerChunkX, playerChunkZ, world, playerGuild);
             player.sendMessage(areaSummary);
 
             plugin.getLogger().info("Compact map displayed for player: " + player.getName());
@@ -150,11 +150,11 @@ public class MapBrigadierCommand {
 
         int targetX = IntegerArgumentType.getInteger(ctx, "x");
         int targetZ = IntegerArgumentType.getInteger(ctx, "z");
-        String playerTown = getPlayerTown(player);
+        String playerGuild = getPlayerGuild(player);
         String world = player.getLocation().getWorld().getName();
 
         try {
-            var mapLines = mapRenderer.renderMap(targetX, targetZ, world, playerTown);
+            var mapLines = mapRenderer.renderMap(targetX, targetZ, world, playerGuild);
 
             player.sendMessage(ChatColor.YELLOW + "=== Map at coordinates (" + targetX + ", " + targetZ + ") ===");
 
@@ -202,11 +202,11 @@ public class MapBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private String getPlayerTown(Player player) {
+    private String getPlayerGuild(Player player) {
         UUID playerUuid = player.getUniqueId();
         return residentService.getResident(playerUuid)
-                .filter(resident -> resident.hasTown())
-                .map(org.aincraft.guilds.models.Resident::getTown)
+                .filter(resident -> resident.hasGuild())
+                .map(org.aincraft.guilds.models.Resident::getGuild)
                 .orElse(null);
     }
 }

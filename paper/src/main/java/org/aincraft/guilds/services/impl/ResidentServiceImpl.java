@@ -74,7 +74,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public Optional<Resident> getResident(UUID uuid) {
-        String sql = "SELECT uuid, name, town_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE uuid = ?";
+        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -96,7 +96,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public Optional<Resident> getResident(String name) {
-        String sql = "SELECT uuid, name, town_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE name = ?";
+        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE name = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -118,13 +118,13 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public Resident updateResident(Resident resident) {
-        String sql = "UPDATE residents SET name = ?, town_name = ?, last_online = ?, is_online = ?, joined_at = ?, permissions_flags = ? WHERE uuid = ?";
+        String sql = "UPDATE residents SET name = ?, guild_name = ?, last_online = ?, is_online = ?, joined_at = ?, permissions_flags = ? WHERE uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
             statement.setString(1, resident.getName());
-            statement.setString(2, resident.getTown());
+            statement.setString(2, resident.getGuild());
             statement.setLong(3, resident.getLastOnline());
             statement.setBoolean(4, resident.isOnline());
             statement.setString(5, resident.getJoinedAt().format(DATE_FORMATTER));
@@ -170,7 +170,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public List<Resident> getAllResidents() {
-        String sql = "SELECT uuid, name, town_name, last_online, is_online, joined_at, permissions_flags FROM residents ORDER BY name";
+        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents ORDER BY name";
         List<Resident> residents = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -189,14 +189,14 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
     }
 
     @Override
-    public List<Resident> getResidentsInTown(String townName) {
-        String sql = "SELECT uuid, name, town_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE town_name = ? ORDER BY name";
+    public List<Resident> getResidentsInGuild(String guildName) {
+        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE guild_name = ? ORDER BY name";
         List<Resident> residents = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
@@ -205,7 +205,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get residents in town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get residents in town: " + guildName, e);
         }
 
         return residents;
@@ -299,13 +299,13 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
     private Resident mapResultSetToResident(ResultSet resultSet) throws SQLException {
         UUID uuid = UUID.fromString(resultSet.getString("uuid"));
         String name = resultSet.getString("name");
-        String town = resultSet.getString("town_name");
+        String guild = resultSet.getString("guild_name");
         long lastOnline = resultSet.getLong("last_online");
         boolean isOnline = resultSet.getBoolean("is_online");
         String joinedAtStr = resultSet.getString("joined_at");
 
         Resident resident = new Resident(uuid, name);
-        resident.setTown(town);
+        resident.setGuild(guild);
         resident.setLastOnline(lastOnline);
         resident.setOnline(isOnline);
 

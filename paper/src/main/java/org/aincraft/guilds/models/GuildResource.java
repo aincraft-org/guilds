@@ -3,12 +3,12 @@ package org.aincraft.guilds.models;
 import java.time.LocalDateTime;
 
 /**
- * Represents a town's resource bank storage for town upgrades
+ * Represents a guild's resource bank storage for guild upgrades
  */
-public class TownResource {
+public class GuildResource {
 
     private String id;
-    private String townId;
+    private String guildId;
     private ResourceType resourceType;
     private int amount;
     private LocalDateTime lastUpdated;
@@ -16,34 +16,34 @@ public class TownResource {
     /**
      * Default constructor for database mapping
      */
-    public TownResource() {
+    public GuildResource() {
         this.amount = 0;
         this.lastUpdated = LocalDateTime.now();
     }
 
     /**
-     * Constructor for creating a new town resource entry
-     * @param townId Town ID
+     * Constructor for creating a new guild resource entry
+     * @param guildId Guild ID
      * @param resourceType Type of resource
      */
-    public TownResource(String townId, ResourceType resourceType) {
+    public GuildResource(String guildId, ResourceType resourceType) {
         this();
         this.id = java.util.UUID.randomUUID().toString();
-        this.townId = townId;
+        this.guildId = guildId;
         this.resourceType = resourceType;
     }
 
     /**
      * Constructor with amount for database reconstruction
      * @param id Resource ID
-     * @param townId Town ID
+     * @param guildId Guild ID
      * @param resourceType Type of resource
      * @param amount Current amount
      * @param lastUpdated Last update timestamp
      */
-    public TownResource(String id, String townId, ResourceType resourceType, int amount, LocalDateTime lastUpdated) {
+    public GuildResource(String id, String guildId, ResourceType resourceType, int amount, LocalDateTime lastUpdated) {
         this.id = id;
-        this.townId = townId;
+        this.guildId = guildId;
         this.resourceType = resourceType;
         this.amount = Math.max(0, amount);
         this.lastUpdated = lastUpdated != null ? lastUpdated : LocalDateTime.now();
@@ -58,12 +58,12 @@ public class TownResource {
         this.id = id;
     }
 
-    public String getTownId() {
-        return townId;
+    public String getGuildId() {
+        return guildId;
     }
 
-    public void setTownId(String townId) {
-        this.townId = townId;
+    public void setGuildId(String guildId) {
+        this.guildId = guildId;
     }
 
     public ResourceType getResourceType() {
@@ -224,12 +224,12 @@ public class TownResource {
     }
 
     /**
-     * Validate this town resource object
+     * Validate this guild resource object
      * @return True if the resource is valid
      */
     public boolean isValid() {
         return id != null && !id.isEmpty() &&
-               townId != null && !townId.isEmpty() &&
+               guildId != null && !guildId.isEmpty() &&
                isValidResourceType() &&
                amount >= 0 &&
                lastUpdated != null;
@@ -254,21 +254,21 @@ public class TownResource {
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        TownResource that = (TownResource) obj;
-        return townId.equals(that.townId) &&
+        GuildResource that = (GuildResource) obj;
+        return guildId.equals(that.guildId) &&
                resourceType == that.resourceType;
     }
 
     @Override
     public int hashCode() {
-        return java.util.Objects.hash(townId, resourceType);
+        return java.util.Objects.hash(guildId, resourceType);
     }
 
     @Override
     public String toString() {
         return "TownResource{" +
                 "id='" + id + '\'' +
-                ", townId='" + townId + '\'' +
+                ", townId='" + guildId + '\'' +
                 ", resourceType=" + (resourceType != null ? resourceType.name() : "null") +
                 ", amount=" + amount +
                 ", lastUpdated=" + lastUpdated +

@@ -12,7 +12,7 @@ public enum ZoneType {
      */
     WILDERNESS,
     /**
-     * Land eligible for future town/claim systems; classification only here.
+     * Land eligible for future guild/claim systems; classification only here.
      */
     CLAIMABLE;
 

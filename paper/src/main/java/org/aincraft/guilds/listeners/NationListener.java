@@ -3,10 +3,10 @@ package org.aincraft.guilds.listeners;
 
 import org.aincraft.guilds.models.Nation;
 import org.aincraft.guilds.models.Resident;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.NationService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -18,13 +18,13 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 public class NationListener implements Listener {
 
     private final NationService nationService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
 
-    public NationListener(NationService nationService, TownService townService, ResidentService residentService) {
+    public NationListener(NationService nationService, GuildService guildService, ResidentService residentService) {
         this.nationService = nationService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
@@ -56,10 +56,10 @@ public class NationListener implements Listener {
 
     private Nation getPlayerNation(Player player) {
         return residentService.getResident(player.getUniqueId())
-                .filter(Resident::hasTown)
-                .flatMap(r -> townService.getTown(r.getTown()))
-                .flatMap(town -> nationService.getAllNations().stream()
-                        .filter(n -> n.hasTown(town.getId()))
+                .filter(Resident::hasGuild)
+                .flatMap(r -> guildService.getGuild(r.getGuild()))
+                .flatMap(guild -> nationService.getAllNations().stream()
+                        .filter(n -> n.hasGuild(guild.getId()))
                         .findFirst())
                 .orElse(null);
     }

@@ -7,11 +7,11 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 
 /**
- * Brigadier implementation of the town broadcast command
+ * Brigadier implementation of the guild broadcast command
  */
-public class TownBroadcastBrigadierCommand {
+public class GuildBroadcastBrigadierCommand {
 
-    public TownBroadcastBrigadierCommand() {
+    public GuildBroadcastBrigadierCommand() {
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {

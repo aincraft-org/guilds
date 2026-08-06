@@ -1,6 +1,6 @@
 package org.aincraft.guilds.services;
 
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.models.Permission;
 
 import java.util.List;
@@ -8,160 +8,160 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Service interface for managing town blocks (plots)
+ * Service interface for managing guild blocks (plots)
  */
 public interface PlotService {
 
     /**
-     * Create a new town block
+     * Create a new guild block
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
-     * @param townName Town name
-     * @return Created town block
+     * @param guildName Guild name
+     * @return Created guild block
      */
-    TownBlock createTownBlock(int x, int z, String world, String townName);
+    GuildBlock createGuildBlock(int x, int z, String world, String guildName);
 
     /**
-     * Get a town block by coordinates
+     * Get a guild block by coordinates
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
-     * @return Town block if found
+     * @return Guild block if found
      */
-    Optional<TownBlock> getTownBlock(int x, int z, String world);
+    Optional<GuildBlock> getGuildBlock(int x, int z, String world);
 
     /**
-     * Get a town block by ID
-     * @param id Town block ID
-     * @return Town block if found
+     * Get a guild block by ID
+     * @param id Guild block ID
+     * @return Guild block if found
      */
-    Optional<TownBlock> getTownBlock(UUID id);
+    Optional<GuildBlock> getGuildBlock(UUID id);
 
     /**
-     * Update town block information
-     * @param townBlock Town block to update
-     * @return Updated town block
+     * Update guild block information
+     * @param guildBlock Guild block to update
+     * @return Updated guild block
      */
-    TownBlock updateTownBlock(TownBlock townBlock);
+    GuildBlock updateGuildBlock(GuildBlock guildBlock);
 
     /**
-     * Delete a town block
-     * @param id Town block ID
+     * Delete a guild block
+     * @param id Guild block ID
      * @return True if deleted successfully
      */
-    boolean deleteTownBlock(UUID id);
+    boolean deleteGuildBlock(UUID id);
 
     /**
-     * Get all town blocks
-     * @return List of all town blocks
+     * Get all guild blocks
+     * @return List of all guild blocks
      */
-    List<TownBlock> getAllTownBlocks();
+    List<GuildBlock> getAllGuildBlocks();
 
     /**
-     * Get town blocks in a specific town
-     * @param townName Town name
-     * @return List of town blocks in the town
+     * Get guild blocks in a specific guild
+     * @param guildName Guild name
+     * @return List of guild blocks in the guild
      */
-    List<TownBlock> getTownBlocksInTown(String townName);
+    List<GuildBlock> getGuildBlocksInGuild(String guildName);
 
     /**
-     * Get town blocks in a specific world
+     * Get guild blocks in a specific world
      * @param world World name
-     * @return List of town blocks in the world
+     * @return List of guild blocks in the world
      */
-    List<TownBlock> getTownBlocksInWorld(String world);
+    List<GuildBlock> getGuildBlocksInWorld(String world);
 
     /**
-     * Get town blocks owned by a specific resident
+     * Get guild blocks owned by a specific resident
      * @param residentUuid Resident UUID
-     * @return List of owned town blocks
+     * @return List of owned guild blocks
      */
-    List<TownBlock> getTownBlocksOwnedBy(UUID residentUuid);
+    List<GuildBlock> getGuildBlocksOwnedBy(UUID residentUuid);
 
     /**
-     * Check if a town block exists at coordinates
+     * Check if a guild block exists at coordinates
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
-     * @return True if town block exists
+     * @return True if guild block exists
      */
-    boolean townBlockExists(int x, int z, String world);
+    boolean guildBlockExists(int x, int z, String world);
 
     /**
-     * Claim a town block for a town
+     * Claim a guild block for a guild
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
-     * @param townName Town name
+     * @param guildName Guild name
      * @return True if claimed successfully
      */
-    boolean claimTownBlock(int x, int z, String world, String townName);
+    boolean claimGuildBlock(int x, int z, String world, String guildName);
 
     /**
-     * Unclaim a town block
+     * Unclaim a guild block
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
      * @return True if unclaimed successfully
      */
-    boolean unclaimTownBlock(int x, int z, String world);
+    boolean unclaimGuildBlock(int x, int z, String world);
 
     /**
-     * Set owner of a town block
-     * @param id Town block ID
-     * @param ownerUuid Owner UUID (null for town-owned)
+     * Set owner of a guild block
+     * @param id Guild block ID
+     * @param ownerUuid Owner UUID (null for guild-owned)
      * @return True if set successfully
      */
-    boolean setTownBlockOwner(UUID id, UUID ownerUuid);
+    boolean setGuildBlockOwner(UUID id, UUID ownerUuid);
 
     /**
-     * Get town blocks in a radius around coordinates
+     * Get guild blocks in a radius around coordinates
      * @param centerX Center X coordinate
      * @param centerZ Center Z coordinate
      * @param radius Radius in blocks
      * @param world World name
-     * @return List of town blocks in radius
+     * @return List of guild blocks in radius
      */
-    List<TownBlock> getTownBlocksInRadius(int centerX, int centerZ, int radius, String world);
+    List<GuildBlock> getGuildBlocksInRadius(int centerX, int centerZ, int radius, String world);
 
     /**
-     * Get town blocks by type
+     * Get guild blocks by type
      * @param plotType Plot type
-     * @return List of town blocks with specified type
+     * @return List of guild blocks with specified type
      */
-    List<TownBlock> getTownBlocksByType(String plotType);
+    List<GuildBlock> getGuildBlocksByType(String plotType);
 
     /**
-     * Get town blocks with no owner (town-owned)
-     * @param townName Town name
-     * @return List of town-owned town blocks
+     * Get guild blocks with no owner (guild-owned)
+     * @param guildName Guild name
+     * @return List of guild-owned guild blocks
      */
-    List<TownBlock> getTownOwnedBlocks(String townName);
+    List<GuildBlock> getGuildOwnedBlocks(String guildName);
 
     /**
-     * Get town count for a town
-     * @param townName Town name
-     * @return Number of town blocks
+     * Get guild count for a guild
+     * @param guildName Guild name
+     * @return Number of guild blocks
      */
-    int getTownBlockCount(String townName);
+    int getGuildBlockCount(String guildName);
 
     /**
-     * Set plot type for a town block
-     * @param id Town block ID
+     * Set plot type for a guild block
+     * @param id Guild block ID
      * @param plotType Plot type
      * @return True if set successfully
      */
     boolean setPlotType(UUID id, String plotType);
 
     /**
-     * Get town blocks at specific chunk coordinates
+     * Get guild blocks at specific chunk coordinates
      * @param chunkX Chunk X coordinate
      * @param chunkZ Chunk Z coordinate
      * @param world World name
-     * @return List of town blocks in chunk
+     * @return List of guild blocks in chunk
      */
-    List<TownBlock> getTownBlocksInChunk(int chunkX, int chunkZ, String world);
+    List<GuildBlock> getGuildBlocksInChunk(int chunkX, int chunkZ, String world);
 
     // Plot claiming and ownership methods
 
@@ -195,17 +195,17 @@ public interface PlotService {
 
     /**
      * Get plots that are for sale
-     * @param townName Town name (optional, can be null for all towns)
+     * @param guildName Guild name (optional, can be null for all guilds)
      * @return List of plots for sale
      */
-    List<TownBlock> getPlotsForSale(String townName);
+    List<GuildBlock> getPlotsForSale(String guildName);
 
     /**
      * Get plots owned by a specific resident
      * @param residentUuid Resident UUID
      * @return List of owned plots
      */
-    List<TownBlock> getPlotsOwnedByResident(UUID residentUuid);
+    List<GuildBlock> getPlotsOwnedByResident(UUID residentUuid);
 
     // Plot permission management methods
 
@@ -252,8 +252,8 @@ public interface PlotService {
     /**
      * Grant a permission to a specific target for a plot
      * @param plotId Plot ID
-     * @param targetType Target type (resident, town, all, etc.)
-     * @param targetId Target ID (resident UUID, town name, etc.)
+     * @param targetType Target type (resident, guild, all, etc.)
+     * @param targetId Target ID (resident UUID, guild name, etc.)
      * @param permissionFlag Permission flag to grant
      * @param grantedBy Who granted this permission
      * @return True if granted successfully
@@ -263,8 +263,8 @@ public interface PlotService {
     /**
      * Revoke a permission from a specific target for a plot
      * @param plotId Plot ID
-     * @param targetType Target type (resident, town, all, etc.)
-     * @param targetId Target ID (resident UUID, town name, etc.)
+     * @param targetType Target type (resident, guild, all, etc.)
+     * @param targetId Target ID (resident UUID, guild name, etc.)
      * @param permissionFlag Permission flag to revoke
      * @return True if revoked successfully
      */
@@ -273,13 +273,13 @@ public interface PlotService {
     // Utility methods
 
     /**
-     * Get the town block at the specified player location
+     * Get the guild block at the specified player location
      * @param world World name
      * @param blockX Block X coordinate
      * @param blockZ Block Z coordinate
-     * @return Town block at location if found
+     * @return Guild block at location if found
      */
-    Optional<TownBlock> getTownBlockAtLocation(String world, int blockX, int blockZ);
+    Optional<GuildBlock> getGuildBlockAtLocation(String world, int blockX, int blockZ);
 
     /**
      * Check if a resident can claim a plot at the specified location

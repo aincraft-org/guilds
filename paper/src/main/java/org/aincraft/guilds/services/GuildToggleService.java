@@ -1,13 +1,13 @@
 package org.aincraft.guilds.services;
 
 /**
- * Service for managing town toggle settings (PvP, fire, mobs, explosions, public access)
+ * Service for managing guild toggle settings (PvP, fire, mobs, explosions, public access)
  * Separated from PermissionService for single responsibility
  */
-public interface TownToggleService {
+public interface GuildToggleService {
 
     /**
-     * Check if PvP is enabled in a town at the specified location
+     * Check if PvP is enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -16,7 +16,7 @@ public interface TownToggleService {
     boolean isPvpEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if fire spread is enabled in a town at the specified location
+     * Check if fire spread is enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -25,7 +25,7 @@ public interface TownToggleService {
     boolean isFireEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if explosions are enabled in a town at the specified location
+     * Check if explosions are enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -34,7 +34,7 @@ public interface TownToggleService {
     boolean areExplosionsEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if mob spawning is enabled in a town at the specified location
+     * Check if mob spawning is enabled in a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -43,7 +43,7 @@ public interface TownToggleService {
     boolean areMobsEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Check if a town has public access at the specified location
+     * Check if a guild has public access at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
@@ -52,11 +52,11 @@ public interface TownToggleService {
     boolean isPublicAccessEnabledAtLocation(int x, int z, String world);
 
     /**
-     * Get all toggle states for a town at the specified location
+     * Get all toggle states for a guild at the specified location
      * @param x X coordinate
      * @param z Z coordinate
      * @param world World name
-     * @return Map of toggle states, empty if no town found at location
+     * @return Map of toggle states, empty if no guild found at location
      */
     java.util.Map<String, Boolean> getTogglesAtLocation(int x, int z, String world);
 }

@@ -47,13 +47,13 @@ class GovernanceRegistryTest {
     }
 
     private static GuildBody guild(String id, Government government, List<String> members) {
-        return new GuildBody(id, id, government, members, TownToggles.defaults(), Map.of());
+        return new GuildBody(id, id, government, members, GuildToggles.defaults(), Map.of());
     }
 
     @Test
     void resolveForTerritory_usesAllianceGovernmentWhenGuildIsNationMember() {
-        GuildBody town = guild("everfall-town", Government.monarchy("mayor:1"), List.of("mayor:1"));
-        source.putGuild(town);
+        GuildBody guild = guild("everfall-town", Government.monarchy("mayor:1"), List.of("mayor:1"));
+        source.putGuild(guild);
         source.putAlliance(new AllianceBody("northern-pact", "Northern Pact",
                 Government.oligarchy(List.of("king:1", "king:2")), List.of("everfall-town")));
         territories.register(new Territory("everfall", "Everfall", "world",
@@ -93,7 +93,7 @@ class GovernanceRegistryTest {
 
     @Test
     void resolveForTerritory_boundGuildGoneFallsBackToLocal() {
-        // Binding references a town that no longer resolves
+        // Binding references a guild that no longer resolves
         territories.register(new Territory("everfall", "Everfall", "world",
                 square(0, 50), List.of(), ZoneType.WILDERNESS,
                 Government.monarchy("local:1"), List.of(), "missing-town"));
@@ -138,7 +138,7 @@ class GovernanceRegistryTest {
     }
 
     @Test
-    void governingGuildForTerritory_resolvesBoundTown() {
+    void governingGuildForTerritory_resolvesBoundGuild() {
         source.putGuild(guild("everfall-town", Government.monarchy("mayor:1"), List.of("mayor:1")));
         territories.register(new Territory("everfall", "Everfall", "world",
                 square(0, 50), List.of(), ZoneType.WILDERNESS, Government.anarchy(), List.of(), "everfall-town"));
@@ -202,7 +202,7 @@ class GovernanceRegistryTest {
                 VoteChoice.YES, 2_000L);
         assertEquals(PolicyStatus.PROPOSED, voted.status());
 
-        // Mayor of the bound town is NOT in the alliance electorate
+        // Mayor of the bound guild is NOT in the alliance electorate
         assertThrows(IllegalArgumentException.class, () ->
                 governance.castPolicyVote("everfall", "wall", "mayor:1",
                         VoteChoice.YES, 2_000L));

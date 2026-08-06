@@ -10,8 +10,8 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.CustomArgumentType;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.ChatColor;
 
 import java.util.Collection;
@@ -19,33 +19,33 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Argument type for town names with validation and suggestions
+ * Argument type for guild names with validation and suggestions
  */
-public class TownArgumentType implements CustomArgumentType<String, String> {
+public class GuildArgumentType implements CustomArgumentType<String, String> {
 
-    private static final SimpleCommandExceptionType TOWN_NOT_FOUND =
+    private static final SimpleCommandExceptionType GUILD_NOT_FOUND =
         new SimpleCommandExceptionType(() -> ChatColor.RED + "Town not found");
 
-    private final TownService townService;
+    private final GuildService guildService;
 
-    private TownArgumentType(TownService townService) {
-        this.townService = townService;
+    private GuildArgumentType(GuildService guildService) {
+        this.guildService = guildService;
     }
 
-    public static TownArgumentType town(TownService townService) {
-        return new TownArgumentType(townService);
+    public static GuildArgumentType guild(GuildService guildService) {
+        return new GuildArgumentType(guildService);
     }
 
     @Override
     public String parse(StringReader reader) throws CommandSyntaxException {
-        String townName = reader.readUnquotedString();
+        String guildName = reader.readUnquotedString();
 
-        // Validate that the town exists
-        if (!townService.townExists(townName)) {
-            throw TOWN_NOT_FOUND.createWithContext(reader);
+        // Validate that the guild exists
+        if (!guildService.guildExists(guildName)) {
+            throw GUILD_NOT_FOUND.createWithContext(reader);
         }
 
-        return townName;
+        return guildName;
     }
 
     @Override
@@ -55,13 +55,13 @@ public class TownArgumentType implements CustomArgumentType<String, String> {
 
     @Override
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-        List<String> townNames = townService.getAllTowns().stream()
-            .map(Town::getName)
+        List<String> guildNames = guildService.getAllGuilds().stream()
+            .map(Guild::getName)
             .toList();
 
-        for (String townName : townNames) {
-            if (townName.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
-                builder.suggest(townName);
+        for (String guildName : guildNames) {
+            if (guildName.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
+                builder.suggest(guildName);
             }
         }
 
@@ -74,9 +74,9 @@ public class TownArgumentType implements CustomArgumentType<String, String> {
     }
 
     /**
-     * Get the town name from the command context
+     * Get the guild name from the command context
      */
-    public static String getTownName(CommandContext<CommandSourceStack> context, String name) {
+    public static String getGuildName(CommandContext<CommandSourceStack> context, String name) {
         return context.getArgument(name, String.class);
     }
 }

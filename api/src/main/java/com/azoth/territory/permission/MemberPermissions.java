@@ -9,11 +9,11 @@ import java.util.Set;
  * Effective territory permissions of one member of a governing guild, as
  * materialized by the guilds subsystem.
  * <p>
- * Mirrors the guilds town-level permission hierarchy:
+ * Mirrors the guilds guild-level permission hierarchy:
  * <ol>
  *   <li>global {@code bypass} — member passes every sovereign action</li>
- *   <li>explicit town-context grants — add granted actions</li>
- *   <li>role default — all town members get the basic build actions
+ *   <li>explicit guild-context grants — add granted actions</li>
+ *   <li>role default — all guild members get the basic build actions
  *       (break/place/switch/item-use) by default</li>
  * </ol>
  * Pure domain — no Bukkit.

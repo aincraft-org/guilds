@@ -4,10 +4,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Encapsulates town level system data and logic
- * Extracted from Town.java to follow Single Responsibility Principle
+ * Encapsulates guild level system data and logic
+ * Extracted from Guild.java to follow Single Responsibility Principle
  */
-public class TownLevelData {
+public class GuildLevelData {
 
     private int level;
     private int techPoints;
@@ -16,7 +16,7 @@ public class TownLevelData {
     /**
      * Default constructor
      */
-    public TownLevelData() {
+    public GuildLevelData() {
         this.level = 1;
         this.techPoints = 0;
         this.upgradeProgress = new HashMap<>();
@@ -24,11 +24,11 @@ public class TownLevelData {
 
     /**
      * Constructor with initial values
-     * @param level Initial town level
+     * @param level Initial guild level
      * @param techPoints Initial tech points
      * @param upgradeProgress Initial upgrade progress
      */
-    public TownLevelData(int level, int techPoints, Map<String, Integer> upgradeProgress) {
+    public GuildLevelData(int level, int techPoints, Map<String, Integer> upgradeProgress) {
         this.level = Math.max(1, level);
         this.techPoints = Math.max(0, techPoints);
         this.upgradeProgress = upgradeProgress != null ? new HashMap<>(upgradeProgress) : new HashMap<>();
@@ -63,7 +63,7 @@ public class TownLevelData {
     // Business methods
 
     /**
-     * Add tech points to the town
+     * Add tech points to the guild
      * @param points Tech points to add
      */
     public void addTechPoints(int points) {
@@ -71,7 +71,7 @@ public class TownLevelData {
     }
 
     /**
-     * Check if town can afford an upgrade to the next level
+     * Check if guild can afford an upgrade to the next level
      * @param nextLevelRequirements Resource requirements for next level
      * @return Map of resource affordability
      */
@@ -108,7 +108,7 @@ public class TownLevelData {
     }
 
     /**
-     * Contribute resources to town upgrade progress
+     * Contribute resources to guild upgrade progress
      * @param resourceType Type of resource
      * @param amount Amount to contribute
      */
@@ -121,7 +121,7 @@ public class TownLevelData {
     }
 
     /**
-     * Contribute resources to town upgrade progress (string version for backward compatibility)
+     * Contribute resources to guild upgrade progress (string version for backward compatibility)
      * @param resourceTypeStr Type of resource as string
      * @param amount Amount to contribute
      */
@@ -177,7 +177,7 @@ public class TownLevelData {
     }
 
     /**
-     * Level up the town to the next level
+     * Level up the guild to the next level
      * @param newLevel New level to set
      * @param techPointsReward Tech points to add for this level
      */
@@ -190,7 +190,7 @@ public class TownLevelData {
     }
 
     /**
-     * Get the maximum number of assistant slots based on town level
+     * Get the maximum number of assistant slots based on guild level
      * @return Maximum assistant slots
      */
     public int getMaxAssistantSlots() {
@@ -199,7 +199,7 @@ public class TownLevelData {
     }
 
     /**
-     * Get the maximum claim limit based on town level
+     * Get the maximum claim limit based on guild level
      * @return Maximum claim limit in chunks
      */
     public int getMaxClaimLimit() {
@@ -208,7 +208,7 @@ public class TownLevelData {
     }
 
     /**
-     * Get daily income bonus based on town level
+     * Get daily income bonus based on guild level
      * @return Daily income bonus
      */
     public double getDailyIncomeBonus() {
@@ -217,7 +217,7 @@ public class TownLevelData {
     }
 
     /**
-     * Check if the town has reached its assistant limit
+     * Check if the guild has reached its assistant limit
      * @param currentAssistants Current number of assistants
      * @return True if at assistant limit
      */
@@ -226,7 +226,7 @@ public class TownLevelData {
     }
 
     /**
-     * Check if the town has reached its claim limit
+     * Check if the guild has reached its claim limit
      * @param currentClaims Current number of claimed chunks
      * @return True if at claim limit
      */

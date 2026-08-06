@@ -63,12 +63,12 @@ public class BlueprintServiceImpl implements BlueprintService {
     }
 
     @Override
-    public List<Blueprint> getTownBlueprints(String townId) {
+    public List<Blueprint> getGuildBlueprints(String guildId) {
         return databaseManager.executeTransactionWithResult(connection -> {
             List<Blueprint> blueprints = new ArrayList<>();
-            String sql = "SELECT * FROM blueprints WHERE town_id = ? ORDER BY created_at DESC";
+            String sql = "SELECT * FROM blueprints WHERE guild_id = ? ORDER BY created_at DESC";
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
-                ps.setString(1, townId);
+                ps.setString(1, guildId);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Blueprint blueprint = mapResultSetToBlueprint(rs);
@@ -82,21 +82,21 @@ public class BlueprintServiceImpl implements BlueprintService {
     }
 
     @Override
-    public void saveBlueprint(String name, UUID author, String townId, byte[] schematicData) {
+    public void saveBlueprint(String name, UUID author, String guildId, byte[] schematicData) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "INSERT INTO blueprints (id, name, author_uuid, town_id, schematic_data, created_at) VALUES (?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO blueprints (id, name, author_uuid, guild_id, schematic_data, created_at) VALUES (?, ?, ?, ?, ?, ?)";
 
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
                 String id = UUID.randomUUID().toString();
                 ps.setString(1, id);
                 ps.setString(2, name);
                 ps.setString(3, author.toString());
-                ps.setString(4, townId);
+                ps.setString(4, guildId);
                 ps.setBytes(5, schematicData);
                 ps.setString(6, LocalDateTime.now().toString());
                 ps.executeUpdate();
 
-                Blueprint blueprint = new Blueprint(id, name, author, townId, schematicData, LocalDateTime.now());
+                Blueprint blueprint = new Blueprint(id, name, author, guildId, schematicData, LocalDateTime.now());
                 blueprintCache.put(name, blueprint);
             }
         });
@@ -144,7 +144,7 @@ public class BlueprintServiceImpl implements BlueprintService {
             rs.getString("id"),
             rs.getString("name"),
             UUID.fromString(rs.getString("author_uuid")),
-            rs.getString("town_id"),
+            rs.getString("guild_id"),
             rs.getBytes("schematic_data"),
             LocalDateTime.parse(rs.getString("created_at"))
         );

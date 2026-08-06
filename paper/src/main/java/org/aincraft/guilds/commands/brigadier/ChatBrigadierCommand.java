@@ -8,31 +8,31 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.ChatService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.entity.Player;
 
 /**
- * Brigadier command for the town chat system.
- * /tc <message> — send one-off town chat message
- * /tc (with no args) — toggle town chat as default channel
- * /townchat — alias for town chat toggling
+ * Brigadier command for the guild chat system.
+ * /tc <message> — send one-off guild chat message
+ * /tc (with no args) — toggle guild chat as default channel
+ * /townchat — alias for guild chat toggling
  */
 public class ChatBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final ChatService chatService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
 
     public ChatBrigadierCommand(JavaPlugin plugin, ChatService chatService,
-                                TownService townService, ResidentService residentService) {
+                                GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
         this.chatService = chatService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
@@ -52,8 +52,8 @@ public class ChatBrigadierCommand {
             return 0;
         }
 
-        boolean newState = !chatService.isTownChatEnabled(player.getUniqueId());
-        chatService.setTownChatEnabled(player.getUniqueId(), newState);
+        boolean newState = !chatService.isGuildChatEnabled(player.getUniqueId());
+        chatService.setGuildChatEnabled(player.getUniqueId(), newState);
 
         if (newState) {
             player.sendMessage("§aTown chat enabled! Your messages will now be sent to your town.");
@@ -71,28 +71,28 @@ public class ChatBrigadierCommand {
             return 0;
         }
 
-        Town town = getPlayerTown(player);
-        if (town == null) {
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
 
         String message = StringArgumentType.getString(ctx, "message");
-        chatService.sendTownChat(town.getId(), player, message);
+        chatService.sendGuildChat(guild.getId(), player, message);
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private Town getPlayerTown(Player player) {
-        String townName = residentService.getResident(player.getUniqueId())
-                .filter(resident -> resident.hasTown())
-                .map(org.aincraft.guilds.models.Resident::getTown)
+    private Guild getPlayerGuild(Player player) {
+        String guildName = residentService.getResident(player.getUniqueId())
+                .filter(resident -> resident.hasGuild())
+                .map(org.aincraft.guilds.models.Resident::getGuild)
                 .orElse(null);
 
-        if (townName == null) {
+        if (guildName == null) {
             return null;
         }
 
-        return townService.getTown(townName).orElse(null);
+        return guildService.getGuild(guildName).orElse(null);
     }
 }

@@ -33,13 +33,13 @@ public class AddBlueprintMigration implements DatabaseMigration {
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE,
                     author_uuid TEXT NOT NULL,
-                    town_id TEXT NOT NULL,
+                    guild_id TEXT NOT NULL,
                     schematic_data BLOB,
                     created_at TEXT NOT NULL
                 )
             """);
 
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_blueprints_town ON blueprints(town_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_blueprints_guild ON blueprints(guild_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_blueprints_name ON blueprints(name)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_blueprints_author ON blueprints(author_uuid)");
         }

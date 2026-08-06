@@ -4,11 +4,11 @@ package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.BroadcastMessage;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.BroadcastService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -38,7 +38,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     private final DatabaseManager databaseManager;
     private final DataSource dataSource;
     private final Logger logger;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
     private final PermissionService permissionService;
 
@@ -46,28 +46,28 @@ public class BroadcastServiceImpl implements BroadcastService {
 
 
     public BroadcastServiceImpl(DatabaseManager databaseManager, Logger logger,
-                               TownService townService, ResidentService residentService,
+                               GuildService guildService, ResidentService residentService,
                                PermissionService permissionService) {
         this.databaseManager = databaseManager;
         this.dataSource = databaseManager.getDataSource();
         this.logger = logger;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
         this.permissionService = permissionService;
     }
 
     @Override
-    public BroadcastMessage createBroadcast(String townId, String messageType, String title, String content,
+    public BroadcastMessage createBroadcast(String guildId, String messageType, String title, String content,
                                           UUID senderUuid, String senderName) {
-        BroadcastMessage broadcast = new BroadcastMessage(townId, messageType, title, content, senderUuid, senderName);
+        BroadcastMessage broadcast = new BroadcastMessage(guildId, messageType, title, content, senderUuid, senderName);
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "INSERT INTO broadcast_messages (id, town_id, message_type, title, content, sender_uuid, sender_name, " +
+                 "INSERT INTO broadcast_messages (id, guild_id, message_type, title, content, sender_uuid, sender_name, " +
                  "created_at, expires_at, is_active, priority, target_audience) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
 
             statement.setString(1, broadcast.getId());
-            statement.setString(2, broadcast.getTownId());
+            statement.setString(2, broadcast.getGuildId());
             statement.setString(3, broadcast.getMessageType());
             statement.setString(4, broadcast.getTitle());
             statement.setString(5, broadcast.getContent());
@@ -81,7 +81,7 @@ public class BroadcastServiceImpl implements BroadcastService {
 
             statement.executeUpdate();
 
-            logger.info("Created new broadcast message: " + broadcast.getTitle() + " for town: " + townId);
+            logger.info("Created new broadcast message: " + broadcast.getTitle() + " for town: " + guildId);
             return broadcast;
 
         } catch (SQLException e) {
@@ -112,16 +112,16 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public List<BroadcastMessage> getActiveBroadcasts(String townId) {
+    public List<BroadcastMessage> getActiveBroadcasts(String guildId) {
         List<BroadcastMessage> broadcasts = new ArrayList<>();
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE town_id = ? AND is_active = TRUE " +
+                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND is_active = TRUE " +
                  "AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
                  "ORDER BY priority DESC, created_at DESC")) {
 
-            statement.setString(1, townId);
+            statement.setString(1, guildId);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
@@ -137,14 +137,14 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public List<BroadcastMessage> getAllBroadcasts(String townId) {
+    public List<BroadcastMessage> getAllBroadcasts(String guildId) {
         List<BroadcastMessage> broadcasts = new ArrayList<>();
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE town_id = ? ORDER BY created_at DESC")) {
+                 "SELECT * FROM broadcast_messages WHERE guild_id = ? ORDER BY created_at DESC")) {
 
-            statement.setString(1, townId);
+            statement.setString(1, guildId);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
@@ -160,16 +160,16 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public List<BroadcastMessage> getBroadcastsByAudience(String townId, String audience) {
+    public List<BroadcastMessage> getBroadcastsByAudience(String guildId, String audience) {
         List<BroadcastMessage> broadcasts = new ArrayList<>();
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE town_id = ? AND target_audience = ? " +
+                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND target_audience = ? " +
                  "AND is_active = TRUE AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
                  "ORDER BY priority DESC, created_at DESC")) {
 
-            statement.setString(1, townId);
+            statement.setString(1, guildId);
             statement.setString(2, audience);
 
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -186,16 +186,16 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public List<BroadcastMessage> getBroadcastsByType(String townId, String messageType) {
+    public List<BroadcastMessage> getBroadcastsByType(String guildId, String messageType) {
         List<BroadcastMessage> broadcasts = new ArrayList<>();
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE town_id = ? AND message_type = ? " +
+                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND message_type = ? " +
                  "AND is_active = TRUE AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
                  "ORDER BY priority DESC, created_at DESC")) {
 
-            statement.setString(1, townId);
+            statement.setString(1, guildId);
             statement.setString(2, messageType);
 
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -212,7 +212,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public List<BroadcastMessage> getBroadcastsForPlayer(String townId, UUID playerUuid, String playerRole) {
+    public List<BroadcastMessage> getBroadcastsForPlayer(String guildId, UUID playerUuid, String playerRole) {
         List<BroadcastMessage> broadcasts = new ArrayList<>();
 
         // Get broadcasts for all audiences, then filter by role
@@ -220,12 +220,12 @@ public class BroadcastServiceImpl implements BroadcastService {
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE town_id = ? AND target_audience IN (" +
+                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND target_audience IN (" +
                  String.join(",", Collections.nCopies(targetAudiences.size(), "?")) +
                  ") AND is_active = TRUE AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
                  "ORDER BY priority DESC, created_at DESC")) {
 
-            statement.setString(1, townId);
+            statement.setString(1, guildId);
             for (int i = 0; i < targetAudiences.size(); i++) {
                 statement.setString(2 + i, targetAudiences.get(i));
             }
@@ -314,18 +314,18 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public BroadcastMessage createWelcomeMessage(String townId, String newResidentName) {
-        String title = "Welcome to " + getTownName(townId) + "!";
+    public BroadcastMessage createWelcomeMessage(String guildId, String newResidentName) {
+        String title = "Welcome to " + getGuildName(guildId) + "!";
         String content = "Welcome " + newResidentName + " to our town! We're excited to have you as part of our community.";
 
-        return createBroadcast(townId, BroadcastMessage.Type.WELCOME, title, content,
+        return createBroadcast(guildId, BroadcastMessage.Type.WELCOME, title, content,
                               UUID.randomUUID(), "System");
     }
 
     @Override
-    public BroadcastMessage createAlertMessage(String townId, String alertTitle, String alertContent,
+    public BroadcastMessage createAlertMessage(String guildId, String alertTitle, String alertContent,
                                              UUID senderUuid, String senderName, int priority) {
-        BroadcastMessage alert = createBroadcast(townId, BroadcastMessage.Type.ALERT, alertTitle, alertContent,
+        BroadcastMessage alert = createBroadcast(guildId, BroadcastMessage.Type.ALERT, alertTitle, alertContent,
                                                senderUuid, senderName);
         alert.setPriority(Math.max(1, Math.min(5, priority)));
         alert.setExpirationInHours(24); // Alerts expire after 24 hours by default
@@ -335,9 +335,9 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public BroadcastMessage createAnnouncement(String townId, String title, String content,
+    public BroadcastMessage createAnnouncement(String guildId, String title, String content,
                                              UUID senderUuid, String senderName, int expirationDays) {
-        BroadcastMessage announcement = createBroadcast(townId, BroadcastMessage.Type.ANNOUNCEMENT, title, content,
+        BroadcastMessage announcement = createBroadcast(guildId, BroadcastMessage.Type.ANNOUNCEMENT, title, content,
                                                        senderUuid, senderName);
         if (expirationDays > 0) {
             announcement.setExpirationInDays(expirationDays);
@@ -348,23 +348,23 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public int cleanupExpiredBroadcasts(String townId) {
+    public int cleanupExpiredBroadcasts(String guildId) {
         int cleanedCount = 0;
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
                  "UPDATE broadcast_messages SET is_active = FALSE " +
                  "WHERE is_active = TRUE AND expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP" +
-                 (townId != null ? " AND town_id = ?" : ""))) {
+                 (guildId != null ? " AND guild_id = ?" : ""))) {
 
-            if (townId != null) {
-                statement.setString(1, townId);
+            if (guildId != null) {
+                statement.setString(1, guildId);
             }
 
             cleanedCount = statement.executeUpdate();
             if (cleanedCount > 0) {
                 logger.info("Cleaned up " + cleanedCount + " expired broadcast messages" +
-                           (townId != null ? " for town: " + townId : ""));
+                           (guildId != null ? " for town: " + guildId : ""));
             }
 
         } catch (SQLException e) {
@@ -375,7 +375,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public BroadcastStatistics getBroadcastStatistics(String townId) {
+    public BroadcastStatistics getBroadcastStatistics(String guildId) {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
                  "SELECT COUNT(*) as total, " +
@@ -386,10 +386,10 @@ public class BroadcastServiceImpl implements BroadcastService {
                  "SUM(CASE WHEN message_type = 'welcome' THEN 1 ELSE 0 END) as welcome, " +
                  "MAX(created_at) as last_broadcast, " +
                  "message_type as most_active_type " +
-                 "FROM broadcast_messages WHERE town_id = ? " +
+                 "FROM broadcast_messages WHERE guild_id = ? " +
                  "GROUP BY message_type ORDER BY COUNT(*) DESC LIMIT 1")) {
 
-            statement.setString(1, townId);
+            statement.setString(1, guildId);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
@@ -415,16 +415,16 @@ public class BroadcastServiceImpl implements BroadcastService {
     }
 
     @Override
-    public boolean canCreateBroadcast(UUID playerUuid, String townId, String messageType) {
-        // Check if player is in the town and has appropriate permissions
-        Optional<Town> town = townService.getTownById(townId);
-        if (town.isEmpty()) {
+    public boolean canCreateBroadcast(UUID playerUuid, String guildId, String messageType) {
+        // Check if player is in the guild and has appropriate permissions
+        Optional<Guild> guild = guildService.getGuildById(guildId);
+        if (guild.isEmpty()) {
             return false;
         }
 
         // Mayor and assistants can create any type of broadcast
-        if (town.get().getMayorUuid().equals(playerUuid) ||
-            town.get().getAssistants().contains(playerUuid)) {
+        if (guild.get().getMayorUuid().equals(playerUuid) ||
+            guild.get().getAssistants().contains(playerUuid)) {
             return true;
         }
 
@@ -439,15 +439,15 @@ public class BroadcastServiceImpl implements BroadcastService {
 
     @Override
     public int sendBroadcastToOnlineMembers(BroadcastMessage broadcast) {
-        Optional<Town> town = townService.getTownById(broadcast.getTownId());
-        if (town.isEmpty()) {
+        Optional<Guild> guild = guildService.getGuildById(broadcast.getGuildId());
+        if (guild.isEmpty()) {
             return 0;
         }
 
         int sentCount = 0;
         String formattedMessage = org.aincraft.guilds.utils.BroadcastFormatter.format(broadcast);
 
-        for (UUID residentUuid : town.get().getResidents()) {
+        for (UUID residentUuid : guild.get().getResidents()) {
             Player player = Bukkit.getPlayer(residentUuid);
             if (player != null && player.isOnline()) {
                 player.sendMessage(formattedMessage);
@@ -458,15 +458,15 @@ public class BroadcastServiceImpl implements BroadcastService {
         return sentCount;
     }
 
-    private String getTownName(String townId) {
-        Optional<Town> town = townService.getTownById(townId);
-        return town.map(Town::getName).orElse("Unknown");
+    private String getGuildName(String guildId) {
+        Optional<Guild> guild = guildService.getGuildById(guildId);
+        return guild.map(Guild::getName).orElse("Unknown");
     }
 
     private BroadcastMessage mapResultSetToBroadcastMessage(ResultSet resultSet) throws SQLException {
         BroadcastMessage broadcast = new BroadcastMessage();
         broadcast.setId(resultSet.getString("id"));
-        broadcast.setTownId(resultSet.getString("town_id"));
+        broadcast.setGuildId(resultSet.getString("guild_id"));
         broadcast.setMessageType(resultSet.getString("message_type"));
         broadcast.setTitle(resultSet.getString("title"));
         broadcast.setContent(resultSet.getString("content"));

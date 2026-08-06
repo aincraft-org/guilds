@@ -10,10 +10,10 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.models.Resident;
-import org.aincraft.guilds.models.TownQuest;
+import org.aincraft.guilds.models.GuildQuest;
 import org.aincraft.guilds.services.QuestService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
@@ -25,14 +25,14 @@ public class QuestBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final QuestService questService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
 
-    public QuestBrigadierCommand(JavaPlugin plugin, QuestService questService, TownService townService, ResidentService residentService) {
+    public QuestBrigadierCommand(JavaPlugin plugin, QuestService questService, GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
         this.questService = questService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
@@ -52,14 +52,14 @@ public class QuestBrigadierCommand {
         CommandSender sender = context.getSource().getSender();
         Optional<Resident> residentOpt = residentService.getResident(sender.getName());
 
-        if (residentOpt.isEmpty() || residentOpt.get().getTown() == null) {
+        if (residentOpt.isEmpty() || residentOpt.get().getGuild() == null) {
             sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
         Resident resident = residentOpt.get();
-        String townId = resident.getTown();
-        List<TownQuest> activeQuests = questService.getActiveQuests(townId);
+        String guildId = resident.getGuild();
+        List<GuildQuest> activeQuests = questService.getActiveQuests(guildId);
 
         if (activeQuests.isEmpty()) {
             sender.sendMessage(Component.text("No active quests for your town.").color(NamedTextColor.YELLOW));
@@ -67,7 +67,7 @@ public class QuestBrigadierCommand {
         }
 
         sender.sendMessage(Component.text("Active Town Quests:").color(NamedTextColor.GREEN));
-        for (TownQuest quest : activeQuests) {
+        for (GuildQuest quest : activeQuests) {
             sender.sendMessage(buildQuestProgressMessage(quest));
         }
 
@@ -78,14 +78,14 @@ public class QuestBrigadierCommand {
         CommandSender sender = context.getSource().getSender();
         Optional<Resident> residentOpt = residentService.getResident(sender.getName());
 
-        if (residentOpt.isEmpty() || residentOpt.get().getTown() == null) {
+        if (residentOpt.isEmpty() || residentOpt.get().getGuild() == null) {
             sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
         Resident resident = residentOpt.get();
-        String townId = resident.getTown();
-        List<TownQuest> activeQuests = questService.getActiveQuests(townId);
+        String guildId = resident.getGuild();
+        List<GuildQuest> activeQuests = questService.getActiveQuests(guildId);
 
         if (activeQuests.isEmpty()) {
             sender.sendMessage(Component.text("No active quests for your town.").color(NamedTextColor.YELLOW));
@@ -93,7 +93,7 @@ public class QuestBrigadierCommand {
         }
 
         sender.sendMessage(Component.text("Town Quest Progress Details:").color(NamedTextColor.GREEN));
-        for (TownQuest quest : activeQuests) {
+        for (GuildQuest quest : activeQuests) {
             sender.sendMessage(buildDetailedQuestMessage(quest));
         }
 
@@ -104,20 +104,20 @@ public class QuestBrigadierCommand {
         CommandSender sender = context.getSource().getSender();
         Optional<Resident> residentOpt = residentService.getResident(sender.getName());
 
-        if (residentOpt.isEmpty() || residentOpt.get().getTown() == null) {
+        if (residentOpt.isEmpty() || residentOpt.get().getGuild() == null) {
             sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
         Resident resident = residentOpt.get();
-        String townId = resident.getTown();
-        questService.generateWeeklyQuests(townId);
+        String guildId = resident.getGuild();
+        questService.generateWeeklyQuests(guildId);
 
-        List<TownQuest> newQuests = questService.getActiveQuests(townId);
+        List<GuildQuest> newQuests = questService.getActiveQuests(guildId);
         sender.sendMessage(Component.text("Refreshed weekly quests!").color(NamedTextColor.GREEN));
         if (!newQuests.isEmpty()) {
             sender.sendMessage(Component.text("New active quests:").color(NamedTextColor.GOLD));
-            for (TownQuest quest : newQuests) {
+            for (GuildQuest quest : newQuests) {
                 sender.sendMessage(buildQuestProgressMessage(quest));
             }
         }
@@ -125,7 +125,7 @@ public class QuestBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private Component buildQuestProgressMessage(TownQuest quest) {
+    private Component buildQuestProgressMessage(GuildQuest quest) {
         double progress = (double) quest.getCurrentProgress() / quest.getTargetAmount() * 100;
         String progressBar = generateProgressBar(quest.getCurrentProgress(), quest.getTargetAmount());
 
@@ -138,7 +138,7 @@ public class QuestBrigadierCommand {
                 .build();
     }
 
-    private Component buildDetailedQuestMessage(TownQuest quest) {
+    private Component buildDetailedQuestMessage(GuildQuest quest) {
         double progress = (double) quest.getCurrentProgress() / quest.getTargetAmount() * 100;
         String progressBar = generateProgressBar(quest.getCurrentProgress(), quest.getTargetAmount());
 

@@ -3,13 +3,13 @@ package org.aincraft.guilds.services.impl;
 
 
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.config.TownLevelConfigLoader;
+import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.model.LevelDefinition;
 import org.aincraft.guilds.database.DatabaseManager;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownLevel;
-import org.aincraft.guilds.services.TownLevelService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildLevel;
+import org.aincraft.guilds.services.GuildLevelService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -28,30 +28,30 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 /**
- * Implementation of TownLevelService for town level system operations
+ * Implementation of GuildLevelService for guild level system operations
  */
 
-public class TownLevelServiceImpl implements TownLevelService {
+public class GuildLevelServiceImpl implements GuildLevelService {
 
     private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
-    private final TownService townService;
-    private final TownLevelConfigLoader configLoader;
+    private final GuildService guildService;
+    private final GuildLevelConfigLoader configLoader;
 
-    // Cache for town level definitions
-    private final Map<Integer, TownLevel> levelCache = new HashMap<>();
+    // Cache for guild level definitions
+    private final Map<Integer, GuildLevel> levelCache = new HashMap<>();
     private boolean cacheInitialized = false;
 
 
-    public TownLevelServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager, TownService townService, TownLevelConfigLoader configLoader) {
+    public GuildLevelServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager, GuildService guildService, GuildLevelConfigLoader configLoader) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
-        this.townService = townService;
+        this.guildService = guildService;
         this.configLoader = configLoader;
     }
 
     @Override
-    public Optional<TownLevel> getTownLevel(int level) {
+    public Optional<GuildLevel> getGuildLevel(int level) {
         initializeCacheIfNeeded();
 
         if (level < 1 || level > getMaxLevel()) {
@@ -62,30 +62,30 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     @Override
-    public Optional<TownLevel> getNextTownLevel(Town town) {
-        if (town == null) {
+    public Optional<GuildLevel> getNextGuildLevel(Guild guild) {
+        if (guild == null) {
             return Optional.empty();
         }
 
-        int nextLevel = town.getTownLevel() + 1;
-        return getTownLevel(nextLevel);
+        int nextLevel = guild.getGuildLevel() + 1;
+        return getGuildLevel(nextLevel);
     }
 
     @Override
-    public List<TownLevel> getAllTownLevels() {
+    public List<GuildLevel> getAllGuildLevels() {
         initializeCacheIfNeeded();
         return new ArrayList<>(levelCache.values());
     }
 
     @Override
-    public List<TownLevel> getTownLevelsInRange(int startLevel, int endLevel) {
+    public List<GuildLevel> getGuildLevelsInRange(int startLevel, int endLevel) {
         initializeCacheIfNeeded();
 
-        List<TownLevel> levels = new ArrayList<>();
+        List<GuildLevel> levels = new ArrayList<>();
         for (int level = Math.max(1, startLevel); level <= Math.min(endLevel, getMaxLevel()); level++) {
-            TownLevel townLevel = levelCache.get(level);
-            if (townLevel != null) {
-                levels.add(townLevel);
+            GuildLevel guildLevel = levelCache.get(level);
+            if (guildLevel != null) {
+                levels.add(guildLevel);
             }
         }
 
@@ -93,23 +93,23 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     @Override
-    public UpgradeEligibility checkUpgradeEligibility(Town town) {
-        if (town == null) {
+    public UpgradeEligibility checkUpgradeEligibility(Guild guild) {
+        if (guild == null) {
             return new UpgradeEligibility(false, "Town not found", Map.of(), Map.of(), Map.of());
         }
 
-        if (isAtMaxLevel(town)) {
+        if (isAtMaxLevel(guild)) {
             return new UpgradeEligibility(false, "Town is already at maximum level", Map.of(), Map.of(), Map.of());
         }
 
-        Optional<TownLevel> nextLevelOpt = getNextTownLevel(town);
+        Optional<GuildLevel> nextLevelOpt = getNextGuildLevel(guild);
         if (nextLevelOpt.isEmpty()) {
             return new UpgradeEligibility(false, "Next level not available", Map.of(), Map.of(), Map.of());
         }
 
-        TownLevel nextLevel = nextLevelOpt.get();
+        GuildLevel nextLevel = nextLevelOpt.get();
         Map<String, Integer> requiredResources = nextLevel.getResourceCosts();
-        Map<String, Integer> contributedResources = calculateTotalContributions(town);
+        Map<String, Integer> contributedResources = calculateTotalContributions(guild);
         Map<String, Boolean> resourceStatus = new HashMap<>();
 
         boolean allRequirementsMet = true;
@@ -131,75 +131,75 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     @Override
-    public UpgradeResult performTownUpgrade(Town town) {
-        if (town == null) {
+    public UpgradeResult performGuildUpgrade(Guild guild) {
+        if (guild == null) {
             return new UpgradeResult(false, "Town not found", 0, 0, 0);
         }
 
-        int previousLevel = town.getTownLevel();
+        int previousLevel = guild.getGuildLevel();
 
-        if (isAtMaxLevel(town)) {
+        if (isAtMaxLevel(guild)) {
             return new UpgradeResult(false, "Town is already at maximum level", previousLevel, previousLevel, 0);
         }
 
-        UpgradeEligibility eligibility = checkUpgradeEligibility(town);
+        UpgradeEligibility eligibility = checkUpgradeEligibility(guild);
         if (!eligibility.isEligible()) {
             return new UpgradeResult(false, eligibility.getReason(), previousLevel, previousLevel, 0);
         }
 
-        Optional<TownLevel> nextLevelOpt = getNextTownLevel(town);
+        Optional<GuildLevel> nextLevelOpt = getNextGuildLevel(guild);
         if (nextLevelOpt.isEmpty()) {
             return new UpgradeResult(false, "Next level not available", previousLevel, previousLevel, 0);
         }
 
-        TownLevel nextLevel = nextLevelOpt.get();
+        GuildLevel nextLevel = nextLevelOpt.get();
         int newLevel = nextLevel.getLevel();
         int techPointsEarned = nextLevel.getTechPointsReward();
 
         try {
-            // Update town level and tech points
-            town.levelUp(newLevel, techPointsEarned);
+            // Update guild level and tech points
+            guild.levelUp(newLevel, techPointsEarned);
 
             // Save changes to database
-            townService.updateTown(town);
+            guildService.updateGuild(guild);
 
             // Record level benefits
-            recordLevelBenefits(town, nextLevel);
+            recordLevelBenefits(guild, nextLevel);
 
-            plugin.getLogger().info("Town " + town.getName() + " upgraded from level " + previousLevel + " to level " + newLevel);
+            plugin.getLogger().info("Town " + guild.getName() + " upgraded from level " + previousLevel + " to level " + newLevel);
 
             return new UpgradeResult(true, "Successfully upgraded to level " + newLevel, previousLevel, newLevel, techPointsEarned);
 
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to upgrade town " + town.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to upgrade town " + guild.getName() + ": " + e.getMessage(), e);
             return new UpgradeResult(false, "Database error during upgrade", previousLevel, previousLevel, 0);
         }
     }
 
     @Override
-    public Map<String, Integer> calculateTotalContributions(Town town) {
-        if (town == null) {
+    public Map<String, Integer> calculateTotalContributions(Guild guild) {
+        if (guild == null) {
             return Map.of();
         }
 
-        // For now, use the town's upgrade progress
+        // For now, use the guild's upgrade progress
         // In a full implementation, this would sum from the resource_contributions table
-        return new HashMap<>(town.getUpgradeProgress());
+        return new HashMap<>(guild.getUpgradeProgress());
     }
 
     @Override
-    public double calculateUpgradeProgress(Town town) {
-        if (town == null) {
+    public double calculateUpgradeProgress(Guild guild) {
+        if (guild == null) {
             return 0.0;
         }
 
-        Optional<TownLevel> nextLevelOpt = getNextTownLevel(town);
+        Optional<GuildLevel> nextLevelOpt = getNextGuildLevel(guild);
         if (nextLevelOpt.isEmpty()) {
             return 100.0; // At max level
         }
 
-        TownLevel nextLevel = nextLevelOpt.get();
-        return town.getOverallUpgradeProgress(nextLevel.getResourceCosts());
+        GuildLevel nextLevel = nextLevelOpt.get();
+        return guild.getOverallUpgradeProgress(nextLevel.getResourceCosts());
     }
 
     @Override
@@ -208,30 +208,30 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     @Override
-    public boolean isAtMaxLevel(Town town) {
-        return town != null && town.getTownLevel() >= getMaxLevel();
+    public boolean isAtMaxLevel(Guild guild) {
+        return guild != null && guild.getGuildLevel() >= getMaxLevel();
     }
 
     @Override
     public LevelBenefits getLevelBenefits(int level) {
-        Optional<TownLevel> townLevelOpt = getTownLevel(level);
-        if (townLevelOpt.isEmpty()) {
+        Optional<GuildLevel> guildLevelOpt = getGuildLevel(level);
+        if (guildLevelOpt.isEmpty()) {
             return new LevelBenefits(0, 0, 0.0, 0, List.of());
         }
 
-        TownLevel townLevel = townLevelOpt.get();
+        GuildLevel guildLevel = guildLevelOpt.get();
         return new LevelBenefits(
-                townLevel.getClaimLimitBonus(),
-                townLevel.getAssistantSlotsBonus(),
-                townLevel.getDailyIncomeBonus(),
-                townLevel.getTechPointsReward(),
-                townLevel.getUnlockedPlotTypes()
+                guildLevel.getClaimLimitBonus(),
+                guildLevel.getAssistantSlotsBonus(),
+                guildLevel.getDailyIncomeBonus(),
+                guildLevel.getTechPointsReward(),
+                guildLevel.getUnlockedPlotTypes()
         );
     }
 
     @Override
-    public LevelBenefits getCurrentTownBenefits(Town town) {
-        if (town == null) {
+    public LevelBenefits getCurrentGuildBenefits(Guild guild) {
+        if (guild == null) {
             return new LevelBenefits(0, 0, 0.0, 0, List.of());
         }
 
@@ -242,7 +242,7 @@ public class TownLevelServiceImpl implements TownLevelService {
         int totalTechPointsReward = 0;
         Set<String> allUnlockedPlotTypes = new HashSet<>();
 
-        for (int level = 1; level <= town.getTownLevel(); level++) {
+        for (int level = 1; level <= guild.getGuildLevel(); level++) {
             LevelBenefits benefits = getLevelBenefits(level);
             totalClaimLimitBonus += benefits.getClaimLimitBonus();
             totalAssistantSlotsBonus += benefits.getAssistantSlotsBonus();
@@ -261,17 +261,17 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     @Override
-    public int calculateTotalTechPoints(Town town) {
-        if (town == null) {
+    public int calculateTotalTechPoints(Guild guild) {
+        if (guild == null) {
             return 0;
         }
 
         // Sum tech points from all levels up to current level
         int totalTechPoints = 0;
-        for (int level = 1; level <= town.getTownLevel(); level++) {
-            Optional<TownLevel> townLevelOpt = getTownLevel(level);
-            if (townLevelOpt.isPresent()) {
-                totalTechPoints += townLevelOpt.get().getTechPointsReward();
+        for (int level = 1; level <= guild.getGuildLevel(); level++) {
+            Optional<GuildLevel> guildLevelOpt = getGuildLevel(level);
+            if (guildLevelOpt.isPresent()) {
+                totalTechPoints += guildLevelOpt.get().getTechPointsReward();
             }
         }
 
@@ -279,24 +279,24 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     @Override
-    public void syncTownLevelData(Town town) {
-        if (town == null) {
+    public void syncGuildLevelData(Guild guild) {
+        if (guild == null) {
             return;
         }
 
         try {
-            // Load level data from database and sync with town object
-            String sql = "SELECT town_level, tech_points, upgrade_progress FROM towns WHERE id = ?";
+            // Load level data from database and sync with guild object
+            String sql = "SELECT guild_level, tech_points, upgrade_progress FROM guilds WHERE id = ?";
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
-                statement.setString(1, town.getId());
+                statement.setString(1, guild.getId());
 
                 try (ResultSet resultSet = statement.executeQuery()) {
                     if (resultSet.next()) {
-                        town.setTownLevel(resultSet.getInt("town_level"));
-                        town.setTechPoints(resultSet.getInt("tech_points"));
+                        guild.setGuildLevel(resultSet.getInt("guild_level"));
+                        guild.setTechPoints(resultSet.getInt("tech_points"));
 
                         // Parse upgrade progress JSON
                         String upgradeProgressJson = resultSet.getString("upgrade_progress");
@@ -304,9 +304,9 @@ public class TownLevelServiceImpl implements TownLevelService {
                             try {
                                 // Simple JSON parsing for now - in a full implementation, use a proper JSON library
                                 Map<String, Integer> progress = parseUpgradeProgressJson(upgradeProgressJson);
-                                town.setUpgradeProgress(progress);
+                                guild.setUpgradeProgress(progress);
                             } catch (Exception e) {
-                                plugin.getLogger().warning("Failed to parse upgrade progress for town " + town.getName() + ": " + e.getMessage());
+                                plugin.getLogger().warning("Failed to parse upgrade progress for town " + guild.getName() + ": " + e.getMessage());
                             }
                         }
                     }
@@ -314,20 +314,20 @@ public class TownLevelServiceImpl implements TownLevelService {
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to sync town level data for " + town.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to sync town level data for " + guild.getName() + ": " + e.getMessage(), e);
         }
     }
 
     @Override
-    public void resetAllTownLevelData() {
+    public void resetAllGuildLevelData() {
         try {
-            String sql = "UPDATE towns SET town_level = 1, tech_points = 0, upgrade_progress = '{}'";
+            String sql = "UPDATE guilds SET guild_level = 1, tech_points = 0, upgrade_progress = '{}'";
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
                 int updatedRows = statement.executeUpdate();
-                plugin.getLogger().info("Reset town level data for " + updatedRows + " towns");
+                plugin.getLogger().info("Reset town level data for " + updatedRows + " guilds");
             }
 
         } catch (SQLException e) {
@@ -344,7 +344,7 @@ public class TownLevelServiceImpl implements TownLevelService {
         }
 
         try {
-            loadTownLevelsFromDatabase();
+            loadGuildLevelsFromDatabase();
             cacheInitialized = true;
             plugin.getLogger().info("Loaded " + levelCache.size() + " town levels into cache");
 
@@ -354,31 +354,31 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     /**
-     * Load town level definitions from database
+     * Load guild level definitions from database
      */
-    private void loadTownLevelsFromDatabase() throws SQLException {
+    private void loadGuildLevelsFromDatabase() throws SQLException {
         levelCache.clear();
-        String sql = "SELECT * FROM town_levels ORDER BY level";
+        String sql = "SELECT * FROM guild_levels ORDER BY level";
 
         try (Connection connection = databaseManager.getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
 
             while (resultSet.next()) {
-                TownLevel townLevel = mapResultSetToTownLevel(resultSet);
-                levelCache.put(townLevel.getLevel(), townLevel);
+                GuildLevel guildLevel = mapResultSetToGuildLevel(resultSet);
+                levelCache.put(guildLevel.getLevel(), guildLevel);
             }
         }
     }
 
     /**
-     * Map a ResultSet to a TownLevel object
+     * Map a ResultSet to a GuildLevel object
      */
-    private TownLevel mapResultSetToTownLevel(ResultSet resultSet) throws SQLException {
+    private GuildLevel mapResultSetToGuildLevel(ResultSet resultSet) throws SQLException {
         List<String> unlockedPlotTypes = parseJsonArray(resultSet.getString("unlocked_plot_types"));
         Map<String, Integer> resourceCosts = parseResourceCostsJson(resultSet.getString("resource_costs_json"));
 
-        return new TownLevel(
+        return new GuildLevel(
                 resultSet.getInt("level"),
                 resourceCosts,
                 resultSet.getInt("tech_points_reward"),
@@ -501,12 +501,12 @@ public class TownLevelServiceImpl implements TownLevelService {
     }
 
     /**
-     * Record level benefits for a town
+     * Record level benefits for a guild
      */
-    private void recordLevelBenefits(Town town, TownLevel level) {
+    private void recordLevelBenefits(Guild guild, GuildLevel level) {
         try {
             String sql = """
-                INSERT OR REPLACE INTO town_level_benefits (id, town_id, level, benefit_type, benefit_value, unlocked_at)
+                INSERT OR REPLACE INTO guild_level_benefits (id, guild_id, level, benefit_type, benefit_value, unlocked_at)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """;
 
@@ -519,7 +519,7 @@ public class TownLevelServiceImpl implements TownLevelService {
                 // Record claim limit bonus
                 if (level.getClaimLimitBonus() > 0) {
                     statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, town.getId());
+                    statement.setString(2, guild.getId());
                     statement.setInt(3, level.getLevel());
                     statement.setString(4, "claim_limit_bonus");
                     statement.setString(5, String.valueOf(level.getClaimLimitBonus()));
@@ -530,7 +530,7 @@ public class TownLevelServiceImpl implements TownLevelService {
                 // Record assistant slots bonus
                 if (level.getAssistantSlotsBonus() > 0) {
                     statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, town.getId());
+                    statement.setString(2, guild.getId());
                     statement.setInt(3, level.getLevel());
                     statement.setString(4, "assistant_slots_bonus");
                     statement.setString(5, String.valueOf(level.getAssistantSlotsBonus()));
@@ -541,7 +541,7 @@ public class TownLevelServiceImpl implements TownLevelService {
                 // Record daily income bonus
                 if (level.getDailyIncomeBonus() > 0) {
                     statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, town.getId());
+                    statement.setString(2, guild.getId());
                     statement.setInt(3, level.getLevel());
                     statement.setString(4, "daily_income_bonus");
                     statement.setString(5, String.valueOf(level.getDailyIncomeBonus()));
@@ -552,7 +552,7 @@ public class TownLevelServiceImpl implements TownLevelService {
                 // Record tech points
                 if (level.getTechPointsReward() > 0) {
                     statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, town.getId());
+                    statement.setString(2, guild.getId());
                     statement.setInt(3, level.getLevel());
                     statement.setString(4, "tech_points_reward");
                     statement.setString(5, String.valueOf(level.getTechPointsReward()));
@@ -563,7 +563,7 @@ public class TownLevelServiceImpl implements TownLevelService {
                 // Record unlocked plot types
                 for (String plotType : level.getUnlockedPlotTypes()) {
                     statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, town.getId());
+                    statement.setString(2, guild.getId());
                     statement.setInt(3, level.getLevel());
                     statement.setString(4, "unlocked_plot_type");
                     statement.setString(5, plotType);
@@ -575,7 +575,7 @@ public class TownLevelServiceImpl implements TownLevelService {
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to record level benefits for town " + town.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.WARNING, "Failed to record level benefits for town " + guild.getName() + ": " + e.getMessage(), e);
         }
     }
 
@@ -602,7 +602,7 @@ public class TownLevelServiceImpl implements TownLevelService {
             }
 
             String sql = """
-                INSERT OR REPLACE INTO town_levels (
+                INSERT OR REPLACE INTO guild_levels (
                     level, resource_costs_json, tech_points_reward, claim_limit_bonus,
                     assistant_slots_bonus, daily_income_bonus, unlocked_plot_types, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)

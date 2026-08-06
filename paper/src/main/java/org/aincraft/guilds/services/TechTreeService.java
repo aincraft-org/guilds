@@ -2,7 +2,7 @@ package org.aincraft.guilds.services;
 
 import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,25 +18,25 @@ public interface TechTreeService {
     void syncConfigToDatabase();
 
     /**
-     * Check if a tech node is unlocked for a town.
+     * Check if a tech node is unlocked for a guild.
      */
-    boolean isTechNodeUnlocked(Town town, String nodeId);
+    boolean isTechNodeUnlocked(Guild guild, String nodeId);
 
     /**
-     * Unlock a tech node for a town (deducts tech points, applies effects).
+     * Unlock a tech node for a guild (deducts tech points, applies effects).
      * @return true if unlock succeeded
      */
-    boolean unlockTechNode(Town town, String nodeId);
+    boolean unlockTechNode(Guild guild, String nodeId);
 
     /**
-     * Check if a town can unlock a given node (prerequisites met + enough tech points).
+     * Check if a guild can unlock a given node (prerequisites met + enough tech points).
      */
-    boolean canUnlockNode(Town town, String nodeId);
+    boolean canUnlockNode(Guild guild, String nodeId);
 
     /**
-     * Get all nodes whose prerequisites are met for a town but are not yet unlocked.
+     * Get all nodes whose prerequisites are met for a guild but are not yet unlocked.
      */
-    List<TechTreeNode> getAvailableNodes(Town town);
+    List<TechTreeNode> getAvailableNodes(Guild guild);
 
     /**
      * Get all tech node definitions.
@@ -54,14 +54,14 @@ public interface TechTreeService {
     Optional<TechTreeNode> getNode(String nodeId);
 
     /**
-     * Load a town's unlocked tech data from the database.
+     * Load a guild's unlocked tech data from the database.
      */
-    void loadTownTechData(Town town);
+    void loadGuildTechData(Guild guild);
 
     /**
-     * Save a town's unlocked tech data to the database.
+     * Save a guild's unlocked tech data to the database.
      */
-    void saveTownTechData(Town town);
+    void saveGuildTechData(Guild guild);
 
     /**
      * Reload node definitions from config.

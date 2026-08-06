@@ -18,7 +18,7 @@ import java.util.Optional;
  * Resolution rules:
  * <ul>
  *   <li>Territory sovereignty: the bound guild's alliance (nation) if the
- *       governing town is a nation member; else the guild (town) itself;
+ *       governing guild is a nation member; else the guild (guild) itself;
  *       else the territory's own local government.</li>
  *   <li>Holder membership: first guild (by id) that lists the holder as a member.</li>
  * </ul>

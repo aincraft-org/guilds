@@ -1,7 +1,7 @@
 package com.azoth.territory.permission;
 
 /**
- * Town (guild) toggle state, mirrored from the guilds subsystem's town toggles.
+ * Guild (guild) toggle state, mirrored from the guilds subsystem's guild toggles.
  * These drive environmental/PvP behavior on guild-governed territory:
  * <ul>
  *   <li>{@code pvpEnabled} — PvP allowed between members on governed land</li>
@@ -12,15 +12,15 @@ package com.azoth.territory.permission;
  * </ul>
  * Pure domain — no Bukkit.
  */
-public record TownToggles(
+public record GuildToggles(
         boolean pvpEnabled,
         boolean fireEnabled,
         boolean explosionsEnabled,
         boolean mobsEnabled,
         boolean publicEnabled
 ) {
-    public static TownToggles defaults() {
-        // Mirrors the guilds subsystem's new-town defaults.
-        return new TownToggles(false, false, false, true, false);
+    public static GuildToggles defaults() {
+        // Mirrors the guilds subsystem's new-guild defaults.
+        return new GuildToggles(false, false, false, true, false);
     }
 }

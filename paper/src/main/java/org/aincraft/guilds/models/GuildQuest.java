@@ -2,10 +2,10 @@ package org.aincraft.guilds.models;
 
 import java.time.LocalDateTime;
 
-public class TownQuest {
+public class GuildQuest {
     private String id;
-    private String townId;
-    private TownQuestType questType;
+    private String guildId;
+    private GuildQuestType questType;
     private String description;
     private int targetAmount;
     private int currentProgress;
@@ -15,9 +15,9 @@ public class TownQuest {
     private LocalDateTime createdAt;
     private LocalDateTime completedAt;
 
-    public TownQuest(String id, String townId, TownQuestType questType, String description, int targetAmount, int techPointReward) {
+    public GuildQuest(String id, String guildId, GuildQuestType questType, String description, int targetAmount, int techPointReward) {
         this.id = id;
-        this.townId = townId;
+        this.guildId = guildId;
         this.questType = questType;
         this.description = description;
         this.targetAmount = targetAmount;
@@ -37,19 +37,19 @@ public class TownQuest {
         this.id = id;
     }
 
-    public String getTownId() {
-        return townId;
+    public String getGuildId() {
+        return guildId;
     }
 
-    public void setTownId(String townId) {
-        this.townId = townId;
+    public void setGuildId(String guildId) {
+        this.guildId = guildId;
     }
 
-    public TownQuestType getQuestType() {
+    public GuildQuestType getQuestType() {
         return questType;
     }
 
-    public void setQuestType(TownQuestType questType) {
+    public void setQuestType(GuildQuestType questType) {
         this.questType = questType;
     }
 

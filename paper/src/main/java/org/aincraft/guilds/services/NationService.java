@@ -1,7 +1,7 @@
 package org.aincraft.guilds.services;
 
 import org.aincraft.guilds.models.Nation;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,10 +35,10 @@ public interface NationService {
     /**
      * Create a new nation
      * @param name Nation name
-     * @param capitalTown Capital town
+     * @param capitalGuild Capital guild
      * @param kingUuid King's UUID
      */
-    void createNation(String name, Town capitalTown, UUID kingUuid);
+    void createNation(String name, Guild capitalGuild, UUID kingUuid);
 
     /**
      * Delete a nation
@@ -47,18 +47,18 @@ public interface NationService {
     void deleteNation(String name);
 
     /**
-     * Add a town to a nation
-     * @param nation Nation to add town to
-     * @param townId Town ID to add
+     * Add a guild to a nation
+     * @param nation Nation to add guild to
+     * @param guildId Guild ID to add
      */
-    void addTown(Nation nation, String townId);
+    void addGuild(Nation nation, String guildId);
 
     /**
-     * Remove a town from a nation
-     * @param nation Nation to remove town from
-     * @param townId Town ID to remove
+     * Remove a guild from a nation
+     * @param nation Nation to remove guild from
+     * @param guildId Guild ID to remove
      */
-    void removeTown(Nation nation, String townId);
+    void removeGuild(Nation nation, String guildId);
 
     /**
      * Set the king of a nation
@@ -117,7 +117,7 @@ public interface NationService {
     void setTaxRate(Nation nation, double rate);
 
     /**
-     * Set whether a nation is open for new towns to join
+     * Set whether a nation is open for new guilds to join
      * @param nation Nation to update
      * @param open True if open, false if closed
      */

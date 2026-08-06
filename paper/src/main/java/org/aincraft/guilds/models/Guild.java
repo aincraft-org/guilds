@@ -8,9 +8,9 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Represents a town in the Guilds system
+ * Represents a guild in the Guilds system
  */
-public class Town {
+public class Guild {
 
     private String id;
     private String name;
@@ -18,26 +18,26 @@ public class Town {
     private Set<UUID> residents;
     private Set<UUID> assistants;
     private double balance;
-    private TownBlock homeBlock;
+    private GuildBlock homeBlock;
     private Location spawnLocation;
     private Map<String, Double> taxRates;
     private boolean isOpen;
     private LocalDateTime createdAt;
     private Map<String, Boolean> permissions;
 
-    // Town level system (composition)
-    private TownLevelData levelData;
+    // Guild level system (composition)
+    private GuildLevelData levelData;
 
-    // Town toggle system (composition)
-    private TownToggles toggles;
+    // Guild toggle system (composition)
+    private GuildToggles toggles;
 
-    // Town tech tree system (composition)
-    private TownTechData techData;
+    // Guild tech tree system (composition)
+    private GuildTechData techData;
 
     /**
      * Default constructor for database mapping
      */
-    public Town() {
+    public Guild() {
         this.residents = new HashSet<>();
         this.assistants = new HashSet<>();
         this.taxRates = new HashMap<>();
@@ -47,17 +47,17 @@ public class Town {
         this.createdAt = LocalDateTime.now();
 
         // Initialize composition objects
-        this.levelData = new TownLevelData();
-        this.toggles = new TownToggles();
-        this.techData = new TownTechData();
+        this.levelData = new GuildLevelData();
+        this.toggles = new GuildToggles();
+        this.techData = new GuildTechData();
     }
 
     /**
-     * Constructor for creating a new town
-     * @param name Town name
+     * Constructor for creating a new guild
+     * @param name Guild name
      * @param mayorUuid Mayor's UUID
      */
-    public Town(String name, UUID mayorUuid) {
+    public Guild(String name, UUID mayorUuid) {
         this();
         this.name = name;
         this.id = UUID.randomUUID().toString();
@@ -70,7 +70,7 @@ public class Town {
         this.taxRates.put("plot", 0.0);
         this.taxRates.put("shop", 0.0);
 
-        // Set default town permissions
+        // Set default guild permissions
         setDefaultPermissions();
     }
 
@@ -123,11 +123,11 @@ public class Town {
         this.balance = balance;
     }
 
-    public TownBlock getHomeBlock() {
+    public GuildBlock getHomeBlock() {
         return homeBlock;
     }
 
-    public void setHomeBlock(TownBlock homeBlock) {
+    public void setHomeBlock(GuildBlock homeBlock) {
         this.homeBlock = homeBlock;
     }
 
@@ -171,21 +171,21 @@ public class Town {
         this.permissions = permissions != null ? permissions : new HashMap<>();
     }
 
-    // Town level system getters and setters (delegating to TownLevelData)
-    public TownLevelData getLevelData() {
+    // Guild level system getters and setters (delegating to GuildLevelData)
+    public GuildLevelData getLevelData() {
         return levelData;
     }
 
-    public void setLevelData(TownLevelData levelData) {
-        this.levelData = levelData != null ? levelData : new TownLevelData();
+    public void setLevelData(GuildLevelData levelData) {
+        this.levelData = levelData != null ? levelData : new GuildLevelData();
     }
 
-    public int getTownLevel() {
+    public int getGuildLevel() {
         return levelData.getLevel();
     }
 
-    public void setTownLevel(int townLevel) {
-        levelData.setLevel(townLevel);
+    public void setGuildLevel(int guildLevel) {
+        levelData.setLevel(guildLevel);
     }
 
     public int getTechPoints() {
@@ -204,13 +204,13 @@ public class Town {
         levelData.setUpgradeProgress(upgradeProgress);
     }
 
-    // Town toggle system getters and setters (delegating to TownToggles)
-    public TownToggles getToggles() {
+    // Guild toggle system getters and setters (delegating to GuildToggles)
+    public GuildToggles getToggles() {
         return toggles;
     }
 
-    public void setToggles(TownToggles toggles) {
-        this.toggles = toggles != null ? toggles : new TownToggles();
+    public void setToggles(GuildToggles toggles) {
+        this.toggles = toggles != null ? toggles : new GuildToggles();
     }
 
     public boolean isPvpEnabled() {
@@ -266,7 +266,7 @@ public class Town {
     // Business methods
 
     /**
-     * Add a resident to the town
+     * Add a resident to the guild
      * @param residentUuid Resident UUID
      * @return True if added successfully
      */
@@ -275,7 +275,7 @@ public class Town {
     }
 
     /**
-     * Remove a resident from the town
+     * Remove a resident from the guild
      * @param residentUuid Resident UUID
      * @return True if removed successfully
      */
@@ -292,7 +292,7 @@ public class Town {
     }
 
     /**
-     * Check if a player is a resident of this town
+     * Check if a player is a resident of this guild
      * @param residentUuid Resident UUID
      * @return True if is resident
      */
@@ -301,7 +301,7 @@ public class Town {
     }
 
     /**
-     * Check if a player is the mayor of this town
+     * Check if a player is the mayor of this guild
      * @param residentUuid Resident UUID
      * @return True if is mayor
      */
@@ -310,7 +310,7 @@ public class Town {
     }
 
     /**
-     * Check if a player is an assistant in this town
+     * Check if a player is an assistant in this guild
      * @param residentUuid Resident UUID
      * @return True if is assistant
      */
@@ -319,7 +319,7 @@ public class Town {
     }
 
     /**
-     * Add a town assistant
+     * Add a guild assistant
      * @param assistantUuid Assistant UUID
      * @return True if added successfully
      */
@@ -332,7 +332,7 @@ public class Town {
     }
 
     /**
-     * Remove a town assistant
+     * Remove a guild assistant
      * @param assistantUuid Assistant UUID
      * @return True if removed successfully
      */
@@ -349,7 +349,7 @@ public class Town {
     }
 
     /**
-     * Add funds to town balance
+     * Add funds to guild balance
      * @param amount Amount to add
      * @return New balance
      */
@@ -359,7 +359,7 @@ public class Town {
     }
 
     /**
-     * Remove funds from town balance
+     * Remove funds from guild balance
      * @param amount Amount to remove
      * @return True if successful, false if insufficient funds
      */
@@ -390,7 +390,7 @@ public class Town {
     }
 
     /**
-     * Check if town has a specific permission
+     * Check if guild has a specific permission
      * @param permission Permission node
      * @return True if has permission
      */
@@ -399,7 +399,7 @@ public class Town {
     }
 
     /**
-     * Set a permission for this town
+     * Set a permission for this guild
      * @param permission Permission node
      * @param value Permission value
      */
@@ -408,7 +408,7 @@ public class Town {
     }
 
     /**
-     * Set default permissions for a new town
+     * Set default permissions for a new guild
      */
     private void setDefaultPermissions() {
         permissions.put("pvp", false);
@@ -418,10 +418,10 @@ public class Town {
         permissions.put("public", false);
     }
 
-    // Town toggle system convenience methods (delegating to TownToggles)
+    // Guild toggle system convenience methods (delegating to GuildToggles)
 
     /**
-     * Toggle PvP setting for the town
+     * Toggle PvP setting for the guild
      * @return New PvP state after toggle
      */
     public boolean togglePvp() {
@@ -431,7 +431,7 @@ public class Town {
     }
 
     /**
-     * Toggle fire setting for the town
+     * Toggle fire setting for the guild
      * @return New fire state after toggle
      */
     public boolean toggleFire() {
@@ -441,7 +441,7 @@ public class Town {
     }
 
     /**
-     * Toggle explosions setting for the town
+     * Toggle explosions setting for the guild
      * @return New explosions state after toggle
      */
     public boolean toggleExplosions() {
@@ -451,7 +451,7 @@ public class Town {
     }
 
     /**
-     * Toggle mobs setting for the town
+     * Toggle mobs setting for the guild
      * @return New mobs state after toggle
      */
     public boolean toggleMobs() {
@@ -461,7 +461,7 @@ public class Town {
     }
 
     /**
-     * Toggle public setting for the town
+     * Toggle public setting for the guild
      * @return New public state after toggle
      */
     public boolean togglePublic() {
@@ -471,7 +471,7 @@ public class Town {
     }
 
     /**
-     * Get all town toggle states
+     * Get all guild toggle states
      * @return Map of toggle names to their current states
      */
     public Map<String, Boolean> getAllToggles() {
@@ -502,17 +502,17 @@ public class Town {
     }
 
     /**
-     * Check if town is bankrupt (balance below 0)
+     * Check if guild is bankrupt (balance below 0)
      * @return True if bankrupt
      */
     public boolean isBankrupt() {
         return balance < 0;
     }
 
-    // Town level system business methods (delegating to TownLevelData)
+    // Guild level system business methods (delegating to GuildLevelData)
 
     /**
-     * Add tech points to the town
+     * Add tech points to the guild
      * @param points Tech points to add
      */
     public void addTechPoints(int points) {
@@ -520,7 +520,7 @@ public class Town {
     }
 
     /**
-     * Check if town can afford an upgrade to the next level
+     * Check if guild can afford an upgrade to the next level
      * @param nextLevelRequirements Resource requirements for next level
      * @return Map of resource affordability
      */
@@ -538,7 +538,7 @@ public class Town {
     }
 
     /**
-     * Contribute resources to town upgrade progress
+     * Contribute resources to guild upgrade progress
      * @param resourceType Type of resource (diamond, gold, iron, emerald, experience)
      * @param amount Amount to contribute
      */
@@ -573,7 +573,7 @@ public class Town {
     }
 
     /**
-     * Level up the town to the next level
+     * Level up the guild to the next level
      * @param newLevel New level to set
      * @param techPointsReward Tech points to add for this level
      */
@@ -582,7 +582,7 @@ public class Town {
     }
 
     /**
-     * Get the maximum number of assistant slots based on town level
+     * Get the maximum number of assistant slots based on guild level
      * @return Maximum assistant slots
      */
     public int getMaxAssistantSlots() {
@@ -590,7 +590,7 @@ public class Town {
     }
 
     /**
-     * Check if the town has reached its assistant limit
+     * Check if the guild has reached its assistant limit
      * @return True if at assistant limit
      */
     public boolean isAtAssistantLimit() {
@@ -598,7 +598,7 @@ public class Town {
     }
 
     /**
-     * Get the maximum claim limit based on town level
+     * Get the maximum claim limit based on guild level
      * @return Maximum claim limit in chunks
      */
     public int getMaxClaimLimit() {
@@ -606,7 +606,7 @@ public class Town {
     }
 
     /**
-     * Get daily income bonus based on town level
+     * Get daily income bonus based on guild level
      * @return Daily income bonus
      */
     public double getDailyIncomeBonus() {
@@ -617,8 +617,8 @@ public class Town {
     public boolean equals(Object obj) {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
-        Town town = (Town) obj;
-        return id.equals(town.id);
+        Guild guild = (Guild) obj;
+        return id.equals(guild.id);
     }
 
     @Override
@@ -634,13 +634,13 @@ public class Town {
                 ", mayorUuid=" + mayorUuid +
                 ", residentCount=" + getResidentCount() +
                 ", balance=" + balance +
-                ", townLevel=" + getTownLevel() +
+                ", townLevel=" + getGuildLevel() +
                 ", techPoints=" + getTechPoints() +
                 ", isOpen=" + isOpen +
                 '}';
     }
 
-    // Town tech tree system methods (delegating to TownTechData)
+    // Guild tech tree system methods (delegating to GuildTechData)
 
     /**
      * Check if a tech node is unlocked
@@ -680,14 +680,14 @@ public class Town {
     /**
      * Get tech data (for service layer access)
      */
-    public TownTechData getTechData() {
+    public GuildTechData getTechData() {
         return techData;
     }
 
     /**
      * Set tech data (for database loading)
      */
-    public void setTechData(TownTechData techData) {
-        this.techData = techData != null ? techData : new TownTechData();
+    public void setTechData(GuildTechData techData) {
+        this.techData = techData != null ? techData : new GuildTechData();
     }
 }

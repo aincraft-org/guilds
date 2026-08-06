@@ -13,8 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class WebAssetsPresentTest {
 
     @Test
-    void staticAssetsAndConfigAreOnClasspath() throws Exception {
-        for (String path : new String[]{"web/index.html", "web/app.js", "web/style.css", "config.yml"}) {
+    void staticAssetsAreOnClasspath() throws Exception {
+        // plugin-level config.yml ships with the :paper module (covered by
+        // GuildsIntegrationTest there); this module owns the map UI assets.
+        for (String path : new String[]{"web/index.html", "web/app.js", "web/style.css"}) {
             try (InputStream in = Objects.requireNonNull(
                     getClass().getClassLoader().getResourceAsStream(path),
                     "missing resource: " + path

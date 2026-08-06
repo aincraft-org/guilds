@@ -2,7 +2,7 @@ package org.aincraft.guilds.models;
 
 /**
  * Utility class for plot type constants and categorization logic
- * Extracted from TownBlock.java to improve readability and maintainability
+ * Extracted from GuildBlock.java to improve readability and maintainability
  */
 
 public class PlotTypes {

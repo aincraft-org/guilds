@@ -1,7 +1,7 @@
 package org.aincraft.guilds.services;
 
 import org.aincraft.guilds.models.BroadcastMessage;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,13 +9,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Service interface for managing town broadcast messages
+ * Service interface for managing guild broadcast messages
  */
 public interface BroadcastService {
 
     /**
      * Create a new broadcast message
-     * @param townId Town ID this broadcast belongs to
+     * @param guildId Guild ID this broadcast belongs to
      * @param messageType Type of message (announcement, alert, welcome)
      * @param title Message title
      * @param content Message content
@@ -23,7 +23,7 @@ public interface BroadcastService {
      * @param senderName Name of the sender
      * @return Created broadcast message
      */
-    BroadcastMessage createBroadcast(String townId, String messageType, String title, String content,
+    BroadcastMessage createBroadcast(String guildId, String messageType, String title, String content,
                                     UUID senderUuid, String senderName);
 
     /**
@@ -34,43 +34,43 @@ public interface BroadcastService {
     Optional<BroadcastMessage> getBroadcast(String broadcastId);
 
     /**
-     * Get all active broadcasts for a town
-     * @param townId Town ID
+     * Get all active broadcasts for a guild
+     * @param guildId Guild ID
      * @return List of active broadcasts
      */
-    List<BroadcastMessage> getActiveBroadcasts(String townId);
+    List<BroadcastMessage> getActiveBroadcasts(String guildId);
 
     /**
-     * Get all broadcasts for a town (including inactive)
-     * @param townId Town ID
+     * Get all broadcasts for a guild (including inactive)
+     * @param guildId Guild ID
      * @return List of all broadcasts
      */
-    List<BroadcastMessage> getAllBroadcasts(String townId);
+    List<BroadcastMessage> getAllBroadcasts(String guildId);
 
     /**
-     * Get broadcasts for a town filtered by target audience
-     * @param townId Town ID
+     * Get broadcasts for a guild filtered by target audience
+     * @param guildId Guild ID
      * @param audience Target audience (all, residents, assistants, mayor)
      * @return List of broadcasts for the specified audience
      */
-    List<BroadcastMessage> getBroadcastsByAudience(String townId, String audience);
+    List<BroadcastMessage> getBroadcastsByAudience(String guildId, String audience);
 
     /**
-     * Get broadcasts for a town filtered by message type
-     * @param townId Town ID
+     * Get broadcasts for a guild filtered by message type
+     * @param guildId Guild ID
      * @param messageType Message type
      * @return List of broadcasts of the specified type
      */
-    List<BroadcastMessage> getBroadcastsByType(String townId, String messageType);
+    List<BroadcastMessage> getBroadcastsByType(String guildId, String messageType);
 
     /**
      * Get broadcasts that should be displayed to a specific player
-     * @param townId Town ID
+     * @param guildId Guild ID
      * @param playerUuid Player UUID
-     * @param playerRole Player role in the town (mayor, assistant, resident)
+     * @param playerRole Player role in the guild (mayor, assistant, resident)
      * @return List of broadcasts visible to this player
      */
-    List<BroadcastMessage> getBroadcastsForPlayer(String townId, UUID playerUuid, String playerRole);
+    List<BroadcastMessage> getBroadcastsForPlayer(String guildId, UUID playerUuid, String playerRole);
 
     /**
      * Update an existing broadcast message
@@ -94,16 +94,16 @@ public interface BroadcastService {
     boolean deleteBroadcast(String broadcastId);
 
     /**
-     * Create a welcome message for new town residents
-     * @param townId Town ID
+     * Create a welcome message for new guild residents
+     * @param guildId Guild ID
      * @param newResidentName Name of the new resident
      * @return Created welcome message
      */
-    BroadcastMessage createWelcomeMessage(String townId, String newResidentName);
+    BroadcastMessage createWelcomeMessage(String guildId, String newResidentName);
 
     /**
-     * Create an alert message for important town events
-     * @param townId Town ID
+     * Create an alert message for important guild events
+     * @param guildId Guild ID
      * @param alertTitle Alert title
      * @param alertContent Alert content
      * @param senderUuid Sender UUID
@@ -111,12 +111,12 @@ public interface BroadcastService {
      * @param priority Priority level (1-5)
      * @return Created alert message
      */
-    BroadcastMessage createAlertMessage(String townId, String alertTitle, String alertContent,
+    BroadcastMessage createAlertMessage(String guildId, String alertTitle, String alertContent,
                                        UUID senderUuid, String senderName, int priority);
 
     /**
      * Create a general announcement
-     * @param townId Town ID
+     * @param guildId Guild ID
      * @param title Announcement title
      * @param content Announcement content
      * @param senderUuid Sender UUID
@@ -124,34 +124,34 @@ public interface BroadcastService {
      * @param expirationDays Days until message expires (0 for no expiration)
      * @return Created announcement
      */
-    BroadcastMessage createAnnouncement(String townId, String title, String content,
+    BroadcastMessage createAnnouncement(String guildId, String title, String content,
                                       UUID senderUuid, String senderName, int expirationDays);
 
     /**
      * Clean up expired broadcast messages
-     * @param townId Town ID (null to clean up all towns)
+     * @param guildId Guild ID (null to clean up all guilds)
      * @return Number of cleaned up messages
      */
-    int cleanupExpiredBroadcasts(String townId);
+    int cleanupExpiredBroadcasts(String guildId);
 
     /**
-     * Get broadcast statistics for a town
-     * @param townId Town ID
+     * Get broadcast statistics for a guild
+     * @param guildId Guild ID
      * @return Broadcast statistics
      */
-    BroadcastStatistics getBroadcastStatistics(String townId);
+    BroadcastStatistics getBroadcastStatistics(String guildId);
 
     /**
      * Check if a player can create broadcasts of a certain type
      * @param playerUuid Player UUID
-     * @param townId Town ID
+     * @param guildId Guild ID
      * @param messageType Message type to check
      * @return True if player can create broadcasts of this type
      */
-    boolean canCreateBroadcast(UUID playerUuid, String townId, String messageType);
+    boolean canCreateBroadcast(UUID playerUuid, String guildId, String messageType);
 
     /**
-     * Send a broadcast to all online town members
+     * Send a broadcast to all online guild members
      * @param broadcast Broadcast message to send
      * @return Number of players the message was sent to
      */

@@ -54,11 +54,11 @@ public interface ResidentService {
     List<Resident> getAllResidents();
 
     /**
-     * Get residents in a specific town
-     * @param townName Town name
-     * @return List of residents in the town
+     * Get residents in a specific guild
+     * @param guildName Guild name
+     * @return List of residents in the guild
      */
-    List<Resident> getResidentsInTown(String townName);
+    List<Resident> getResidentsInGuild(String guildName);
 
     /**
      * Check if a resident exists

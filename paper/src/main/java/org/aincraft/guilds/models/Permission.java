@@ -24,10 +24,10 @@ public class Permission {
 
     private UUID id;
     private int flags; // Bitwise permission flags
-    private String context; // town, plot, resident, global
-    private String contextId; // town name, plot ID, resident UUID, etc.
-    private String targetType; // resident, town, all, assistant, mayor
-    private String targetId; // resident UUID, town name, etc.
+    private String context; // guild, plot, resident, global
+    private String contextId; // guild name, plot ID, resident UUID, etc.
+    private String targetType; // resident, guild, all, assistant, mayor
+    private String targetId; // resident UUID, guild name, etc.
     private LocalDateTime grantedAt;
     private UUID grantedBy; // UUID of admin who granted this permission
 
@@ -39,7 +39,7 @@ public class Permission {
     @Deprecated
     public static class Context {
         public static final String GLOBAL = "global";
-        public static final String TOWN = "town";
+        public static final String GUILD = "town";
         public static final String PLOT = "plot";
         public static final String RESIDENT = "resident";
         public static final String WORLD = "world";
@@ -53,7 +53,7 @@ public class Permission {
     @Deprecated
     public static class Target {
         public static final String RESIDENT = "resident";
-        public static final String TOWN = "town";
+        public static final String GUILD = "town";
         public static final String ASSISTANT = "assistant";
         public static final String MAYOR = "mayor";
         public static final String ALL = "all";
@@ -239,10 +239,10 @@ public class Permission {
                 return residentUuid.toString().equals(targetId);
             case Target.ASSISTANT:
             case Target.MAYOR:
-                // These would need to be checked against resident's role in town
+                // These would need to be checked against resident's role in guild
                 return false; // Would need service to verify
-            case Target.TOWN:
-                // Would need to check if resident is in the specified town
+            case Target.GUILD:
+                // Would need to check if resident is in the specified guild
                 return false; // Would need service to verify
             default:
                 return false;
@@ -250,12 +250,12 @@ public class Permission {
     }
 
     /**
-     * Check if this permission applies to a specific town
-     * @param townName Town name
+     * Check if this permission applies to a specific guild
+     * @param guildName Guild name
      * @return True if applies
      */
-    public boolean appliesToTown(String townName) {
-        return Target.TOWN.equals(targetType) && townName.equals(targetId);
+    public boolean appliesToGuild(String guildName) {
+        return Target.GUILD.equals(targetType) && guildName.equals(targetId);
     }
 
     /**
@@ -267,11 +267,11 @@ public class Permission {
     }
 
     /**
-     * Check if this permission has town management flags
-     * @return True if has town management permissions
+     * Check if this permission has guild management flags
+     * @return True if has guild management permissions
      */
-    public boolean hasTownManagementPermissions() {
-        return hasFlag(GuildPermission.TOWN_MANAGE) || hasFlag(GuildPermission.MEMBER_MANAGE);
+    public boolean hasGuildManagementPermissions() {
+        return hasFlag(GuildPermission.GUILD_MANAGE) || hasFlag(GuildPermission.MEMBER_MANAGE);
     }
 
     /**
@@ -307,7 +307,7 @@ public class Permission {
         if (hasFlag(GuildPermission.PLOT_SET.getLegacyBitwiseValue())) activeFlags.add("PLOT_SET");
         if (hasFlag(GuildPermission.PLOT_OWNER.getLegacyBitwiseValue())) activeFlags.add("PLOT_OWNER");
         if (hasFlag(GuildPermission.ADMIN.getLegacyBitwiseValue())) activeFlags.add("ADMIN");
-        if (hasFlag(GuildPermission.ADMIN_TOWN.getLegacyBitwiseValue())) activeFlags.add("ADMIN_TOWN");
+        if (hasFlag(GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue())) activeFlags.add("ADMIN_TOWN");
         if (hasFlag(GuildPermission.ADMIN_PLOT.getLegacyBitwiseValue())) activeFlags.add("ADMIN_PLOT");
         if (hasFlag(GuildPermission.ADMIN_RESIDENT.getLegacyBitwiseValue())) activeFlags.add("ADMIN_RESIDENT");
         if (hasFlag(GuildPermission.BYPASS.getLegacyBitwiseValue())) activeFlags.add("BYPASS");

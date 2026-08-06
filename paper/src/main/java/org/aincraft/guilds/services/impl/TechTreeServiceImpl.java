@@ -7,10 +7,10 @@ import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownTechData;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildTechData;
 import org.aincraft.guilds.services.TechTreeService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -34,7 +34,7 @@ public class TechTreeServiceImpl implements TechTreeService {
     private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
     private final TechTreeConfigLoader configLoader;
-    private final TownService townService;
+    private final GuildService guildService;
 
     /** In-memory node definitions loaded from config. */
     private final Map<String, TechTreeNode> nodeDefinitions = new LinkedHashMap<>();
@@ -42,11 +42,11 @@ public class TechTreeServiceImpl implements TechTreeService {
 
 
     public TechTreeServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager,
-                               TechTreeConfigLoader configLoader, TownService townService) {
+                               TechTreeConfigLoader configLoader, GuildService guildService) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.configLoader = configLoader;
-        this.townService = townService;
+        this.guildService = guildService;
     }
 
     // ── Definition loading ─────────────────────────────────────────────
@@ -130,25 +130,25 @@ public class TechTreeServiceImpl implements TechTreeService {
     // ── Unlock logic ───────────────────────────────────────────────────
 
     @Override
-    public boolean isTechNodeUnlocked(Town town, String nodeId) {
-        return town.isTechNodeUnlocked(nodeId);
+    public boolean isTechNodeUnlocked(Guild guild, String nodeId) {
+        return guild.isTechNodeUnlocked(nodeId);
     }
 
     @Override
-    public boolean canUnlockNode(Town town, String nodeId) {
-        if (town.isTechNodeUnlocked(nodeId)) return false;
+    public boolean canUnlockNode(Guild guild, String nodeId) {
+        if (guild.isTechNodeUnlocked(nodeId)) return false;
 
         ensureDefinitionsLoaded();
         TechTreeNode node = nodeDefinitions.get(nodeId);
         if (node == null) return false;
 
         // Check tech points
-        if (town.getTechPoints() < node.getCost()) return false;
+        if (guild.getTechPoints() < node.getCost()) return false;
 
         // Check prerequisites
         if (node.getPrerequisites() != null) {
             for (String prereq : node.getPrerequisites()) {
-                if (!town.isTechNodeUnlocked(prereq)) return false;
+                if (!guild.isTechNodeUnlocked(prereq)) return false;
             }
         }
 
@@ -156,11 +156,11 @@ public class TechTreeServiceImpl implements TechTreeService {
     }
 
     @Override
-    public List<TechTreeNode> getAvailableNodes(Town town) {
+    public List<TechTreeNode> getAvailableNodes(Guild guild) {
         ensureDefinitionsLoaded();
         List<TechTreeNode> available = new ArrayList<>();
         for (TechTreeNode node : nodeDefinitions.values()) {
-            if (canUnlockNode(town, node.getId())) {
+            if (canUnlockNode(guild, node.getId())) {
                 available.add(node);
             }
         }
@@ -168,43 +168,43 @@ public class TechTreeServiceImpl implements TechTreeService {
     }
 
     @Override
-    public boolean unlockTechNode(Town town, String nodeId) {
-        if (!canUnlockNode(town, nodeId)) return false;
+    public boolean unlockTechNode(Guild guild, String nodeId) {
+        if (!canUnlockNode(guild, nodeId)) return false;
 
         ensureDefinitionsLoaded();
         TechTreeNode node = nodeDefinitions.get(nodeId);
         if (node == null) return false;
 
         // Deduct tech points
-        town.setTechPoints(town.getTechPoints() - node.getCost());
+        guild.setTechPoints(guild.getTechPoints() - node.getCost());
 
         // Mark unlocked
-        town.unlockTechNode(nodeId);
+        guild.unlockTechNode(nodeId);
 
         // Apply effects
-        applyEffects(town, node);
+        applyEffects(guild, node);
 
         // Persist
-        saveTownTechData(town);
-        townService.updateTown(town);
+        saveGuildTechData(guild);
+        guildService.updateGuild(guild);
 
-        plugin.getLogger().info("Town " + town.getName() + " unlocked tech node: " + node.getName());
+        plugin.getLogger().info("Town " + guild.getName() + " unlocked tech node: " + node.getName());
         return true;
     }
 
     // ── Persistence ────────────────────────────────────────────────────
 
     @Override
-    public void loadTownTechData(Town town) {
-        String sql = "SELECT node_id, unlocked_at FROM town_unlocked_nodes WHERE town_id = ?";
+    public void loadGuildTechData(Guild guild) {
+        String sql = "SELECT node_id, unlocked_at FROM guild_unlocked_nodes WHERE guild_id = ?";
 
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setString(1, town.getId());
+            ps.setString(1, guild.getId());
 
             try (ResultSet rs = ps.executeQuery()) {
-                TownTechData techData = new TownTechData();
+                GuildTechData techData = new GuildTechData();
                 while (rs.next()) {
                     String nodeId = rs.getString("node_id");
                     String timestampStr = rs.getString("unlocked_at");
@@ -218,20 +218,20 @@ public class TechTreeServiceImpl implements TechTreeService {
                         techData.unlockNode(nodeId);
                     }
                 }
-                town.setTechData(techData);
+                guild.setTechData(techData);
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to load tech data for town " + town.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.WARNING, "Failed to load tech data for town " + guild.getName() + ": " + e.getMessage(), e);
         }
     }
 
     @Override
-    public void saveTownTechData(Town town) {
-        // Delete existing unlocks for this town and re-insert
-        String deleteSql = "DELETE FROM town_unlocked_nodes WHERE town_id = ?";
+    public void saveGuildTechData(Guild guild) {
+        // Delete existing unlocks for this guild and re-insert
+        String deleteSql = "DELETE FROM guild_unlocked_nodes WHERE guild_id = ?";
         String insertSql = """
-            INSERT OR REPLACE INTO town_unlocked_nodes (town_id, node_id, unlocked_at)
+            INSERT OR REPLACE INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
             VALUES (?, ?, ?)
             """;
 
@@ -239,15 +239,15 @@ public class TechTreeServiceImpl implements TechTreeService {
             conn.setAutoCommit(false);
 
             try (PreparedStatement del = conn.prepareStatement(deleteSql)) {
-                del.setString(1, town.getId());
+                del.setString(1, guild.getId());
                 del.executeUpdate();
             }
 
             try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
-                TownTechData techData = town.getTechData();
+                GuildTechData techData = guild.getTechData();
                 for (String nodeId : techData.getUnlockedNodeIds()) {
                     LocalDateTime ts = techData.getUnlockTimestamp(nodeId);
-                    ins.setString(1, town.getId());
+                    ins.setString(1, guild.getId());
                     ins.setString(2, nodeId);
                     ins.setString(3, ts != null ? ts.toString() : LocalDateTime.now().toString());
                     ins.addBatch();
@@ -258,13 +258,13 @@ public class TechTreeServiceImpl implements TechTreeService {
             conn.commit();
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to save tech data for town " + town.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.WARNING, "Failed to save tech data for town " + guild.getName() + ": " + e.getMessage(), e);
         }
     }
 
     // ── Effect application ─────────────────────────────────────────────
 
-    private void applyEffects(Town town, TechTreeNode node) {
+    private void applyEffects(Guild guild, TechTreeNode node) {
         if (node.getEffects() == null) return;
 
         for (Map.Entry<String, Object> entry : node.getEffects().entrySet()) {
@@ -273,19 +273,19 @@ public class TechTreeServiceImpl implements TechTreeService {
 
             switch (key) {
                 case "extra_claims" -> {
-                    // Claim bonus is calculated dynamically from unlocked nodes in TownLevelData
-                    // Store as metadata on the town for future queries
-                    plugin.getLogger().info("  Effect: +" + value + " extra claims for " + town.getName());
+                    // Claim bonus is calculated dynamically from unlocked nodes in GuildLevelData
+                    // Store as metadata on the guild for future queries
+                    plugin.getLogger().info("  Effect: +" + value + " extra claims for " + guild.getName());
                 }
                 case "extra_assistants" -> {
-                    plugin.getLogger().info("  Effect: +" + value + " extra assistants for " + town.getName());
+                    plugin.getLogger().info("  Effect: +" + value + " extra assistants for " + guild.getName());
                 }
                 case "income_bonus" -> {
-                    plugin.getLogger().info("  Effect: " + value + " income bonus for " + town.getName());
+                    plugin.getLogger().info("  Effect: " + value + " income bonus for " + guild.getName());
                 }
                 default -> {
                     // Store unrecognized effects for future expansion
-                    plugin.getLogger().info("  Effect: " + key + "=" + value + " for " + town.getName());
+                    plugin.getLogger().info("  Effect: " + key + "=" + value + " for " + guild.getName());
                 }
             }
         }

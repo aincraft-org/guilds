@@ -1,7 +1,7 @@
 package org.aincraft.guilds.plot;
 
 
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.GuildBlock;
 
 
 import java.util.ArrayList;

@@ -3,11 +3,11 @@ package org.aincraft.guilds.services.impl;
 
 
 import org.aincraft.guilds.database.DatabaseManager;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.models.Permission;
 import org.aincraft.guilds.models.PlotTypes;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -36,39 +36,39 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     private final DatabaseManager databaseManager;
     private final DataSource dataSource;
     private final Logger logger;
-    private final TownService townService;
+    private final GuildService guildService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 
-    public PlotServiceImpl(DatabaseManager databaseManager, TownService townService, Logger logger) {
+    public PlotServiceImpl(DatabaseManager databaseManager, GuildService guildService, Logger logger) {
         this.databaseManager = databaseManager;
         this.dataSource = databaseManager.getDataSource();
-        this.townService = townService;
+        this.guildService = guildService;
         this.logger = logger;
     }
 
     @Override
-    public TownBlock createTownBlock(int x, int z, String world, String townName) {
-        // First, get the town ID from the town name
-        String getTownIdSql = "SELECT id FROM towns WHERE name = ?";
-        String townId = null;
+    public GuildBlock createGuildBlock(int x, int z, String world, String guildName) {
+        // First, get the guild ID from the guild name
+        String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+        String guildId = null;
 
         try (Connection connection = dataSource.getConnection()) {
-            // Get town ID
-            try (PreparedStatement getTownStmt = connection.prepareStatement(getTownIdSql)) {
-                getTownStmt.setString(1, townName);
-                try (ResultSet rs = getTownStmt.executeQuery()) {
+            // Get guild ID
+            try (PreparedStatement getGuildStmt = connection.prepareStatement(getGuildIdSql)) {
+                getGuildStmt.setString(1, guildName);
+                try (ResultSet rs = getGuildStmt.executeQuery()) {
                     if (rs.next()) {
-                        townId = rs.getString("id");
+                        guildId = rs.getString("id");
                     } else {
-                        throw new RuntimeException("Town not found: " + townName);
+                        throw new RuntimeException("Town not found: " + guildName);
                     }
                 }
             }
 
-            // Create town block
-            String sql = "INSERT INTO town_blocks (id, x, z, world, town_id, plot_type, price, permissions_flags, claimed_at) " +
+            // Create guild block
+            String sql = "INSERT INTO guild_blocks (id, x, z, world, guild_id, plot_type, price, permissions_flags, claimed_at) " +
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -79,7 +79,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                 statement.setInt(2, x);
                 statement.setInt(3, z);
                 statement.setString(4, world);
-                statement.setString(5, townId);
+                statement.setString(5, guildId);
                 statement.setString(6, PlotTypes.DEFAULT);
                 statement.setDouble(7, 0.0); // Default price
                 statement.setInt(8, 0); // Default permission flags
@@ -87,12 +87,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
                 statement.executeUpdate();
 
-                TownBlock townBlock = new TownBlock(x, z, world, townId);
-                townBlock.setId(plotId);
-                townBlock.setClaimedAt(LocalDateTime.parse(claimedAt, DATE_FORMATTER));
+                GuildBlock guildBlock = new GuildBlock(x, z, world, guildId);
+                guildBlock.setId(plotId);
+                guildBlock.setClaimedAt(LocalDateTime.parse(claimedAt, DATE_FORMATTER));
 
-                logger.info("Created town block at " + x + "," + z + " in world " + world + " for town " + townName + " (ID: " + townId + ")");
-                return townBlock;
+                logger.info("Created town block at " + x + "," + z + " in world " + world + " for town " + guildName + " (ID: " + guildId + ")");
+                return guildBlock;
             }
 
         } catch (SQLException e) {
@@ -102,9 +102,9 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public Optional<TownBlock> getTownBlock(int x, int z, String world) {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE x = ? AND z = ? AND world = ?";
+    public Optional<GuildBlock> getGuildBlock(int x, int z, String world) {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE x = ? AND z = ? AND world = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -115,10 +115,10 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    TownBlock townBlock = mapResultSetToTownBlock(resultSet);
+                    GuildBlock guildBlock = mapResultSetToGuildBlock(resultSet);
                     logger.info("Found town block in database: x=" + x + ", z=" + z + ", world=" + world +
-                              ", town_id=" + townBlock.getTownId() + ", owner_id=" + townBlock.getOwnerId());
-                    return Optional.of(townBlock);
+                              ", guild_id=" + guildBlock.getGuildId() + ", owner_id=" + guildBlock.getOwnerId());
+                    return Optional.of(guildBlock);
                 }
             }
 
@@ -132,9 +132,9 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public Optional<TownBlock> getTownBlock(UUID id) {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE id = ?";
+    public Optional<GuildBlock> getGuildBlock(UUID id) {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE id = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -143,7 +143,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    return Optional.of(mapResultSetToTownBlock(resultSet));
+                    return Optional.of(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
@@ -155,47 +155,47 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public TownBlock updateTownBlock(TownBlock townBlock) {
-        String sql = "UPDATE town_blocks SET x = ?, z = ?, world = ?, town_id = ?, owner_uuid = ?, " +
+    public GuildBlock updateGuildBlock(GuildBlock guildBlock) {
+        String sql = "UPDATE guild_blocks SET x = ?, z = ?, world = ?, guild_id = ?, owner_uuid = ?, " +
                     "plot_type = ?, price = ?, permissions_flags = ?, custom_name = ? WHERE id = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setInt(1, townBlock.getX());
-            statement.setInt(2, townBlock.getZ());
-            statement.setString(3, townBlock.getWorld());
-            statement.setString(4, townBlock.getTownId());
+            statement.setInt(1, guildBlock.getX());
+            statement.setInt(2, guildBlock.getZ());
+            statement.setString(3, guildBlock.getWorld());
+            statement.setString(4, guildBlock.getGuildId());
 
-            if (townBlock.getOwnerId() != null) {
-                statement.setString(5, townBlock.getOwnerId().toString());
+            if (guildBlock.getOwnerId() != null) {
+                statement.setString(5, guildBlock.getOwnerId().toString());
             } else {
                 statement.setNull(5, Types.VARCHAR);
             }
 
-            statement.setString(6, townBlock.getPlotType());
-            statement.setDouble(7, townBlock.getPrice());
-            statement.setInt(8, townBlock.getPermissionsFlags()); // Use permission flags from model
-            statement.setString(9, townBlock.getCustomName());
-            statement.setString(10, townBlock.getId().toString());
+            statement.setString(6, guildBlock.getPlotType());
+            statement.setDouble(7, guildBlock.getPrice());
+            statement.setInt(8, guildBlock.getPermissionsFlags()); // Use permission flags from model
+            statement.setString(9, guildBlock.getCustomName());
+            statement.setString(10, guildBlock.getId().toString());
 
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Updated town block: " + townBlock.getId());
+                logger.info("Updated town block: " + guildBlock.getId());
             }
 
-            return townBlock;
+            return guildBlock;
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to update town block: " + townBlock.getId(), e);
+            logger.log(Level.SEVERE, "Failed to update town block: " + guildBlock.getId(), e);
             throw new RuntimeException("Failed to update town block", e);
         }
     }
 
     @Override
-    public boolean deleteTownBlock(UUID id) {
-        String sql = "DELETE FROM town_blocks WHERE id = ?";
+    public boolean deleteGuildBlock(UUID id) {
+        String sql = "DELETE FROM guild_blocks WHERE id = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -217,74 +217,74 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public List<TownBlock> getAllTownBlocks() {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks ORDER BY world, x, z";
-        List<TownBlock> townBlocks = new ArrayList<>();
+    public List<GuildBlock> getAllGuildBlocks() {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks ORDER BY world, x, z";
+        List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
 
             while (resultSet.next()) {
-                townBlocks.add(mapResultSetToTownBlock(resultSet));
+                guildBlocks.add(mapResultSetToGuildBlock(resultSet));
             }
 
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Failed to get all town blocks", e);
         }
 
-        return townBlocks;
+        return guildBlocks;
     }
 
     @Override
-    public List<TownBlock> getTownBlocksInTown(String townName) {
-        // First get the town ID from the town name
-        String getTownIdSql = "SELECT id FROM towns WHERE name = ?";
-        String townId = null;
+    public List<GuildBlock> getGuildBlocksInGuild(String guildName) {
+        // First get the guild ID from the guild name
+        String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+        String guildId = null;
 
         try (Connection connection = dataSource.getConnection()) {
-            // Get town ID
-            try (PreparedStatement getTownStmt = connection.prepareStatement(getTownIdSql)) {
-                getTownStmt.setString(1, townName);
-                try (ResultSet rs = getTownStmt.executeQuery()) {
+            // Get guild ID
+            try (PreparedStatement getGuildStmt = connection.prepareStatement(getGuildIdSql)) {
+                getGuildStmt.setString(1, guildName);
+                try (ResultSet rs = getGuildStmt.executeQuery()) {
                     if (rs.next()) {
-                        townId = rs.getString("id");
+                        guildId = rs.getString("id");
                     } else {
-                        logger.warning("Town not found: " + townName);
+                        logger.warning("Town not found: " + guildName);
                         return new ArrayList<>();
                     }
                 }
             }
 
-            // Get town blocks for this town
-            String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                        "FROM town_blocks WHERE town_id = ? ORDER BY x, z";
-            List<TownBlock> townBlocks = new ArrayList<>();
+            // Get guild blocks for this guild
+            String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                        "FROM guild_blocks WHERE guild_id = ? ORDER BY x, z";
+            List<GuildBlock> guildBlocks = new ArrayList<>();
 
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setString(1, townId);
+                statement.setString(1, guildId);
 
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
-                        townBlocks.add(mapResultSetToTownBlock(resultSet));
+                        guildBlocks.add(mapResultSetToGuildBlock(resultSet));
                     }
                 }
             }
 
-            return townBlocks;
+            return guildBlocks;
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town blocks for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get town blocks for town: " + guildName, e);
             return new ArrayList<>();
         }
     }
 
     @Override
-    public List<TownBlock> getTownBlocksInWorld(String world) {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE world = ? ORDER BY x, z";
-        List<TownBlock> townBlocks = new ArrayList<>();
+    public List<GuildBlock> getGuildBlocksInWorld(String world) {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE world = ? ORDER BY x, z";
+        List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -293,7 +293,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    townBlocks.add(mapResultSetToTownBlock(resultSet));
+                    guildBlocks.add(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
@@ -301,14 +301,14 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             logger.log(Level.SEVERE, "Failed to get town blocks in world: " + world, e);
         }
 
-        return townBlocks;
+        return guildBlocks;
     }
 
     @Override
-    public List<TownBlock> getTownBlocksOwnedBy(UUID residentUuid) {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE owner_uuid = ? ORDER BY world, x, z";
-        List<TownBlock> townBlocks = new ArrayList<>();
+    public List<GuildBlock> getGuildBlocksOwnedBy(UUID residentUuid) {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE owner_uuid = ? ORDER BY world, x, z";
+        List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -317,7 +317,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    townBlocks.add(mapResultSetToTownBlock(resultSet));
+                    guildBlocks.add(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
@@ -325,12 +325,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             logger.log(Level.SEVERE, "Failed to get town blocks owned by: " + residentUuid, e);
         }
 
-        return townBlocks;
+        return guildBlocks;
     }
 
     @Override
-    public boolean townBlockExists(int x, int z, String world) {
-        String sql = "SELECT COUNT(*) FROM town_blocks WHERE x = ? AND z = ? AND world = ?";
+    public boolean guildBlockExists(int x, int z, String world) {
+        String sql = "SELECT COUNT(*) FROM guild_blocks WHERE x = ? AND z = ? AND world = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -353,14 +353,14 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public boolean claimTownBlock(int x, int z, String world, String townName) {
-        // Check if town block already exists
-        if (townBlockExists(x, z, world)) {
+    public boolean claimGuildBlock(int x, int z, String world, String guildName) {
+        // Check if guild block already exists
+        if (guildBlockExists(x, z, world)) {
             return false;
         }
 
         try {
-            createTownBlock(x, z, world, townName);
+            createGuildBlock(x, z, world, guildName);
             return true;
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to claim town block at " + x + "," + z + " in world " + world, e);
@@ -369,8 +369,8 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public boolean unclaimTownBlock(int x, int z, String world) {
-        String sql = "DELETE FROM town_blocks WHERE x = ? AND z = ? AND world = ?";
+    public boolean unclaimGuildBlock(int x, int z, String world) {
+        String sql = "DELETE FROM guild_blocks WHERE x = ? AND z = ? AND world = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -394,8 +394,8 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public boolean setTownBlockOwner(UUID id, UUID ownerUuid) {
-        String sql = "UPDATE town_blocks SET owner_uuid = ? WHERE id = ?";
+    public boolean setGuildBlockOwner(UUID id, UUID ownerUuid) {
+        String sql = "UPDATE guild_blocks SET owner_uuid = ? WHERE id = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -423,11 +423,11 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public List<TownBlock> getTownBlocksInRadius(int centerX, int centerZ, int radius, String world) {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE world = ? AND x >= ? AND x <= ? AND z >= ? AND z <= ? ORDER BY x, z";
+    public List<GuildBlock> getGuildBlocksInRadius(int centerX, int centerZ, int radius, String world) {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE world = ? AND x >= ? AND x <= ? AND z >= ? AND z <= ? ORDER BY x, z";
 
-        List<TownBlock> townBlocks = new ArrayList<>();
+        List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -440,7 +440,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    townBlocks.add(mapResultSetToTownBlock(resultSet));
+                    guildBlocks.add(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
@@ -448,14 +448,14 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             logger.log(Level.SEVERE, "Failed to get town blocks in radius around " + centerX + "," + centerZ + " in world " + world, e);
         }
 
-        return townBlocks;
+        return guildBlocks;
     }
 
     @Override
-    public List<TownBlock> getTownBlocksByType(String plotType) {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE plot_type = ? ORDER BY world, x, z";
-        List<TownBlock> townBlocks = new ArrayList<>();
+    public List<GuildBlock> getGuildBlocksByType(String plotType) {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE plot_type = ? ORDER BY world, x, z";
+        List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -464,7 +464,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    townBlocks.add(mapResultSetToTownBlock(resultSet));
+                    guildBlocks.add(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
@@ -472,41 +472,41 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             logger.log(Level.SEVERE, "Failed to get town blocks by type: " + plotType, e);
         }
 
-        return townBlocks;
+        return guildBlocks;
     }
 
     @Override
-    public List<TownBlock> getTownOwnedBlocks(String townName) {
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE town_id = ? AND owner_uuid IS NULL ORDER BY x, z";
-        List<TownBlock> townBlocks = new ArrayList<>();
+    public List<GuildBlock> getGuildOwnedBlocks(String guildName) {
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE guild_id = ? AND owner_uuid IS NULL ORDER BY x, z";
+        List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    townBlocks.add(mapResultSetToTownBlock(resultSet));
+                    guildBlocks.add(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town-owned blocks for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get town-owned blocks for town: " + guildName, e);
         }
 
-        return townBlocks;
+        return guildBlocks;
     }
 
     @Override
-    public int getTownBlockCount(String townName) {
-        String sql = "SELECT COUNT(*) FROM town_blocks WHERE town_id = ?";
+    public int getGuildBlockCount(String guildName) {
+        String sql = "SELECT COUNT(*) FROM guild_blocks WHERE guild_id = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            statement.setString(1, townName);
+            statement.setString(1, guildName);
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
@@ -515,7 +515,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town block count for town: " + townName, e);
+            logger.log(Level.SEVERE, "Failed to get town block count for town: " + guildName, e);
         }
 
         return 0;
@@ -523,7 +523,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean setPlotType(UUID id, String plotType) {
-        String sql = "UPDATE town_blocks SET plot_type = ? WHERE id = ?";
+        String sql = "UPDATE guild_blocks SET plot_type = ? WHERE id = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -546,14 +546,14 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public List<TownBlock> getTownBlocksInChunk(int chunkX, int chunkZ, String world) {
+    public List<GuildBlock> getGuildBlocksInChunk(int chunkX, int chunkZ, String world) {
         int blockX = chunkX << 4;
         int blockZ = chunkZ << 4;
 
-        String sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM town_blocks WHERE world = ? AND x >= ? AND x < ? AND z >= ? AND z < ? ORDER BY x, z";
+        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                    "FROM guild_blocks WHERE world = ? AND x >= ? AND x < ? AND z >= ? AND z < ? ORDER BY x, z";
 
-        List<TownBlock> townBlocks = new ArrayList<>();
+        List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -566,7 +566,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    townBlocks.add(mapResultSetToTownBlock(resultSet));
+                    guildBlocks.add(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
@@ -574,42 +574,42 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             logger.log(Level.SEVERE, "Failed to get town blocks in chunk " + chunkX + "," + chunkZ + " in world " + world, e);
         }
 
-        return townBlocks;
+        return guildBlocks;
     }
 
     /**
-     * Map a ResultSet to a TownBlock object
+     * Map a ResultSet to a GuildBlock object
      */
-    private TownBlock mapResultSetToTownBlock(ResultSet resultSet) throws SQLException {
+    private GuildBlock mapResultSetToGuildBlock(ResultSet resultSet) throws SQLException {
         UUID id = UUID.fromString(resultSet.getString("id"));
         int x = resultSet.getInt("x");
         int z = resultSet.getInt("z");
         String world = resultSet.getString("world");
-        String townId = resultSet.getString("town_id");
+        String guildId = resultSet.getString("guild_id");
         String plotType = resultSet.getString("plot_type");
         double price = resultSet.getDouble("price");
         String claimedAtStr = resultSet.getString("claimed_at");
         String customName = resultSet.getString("custom_name");
         int permissionsFlags = resultSet.getInt("permissions_flags");
 
-        TownBlock townBlock = new TownBlock(x, z, world, townId);
-        townBlock.setId(id);
-        townBlock.setPlotType(plotType);
-        townBlock.setPrice(price);
-        townBlock.setPermissionsFlags(permissionsFlags);
+        GuildBlock guildBlock = new GuildBlock(x, z, world, guildId);
+        guildBlock.setId(id);
+        guildBlock.setPlotType(plotType);
+        guildBlock.setPrice(price);
+        guildBlock.setPermissionsFlags(permissionsFlags);
 
         String ownerUuidStr = resultSet.getString("owner_uuid");
         if (ownerUuidStr != null && !ownerUuidStr.isEmpty()) {
-            townBlock.setOwnerId(UUID.fromString(ownerUuidStr));
+            guildBlock.setOwnerId(UUID.fromString(ownerUuidStr));
         }
 
         if (claimedAtStr != null) {
-            townBlock.setClaimedAt(LocalDateTime.parse(claimedAtStr, DATE_FORMATTER));
+            guildBlock.setClaimedAt(LocalDateTime.parse(claimedAtStr, DATE_FORMATTER));
         }
 
-        townBlock.setCustomName(customName);
+        guildBlock.setCustomName(customName);
 
-        return townBlock;
+        return guildBlock;
     }
 
     // Plot claiming and ownership methods implementation
@@ -617,42 +617,42 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public boolean claimPlotForResident(UUID residentUuid, int x, int z, String world) {
         try {
-            // Check if plot exists and is town-owned
-            Optional<TownBlock> existingPlot = getTownBlock(x, z, world);
+            // Check if plot exists and is guild-owned
+            Optional<GuildBlock> existingPlot = getGuildBlock(x, z, world);
             if (existingPlot.isEmpty()) {
-                return false; // Plot doesn't exist (town must claim territory first)
+                return false; // Plot doesn't exist (guild must claim territory first)
             }
 
-            TownBlock plot = existingPlot.get();
+            GuildBlock plot = existingPlot.get();
 
             // Plot is owned by a resident, can't claim it
             if (plot.getOwnerId() != null) {
                 return false;
             }
 
-            // Plot is town-owned, resident can claim it
+            // Plot is guild-owned, resident can claim it
             String residentName = getResidentName(residentUuid);
             if (residentName == null) {
                 return false; // Resident doesn't exist
             }
 
-            // Get resident's town to verify they belong to the same town
-            String townName = getResidentTown(residentUuid);
-            if (townName == null) {
-                return false; // Resident not in a town
+            // Get resident's guild to verify they belong to the same guild
+            String guildName = getResidentGuild(residentUuid);
+            if (guildName == null) {
+                return false; // Resident not in a guild
             }
 
-            // Verify plot belongs to resident's town
-            Optional<Town> residentTown = townService.getTown(townName);
-            if (residentTown.isEmpty() || !plot.getTownId().equals(residentTown.get().getId())) {
-                return false; // Plot belongs to different town
+            // Verify plot belongs to resident's guild
+            Optional<Guild> residentGuild = guildService.getGuild(guildName);
+            if (residentGuild.isEmpty() || !plot.getGuildId().equals(residentGuild.get().getId())) {
+                return false; // Plot belongs to different guild
             }
 
             // Transfer ownership to resident
             plot.setOwnerId(residentUuid);
             plot.resetToDefaultPermissions(); // Set full permissions for owner
 
-            return updateTownBlock(plot) != null;
+            return updateGuildBlock(plot) != null;
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to claim plot for resident " + residentUuid + " at " + x + "," + z + " in " + world, e);
@@ -663,12 +663,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public boolean buyPlot(UUID residentUuid, UUID plotId, double price) {
         try {
-            Optional<TownBlock> plotOpt = getTownBlock(plotId);
+            Optional<GuildBlock> plotOpt = getGuildBlock(plotId);
             if (plotOpt.isEmpty()) {
                 return false; // Plot doesn't exist
             }
 
-            TownBlock plot = plotOpt.get();
+            GuildBlock plot = plotOpt.get();
             if (!plot.isForSale() || plot.getPrice() != price) {
                 return false; // Plot not for sale at this price
             }
@@ -684,7 +684,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             plot.setPrice(0.0); // Remove from sale
             plot.resetToDefaultPermissions(); // Set full permissions for new owner
 
-            return updateTownBlock(plot) != null;
+            return updateGuildBlock(plot) != null;
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to buy plot " + plotId + " by resident " + residentUuid, e);
@@ -695,12 +695,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public boolean setPlotForSale(UUID plotId, double price, UUID ownerUuid) {
         try {
-            Optional<TownBlock> plotOpt = getTownBlock(plotId);
+            Optional<GuildBlock> plotOpt = getGuildBlock(plotId);
             if (plotOpt.isEmpty()) {
                 return false; // Plot doesn't exist
             }
 
-            TownBlock plot = plotOpt.get();
+            GuildBlock plot = plotOpt.get();
 
             // Verify ownership
             if (!plot.isOwner(ownerUuid)) {
@@ -708,7 +708,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
             plot.setPrice(Math.max(0.0, price)); // Ensure non-negative price
-            return updateTownBlock(plot) != null;
+            return updateGuildBlock(plot) != null;
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to set plot " + plotId + " for sale", e);
@@ -717,41 +717,41 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     @Override
-    public List<TownBlock> getPlotsForSale(String townName) {
+    public List<GuildBlock> getPlotsForSale(String guildName) {
         String sql;
-        if (townName != null) {
-            sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                  "FROM town_blocks WHERE town_id = ? AND price > 0 ORDER BY price, x, z";
+        if (guildName != null) {
+            sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                  "FROM guild_blocks WHERE guild_id = ? AND price > 0 ORDER BY price, x, z";
         } else {
-            sql = "SELECT id, x, z, world, town_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                  "FROM town_blocks WHERE price > 0 ORDER BY world, price, x, z";
+            sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
+                  "FROM guild_blocks WHERE price > 0 ORDER BY world, price, x, z";
         }
 
-        List<TownBlock> plotsForSale = new ArrayList<>();
+        List<GuildBlock> plotsForSale = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
 
-            if (townName != null) {
-                statement.setString(1, townName);
+            if (guildName != null) {
+                statement.setString(1, guildName);
             }
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    plotsForSale.add(mapResultSetToTownBlock(resultSet));
+                    plotsForSale.add(mapResultSetToGuildBlock(resultSet));
                 }
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get plots for sale" + (townName != null ? " in town " + townName : ""), e);
+            logger.log(Level.SEVERE, "Failed to get plots for sale" + (guildName != null ? " in town " + guildName : ""), e);
         }
 
         return plotsForSale;
     }
 
     @Override
-    public List<TownBlock> getPlotsOwnedByResident(UUID residentUuid) {
-        return getTownBlocksOwnedBy(residentUuid);
+    public List<GuildBlock> getPlotsOwnedByResident(UUID residentUuid) {
+        return getGuildBlocksOwnedBy(residentUuid);
     }
 
     // Plot permission management methods implementation
@@ -759,15 +759,15 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public boolean setPlotPermissionFlag(UUID plotId, int permissionFlag, boolean value) {
         try {
-            Optional<TownBlock> plotOpt = getTownBlock(plotId);
+            Optional<GuildBlock> plotOpt = getGuildBlock(plotId);
             if (plotOpt.isEmpty()) {
                 return false; // Plot doesn't exist
             }
 
-            TownBlock plot = plotOpt.get();
+            GuildBlock plot = plotOpt.get();
             plot.setPermissionFlag(permissionFlag, value);
 
-            return updateTownBlock(plot) != null;
+            return updateGuildBlock(plot) != null;
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to set permission flag for plot " + plotId, e);
@@ -778,15 +778,15 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public boolean setPlotPermissionFlags(UUID plotId, int flags) {
         try {
-            Optional<TownBlock> plotOpt = getTownBlock(plotId);
+            Optional<GuildBlock> plotOpt = getGuildBlock(plotId);
             if (plotOpt.isEmpty()) {
                 return false; // Plot doesn't exist
             }
 
-            TownBlock plot = plotOpt.get();
+            GuildBlock plot = plotOpt.get();
             plot.setPermissionsFlags(flags);
 
-            return updateTownBlock(plot) != null;
+            return updateGuildBlock(plot) != null;
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to set permission flags for plot " + plotId, e);
@@ -906,10 +906,10 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     // Utility methods implementation
 
     @Override
-    public Optional<TownBlock> getTownBlockAtLocation(String world, int blockX, int blockZ) {
+    public Optional<GuildBlock> getGuildBlockAtLocation(String world, int blockX, int blockZ) {
         int chunkX = blockX >> 4;
         int chunkZ = blockZ >> 4;
-        return getTownBlock(chunkX, chunkZ, world);
+        return getGuildBlock(chunkX, chunkZ, world);
     }
 
     @Override
@@ -921,37 +921,37 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                 return false;
             }
 
-            // Check if resident is in a town
-            String townName = getResidentTown(residentUuid);
-            if (townName == null) {
+            // Check if resident is in a guild
+            String guildName = getResidentGuild(residentUuid);
+            if (guildName == null) {
                 logger.info("Resident " + residentUuid + " is not in a town");
                 return false;
             }
 
-            // Check if plot exists and is owned by town (not a resident)
-            logger.info("Checking for town block at x=" + x + ", z=" + z + ", world=" + world + " for resident " + residentName + " in town " + townName);
-            Optional<TownBlock> existingPlot = getTownBlock(x, z, world);
+            // Check if plot exists and is owned by guild (not a resident)
+            logger.info("Checking for town block at x=" + x + ", z=" + z + ", world=" + world + " for resident " + residentName + " in town " + guildName);
+            Optional<GuildBlock> existingPlot = getGuildBlock(x, z, world);
             if (existingPlot.isPresent()) {
-                TownBlock plot = existingPlot.get();
-                logger.info("Found town block: town_id=" + plot.getTownId() + ", owner_id=" + plot.getOwnerId());
+                GuildBlock plot = existingPlot.get();
+                logger.info("Found town block: guild_id=" + plot.getGuildId() + ", owner_id=" + plot.getOwnerId());
                 // If plot is owned by a resident, can't claim it
                 if (plot.getOwnerId() != null) {
                     logger.info("Plot already owned by resident " + plot.getOwnerId());
                     return false;
                 }
-                // If plot exists and is town-owned, resident can claim it
-                Optional<Town> town = townService.getTownById(plot.getTownId());
-                if (town.isPresent()) {
-                    boolean canClaim = town.get().getName().equals(townName);
-                    logger.info("Town check: plot town=" + town.get().getName() + ", resident town=" + townName + ", can claim=" + canClaim);
+                // If plot exists and is guild-owned, resident can claim it
+                Optional<Guild> guild = guildService.getGuildById(plot.getGuildId());
+                if (guild.isPresent()) {
+                    boolean canClaim = guild.get().getName().equals(guildName);
+                    logger.info("Town check: plot town=" + guild.get().getName() + ", resident town=" + guildName + ", can claim=" + canClaim);
                     return canClaim;
                 } else {
-                    logger.info("Town not found for town_id=" + plot.getTownId());
+                    logger.info("Town not found for guild_id=" + plot.getGuildId());
                     return false;
                 }
             }
 
-            // If no plot exists, resident can't claim it (town must claim territory first)
+            // If no plot exists, resident can't claim it (guild must claim territory first)
             logger.info("No town block found at x=" + x + ", z=" + z + ", world=" + world + " - town must claim territory first");
             return false;
 
@@ -991,8 +991,8 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
         return null;
     }
 
-    private String getResidentTown(UUID residentUuid) {
-        String sql = "SELECT town_name FROM residents WHERE uuid = ?";
+    private String getResidentGuild(UUID residentUuid) {
+        String sql = "SELECT guild_name FROM residents WHERE uuid = ?";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1001,7 +1001,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    return resultSet.getString("town_name");
+                    return resultSet.getString("guild_name");
                 }
             }
 

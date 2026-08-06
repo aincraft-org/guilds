@@ -14,7 +14,7 @@ import org.aincraft.guilds.models.Blueprint;
 import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.services.BlueprintService;
 import org.aincraft.guilds.services.ResidentService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -23,7 +23,7 @@ import java.util.Optional;
 /**
  * Brigadier command for blueprint management.
  * /blueprint save <name> — save selection as blueprint (requires WorldEdit)
- * /blueprint list — list town blueprints
+ * /blueprint list — list guild blueprints
  * /blueprint load <name> — show blueprint info
  * /blueprint apply <name> — paste at player location
  * /blueprint delete <name> — delete blueprint (mayor only)
@@ -32,15 +32,15 @@ public class BlueprintBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final BlueprintService blueprintService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
 
     public BlueprintBrigadierCommand(JavaPlugin plugin, BlueprintService blueprintService,
-                                     TownService townService, ResidentService residentService) {
+                                     GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
         this.blueprintService = blueprintService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
@@ -74,10 +74,10 @@ public class BlueprintBrigadierCommand {
         return player;
     }
 
-    private String getPlayerTownId(Player player) {
+    private String getPlayerGuildId(Player player) {
         return residentService.getResident(player.getUniqueId())
-                .filter(Resident::hasTown)
-                .flatMap(r -> townService.getTown(r.getTown()))
+                .filter(Resident::hasGuild)
+                .flatMap(r -> guildService.getGuild(r.getGuild()))
                 .map(t -> t.getId())
                 .orElse(null);
     }
@@ -92,8 +92,8 @@ public class BlueprintBrigadierCommand {
         }
 
         String name = StringArgumentType.getString(ctx, "name");
-        String townId = getPlayerTownId(player);
-        if (townId == null) {
+        String guildId = getPlayerGuildId(player);
+        if (guildId == null) {
             player.sendMessage(Component.text("You must be in a town to save blueprints.", NamedTextColor.RED));
             return 0;
         }
@@ -104,7 +104,7 @@ public class BlueprintBrigadierCommand {
                 .append(Component.text("Select a region with WorldEdit first, then run this command.", NamedTextColor.GRAY)));
 
         // Placeholder: save with empty data
-        blueprintService.saveBlueprint(name, player.getUniqueId(), townId, new byte[0]);
+        blueprintService.saveBlueprint(name, player.getUniqueId(), guildId, new byte[0]);
         player.sendMessage(Component.text("Blueprint '" + name + "' saved (empty template).", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
@@ -113,13 +113,13 @@ public class BlueprintBrigadierCommand {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
-        String townId = getPlayerTownId(player);
-        if (townId == null) {
+        String guildId = getPlayerGuildId(player);
+        if (guildId == null) {
             player.sendMessage(Component.text("You are not in a town.", NamedTextColor.RED));
             return 0;
         }
 
-        List<Blueprint> blueprints = blueprintService.getTownBlueprints(townId);
+        List<Blueprint> blueprints = blueprintService.getGuildBlueprints(guildId);
         if (blueprints.isEmpty()) {
             player.sendMessage(Component.text("No blueprints found for your town.", NamedTextColor.GRAY));
             return 0;

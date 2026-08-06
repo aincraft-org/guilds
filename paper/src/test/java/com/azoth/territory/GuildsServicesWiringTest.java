@@ -3,8 +3,8 @@ package com.azoth.territory;
 import org.aincraft.guilds.GuildsServices;
 import org.aincraft.guilds.services.BroadcastService;
 import org.aincraft.guilds.services.PermissionService;
-import org.aincraft.guilds.services.TownService;
-import org.aincraft.guilds.services.impl.TownServiceImpl;
+import org.aincraft.guilds.services.GuildService;
+import org.aincraft.guilds.services.impl.GuildServiceImpl;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -18,7 +18,7 @@ import static org.mockito.Mockito.when;
 /**
  * Smoke test for the manual composition root: building {@link GuildsServices}
  * must wire the whole service graph (previously Guice's eager singletons),
- * including the Town/Permission/Plot cycle broken by setPermissionService.
+ * including the Guild/Permission/Plot cycle broken by setPermissionService.
  * The composition root is hosted directly by the Azoth Territory plugin.
  */
 class GuildsServicesWiringTest {
@@ -28,24 +28,24 @@ class GuildsServicesWiringTest {
         GuildsServices services = newServicesWithTempDataFolder();
 
         assertNotNull(services.getBroadcastService());
-        assertNotNull(services.getTownService());
+        assertNotNull(services.getGuildService());
         assertNotNull(services.getPermissionService());
         assertNotNull(services.getCommandRegistry());
         assertNotNull(services.getWebServer());
     }
 
     @Test
-    void cycleBreak_wiresPermissionServiceIntoTownService() throws Exception {
+    void cycleBreak_wiresPermissionServiceIntoGuildService() throws Exception {
         GuildsServices services = newServicesWithTempDataFolder();
 
-        TownService town = services.getTownService();
+        GuildService guild = services.getGuildService();
         PermissionService permission = services.getPermissionService();
 
         // The late-bound setter must have run: broadcast and permission
-        // evaluation depend on permissionService inside townService.
-        Field permissionField = TownServiceImpl.class.getDeclaredField("permissionService");
+        // evaluation depend on permissionService inside guildService.
+        Field permissionField = GuildServiceImpl.class.getDeclaredField("permissionService");
         permissionField.setAccessible(true);
-        assertSame(permission, permissionField.get(town));
+        assertSame(permission, permissionField.get(guild));
     }
 
     private static GuildsServices newServicesWithTempDataFolder() throws Exception {

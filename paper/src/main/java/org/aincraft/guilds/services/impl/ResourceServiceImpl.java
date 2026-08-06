@@ -6,10 +6,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.ResourceContribution;
 import org.aincraft.guilds.models.ResourceType;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownResource;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildResource;
 import org.aincraft.guilds.services.ResourceService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -31,40 +31,40 @@ import java.util.stream.Collectors;
 import java.util.Arrays;
 
 /**
- * Implementation of ResourceService for town resource management and contribution tracking
+ * Implementation of ResourceService for guild resource management and contribution tracking
  */
 
 public class ResourceServiceImpl implements ResourceService {
 
     private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
-    private final TownService townService;
+    private final GuildService guildService;
 
 
-    public ResourceServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager, TownService townService) {
+    public ResourceServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager, GuildService guildService) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
-        this.townService = townService;
+        this.guildService = guildService;
     }
 
     @Override
-    public Optional<TownResource> getTownResource(String townId, String resourceType) {
-        if (townId == null || resourceType == null || !isSupportedResourceType(resourceType)) {
+    public Optional<GuildResource> getGuildResource(String guildId, String resourceType) {
+        if (guildId == null || resourceType == null || !isSupportedResourceType(resourceType)) {
             return Optional.empty();
         }
 
         try {
-            String sql = "SELECT * FROM town_resources WHERE town_id = ? AND resource_type = ?";
+            String sql = "SELECT * FROM guild_resources WHERE guild_id = ? AND resource_type = ?";
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
-                statement.setString(1, townId);
+                statement.setString(1, guildId);
                 statement.setString(2, resourceType.toLowerCase());
 
                 try (ResultSet resultSet = statement.executeQuery()) {
                     if (resultSet.next()) {
-                        TownResource resource = mapResultSetToTownResource(resultSet);
+                        GuildResource resource = mapResultSetToGuildResource(resultSet);
                         return Optional.of(resource);
                     }
                 }
@@ -78,24 +78,24 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public List<TownResource> getTownResources(String townId) {
-        List<TownResource> resources = new ArrayList<>();
+    public List<GuildResource> getGuildResources(String guildId) {
+        List<GuildResource> resources = new ArrayList<>();
 
-        if (townId == null) {
+        if (guildId == null) {
             return resources;
         }
 
         try {
-            String sql = "SELECT * FROM town_resources WHERE town_id = ? ORDER BY resource_type";
+            String sql = "SELECT * FROM guild_resources WHERE guild_id = ? ORDER BY resource_type";
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
-                statement.setString(1, townId);
+                statement.setString(1, guildId);
 
                 try (ResultSet resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
-                        TownResource resource = mapResultSetToTownResource(resultSet);
+                        GuildResource resource = mapResultSetToGuildResource(resultSet);
                         resources.add(resource);
                     }
                 }
@@ -109,15 +109,15 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public Map<String, TownResource> getTownResourceMap(Town town) {
-        Map<String, TownResource> resourceMap = new HashMap<>();
+    public Map<String, GuildResource> getGuildResourceMap(Guild guild) {
+        Map<String, GuildResource> resourceMap = new HashMap<>();
 
-        if (town == null) {
+        if (guild == null) {
             return resourceMap;
         }
 
-        List<TownResource> resources = getTownResources(town.getId());
-        for (TownResource resource : resources) {
+        List<GuildResource> resources = getGuildResources(guild.getId());
+        for (GuildResource resource : resources) {
             resourceMap.put(resource.getResourceType().getNormalizedName(), resource);
         }
 
@@ -125,27 +125,27 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public boolean addTownResources(String townId, String resourceType, int amount) {
-        if (townId == null || resourceType == null || amount <= 0 || !isSupportedResourceType(resourceType)) {
+    public boolean addGuildResources(String guildId, String resourceType, int amount) {
+        if (guildId == null || resourceType == null || amount <= 0 || !isSupportedResourceType(resourceType)) {
             return false;
         }
 
         try {
-            Optional<TownResource> existingResourceOpt = getTownResource(townId, resourceType);
+            Optional<GuildResource> existingResourceOpt = getGuildResource(guildId, resourceType);
 
             if (existingResourceOpt.isPresent()) {
                 // Update existing resource
-                TownResource resource = existingResourceOpt.get();
+                GuildResource resource = existingResourceOpt.get();
                 resource.addResources(amount);
 
-                String sql = "UPDATE town_resources SET amount = ?, last_updated = ? WHERE town_id = ? AND resource_type = ?";
+                String sql = "UPDATE guild_resources SET amount = ?, last_updated = ? WHERE guild_id = ? AND resource_type = ?";
 
                 try (Connection connection = databaseManager.getConnection();
                      PreparedStatement statement = connection.prepareStatement(sql)) {
 
                     statement.setInt(1, resource.getAmount());
                     statement.setString(2, LocalDateTime.now().toString());
-                    statement.setString(3, townId);
+                    statement.setString(3, guildId);
                     statement.setString(4, resourceType.toLowerCase());
 
                     int updatedRows = statement.executeUpdate();
@@ -154,7 +154,7 @@ public class ResourceServiceImpl implements ResourceService {
 
             } else {
                 // Create new resource entry
-                String sql = "INSERT INTO town_resources (id, town_id, resource_type, amount, last_updated) VALUES (?, ?, ?, ?, ?)";
+                String sql = "INSERT INTO guild_resources (id, guild_id, resource_type, amount, last_updated) VALUES (?, ?, ?, ?, ?)";
 
                 try (Connection connection = databaseManager.getConnection();
                      PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -164,11 +164,11 @@ public class ResourceServiceImpl implements ResourceService {
                         return false;
                     }
 
-                    TownResource newResource = new TownResource(townId, resType);
+                    GuildResource newResource = new GuildResource(guildId, resType);
                     newResource.addResources(amount);
 
                     statement.setString(1, newResource.getId());
-                    statement.setString(2, townId);
+                    statement.setString(2, guildId);
                     statement.setString(3, resType.getNormalizedName());
                     statement.setInt(4, newResource.getAmount());
                     statement.setString(5, newResource.getLastUpdated().toString());
@@ -185,17 +185,17 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public boolean removeTownResources(String townId, String resourceType, int amount) {
-        if (townId == null || resourceType == null || amount <= 0 || !isSupportedResourceType(resourceType)) {
+    public boolean removeGuildResources(String guildId, String resourceType, int amount) {
+        if (guildId == null || resourceType == null || amount <= 0 || !isSupportedResourceType(resourceType)) {
             return false;
         }
 
-        Optional<TownResource> resourceOpt = getTownResource(townId, resourceType);
+        Optional<GuildResource> resourceOpt = getGuildResource(guildId, resourceType);
         if (resourceOpt.isEmpty()) {
             return false;
         }
 
-        TownResource resource = resourceOpt.get();
+        GuildResource resource = resourceOpt.get();
         if (!resource.hasSufficientResources(amount)) {
             return false;
         }
@@ -203,14 +203,14 @@ public class ResourceServiceImpl implements ResourceService {
         try {
             resource.removeResources(amount);
 
-            String sql = "UPDATE town_resources SET amount = ?, last_updated = ? WHERE town_id = ? AND resource_type = ?";
+            String sql = "UPDATE guild_resources SET amount = ?, last_updated = ? WHERE guild_id = ? AND resource_type = ?";
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
                 statement.setInt(1, resource.getAmount());
                 statement.setString(2, LocalDateTime.now().toString());
-                statement.setString(3, townId);
+                statement.setString(3, guildId);
                 statement.setString(4, resourceType.toLowerCase());
 
                 int updatedRows = statement.executeUpdate();
@@ -224,8 +224,8 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public boolean hasSufficientResources(String townId, String resourceType, int requiredAmount) {
-        Optional<TownResource> resourceOpt = getTownResource(townId, resourceType);
+    public boolean hasSufficientResources(String guildId, String resourceType, int requiredAmount) {
+        Optional<GuildResource> resourceOpt = getGuildResource(guildId, resourceType);
         return resourceOpt.map(resource -> resource.hasSufficientResources(requiredAmount)).orElse(false);
     }
 
@@ -237,7 +237,7 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public List<ResourceContribution> getTownContributions(String townId) {
+    public List<ResourceContribution> getGuildContributions(String guildId) {
         // Implementation would fetch from database
         // For now, return empty list
         return List.of();
@@ -251,26 +251,26 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public List<ResourceContribution> getPlayerContributionsToTown(String townId, UUID contributorUuid) {
+    public List<ResourceContribution> getPlayerContributionsToGuild(String guildId, UUID contributorUuid) {
         // Implementation would fetch from database
         // For now, return empty list
         return List.of();
     }
 
     @Override
-    public Optional<ResourceContribution> recordResourceContribution(String townId, UUID contributorUuid, String resourceType, int amount) {
+    public Optional<ResourceContribution> recordResourceContribution(String guildId, UUID contributorUuid, String resourceType, int amount) {
         // Implementation would create and save to database
         // For now, create a contribution object without saving
         ResourceType resType = ResourceType.fromString(resourceType).orElse(null);
         if (resType == null) {
             return Optional.empty();
         }
-        ResourceContribution contribution = new ResourceContribution(townId, contributorUuid, resType, amount);
+        ResourceContribution contribution = new ResourceContribution(guildId, contributorUuid, resType, amount);
         return Optional.of(contribution);
     }
 
     @Override
-    public Map<String, Integer> calculateTotalContributionsByResource(String townId) {
+    public Map<String, Integer> calculateTotalContributionsByResource(String guildId) {
         Map<String, Integer> totals = new HashMap<>();
 
         // Implementation would sum from database
@@ -290,27 +290,27 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public List<ResourceContribution> getRecentContributions(String townId) {
+    public List<ResourceContribution> getRecentContributions(String guildId) {
         // Implementation would fetch recent contributions from database
         // For now, return empty list
         return List.of();
     }
 
     @Override
-    public ContributionStatistics getContributionStatistics(String townId) {
+    public ContributionStatistics getContributionStatistics(String guildId) {
         // Implementation would calculate real statistics
         return new ContributionStatistics(
                 0, // total contributors
                 0, // total contributions
-                calculateTotalContributionsByResource(townId), // resource totals
+                calculateTotalContributionsByResource(guildId), // resource totals
                 Map.of(), // top contributors
                 LocalDateTime.now() // last contribution
         );
     }
 
     @Override
-    public ContributionValidation validateContribution(Town town, UUID contributorUuid, String resourceType, int amount) {
-        if (town == null || contributorUuid == null || resourceType == null || amount <= 0) {
+    public ContributionValidation validateContribution(Guild guild, UUID contributorUuid, String resourceType, int amount) {
+        if (guild == null || contributorUuid == null || resourceType == null || amount <= 0) {
             return new ContributionValidation(false, "Invalid contribution parameters", false, false);
         }
 
@@ -318,8 +318,8 @@ public class ResourceServiceImpl implements ResourceService {
             return new ContributionValidation(false, "Unsupported resource type: " + resourceType, false, false);
         }
 
-        // Check if player is resident of the town
-        if (!town.isResident(contributorUuid)) {
+        // Check if player is resident of the guild
+        if (!guild.isResident(contributorUuid)) {
             return new ContributionValidation(false, "You are not a resident of this town", false, false);
         }
 
@@ -335,9 +335,9 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public ContributionResult processContribution(Town town, UUID contributorUuid, String resourceType, int amount) {
+    public ContributionResult processContribution(Guild guild, UUID contributorUuid, String resourceType, int amount) {
         // Validate contribution
-        ContributionValidation validation = validateContribution(town, contributorUuid, resourceType, amount);
+        ContributionValidation validation = validateContribution(guild, contributorUuid, resourceType, amount);
 
         if (!validation.isValid()) {
             return new ContributionResult(false, validation.getReason(), null, 0);
@@ -353,20 +353,20 @@ public class ResourceServiceImpl implements ResourceService {
                 return new ContributionResult(false, "Failed to remove resources from inventory", null, 0);
             }
 
-            // Add to town's resource bank
-            if (!addTownResources(town.getId(), resourceType, amount)) {
-                // Refund player if town resource addition failed
+            // Add to guild's resource bank
+            if (!addGuildResources(guild.getId(), resourceType, amount)) {
+                // Refund player if guild resource addition failed
                 addPlayerResources(contributorUuid, resourceType, amount);
                 return new ContributionResult(false, "Failed to add resources to town bank", null, 0);
             }
 
             // Record contribution
-            Optional<ResourceContribution> contributionOpt = recordResourceContribution(town.getId(), contributorUuid, resourceType, amount);
+            Optional<ResourceContribution> contributionOpt = recordResourceContribution(guild.getId(), contributorUuid, resourceType, amount);
 
             if (contributionOpt.isPresent()) {
-                // Update town's upgrade progress
-                town.contributeToUpgrade(resourceType, amount);
-                townService.updateTown(town);
+                // Update guild's upgrade progress
+                guild.contributeToUpgrade(resourceType, amount);
+                guildService.updateGuild(guild);
 
                 return new ContributionResult(true, "Successfully contributed " + amount + " " + resourceType, contributionOpt.get(), amount);
             } else {
@@ -403,18 +403,18 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     @Override
-    public boolean clearTownResourceData(String townId) {
-        if (townId == null) {
+    public boolean clearGuildResourceData(String guildId) {
+        if (guildId == null) {
             return false;
         }
 
         try {
-            String sql = "DELETE FROM town_resources WHERE town_id = ?";
+            String sql = "DELETE FROM guild_resources WHERE guild_id = ?";
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
-                statement.setString(1, townId);
+                statement.setString(1, guildId);
                 int deletedRows = statement.executeUpdate();
                 return deletedRows > 0;
             }
@@ -428,7 +428,7 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     public void resetAllResourceData() {
         try {
-            String sql = "DELETE FROM town_resources";
+            String sql = "DELETE FROM guild_resources";
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -443,15 +443,15 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     /**
-     * Map a ResultSet to a TownResource object
+     * Map a ResultSet to a GuildResource object
      */
-    private TownResource mapResultSetToTownResource(ResultSet resultSet) throws SQLException {
+    private GuildResource mapResultSetToGuildResource(ResultSet resultSet) throws SQLException {
         String resourceTypeStr = resultSet.getString("resource_type");
         ResourceType resourceType = ResourceType.fromString(resourceTypeStr).orElse(ResourceType.DIAMOND);
 
-        return new TownResource(
+        return new GuildResource(
                 resultSet.getString("id"),
-                resultSet.getString("town_id"),
+                resultSet.getString("guild_id"),
                 resourceType,
                 resultSet.getInt("amount"),
                 LocalDateTime.parse(resultSet.getString("last_updated"))

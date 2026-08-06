@@ -31,7 +31,7 @@ public class AddEconomyMigration implements DatabaseMigration {
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS economy_transactions (
                     id TEXT PRIMARY KEY,
-                    town_id TEXT,
+                    guild_id TEXT,
                     player_uuid TEXT,
                     type TEXT NOT NULL,
                     amount REAL NOT NULL,
@@ -40,7 +40,7 @@ public class AddEconomyMigration implements DatabaseMigration {
                 )
             """);
 
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_town ON economy_transactions(town_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_guild ON economy_transactions(guild_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_player ON economy_transactions(player_uuid)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_type ON economy_transactions(type)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_timestamp ON economy_transactions(timestamp)");

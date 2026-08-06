@@ -8,13 +8,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.plot.PlotTypeHandlerManager;
 import org.aincraft.guilds.plot.PlotTypeRegistry;
 import org.aincraft.guilds.services.PlotService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.ResidentService;
 
 import java.util.HashMap;
@@ -24,30 +24,30 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Listener for player movement events to handle town boundary notifications
+ * Listener for player movement events to handle guild boundary notifications
  */
 public class PlayerMovementListener implements Listener {
 
     private final JavaPlugin plugin;
     private final PlotService plotService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
     private final PlotTypeHandlerManager plotTypeHandlerManager;
     private final PlotTypeRegistry plotTypeRegistry;
 
-    // Track last known town for each player to detect boundary crossings
-    private final Map<UUID, String> lastTownByPlayer = new ConcurrentHashMap<>();
+    // Track last known guild for each player to detect boundary crossings
+    private final Map<UUID, String> lastGuildByPlayer = new ConcurrentHashMap<>();
 
     // Track last known plot type for each player to detect plot type changes
     private final Map<UUID, String> lastPlotTypeByPlayer = new ConcurrentHashMap<>();
 
 
-    public PlayerMovementListener(JavaPlugin plugin, PlotService plotService, TownService townService,
+    public PlayerMovementListener(JavaPlugin plugin, PlotService plotService, GuildService guildService,
                                   ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager,
                                   PlotTypeRegistry plotTypeRegistry) {
         this.plugin = plugin;
         this.plotService = plotService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
         this.plotTypeHandlerManager = plotTypeHandlerManager;
         this.plotTypeRegistry = plotTypeRegistry;
@@ -71,22 +71,22 @@ public class PlayerMovementListener implements Listener {
         }
 
         try {
-            // Get current location's town block
+            // Get current location's guild block
             int chunkX = event.getTo().getChunk().getX();
             int chunkZ = event.getTo().getChunk().getZ();
             String world = event.getTo().getWorld().getName();
 
-            Optional<TownBlock> townBlock = plotService.getTownBlock(chunkX, chunkZ, world);
-            String currentTownName = null;
+            Optional<GuildBlock> guildBlock = plotService.getGuildBlock(chunkX, chunkZ, world);
+            String currentGuildName = null;
             String plotInfo = null;
             String currentPlotType = null;
 
-            if (townBlock.isPresent()) {
-                // Player is in a town
-                TownBlock block = townBlock.get();
-                Optional<Town> town = townService.getTownById(block.getTownId());
-                if (town.isPresent()) {
-                    currentTownName = town.get().getName();
+            if (guildBlock.isPresent()) {
+                // Player is in a guild
+                GuildBlock block = guildBlock.get();
+                Optional<Guild> guild = guildService.getGuildById(block.getGuildId());
+                if (guild.isPresent()) {
+                    currentGuildName = guild.get().getName();
                     currentPlotType = block.getPlotType();
 
                     // Check if plot is owned by a resident
@@ -107,32 +107,32 @@ public class PlayerMovementListener implements Listener {
             }
 
             // Check if player crossed a boundary
-            String lastTownName = lastTownByPlayer.get(playerUuid);
+            String lastGuildName = lastGuildByPlayer.get(playerUuid);
             String lastPlotType = lastPlotTypeByPlayer.get(playerUuid);
 
-            if (lastTownName == null && currentTownName == null) {
+            if (lastGuildName == null && currentGuildName == null) {
                 // Still in wilderness, no change
                 return;
-            } else if (lastTownName == null && currentTownName != null) {
-                // Entering town from wilderness
+            } else if (lastGuildName == null && currentGuildName != null) {
+                // Entering guild from wilderness
                 String plotTypeName = getPlotTypeDisplayName(currentPlotType);
-                String message = ChatColor.GREEN + "Entering " + ChatColor.YELLOW + currentTownName +
+                String message = ChatColor.GREEN + "Entering " + ChatColor.YELLOW + currentGuildName +
                                ChatColor.DARK_GRAY + " - " + ChatColor.GREEN + plotTypeName;
                 sendActionBarMessage(player, message);
-            } else if (lastTownName != null && currentTownName == null) {
-                // Leaving town for wilderness
-                sendActionBarMessage(player, ChatColor.GRAY + "Leaving " + ChatColor.YELLOW + lastTownName + ChatColor.GRAY + " for Wilderness");
-            } else if (!lastTownName.equals(currentTownName)) {
-                // Moving between different towns
+            } else if (lastGuildName != null && currentGuildName == null) {
+                // Leaving guild for wilderness
+                sendActionBarMessage(player, ChatColor.GRAY + "Leaving " + ChatColor.YELLOW + lastGuildName + ChatColor.GRAY + " for Wilderness");
+            } else if (!lastGuildName.equals(currentGuildName)) {
+                // Moving between different guilds
                 String plotTypeName = getPlotTypeDisplayName(currentPlotType);
-                String message = ChatColor.GREEN + "Entering " + ChatColor.YELLOW + currentTownName +
+                String message = ChatColor.GREEN + "Entering " + ChatColor.YELLOW + currentGuildName +
                                ChatColor.DARK_GRAY + " - " + ChatColor.GREEN + plotTypeName;
                 sendActionBarMessage(player, message);
-            } else if (townBlock.isPresent()) {
-                // Same town - check if plot type changed
+            } else if (guildBlock.isPresent()) {
+                // Same guild - check if plot type changed
                 if (lastPlotType == null || !lastPlotType.equals(currentPlotType)) {
                     String plotTypeName = getPlotTypeDisplayName(currentPlotType);
-                    sendActionBarMessage(player, ChatColor.YELLOW + currentTownName + ChatColor.DARK_GRAY + " - " + ChatColor.GREEN + plotTypeName);
+                    sendActionBarMessage(player, ChatColor.YELLOW + currentGuildName + ChatColor.DARK_GRAY + " - " + ChatColor.GREEN + plotTypeName);
                 }
                 // Don't show ownership info if we just showed plot type
             }
@@ -140,29 +140,29 @@ public class PlayerMovementListener implements Listener {
             // Check for plot type changes and dispatch events
             if (lastPlotType != null && !lastPlotType.equals(currentPlotType)) {
                 // Player left the previous plot type
-                if (townBlock.isPresent()) {
-                    // Get the previous town block for the leave event
-                    Optional<TownBlock> lastTownBlockOpt = plotService.getTownBlock(
+                if (guildBlock.isPresent()) {
+                    // Get the previous guild block for the leave event
+                    Optional<GuildBlock> lastGuildBlockOpt = plotService.getGuildBlock(
                             event.getFrom().getChunk().getX(), event.getFrom().getChunk().getZ(), world);
-                    if (lastTownBlockOpt.isPresent()) {
-                        plotTypeHandlerManager.dispatchPlayerLeaveEvent(player, lastTownBlockOpt.get());
+                    if (lastGuildBlockOpt.isPresent()) {
+                        plotTypeHandlerManager.dispatchPlayerLeaveEvent(player, lastGuildBlockOpt.get());
                     }
                 }
             }
 
             if (currentPlotType != null && (lastPlotType == null || !lastPlotType.equals(currentPlotType))) {
                 // Player entered a new plot type
-                if (townBlock.isPresent()) {
-                    plotTypeHandlerManager.dispatchPlayerEnterEvent(player, townBlock.get());
+                if (guildBlock.isPresent()) {
+                    plotTypeHandlerManager.dispatchPlayerEnterEvent(player, guildBlock.get());
                 }
             }
 
             // Update tracking data
-            if (currentTownName != null) {
-                lastTownByPlayer.put(playerUuid, currentTownName);
+            if (currentGuildName != null) {
+                lastGuildByPlayer.put(playerUuid, currentGuildName);
             } else {
                 // Player is in wilderness, remove or set to null
-                lastTownByPlayer.remove(playerUuid);
+                lastGuildByPlayer.remove(playerUuid);
             }
 
             // Update last known plot type
@@ -198,7 +198,7 @@ public class PlayerMovementListener implements Listener {
      * Clean up stored data for offline players to prevent memory leaks
      */
     public void cleanupOfflinePlayer(UUID playerUuid) {
-        lastTownByPlayer.remove(playerUuid);
+        lastGuildByPlayer.remove(playerUuid);
         lastPlotTypeByPlayer.remove(playerUuid);
     }
 

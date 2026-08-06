@@ -1,7 +1,7 @@
 package org.aincraft.guilds.plot;
 
 
-import org.aincraft.guilds.models.TownBlock;
+import org.aincraft.guilds.models.GuildBlock;
 
 
 import java.util.Collection;
@@ -92,7 +92,7 @@ public class PlotTypeHandlerManager {
     /**
      * Dispatch player enter plot event
      */
-    public void dispatchPlayerEnterEvent(org.bukkit.entity.Player player, TownBlock plot) {
+    public void dispatchPlayerEnterEvent(org.bukkit.entity.Player player, GuildBlock plot) {
         String plotTypeName = plot.getPlotType();
         if (plotTypeName == null) {
             return;
@@ -126,7 +126,7 @@ public class PlotTypeHandlerManager {
     /**
      * Dispatch player leave plot event
      */
-    public void dispatchPlayerLeaveEvent(org.bukkit.entity.Player player, TownBlock plot) {
+    public void dispatchPlayerLeaveEvent(org.bukkit.entity.Player player, GuildBlock plot) {
         String plotTypeName = plot.getPlotType();
         if (plotTypeName == null) {
             return;
@@ -161,7 +161,7 @@ public class PlotTypeHandlerManager {
     /**
      * Dispatch plot type change event
      */
-    public void dispatchPlotTypeChangeEvent(org.bukkit.entity.Player player, TownBlock plot, String oldType, String newType) {
+    public void dispatchPlotTypeChangeEvent(org.bukkit.entity.Player player, GuildBlock plot, String oldType, String newType) {
         Optional<PlotTypeDefinition> definitionOpt = plotTypeRegistry.getPlotType(newType);
         if (!definitionOpt.isPresent()) {
             return;

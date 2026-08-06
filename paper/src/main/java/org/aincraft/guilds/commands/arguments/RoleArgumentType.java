@@ -119,9 +119,9 @@ public class RoleArgumentType implements CustomArgumentType<String, String> {
     }
 
     /**
-     * Check if a role is a town management role
+     * Check if a role is a guild management role
      */
-    public static boolean isTownManagementRole(String role) {
+    public static boolean isGuildManagementRole(String role) {
         switch (role.toLowerCase()) {
             case "mayor":
             case "assistant":

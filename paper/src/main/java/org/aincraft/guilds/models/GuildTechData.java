@@ -8,20 +8,20 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Encapsulates town tech tree data and logic.
- * Tracks which tech nodes a town has unlocked and when.
+ * Encapsulates guild tech tree data and logic.
+ * Tracks which tech nodes a guild has unlocked and when.
  */
-public class TownTechData {
+public class GuildTechData {
 
     private final Set<String> unlockedNodeIds;
     private final Map<String, LocalDateTime> unlockTimestamps;
 
-    public TownTechData() {
+    public GuildTechData() {
         this.unlockedNodeIds = new HashSet<>();
         this.unlockTimestamps = new HashMap<>();
     }
 
-    public TownTechData(Set<String> unlockedNodeIds, Map<String, LocalDateTime> unlockTimestamps) {
+    public GuildTechData(Set<String> unlockedNodeIds, Map<String, LocalDateTime> unlockTimestamps) {
         this.unlockedNodeIds = unlockedNodeIds != null ? new HashSet<>(unlockedNodeIds) : new HashSet<>();
         this.unlockTimestamps = unlockTimestamps != null ? new HashMap<>(unlockTimestamps) : new HashMap<>();
     }

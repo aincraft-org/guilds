@@ -1,8 +1,8 @@
 package org.aincraft.guilds.services;
 
 import org.aincraft.guilds.models.ResourceContribution;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownResource;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildResource;
 
 import java.util.List;
 import java.util.Map;
@@ -10,58 +10,58 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Service interface for town resource management and contribution tracking
+ * Service interface for guild resource management and contribution tracking
  */
 public interface ResourceService {
 
     /**
-     * Get a town's resource bank for a specific resource type
-     * @param townId Town ID
+     * Get a guild's resource bank for a specific resource type
+     * @param guildId Guild ID
      * @param resourceType Resource type (diamond, gold, iron, emerald, experience)
-     * @return Town resource if found
+     * @return Guild resource if found
      */
-    Optional<TownResource> getTownResource(String townId, String resourceType);
+    Optional<GuildResource> getGuildResource(String guildId, String resourceType);
 
     /**
-     * Get all resources in a town's resource bank
-     * @param townId Town ID
-     * @return List of town resources
+     * Get all resources in a guild's resource bank
+     * @param guildId Guild ID
+     * @return List of guild resources
      */
-    List<TownResource> getTownResources(String townId);
+    List<GuildResource> getGuildResources(String guildId);
 
     /**
-     * Get resources for a town by a player
-     * @param town Town to get resources for
-     * @return Map of resource types to town resources
+     * Get resources for a guild by a player
+     * @param guild Guild to get resources for
+     * @return Map of resource types to guild resources
      */
-    Map<String, TownResource> getTownResourceMap(Town town);
+    Map<String, GuildResource> getGuildResourceMap(Guild guild);
 
     /**
-     * Add resources to a town's resource bank
-     * @param townId Town ID
+     * Add resources to a guild's resource bank
+     * @param guildId Guild ID
      * @param resourceType Resource type
      * @param amount Amount to add
      * @return True if resources were added successfully
      */
-    boolean addTownResources(String townId, String resourceType, int amount);
+    boolean addGuildResources(String guildId, String resourceType, int amount);
 
     /**
-     * Remove resources from a town's resource bank
-     * @param townId Town ID
+     * Remove resources from a guild's resource bank
+     * @param guildId Guild ID
      * @param resourceType Resource type
      * @param amount Amount to remove
      * @return True if resources were removed successfully
      */
-    boolean removeTownResources(String townId, String resourceType, int amount);
+    boolean removeGuildResources(String guildId, String resourceType, int amount);
 
     /**
-     * Check if a town has sufficient resources
-     * @param townId Town ID
+     * Check if a guild has sufficient resources
+     * @param guildId Guild ID
      * @param resourceType Resource type
      * @param requiredAmount Required amount
-     * @return True if town has sufficient resources
+     * @return True if guild has sufficient resources
      */
-    boolean hasSufficientResources(String townId, String resourceType, int requiredAmount);
+    boolean hasSufficientResources(String guildId, String resourceType, int requiredAmount);
 
     /**
      * Get a specific resource contribution by ID
@@ -71,11 +71,11 @@ public interface ResourceService {
     Optional<ResourceContribution> getResourceContribution(String contributionId);
 
     /**
-     * Get all contributions for a town
-     * @param townId Town ID
+     * Get all contributions for a guild
+     * @param guildId Guild ID
      * @return List of resource contributions
      */
-    List<ResourceContribution> getTownContributions(String townId);
+    List<ResourceContribution> getGuildContributions(String guildId);
 
     /**
      * Get contributions made by a specific player
@@ -85,29 +85,29 @@ public interface ResourceService {
     List<ResourceContribution> getPlayerContributions(UUID contributorUuid);
 
     /**
-     * Get contributions made by a player to a specific town
-     * @param townId Town ID
+     * Get contributions made by a player to a specific guild
+     * @param guildId Guild ID
      * @param contributorUuid Contributor's UUID
-     * @return List of contributions by the player to the town
+     * @return List of contributions by the player to the guild
      */
-    List<ResourceContribution> getPlayerContributionsToTown(String townId, UUID contributorUuid);
+    List<ResourceContribution> getPlayerContributionsToGuild(String guildId, UUID contributorUuid);
 
     /**
-     * Record a resource contribution to a town
-     * @param townId Town ID
+     * Record a resource contribution to a guild
+     * @param guildId Guild ID
      * @param contributorUuid Contributor's UUID
      * @param resourceType Resource type
      * @param amount Amount contributed
      * @return Resource contribution record if successful
      */
-    Optional<ResourceContribution> recordResourceContribution(String townId, UUID contributorUuid, String resourceType, int amount);
+    Optional<ResourceContribution> recordResourceContribution(String guildId, UUID contributorUuid, String resourceType, int amount);
 
     /**
-     * Calculate total contributions for a town by resource type
-     * @param townId Town ID
+     * Calculate total contributions for a guild by resource type
+     * @param guildId Guild ID
      * @return Map of resource types to total contributed amounts
      */
-    Map<String, Integer> calculateTotalContributionsByResource(String townId);
+    Map<String, Integer> calculateTotalContributionsByResource(String guildId);
 
     /**
      * Calculate total contributions by a player
@@ -117,38 +117,38 @@ public interface ResourceService {
     Map<String, Integer> calculatePlayerContributions(UUID contributorUuid);
 
     /**
-     * Get recent contributions for a town (within last 24 hours)
-     * @param townId Town ID
+     * Get recent contributions for a guild (within last 24 hours)
+     * @param guildId Guild ID
      * @return List of recent contributions
      */
-    List<ResourceContribution> getRecentContributions(String townId);
+    List<ResourceContribution> getRecentContributions(String guildId);
 
     /**
-     * Get contribution statistics for a town
-     * @param townId Town ID
+     * Get contribution statistics for a guild
+     * @param guildId Guild ID
      * @return Contribution statistics
      */
-    ContributionStatistics getContributionStatistics(String townId);
+    ContributionStatistics getContributionStatistics(String guildId);
 
     /**
      * Validate a resource contribution before recording it
-     * @param town Town to contribute to
+     * @param guild Guild to contribute to
      * @param contributorUuid Contributor's UUID
      * @param resourceType Resource type
      * @param amount Amount to contribute
      * @return Validation result
      */
-    ContributionValidation validateContribution(Town town, UUID contributorUuid, String resourceType, int amount);
+    ContributionValidation validateContribution(Guild guild, UUID contributorUuid, String resourceType, int amount);
 
     /**
      * Process a resource contribution (validation + recording)
-     * @param town Town to contribute to
+     * @param guild Guild to contribute to
      * @param contributorUuid Contributor's UUID
      * @param resourceType Resource type
      * @param amount Amount to contribute
      * @return Contribution result
      */
-    ContributionResult processContribution(Town town, UUID contributorUuid, String resourceType, int amount);
+    ContributionResult processContribution(Guild guild, UUID contributorUuid, String resourceType, int amount);
 
     /**
      * Get all supported resource types
@@ -164,11 +164,11 @@ public interface ResourceService {
     boolean isSupportedResourceType(String resourceType);
 
     /**
-     * Clear all resource data for a town (for town deletion)
-     * @param townId Town ID
+     * Clear all resource data for a guild (for guild deletion)
+     * @param guildId Guild ID
      * @return True if data was cleared successfully
      */
-    boolean clearTownResourceData(String townId);
+    boolean clearGuildResourceData(String guildId);
 
     /**
      * Reset all resource data (for testing purposes)
@@ -220,7 +220,7 @@ public interface ResourceService {
     }
 
     /**
-     * Contribution statistics for a town
+     * Contribution statistics for a guild
      */
     class ContributionStatistics {
         private final int totalContributors;

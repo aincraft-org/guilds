@@ -5,7 +5,7 @@ import java.sql.Statement;
 
 /**
  * Migration to add plot type system with extensible registry
- * Creates table for storing plot type definitions and extends town_blocks
+ * Creates table for storing plot type definitions and extends guild_blocks
  */
 public class AddPlotTypeSystemMigration implements DatabaseMigration {
 
@@ -36,9 +36,9 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
                 )
             """);
 
-            // Extend town_blocks table with optional plot_type_definition reference
+            // Extend guild_blocks table with optional plot_type_definition reference
             statement.execute("""
-                ALTER TABLE town_blocks ADD COLUMN plot_type_definition TEXT DEFAULT NULL
+                ALTER TABLE guild_blocks ADD COLUMN plot_type_definition TEXT DEFAULT NULL
             """);
 
             // Insert built-in plot type definitions
@@ -147,7 +147,7 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
             // Create indexes for performance
             statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_plugin ON plot_type_definitions(plugin_name)");
             statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_enabled ON plot_type_definitions(is_enabled)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_town_blocks_plot_type_def ON town_blocks(plot_type_definition)");
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_plot_type_def ON guild_blocks(plot_type_definition)");
         }
     }
 

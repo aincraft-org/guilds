@@ -4,9 +4,9 @@ package org.aincraft.guilds.gui;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.models.TechTreeNode;
-import org.aincraft.guilds.models.Town;
+import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.TechTreeService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.ResidentService;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -42,25 +42,25 @@ public class TechTreeGUI implements Listener, InventoryHolder {
 
     private final JavaPlugin plugin;
     private final TechTreeService techTreeService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
-    /** Track which player is viewing which town's tree. */
-    private final Map<UUID, String> viewerTownIds = new WeakHashMap<>();
+    /** Track which player is viewing which guild's tree. */
+    private final Map<UUID, String> viewerGuildIds = new WeakHashMap<>();
 
 
     public TechTreeGUI(JavaPlugin plugin, TechTreeService techTreeService,
-                       TownService townService, ResidentService residentService) {
+                       GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
         this.techTreeService = techTreeService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
     /**
      * Open the tech tree GUI for a player.
      */
-    public void openTechTree(Player player, Town town) {
+    public void openTechTree(Player player, Guild guild) {
         List<TechTreeNode> allNodes = techTreeService.getAllNodes();
 
         Inventory inv = Bukkit.createInventory(this, ROWS * 9, TITLE);
@@ -79,8 +79,8 @@ public class TechTreeGUI implements Listener, InventoryHolder {
             int slot = node.getSlot();
             if (slot < 0 || slot >= ROWS * 9) continue;
 
-            boolean unlocked = techTreeService.isTechNodeUnlocked(town, node.getId());
-            boolean available = techTreeService.canUnlockNode(town, node.getId());
+            boolean unlocked = techTreeService.isTechNodeUnlocked(guild, node.getId());
+            boolean available = techTreeService.canUnlockNode(guild, node.getId());
 
             ItemStack item = createNodeItem(node, unlocked, available);
             inv.setItem(slot, item);
@@ -89,15 +89,15 @@ public class TechTreeGUI implements Listener, InventoryHolder {
         // Tech points display in bottom-right corner
         ItemStack infoItem = new ItemStack(Material.NETHER_STAR);
         ItemMeta infoMeta = infoItem.getItemMeta();
-        infoMeta.setDisplayName(ChatColor.LIGHT_PURPLE + "Tech Points: " + ChatColor.WHITE + town.getTechPoints());
+        infoMeta.setDisplayName(ChatColor.LIGHT_PURPLE + "Tech Points: " + ChatColor.WHITE + guild.getTechPoints());
         infoMeta.setLore(List.of(
-                ChatColor.GRAY + "Unlocked: " + ChatColor.GREEN + town.getTotalUnlockedTechNodes() + " nodes",
+                ChatColor.GRAY + "Unlocked: " + ChatColor.GREEN + guild.getTotalUnlockedTechNodes() + " nodes",
                 ChatColor.GRAY + "Click a " + ChatColor.YELLOW + "yellow" + ChatColor.GRAY + " node to unlock"
         ));
         infoItem.setItemMeta(infoMeta);
         inv.setItem(49, infoItem);
 
-        viewerTownIds.put(player.getUniqueId(), town.getId());
+        viewerGuildIds.put(player.getUniqueId(), guild.getId());
         player.openInventory(inv);
     }
 
@@ -191,30 +191,30 @@ public class TechTreeGUI implements Listener, InventoryHolder {
         if (event.getCurrentItem().getType() == Material.BLACK_STAINED_GLASS_PANE) return;
         if (event.getCurrentItem().getType() == Material.NETHER_STAR) return;
 
-        String townId = viewerTownIds.get(player.getUniqueId());
-        if (townId == null) return;
+        String guildId = viewerGuildIds.get(player.getUniqueId());
+        if (guildId == null) return;
 
-        Optional<Town> townOpt = townService.getTown(townId);
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(guildId);
+        if (guildOpt.isEmpty()) {
             player.sendMessage(ChatColor.RED + "Town not found.");
             player.closeInventory();
             return;
         }
 
-        Town town = townOpt.get();
+        Guild guild = guildOpt.get();
 
         // Determine which node was clicked by checking the slot
         int slot = event.getRawSlot();
         for (TechTreeNode node : techTreeService.getAllNodes()) {
             if (node.getSlot() == slot) {
-                if (techTreeService.isTechNodeUnlocked(town, node.getId())) {
+                if (techTreeService.isTechNodeUnlocked(guild, node.getId())) {
                     player.sendMessage(ChatColor.GREEN + node.getName() + " is already unlocked!");
-                } else if (techTreeService.canUnlockNode(town, node.getId())) {
-                    boolean success = techTreeService.unlockTechNode(town, node.getId());
+                } else if (techTreeService.canUnlockNode(guild, node.getId())) {
+                    boolean success = techTreeService.unlockTechNode(guild, node.getId());
                     if (success) {
                         player.sendMessage(ChatColor.GREEN + "✓ Unlocked " + node.getName() + "!");
                         // Refresh GUI
-                        openTechTree(player, town);
+                        openTechTree(player, guild);
                     } else {
                         player.sendMessage(ChatColor.RED + "Failed to unlock " + node.getName() + ".");
                     }

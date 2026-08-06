@@ -10,11 +10,11 @@ import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.models.Town;
-import org.aincraft.guilds.models.TownSpecialization;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildSpecialization;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.SpecializationService;
-import org.aincraft.guilds.services.TownService;
+import org.aincraft.guilds.services.GuildService;
 import org.bukkit.entity.Player;
 
 import java.util.Optional;
@@ -23,15 +23,15 @@ public class SpecializationBrigadierCommand {
 
     private final JavaPlugin plugin;
     private final SpecializationService specializationService;
-    private final TownService townService;
+    private final GuildService guildService;
     private final ResidentService residentService;
 
 
     public SpecializationBrigadierCommand(JavaPlugin plugin, SpecializationService specializationService,
-                                          TownService townService, ResidentService residentService) {
+                                          GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
         this.specializationService = specializationService;
-        this.townService = townService;
+        this.guildService = guildService;
         this.residentService = residentService;
     }
 
@@ -49,9 +49,9 @@ public class SpecializationBrigadierCommand {
                 .then(Commands.argument("type", StringArgumentType.string())
                         .suggests((ctx, builder) -> {
                             Player player = (Player) ctx.getSource().getSender();
-                            Town town = getPlayerTown(player);
-                            if (town != null) {
-                                specializationService.getAvailableSpecializations(town.getId())
+                            Guild guild = getPlayerGuild(player);
+                            if (guild != null) {
+                                specializationService.getAvailableSpecializations(guild.getId())
                                         .forEach(spec -> builder.suggest(spec.name().toLowerCase()));
                             }
                             return builder.buildFuture();
@@ -64,15 +64,15 @@ public class SpecializationBrigadierCommand {
         var sender = ctx.getSource().getSender();
         Player player = (Player) sender;
 
-        Town town = getPlayerTown(player);
-        if (town == null) {
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
             player.sendMessage(Component.text("You are not in a town!", NamedTextColor.RED));
             return 0;
         }
 
-        Optional<TownSpecialization> currentSpec = specializationService.getSpecialization(town.getId());
+        Optional<GuildSpecialization> currentSpec = specializationService.getSpecialization(guild.getId());
         if (currentSpec.isPresent()) {
-            TownSpecialization spec = currentSpec.get();
+            GuildSpecialization spec = currentSpec.get();
             player.sendMessage(Component.text("Current specialization: ", NamedTextColor.GREEN)
                     .append(Component.text(spec.getDisplayName(), NamedTextColor.GOLD)));
             player.sendMessage(Component.text(spec.getDescription(), NamedTextColor.GRAY));
@@ -80,21 +80,21 @@ public class SpecializationBrigadierCommand {
             player.sendMessage(Component.text("Your town has no specialization.", NamedTextColor.YELLOW));
         }
 
-        var availableSpecs = specializationService.getAvailableSpecializations(town.getId());
+        var availableSpecs = specializationService.getAvailableSpecializations(guild.getId());
         if (availableSpecs.isEmpty()) {
             player.sendMessage(Component.text("No specializations available at your town's level.", NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
         player.sendMessage(Component.text("Available specializations:", NamedTextColor.GREEN));
-        for (TownSpecialization spec : availableSpecs) {
+        for (GuildSpecialization spec : availableSpecs) {
             if (!currentSpec.isPresent() || spec != currentSpec.get()) {
                 player.sendMessage(Component.text("  - " + spec.getDisplayName() + ": ", NamedTextColor.YELLOW)
                         .append(Component.text(spec.getDescription(), NamedTextColor.GRAY)));
             }
         }
 
-        if (specializationService.canSpecialize(town.getId()) && currentSpec.isEmpty()) {
+        if (specializationService.canSpecialize(guild.getId()) && currentSpec.isEmpty()) {
             player.sendMessage(Component.text("Use /town specialize <type> to set a specialization", NamedTextColor.GOLD));
         }
 
@@ -105,24 +105,24 @@ public class SpecializationBrigadierCommand {
         var sender = ctx.getSource().getSender();
         Player player = (Player) sender;
 
-        Town town = getPlayerTown(player);
-        if (town == null) {
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
             player.sendMessage(Component.text("You are not in a town!", NamedTextColor.RED));
             return 0;
         }
 
-        Optional<Town> townOpt = townService.getTown(town.getId());
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(guild.getId());
+        if (guildOpt.isEmpty()) {
             player.sendMessage(Component.text("Failed to access town data", NamedTextColor.RED));
             return 0;
         }
 
-        if (!townOpt.get().getMayorUuid().equals(player.getUniqueId()) && !player.hasPermission("guilds.admin.specialize")) {
+        if (!guildOpt.get().getMayorUuid().equals(player.getUniqueId()) && !player.hasPermission("guilds.admin.specialize")) {
             player.sendMessage(Component.text("Only the town mayor can reset specializations!", NamedTextColor.RED));
             return 0;
         }
 
-        specializationService.removeSpecialization(town.getId());
+        specializationService.removeSpecialization(guild.getId());
         player.sendMessage(Component.text("Town specialization removed successfully", NamedTextColor.GREEN));
 
         return Command.SINGLE_SUCCESS;
@@ -133,58 +133,58 @@ public class SpecializationBrigadierCommand {
         Player player = (Player) sender;
 
         String type = StringArgumentType.getString(ctx, "type").toUpperCase();
-        TownSpecialization specialization = specializationService.fromString(type);
+        GuildSpecialization specialization = specializationService.fromString(type);
 
         if (specialization == null) {
             player.sendMessage(Component.text("Invalid specialization type!", NamedTextColor.RED));
             return 0;
         }
 
-        Town town = getPlayerTown(player);
-        if (town == null) {
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
             player.sendMessage(Component.text("You are not in a town!", NamedTextColor.RED));
             return 0;
         }
 
-        Optional<Town> townOpt = townService.getTown(town.getId());
-        if (townOpt.isEmpty()) {
+        Optional<Guild> guildOpt = guildService.getGuild(guild.getId());
+        if (guildOpt.isEmpty()) {
             player.sendMessage(Component.text("Failed to access town data", NamedTextColor.RED));
             return 0;
         }
 
-        if (!townOpt.get().getMayorUuid().equals(player.getUniqueId()) && !player.hasPermission("guilds.admin.specialize")) {
+        if (!guildOpt.get().getMayorUuid().equals(player.getUniqueId()) && !player.hasPermission("guilds.admin.specialize")) {
             player.sendMessage(Component.text("Only the town mayor can set specializations!", NamedTextColor.RED));
             return 0;
         }
 
-        if (!specializationService.canSpecialize(town.getId())) {
+        if (!specializationService.canSpecialize(guild.getId())) {
             player.sendMessage(Component.text("Your town cannot specialize yet! Requires level 10.", NamedTextColor.RED));
             return 0;
         }
 
-        var availableSpecs = specializationService.getAvailableSpecializations(town.getId());
+        var availableSpecs = specializationService.getAvailableSpecializations(guild.getId());
         if (!availableSpecs.contains(specialization)) {
             player.sendMessage(Component.text("This specialization is not available for your town!", NamedTextColor.RED));
             return 0;
         }
 
-        specializationService.setSpecialization(town.getId(), specialization);
+        specializationService.setSpecialization(guild.getId(), specialization);
         player.sendMessage(Component.text("Town specialization set to ", NamedTextColor.GREEN)
                 .append(Component.text(specialization.getDisplayName(), NamedTextColor.GOLD)));
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private Town getPlayerTown(Player player) {
-        String townName = residentService.getResident(player.getUniqueId())
-                .filter(resident -> resident.hasTown())
-                .map(org.aincraft.guilds.models.Resident::getTown)
+    private Guild getPlayerGuild(Player player) {
+        String guildName = residentService.getResident(player.getUniqueId())
+                .filter(resident -> resident.hasGuild())
+                .map(org.aincraft.guilds.models.Resident::getGuild)
                 .orElse(null);
 
-        if (townName == null) {
+        if (guildName == null) {
             return null;
         }
 
-        return townService.getTown(townName).orElse(null);
+        return guildService.getGuild(guildName).orElse(null);
     }
 }

@@ -1,6 +1,6 @@
 package org.aincraft.guilds.models;
 
-public enum TownQuestType {
+public enum GuildQuestType {
     RESOURCE_COLLECTION("Resource Collection", "Collect specific resources for your town"),
     BUILDING("Building", "Construct new buildings within your town"),
     POPULATION("Population", "Grow your town's population"),
@@ -10,7 +10,7 @@ public enum TownQuestType {
     private final String displayName;
     private final String description;
 
-    TownQuestType(String displayName, String description) {
+    GuildQuestType(String displayName, String description) {
         this.displayName = displayName;
         this.description = description;
     }
