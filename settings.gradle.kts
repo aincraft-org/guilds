@@ -5,4 +5,7 @@ plugins {
 
 rootProject.name = "azoth-territory"
 
-// Single Paper plugin: Guilds production sources live under root src/.
+// api: public contracts + value models (model, decree, registry, permission/economy contracts)
+// common: Paper-free shared implementation (persistence, economy, governance logic, web submodule)
+// paper: the single Paper plugin (Bukkit glue + integrated Guilds subsystem)
+include("api", "common", "paper")

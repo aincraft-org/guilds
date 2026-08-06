@@ -22,8 +22,22 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 ./gradlew build
 ```
 
+Multi-module Gradle layout (`api` / `common` / `paper`):
+
+- **`api/`** — public API: value models (`com.azoth.territory.model`), decree
+  effects (`…decree`), registries (`…registry`), and contracts
+  (`…permission` / `…economy` interfaces and DTOs). Pure Java; no Bukkit types.
+- **`common/`** — Paper-free shared implementation: persistence
+  (`…persist`), economy (`…economy`), governance logic (`…permission`),
+  and the JDK HTTP web submodule (`…web`, with its map UI under
+  `common/src/main/resources/web/`).
+- **`paper/`** — the single Paper plugin: main class, listeners, commands,
+  Vault/economy bridges, and the integrated Guilds subsystem
+  (`org.aincraft.guilds`, including `plugin.yml` / `config.yml` /
+  `guilds-config.yml` / `techtree.yml`).
+
 Produces the single Paper plugin JAR:
-`build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
+`paper/build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
 (shadow/fat jar with Guilds runtime libraries: HikariCP, SQLite, Caffeine, Javalin).
 
 ```bash
@@ -32,12 +46,13 @@ Produces the single Paper plugin JAR:
 
 ### Integrated Guilds subsystem
 
-Guilds production sources live under the root `src/main/java/org/aincraft/guilds/`
-tree and ship in the **same** plugin artifact as Azoth Territory. There is one
-`plugin.yml`, one main class (`com.azoth.territory.AzothTerritoryPlugin`), and
-that main enables both territory behavior and the guilds subsystem
-(commands via Paper Brigadier, listeners, plain constructor-wired services via
-the `GuildsServices` composition root).
+Guilds production sources live under the `paper/` module tree
+(`paper/src/main/java/org/aincraft/guilds/`) and ship in the **same** plugin
+artifact as Azoth Territory. There is one `plugin.yml`, one main class
+(`com.azoth.territory.AzothTerritoryPlugin`), and that main enables both
+territory behavior and the guilds subsystem (commands via Paper Brigadier,
+listeners, plain constructor-wired services via the `GuildsServices`
+composition root).
 
 Guilds defaults are packaged as `guilds-config.yml` and `techtree.yml` so they
 do not overwrite the territory `config.yml`. The historical `guilds/` directory
