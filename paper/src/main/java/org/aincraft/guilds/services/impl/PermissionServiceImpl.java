@@ -31,6 +31,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,6 +52,19 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     private final LocationService locationService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    /** Cache key for resident permission lookups. */
+    private record PermissionCacheKey(UUID residentUuid, String context, String contextId) {
+    }
+
+    /**
+     * Read cache for {@link #getResidentPermissions}. Every permission write
+     * (grant/revoke/set/plot-permission mutations) invalidates it wholesale —
+     * writes are rare admin operations, reads are the hot evaluation path.
+     */
+    private final Map<PermissionCacheKey, List<Permission>> permissionCache = new ConcurrentHashMap<>();
+    private final LongAdder cacheHits = new LongAdder();
+    private final LongAdder cacheMisses = new LongAdder();
 
 
     public PermissionServiceImpl(DatabaseManager databaseManager, Logger logger,
@@ -143,18 +158,96 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
         });
 
+        if (result[0]) {
+            invalidatePermissionCache();
+        }
         return result[0];
     }
 
     @Override
     public boolean revokePermission(UUID residentUuid, String permission, String context, String contextId) {
-        // This would remove a specific permission flag
-        // For now, return false as placeholder
-        return false;
+        final boolean[] changed = new boolean[1];
+
+        boolean txCommitted = databaseManager.executeTransaction(connection -> {
+            try {
+                String targetId = residentUuid.toString();
+
+                // Blank permission clears every row for this resident in the context
+                // (used by setPermissionSet to reset before re-granting).
+                if (permission == null || permission.isBlank()) {
+                    String deleteSql = "DELETE FROM permissions WHERE context = ? AND context_id = ? "
+                            + "AND target_type = 'resident' AND target_id = ?";
+                    try (PreparedStatement statement = connection.prepareStatement(deleteSql)) {
+                        statement.setString(1, context);
+                        statement.setString(2, contextId);
+                        statement.setString(3, targetId);
+                        changed[0] = statement.executeUpdate() > 0;
+                    }
+                    return;
+                }
+
+                // Clear a single named flag; drop the row when no flags remain.
+                String selectSql = "SELECT id, permissions_flags FROM permissions WHERE context = ? "
+                        + "AND context_id = ? AND target_type = 'resident' AND target_id = ?";
+                try (PreparedStatement select = connection.prepareStatement(selectSql)) {
+                    select.setString(1, context);
+                    select.setString(2, contextId);
+                    select.setString(3, targetId);
+                    try (ResultSet resultSet = select.executeQuery()) {
+                        if (!resultSet.next()) {
+                            return; // nothing granted yet — nothing to revoke
+                        }
+                        String rowId = resultSet.getString("id");
+                        int currentFlags = resultSet.getInt("permissions_flags");
+                        int flag = permissionBit(permission);
+                        if (flag == 0) {
+                            return; // unknown permission name — nothing to revoke
+                        }
+                        int newFlags = currentFlags & ~flag;
+                        if (newFlags == 0) {
+                            try (PreparedStatement delete = connection.prepareStatement(
+                                    "DELETE FROM permissions WHERE id = ?")) {
+                                delete.setString(1, rowId);
+                                changed[0] = delete.executeUpdate() > 0;
+                            }
+                        } else {
+                            try (PreparedStatement update = connection.prepareStatement(
+                                    "UPDATE permissions SET permissions_flags = ? WHERE id = ?")) {
+                                update.setInt(1, newFlags);
+                                update.setString(2, rowId);
+                                changed[0] = update.executeUpdate() > 0;
+                            }
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                logger.log(Level.SEVERE, "Failed to revoke permission for resident: " + residentUuid, e);
+                throw e; // propagate raw so executeTransaction rolls back
+            }
+        });
+
+        // Only invalidate when the transaction committed; a rolled-back revoke changes nothing.
+        if (txCommitted) {
+            invalidatePermissionCache();
+        }
+        return changed[0];
     }
 
     @Override
     public List<Permission> getResidentPermissions(UUID residentUuid, String context, String contextId) {
+        PermissionCacheKey key = new PermissionCacheKey(residentUuid, context, contextId);
+        List<Permission> cached = permissionCache.get(key);
+        if (cached != null) {
+            cacheHits.increment();
+            return cached;
+        }
+        cacheMisses.increment();
+        List<Permission> loaded = loadResidentPermissions(residentUuid, context, contextId);
+        permissionCache.put(key, loaded);
+        return loaded;
+    }
+
+    private List<Permission> loadResidentPermissions(UUID residentUuid, String context, String contextId) {
         String sql = "SELECT id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid " +
                     "FROM permissions WHERE context = ? AND context_id = ? AND (target_type = 'all' OR (target_type = 'resident' AND target_id = ?))";
 
@@ -246,6 +339,9 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
         });
 
+        if (result[0]) {
+            invalidatePermissionCache();
+        }
         return result[0];
     }
 
@@ -289,6 +385,9 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
         });
 
+        if (result[0]) {
+            invalidatePermissionCache();
+        }
         return result[0];
     }
 
@@ -832,10 +931,21 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     }
 
     /**
-     * Update permission flags based on permission name and value
+     * Bit value for a permission name, independent of grant/revoke direction.
+     * Unknown names yield 0 (no flag to set or clear).
+     */
+    private int permissionBit(String permission) {
+        return getPermissionFlag(permission, true);
+    }
+
+    /**
+     * Update permission flags based on permission name and value.
+     * Note: the false branch must use {@link #permissionBit}, not
+     * {@link #getPermissionFlag(permission, false)} (which is always 0 and
+     * would clear nothing).
      */
     private int updatePermissionFlag(int currentFlags, String permission, boolean value) {
-        int flag = getPermissionFlag(permission, value);
+        int flag = permissionBit(permission);
         if (value) {
             return currentFlags | flag; // Add flag
         } else {
@@ -1084,20 +1194,24 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public String getCacheStatistics() {
-        // Cache statistics would be implemented here
-        return "Cache statistics not implemented yet";
+        return "Permission cache: " + permissionCache.size() + " entries, "
+                + cacheHits.sum() + " hits, " + cacheMisses.sum() + " misses";
     }
 
     @Override
     public void clearCache() {
-        // Cache clearing would be implemented here
+        invalidatePermissionCache();
         logger.info("Permission cache cleared");
     }
 
     @Override
     public void clearResidentCache(UUID residentUuid) {
-        // Resident cache clearing would be implemented here
+        permissionCache.keySet().removeIf(key -> key.residentUuid().equals(residentUuid));
         logger.info("Permission cache cleared for resident: " + residentUuid);
+    }
+
+    private void invalidatePermissionCache() {
+        permissionCache.clear();
     }
 
     // ==================== GUILD TOGGLE METHODS (DELEGATED) ====================

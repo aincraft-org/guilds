@@ -5,9 +5,11 @@ package org.aincraft.guilds.services.impl;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildBlock;
+import org.aincraft.guilds.models.GuildPermission;
 import org.aincraft.guilds.models.Permission;
 import org.aincraft.guilds.models.PlotTypes;
 import org.aincraft.guilds.services.GuildService;
+import org.aincraft.guilds.services.PermissionService;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -38,6 +40,13 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     private final Logger logger;
     private final GuildService guildService;
 
+    /**
+     * Late-bound (the Guild/Permission/Plot service cycle): used to invalidate
+     * the permission read cache after plot-permission mutations, which write
+     * the permissions table outside PermissionServiceImpl.
+     */
+    private PermissionService permissionService;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 
@@ -46,6 +55,10 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
         this.dataSource = databaseManager.getDataSource();
         this.guildService = guildService;
         this.logger = logger;
+    }
+
+    public void setPermissionService(PermissionService permissionService) {
+        this.permissionService = permissionService;
     }
 
     @Override
@@ -868,6 +881,9 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             int rowsUpdated = statement.executeUpdate();
             if (rowsUpdated > 0) {
                 logger.info("Granted permission " + permissionFlag + " to " + targetType + ":" + targetId + " for plot " + plotId);
+                if (permissionService != null) {
+                    permissionService.clearCache();
+                }
                 return true;
             }
 
@@ -893,6 +909,9 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             int rowsDeleted = statement.executeUpdate();
             if (rowsDeleted > 0) {
                 logger.info("Revoked permission " + permissionFlag + " from " + targetType + ":" + targetId + " for plot " + plotId);
+                if (permissionService != null) {
+                    permissionService.clearCache();
+                }
                 return true;
             }
 

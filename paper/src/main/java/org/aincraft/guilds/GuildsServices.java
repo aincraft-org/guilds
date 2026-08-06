@@ -182,14 +182,16 @@ public class GuildsServices {
         GuildServiceImpl guildImpl = new GuildServiceImpl(databaseManager,
                 Logger.getLogger(GuildServiceImpl.class.getName()), residentService);
         guildService = guildImpl;
-        plotService = new PlotServiceImpl(databaseManager, guildService,
+        PlotServiceImpl plotImpl = new PlotServiceImpl(databaseManager, guildService,
                 Logger.getLogger(PlotServiceImpl.class.getName()));
+        plotService = plotImpl;
         locationService = new LocationServiceImpl(plotService, guildService);
         guildToggleService = new GuildToggleServiceImpl(locationService);
         permissionService = new PermissionServiceImpl(databaseManager,
                 Logger.getLogger(PermissionServiceImpl.class.getName()), plotService, guildService,
                 residentService, guildToggleService, locationService);
         guildImpl.setPermissionService(permissionService);
+        plotImpl.setPermissionService(permissionService);
 
         guildLevelService = new GuildLevelServiceImpl(plugin, databaseManager, guildService, guildLevelConfigLoader);
         resourceService = new ResourceServiceImpl(plugin, databaseManager, guildService);
