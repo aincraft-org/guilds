@@ -22,27 +22,26 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 ./gradlew build
 ```
 
-Produces `build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`.
+Produces the single Paper plugin JAR:
+`build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
+(shadow/fat jar with Guilds runtime libraries: Guice, HikariCP, SQLite, Caffeine, Javalin).
 
 ```bash
 ./gradlew test
 ```
 
-### Merged Guilds plugin
+### Integrated Guilds (Towny-style) subsystem
 
-The repository also contains the `guilds` Gradle subproject, a separately packaged
-Paper plugin for Towny-style towns, nations, plots, permissions, quests, and tech
-trees. Its source and full git history are under `guilds/`.
+Guilds production sources live under the root `src/main/java/org/aincraft/towny/`
+tree and ship in the **same** plugin artifact as Azoth Territory. There is one
+`plugin.yml`, one main class (`com.azoth.territory.AzothTerritoryPlugin`), and
+that main enables both territory behavior and the guilds/towny subsystem
+(commands via Paper Brigadier, listeners, Guice services).
 
-```bash
-./gradlew :guilds:compileJava
-./gradlew :guilds:shadowJar
-```
-
-The packaged artifact is `guilds/build/libs/Towny.jar`. The merged build uses the
-Foojay toolchain resolver to provision Java 26 for Guilds while Azoth Territory
-continues to target Java 21. The imported Guilds test sources include stale tests
-against removed APIs; production compilation and packaging are verified separately.
+Guilds defaults are packaged as `guilds-config.yml` and `techtree.yml` so they
+do not overwrite the territory `config.yml`. The historical `guilds/` directory
+may still hold docs/plans from the import; it is **not** a separately packaged
+plugin product.
 
 ## Spatial rules
 
