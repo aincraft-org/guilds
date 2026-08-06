@@ -4,7 +4,7 @@ group = "com.azoth"
 version = "1.0.0-SNAPSHOT"
 description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
 
-// Shared configuration for the api / common / paper modules.
+// Shared configuration for the api / common / web / paper modules.
 // Delivery unit stays the single shadowed Paper plugin JAR built by :paper.
 subprojects {
     apply(plugin = "java")

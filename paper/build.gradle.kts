@@ -7,6 +7,7 @@ description = "Azoth Territory Paper plugin — Bukkit glue, listeners, commands
 dependencies {
     implementation(project(":api"))
     implementation(project(":common"))
+    implementation(project(":web"))
 
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     // Compile-time only for the Vault economy bridge; Vault is a softdepend.

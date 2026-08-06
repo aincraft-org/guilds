@@ -6,6 +6,7 @@ plugins {
 rootProject.name = "azoth-territory"
 
 // api: public contracts + value models (model, decree, registry, permission/economy contracts)
-// common: Paper-free shared implementation (persistence, economy, governance logic, web submodule)
+// common: Paper-free shared implementation (persistence, economy, governance logic)
+// web: embedded map UI + territory REST API (JDK HttpServer; depends on common)
 // paper: the single Paper plugin (Bukkit glue + integrated Guilds subsystem)
-include("api", "common", "paper")
+include("api", "common", "web", "paper")
