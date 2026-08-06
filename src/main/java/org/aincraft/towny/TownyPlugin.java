@@ -50,6 +50,8 @@ public class TownyPlugin implements Listener {
     private TownToggleListener townToggleListener;
     private TownPublicAccessListener townPublicAccessListener;
     private TownBroadcastListener townBroadcastListener;
+    @Inject
+    private org.aincraft.towny.web.SessionManager sessionManager;
     private boolean enabled;
 
     @Inject
@@ -99,6 +101,9 @@ public class TownyPlugin implements Listener {
             } catch (Exception e) {
                 getLogger().log(Level.WARNING, "Error stopping guilds web server", e);
             }
+        }
+        if (sessionManager != null) {
+            sessionManager.shutdown();
         }
         getLogger().info("Guilds (Towny) subsystem has been disabled.");
     }
