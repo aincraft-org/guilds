@@ -35,9 +35,18 @@ TerritoryApiHandler ──► TerritoryRegistry (in-memory, gameplay)
   `resolve`, block protection) and for API reads.
 - Mutations (`PUT`/`DELETE` on `/api/territories*`, `/territory save`,
   plugin disable) persist through the repository.
+- **API mutations commit storage before memory**: `TerritoryApiHandler`
+  applies the mutation to a staged copy of the registry
+  (`new TerritoryRegistry()` + `replaceAll(registry.list())`), calls
+  `store.save(staged)`, and only on success swaps the live registry with
+  `replaceAll(staged.list())`. A failed remote save returns HTTP 500 and
+  leaves the live registry untouched — memory can never drift ahead of
+  PostgreSQL (the old `persistQuietly` best-effort path is removed).
 - The plugin picks the implementation at enable: `database.enabled: true` →
-  Postgres; otherwise the existing JSON store. If Postgres is unreachable at
-  enable, log SEVERE and fall back to JSON so the server still runs.
+  Postgres; otherwise the existing JSON store. There is **no silent fallback**:
+  if Postgres is configured but unreachable, the plugin logs SEVERE, loads no
+  territory data, and the web submodule does not start (fail loud — the web
+  thing must never silently serve JSON when Postgres was requested).
 
 ## Components (all in `common/`, Paper-free)
 
@@ -105,19 +114,24 @@ CREATE TABLE IF NOT EXISTS territories (
 
 - Field type `TerritoryStore store` → `TerritoryRepository store`.
 - Enable: build `DatabaseSettings`; if enabled, construct
-  `PostgresTerritoryRepository` (on failure: SEVERE log + JSON fallback).
+  `PostgresTerritoryRepository` — a failure throws, so `store` stays null and
+  the web submodule is gated on `store != null`. `TerritoryStore` is only ever
+  constructed when `database.enabled` is false.
 - Web server construction passes `new TerritoryJson()` instead of
   `store.json()` (the repository seam doesn't expose the codec).
-- Disable: `store.save(registry)` then `store.close()`.
+- Disable: `store.save(registry)` then `store.close()` (both guarded on
+  `store != null`).
 - `getStore()` return type widens to `TerritoryRepository`.
 
 ## Error handling
 
-- API mutations already swallow persistence errors
-  (`persistQuietly` → warning log); unchanged.
-- Boot with Postgres configured but unreachable: SEVERE log naming the host,
-  fall back to `territories.json` — the plugin stays playable and the web
-  submodule keeps serving (from JSON data).
+- API mutation persistence failure: the staged save throws → HTTP 500 with
+  the message; the live registry is never modified, so memory and PostgreSQL
+  cannot diverge (regression-tested in the web server suite).
+- Boot with Postgres configured but unreachable: SEVERE log naming the JDBC
+  URL, `store` stays null, no territory data is loaded, and the web submodule
+  is not started. The plugin itself keeps running (gameplay listeners still
+  attach with an empty registry) so the failure is visible, not silent.
 - Corrupt row during `loadInto` fails the load loudly (matches JSON behavior).
 
 ## Testing
@@ -130,6 +144,9 @@ CREATE TABLE IF NOT EXISTS territories (
   save, close releases the pool.
 - Existing web tests keep using the JSON store through the widened
   `Supplier<TerritoryRepository>` seam.
+- New web regression test: a `TerritoryRepository` stub whose `save` throws
+  `IOException` — `PUT /api/territories/{id}` and `DELETE` must return 500
+  **and** leave the live registry unchanged (no memory/DB divergence).
 - Verification: `./gradlew build` (all modules); optionally run the gated
   integration test against a throwaway Postgres container if Docker is
   available.
