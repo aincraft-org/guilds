@@ -31,7 +31,6 @@ permissions:
       guilds.nation.*: true
       guilds.chat.*: true
       guilds.techtree.*: true
-      guilds.blueprint.*: true
 
   guilds.town.*:
     description: All town-related permissions
@@ -122,10 +121,6 @@ permissions:
       guilds.nation.enemy: true
       guilds.nation.set: true
 
-  guilds.commands.blueprint:
-    description: Permission to use blueprint commands
-    default: true
-
   guilds.map:
     description: Permission to use guilds map commands
     default: true
@@ -152,7 +147,6 @@ permissions:
       guilds.admin.claim: true
       guilds.admin.bypass: true
       guilds.admin.nation: true
-      guilds.admin.blueprint: true
       guilds.admin.quest: true
 
   guilds.admin.plottype:

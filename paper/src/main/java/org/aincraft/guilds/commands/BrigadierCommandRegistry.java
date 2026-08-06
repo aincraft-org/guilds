@@ -9,7 +9,6 @@ import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSele
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.commands.brigadier.BlueprintBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.ChatBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.MapBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.NationBrigadierCommand;
@@ -51,7 +50,6 @@ public class BrigadierCommandRegistry {
     private final NationBrigadierCommand nationCommand;
     private final SpecializationBrigadierCommand specializationCommand;
     private final QuestBrigadierCommand questCommand;
-    private final BlueprintBrigadierCommand blueprintCommand;
 
     public BrigadierCommandRegistry(JavaPlugin plugin,
                                     GuildBrigadierCommand guildCommand,
@@ -67,8 +65,7 @@ public class BrigadierCommandRegistry {
                                     ChatBrigadierCommand chatCommand,
                                     NationBrigadierCommand nationCommand,
                                     SpecializationBrigadierCommand specializationCommand,
-                                    QuestBrigadierCommand questCommand,
-                                    BlueprintBrigadierCommand blueprintCommand) {
+                                    QuestBrigadierCommand questCommand) {
         this.plugin = plugin;
         this.guildCommand = guildCommand;
         this.plotCommand = plotCommand;
@@ -84,7 +81,6 @@ public class BrigadierCommandRegistry {
         this.nationCommand = nationCommand;
         this.specializationCommand = specializationCommand;
         this.questCommand = questCommand;
-        this.blueprintCommand = blueprintCommand;
     }
 
     public void registerCommands() {
@@ -136,9 +132,6 @@ public class BrigadierCommandRegistry {
             // Register new guild perm command
             commands.register(guildPermCommand.buildCommand());
 
-            // Register blueprint
-            commands.register(blueprintCommand.buildCommand());
-
             // Register tech tree command with alias
             commands.register(techTreeCommand.buildCommand());
         commands.register(Commands.literal("tt")
@@ -164,9 +157,6 @@ public class BrigadierCommandRegistry {
 
         // Register quest command with alias
         commands.register(questCommand.buildCommand());
-            commands.register(Commands.literal("bp")
-                .redirect(blueprintCommand.buildCommand())
-                .build());
         commands.register(Commands.literal("tq")
             .redirect(questCommand.buildCommand())
             .build());

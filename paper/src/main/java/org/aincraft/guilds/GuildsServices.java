@@ -1,7 +1,6 @@
 package org.aincraft.guilds;
 
 import org.aincraft.guilds.commands.BrigadierCommandRegistry;
-import org.aincraft.guilds.commands.brigadier.BlueprintBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.ChatBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.MapBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.NationBrigadierCommand;
@@ -32,7 +31,6 @@ import org.aincraft.guilds.listeners.GuildToggleListener;
 import org.aincraft.guilds.plot.PlotTypeHandlerManager;
 import org.aincraft.guilds.plot.PlotTypeRegistry;
 import org.aincraft.guilds.plot.PlotTypeRegistryImpl;
-import org.aincraft.guilds.services.BlueprintService;
 import org.aincraft.guilds.services.BroadcastService;
 import org.aincraft.guilds.services.ChatService;
 import org.aincraft.guilds.services.LocationService;
@@ -47,7 +45,6 @@ import org.aincraft.guilds.services.TechTreeService;
 import org.aincraft.guilds.services.GuildLevelService;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.GuildToggleService;
-import org.aincraft.guilds.services.impl.BlueprintServiceImpl;
 import org.aincraft.guilds.services.impl.BroadcastServiceImpl;
 import org.aincraft.guilds.services.impl.ChatServiceImpl;
 import org.aincraft.guilds.services.impl.LocationServiceImpl;
@@ -121,7 +118,6 @@ public class GuildsServices {
     private final ChatService chatService;
     private final NationService nationService;
     private final QuestService questService;
-    private final BlueprintService blueprintService;
 
     // Governance (guilds as local governments, nations as alliances)
     private final GuildsGovernanceSource governanceSource;
@@ -204,7 +200,6 @@ public class GuildsServices {
         nationService = new NationServiceImpl(plugin, databaseManager,
                 Logger.getLogger(NationServiceImpl.class.getName()), guildService);
         questService = new QuestServiceImpl(plugin, databaseManager);
-        blueprintService = new BlueprintServiceImpl(plugin, databaseManager);
 
         // Governance: guilds as local governments, nations as alliances
         governanceSource = new GuildsGovernanceSource(databaseManager, guildService, nationService,
@@ -258,12 +253,10 @@ public class GuildsServices {
         SpecializationBrigadierCommand specializationCommand = new SpecializationBrigadierCommand(plugin,
                 specializationService, guildService, residentService);
         QuestBrigadierCommand questCommand = new QuestBrigadierCommand(plugin, questService, guildService, residentService);
-        BlueprintBrigadierCommand blueprintCommand = new BlueprintBrigadierCommand(plugin, blueprintService,
-                guildService, residentService);
 
         commandRegistry = new BrigadierCommandRegistry(plugin, guildCommand, plotCommand, guildsGeneralCommand,
                 guildLevelCommand, mapCommand, permCommand, plotTypeCommand, guildBroadcastCommand, guildPermCommand,
-                techTreeCommand, chatCommand, nationCommand, specializationCommand, questCommand, blueprintCommand);
+                techTreeCommand, chatCommand, nationCommand, specializationCommand, questCommand);
     }
 
     /**
@@ -461,10 +454,6 @@ public class GuildsServices {
 
     public QuestService getQuestService() {
         return questService;
-    }
-
-    public BlueprintService getBlueprintService() {
-        return blueprintService;
     }
 
     public PlotTypeRegistry getPlotTypeRegistry() {

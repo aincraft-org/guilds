@@ -79,6 +79,10 @@ public class SchemaInitializer {
         // Rename legacy town* schema objects to guild* naming (idempotent for fresh installs)
         migrations.add(new AddGuildRenameMigration());
 
+        // Retire the removed blueprint feature (non-destructive: pins the
+        // schema version; any existing blueprints table is preserved)
+        migrations.add(new RetireBlueprintMigration());
+
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
     }
