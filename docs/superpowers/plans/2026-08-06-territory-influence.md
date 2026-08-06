@@ -1436,8 +1436,12 @@ class InfluenceEngineLifecycleTest {
     void declare_requiresEligibility() {
         setupEverfallContest();
         pushRivalToCap();
+        // Rival joins the owner's alliance (and leaves its own) — same-alliance
+        // guilds may not contest.
         source.putAlliance(new AllianceBody("northern-pact", "Northern Pact",
                 Government.anarchy(), List.of("everfall-town", "rival-guild")));
+        source.putAlliance(new AllianceBody("southern-pact", "Southern Pact",
+                Government.anarchy(), List.of()));
         assertEquals(DeclareStatus.NOT_ELIGIBLE,
                 engine.declare("everfall", "rival-guild", "m:rival-guild", now).status());
     }
@@ -1551,18 +1555,17 @@ class InfluenceEngineLifecycleTest {
         assertEquals(List.of("everfall->rival-guild"), persistedOwnership);
         // Owner rebound in the registry.
         assertEquals("rival-guild", territories.get("everfall").orElseThrow().governedByGuildId().orElseThrow());
-        // Bars reset, cooldown set, declaration gone, marker gone.
+        // Bars reset, cooldown set (starts at flip completion), declaration gone.
         TerritoryInfluenceState state = engine.influence("everfall").orElseThrow();
         assertTrue(state.bars().isEmpty());
         assertNull(state.declaration());
-        assertTrue(state.cooldownUntilEpochMs() > now);
-        assertEquals(now + config.postFlipCooldownEpochMs(), state.cooldownUntilEpochMs());
+        assertEquals(flipTime + config.postFlipCooldownEpochMs(), state.cooldownUntilEpochMs());
         // Journal final state persisted.
         TerritoryEntry persisted = store.load().entries.get("everfall");
         assertEquals("rival-guild", persisted.ownerGuildId);
         assertNull(persisted.pendingFlip);
         assertNull(persisted.declaration);
-        assertEquals(now + config.postFlipCooldownEpochMs(), persisted.cooldownUntilEpochMs);
+        assertEquals(flipTime + config.postFlipCooldownEpochMs(), persisted.cooldownUntilEpochMs);
     }
 
     @Test
@@ -1570,9 +1573,9 @@ class InfluenceEngineLifecycleTest {
         setupEverfallContest();
         pushRivalToCap();
         engine.declare("everfall", "rival-guild", "m:rival-guild", now);
-        // Attacker alliance dissolves before the flip.
-        source.putAlliance(new AllianceBody("northern-pact", "Northern Pact",
-                Government.anarchy(), List.of("everfall-town")));
+        // Attacker leaves its alliance before the flip — the takeover is void.
+        source.putAlliance(new AllianceBody("southern-pact", "Southern Pact",
+                Government.anarchy(), List.of()));
 
         List<InfluenceEngine.TerritoryFlip> flipped = engine.tickFlips(now + config.declareCountdownEpochMs());
 
@@ -1625,9 +1628,9 @@ class InfluenceEngineLifecycleTest {
         engine.declare("everfall", "rival-guild", "m:rival-guild", now);
         long flipTime = now + config.declareCountdownEpochMs();
 
-        // Alliance dissolves while the server was down.
-        source.putAlliance(new AllianceBody("northern-pact", "Northern Pact",
-                Government.anarchy(), List.of("everfall-town")));
+        // Attacker leaves its alliance while the server was down.
+        source.putAlliance(new AllianceBody("southern-pact", "Southern Pact",
+                Government.anarchy(), List.of()));
         freshEngine();
         List<InfluenceEngine.TerritoryFlip> flipped = engine.recover(flipTime);
 
@@ -2132,7 +2135,7 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
         if (marker.flipAtEpochMs() > nowEpochMs) {
             return; // not due yet; tickFlips will apply it
         }
-        if (!canContest(marker.oldOwnerGuildId(), marker.newOwnerGuildId())) {
+        if (oldOwnerStillOwns && !canContest(marker.oldOwnerGuildId(), marker.newOwnerGuildId())) {
             log.warning("Pending flip for " + territoryId + " voided: takeover no longer eligible");
             entry.pendingFlip = null;
             entry.cooldownUntilEpochMs = 0L;
@@ -2141,7 +2144,8 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
         }
         // oldOwnerStillOwns → step 2 (ownership) is still pending and
         // applyFlipCore performs it; newOwnerAlreadyOwns → step 2 already
-        // succeeded and applyFlipCore only finalizes (skips re-registering).
+        // succeeded and the takeover is committed — only finalization runs
+        // (no eligibility re-check: the new owner is already in place).
         applyFlipCore(entry, marker, flipped);
     }
 

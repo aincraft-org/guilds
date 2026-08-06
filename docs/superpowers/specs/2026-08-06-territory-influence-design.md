@@ -184,15 +184,13 @@ Recovery on load: if `pendingFlip` is present, check the territory's current
   is void: clear `pendingFlip`, write no cooldown, keep `declaration`
   cleared and `bars` reset, log. Never overwrite the new owner.
 
-In all non-void paths, revalidate eligibility (owner guild exists,
-attacker guild exists, both allied, alliances differ,
-`flipAtEpochMs <= now`) before applying:
-
-- Eligible → finalize (idempotent: re-registering the same owner is
-  harmless; the cooldown comes from the marker, so the new owner is never
-  left contestable).
-- Ineligible → cancel: clear `pendingFlip`, keep `declaration` cleared and
-  `bars` reset, write no cooldown, log.
+In the **equals `oldOwnerGuildId`** path only, revalidate eligibility (owner
+guild exists, attacker guild exists, both allied, alliances differ,
+`flipAtEpochMs <= now`) before applying; invalid → cancel (clear
+`pendingFlip`, keep `declaration` cleared and `bars` reset, write no
+cooldown, log). The **equals `newOwnerGuildId`** path skips revalidation —
+the takeover is already committed — and only finalizes (idempotent: the
+cooldown comes from the marker, so the new owner is never left contestable).
 
 The marker is written only at flip execution (`flipAt <= now` already
 holds), so recovery always completes, never re-arms, and never double-applies.

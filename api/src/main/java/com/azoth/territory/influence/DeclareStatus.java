@@ -9,5 +9,6 @@ public enum DeclareStatus {
     NOT_AUTHORIZED,
     RACE_ACTIVE,
     TERRITORY_UNKNOWN,
-    UNGOVERNABLE
+    UNGOVERNABLE,
+    STORAGE_ERROR
 }
