@@ -9,23 +9,32 @@ import com.azoth.territory.economy.SettlementResult;
 import com.azoth.territory.economy.SimulationTreasury;
 import com.azoth.territory.economy.TreasuryDebitResult;
 import com.azoth.territory.economy.VaultTreasury;
+import com.azoth.territory.influence.InfluenceConfig;
+import com.azoth.territory.influence.InfluenceConfigLoader;
+import com.azoth.territory.influence.InfluenceEngine;
+import com.azoth.territory.influence.InfluenceListener;
+import com.azoth.territory.influence.InfluenceStore;
 import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
 import com.azoth.territory.permission.BlockProtection;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.permission.GovernanceSource;
+import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.persist.TerritoryStore;
 import com.azoth.territory.persist.ReconciliationStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
 import com.azoth.territory.web.WebConfigLoader;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.guilds.GuildsServices;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.logging.Level;
 
 public final class AzothTerritoryPlugin extends JavaPlugin {
@@ -39,6 +48,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private BukkitEconomyBridge bukkitEconomyBridge;
     private ReconciliationStore reconciliationStore;
     private GuildsServices guilds;
+    private InfluenceEngine influenceEngine;
+    private InfluenceStore influenceStore;
 
     @Override
     public void onEnable() {
@@ -133,6 +144,38 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 "Registered territory protection listeners "
                         + "(break/place/fire/explosions/mob-spawn/entity-grief/interaction/pvp/teleport)");
 
+        // Territory influence race (accrual → declare → countdown flip).
+        InfluenceConfig influenceConfig = InfluenceConfigLoader.fromBukkit(getConfig());
+        if (influenceConfig.enabled()) {
+            try {
+                this.influenceStore = new InfluenceStore(
+                        getDataFolder().toPath().resolve("influence.json"));
+                this.influenceEngine = new InfluenceEngine(
+                        governance, influenceConfig, influenceStore,
+                        (territoryId, newOwnerGuildId) -> saveTerritories(),
+                        getLogger());
+                broadcastFlips(influenceEngine.recover(System.currentTimeMillis()));
+                getServer().getPluginManager().registerEvents(
+                        new InfluenceListener(governance, influenceEngine), this);
+                long flushTicks = Math.max(1, influenceConfig.flushSeconds() * 20L);
+                getServer().getScheduler().runTaskTimer(this, () -> {
+                    try {
+                        broadcastFlips(influenceEngine.tickFlips(System.currentTimeMillis()));
+                        influenceEngine.flush();
+                    } catch (IOException e) {
+                        getLogger().log(Level.SEVERE, "Failed to flush influence state", e);
+                    }
+                }, flushTicks, flushTicks);
+                getLogger().info("Territory influence race enabled (cap " + influenceConfig.cap() + ")");
+            } catch (Exception e) {
+                getLogger().log(Level.SEVERE, "Failed to start influence system — disabled", e);
+                this.influenceEngine = null;
+                this.influenceStore = null;
+            }
+        } else {
+            getLogger().info("Territory influence race disabled (influence.enabled=false)");
+        }
+
         TerritoryCommand cmd = new TerritoryCommand(this);
         var pluginCommand = getCommand("territory");
         if (pluginCommand != null) {
@@ -150,6 +193,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     public void onDisable() {
         disableGuildsSubsystem();
         stopWeb();
+        if (influenceEngine != null) {
+            try {
+                influenceEngine.flush();
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to flush influence state on disable", e);
+            }
+        }
         if (reconciliationStore != null && economyBridge != null) {
             try {
                 reconciliationStore.save(economyBridge.unresolvedTransactions());
@@ -270,6 +320,33 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
      */
     public GuildsServices getGuilds() {
         return guilds;
+    }
+
+    public InfluenceEngine getInfluenceEngine() {
+        return influenceEngine;
+    }
+
+    private void broadcastFlips(List<InfluenceEngine.TerritoryFlip> flips) {
+        for (InfluenceEngine.TerritoryFlip flip : flips) {
+            String oldName = resolveGuildName(flip.oldOwnerGuildId());
+            String newName = resolveGuildName(flip.newOwnerGuildId());
+            getServer().broadcast(Component.text(
+                    "The territory '" + flip.territoryId() + "' has been taken over by "
+                            + newName + " (formerly " + oldName + ")!", NamedTextColor.GOLD));
+            getLogger().info("Territory " + flip.territoryId() + " flipped "
+                    + oldName + " -> " + newName);
+        }
+    }
+
+    private String resolveGuildName(String guildId) {
+        if (governance != null && guildId != null) {
+            return governance.source().guild(guildId).map(GuildBody::name).orElse(guildId);
+        }
+        return guildId;
+    }
+
+    public String resolveGuildNameFor(String guildId) {
+        return resolveGuildName(guildId);
     }
 
     public TerritoryRegistry getRegistry() {

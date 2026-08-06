@@ -34,4 +34,19 @@ class PluginMetadataTest {
         assertNotNull(Class.forName("com.azoth.territory.AzothTerritoryPlugin"));
         assertNotNull(Class.forName("org.aincraft.guilds.GuildsServices"));
     }
+
+    @Test
+    void configYml_shipsInfluenceBlock() throws Exception {
+        try (InputStream in = Objects.requireNonNull(
+                getClass().getClassLoader().getResourceAsStream("config.yml"),
+                "config.yml missing from test classpath"
+        )) {
+            String yaml = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(yaml.contains("influence:"), "config.yml must ship the influence block");
+            assertTrue(yaml.contains("post-flip-cooldown-days: 7"),
+                    "config.yml must ship the post-flip cooldown default");
+            assertTrue(yaml.contains("declare-countdown-hours: 24"),
+                    "config.yml must ship the declare countdown default");
+        }
+    }
 }
