@@ -6,14 +6,6 @@ import com.google.inject.Singleton;
 import com.google.inject.name.Named;
 import org.aincraft.towny.TownyPlugin;
 import org.aincraft.towny.commands.BrigadierCommandRegistry;
-import org.aincraft.towny.commands.TownCommand;
-import org.aincraft.towny.commands.MapCommand;
-import org.aincraft.towny.commands.TownyGeneralCommand;
-import org.aincraft.towny.commands.TownLevelCommand;
-import org.aincraft.towny.commands.PlotCommand;
-import org.aincraft.towny.commands.PlotTypeCommand;
-import org.aincraft.towny.commands.PermCommand;
-import org.aincraft.towny.commands.TownBroadcastCommand;
 import org.aincraft.towny.commands.brigadier.*;
 import org.aincraft.towny.commands.arguments.*;
 import org.aincraft.towny.plot.PlotTypeRegistry;
@@ -88,20 +80,9 @@ public class TownyModule extends AbstractModule {
         // Bind broadcast service
         bind(BroadcastService.class).to(org.aincraft.towny.services.impl.BroadcastServiceImpl.class).asEagerSingleton();
 
-        // Bind plot type system services
-        bind(PlotTypeService.class).to(org.aincraft.towny.services.impl.PlotTypeServiceImpl.class).asEagerSingleton();
+        // Bind plot type system
         bind(PlotTypeRegistry.class).to(org.aincraft.towny.plot.PlotTypeRegistryImpl.class).asEagerSingleton();
         bind(PlotTypeHandlerManager.class).asEagerSingleton();
-
-        // Bind legacy command classes (for backwards compatibility during transition)
-        bind(TownCommand.class).asEagerSingleton();
-        bind(MapCommand.class).asEagerSingleton();
-        bind(TownyGeneralCommand.class).asEagerSingleton();
-        bind(TownLevelCommand.class).asEagerSingleton();
-        bind(PlotCommand.class).asEagerSingleton();
-        bind(PlotTypeCommand.class).asEagerSingleton();
-        bind(PermCommand.class).asEagerSingleton();
-        bind(TownBroadcastCommand.class).asEagerSingleton();
 
         // Bind Brigadier command registry
         bind(BrigadierCommandRegistry.class).asEagerSingleton();
