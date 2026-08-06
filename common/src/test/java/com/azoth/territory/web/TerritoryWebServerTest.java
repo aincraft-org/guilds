@@ -94,7 +94,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", true, "", true,
                 WebConfig.TlsSettings.disabled()
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
         assertTrue(server.isRunning());
 
@@ -152,7 +152,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", false, "", true,
                 WebConfig.TlsSettings.disabled()
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
 
         String body = """
@@ -189,7 +189,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", false, "secret-token", true,
                 WebConfig.TlsSettings.disabled()
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
 
         HttpURLConnection unauthorized = (HttpURLConnection) URI.create(
@@ -216,7 +216,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", false, "", true,
                 WebConfig.TlsSettings.of(ksPath, password)
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
 
         trustAllHttps();
