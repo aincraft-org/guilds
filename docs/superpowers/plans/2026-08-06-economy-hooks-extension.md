@@ -18,7 +18,7 @@
 - Expense journal writes `PENDING` before external debit and `DEBITED` only after success. A restart-visible `PENDING` is `RECONCILIATION_REQUIRED` and is never retried automatically.
 - Facility and expense files are backward-compatible: missing files load empty; writes use temporary-file replacement with atomic move where supported.
 - Write failing tests first, observe the expected failure, implement the smallest passing code, run focused and root tests, then commit each coherent task atomically.
-- Do not modify the unrelated `guilds` subproject.
+- Guilds/Towny sources live under the root `src/main/java/org/aincraft/towny/` tree — there is no separate `guilds` subproject to modify.
 
 ---
 
@@ -314,11 +314,12 @@ Verify `softdepend: [Vault]` remains present. Read the final facility/expense/Va
 
 ```bash
 ./gradlew build
-./gradlew :guilds:compileJava
-./gradlew :guilds:compileTestJava
 ```
 
-If the unrelated `guilds` test compilation remains broken, report that exact blocker without modifying Guilds sources.
+Guilds/Towny sources are merged into the root `src/main/java/org/aincraft/towny/`
+tree; there is no `:guilds:` subproject (historical `guilds/` tree was removed).
+Only `unzip -p build/libs/azoth-territory-1.0.0-SNAPSHOT.jar plugin.yml` (Step 3)
+and the root build apply.
 
 - [ ] **Step 5: Commit only any verification-driven fixes.**
 
