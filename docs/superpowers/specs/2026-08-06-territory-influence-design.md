@@ -218,13 +218,21 @@ holds), so recovery always completes, never re-arms, and never double-applies.
 - `InfluenceEngine implements InfluenceService` — all rules (§3–§5),
   thread-safe (synchronized mutations), constructed with
   `(TerritoryRegistry, GovernanceRegistry, InfluenceConfig)`.
+- `InfluenceConfig` — immutable value record carrying the full `influence:`
+  config block, field order: `enabled` (boolean; Paper constructs the engine
+  only when true), `cap`, `pvpKill`, `pveKill`, `blockBreak`, `blockPlace`,
+  `craft`, `defenderMultiplier`, `declareCountdownHours`,
+  `postFlipCooldownDays`, `flushSeconds`. Validation: `cap > 0`, source
+  values and `defenderMultiplier` non-negative, hours/days non-negative,
+  `flushSeconds > 0`; `defaults()` matches §12.
 - The public interface above is the external surface. The engine additionally
   exposes two methods used only by the Paper layer (not on the interface):
   `accrue(String territoryId, String guildId, InfluenceSource source,
-  long nowEpochMs)` — records an activity event (returns the updated bar or
-  `Optional.empty()` when ineligible) — and
+  long nowEpochMs, String victimGuildId)` — records an activity event
+  (returns the updated bar or `Optional.empty()` when ineligible; the PvP
+  victim's primary guild is passed for the same-alliance kill gate) — and
   `tickFlips(long nowEpochMs)` — applies due flips (§5.4) and returns the
-  number of territories flipped. The flip tick task, listener events, and
+  completed takeovers. The flip tick task, listener events, and
   load recovery call these; external consumers never do.
 - `InfluenceStore` — JSON persistence (§6), mirrors `FacilityStore`.
 - `InfluenceConfig` (pure values record) — parsed in paper from
