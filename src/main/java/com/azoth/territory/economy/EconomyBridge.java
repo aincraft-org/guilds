@@ -151,6 +151,25 @@ public class EconomyBridge {
         return mapSettlement(result, territoryId, good.get().id(), rate, taxAmount, payerId);
     }
     /**
+     * Reports a craft with an integration-supplied total gross value.
+     * Quantity is validated as metadata and never used to infer a price.
+     */
+    public TaxReport reportCraft(
+            UUID payerId,
+            String worldId,
+            int blockX,
+            int blockZ,
+            String outputGoodId,
+            int outputQuantity,
+            double grossValue
+    ) {
+        if (outputQuantity <= 0) {
+            return report(TaxOutcome.INVALID_QUANTITY, null, outputGoodId, 0.0, 0.0);
+        }
+        return reportSale(payerId, worldId, blockX, blockZ, outputGoodId, grossValue);
+    }
+
+    /**
      * Charges an externally scheduled settlement expense against its treasury.
      * The idempotency key makes retries safe across restarts.
      */

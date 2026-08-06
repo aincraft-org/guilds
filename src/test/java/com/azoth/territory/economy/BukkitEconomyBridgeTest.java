@@ -29,6 +29,13 @@ class BukkitEconomyBridgeTest {
             lastPayer = payerId;
             return new TaxReport(TaxOutcome.NO_TAX, null, goodId, 0.0, 0.0);
         }
+        @Override
+        public TaxReport reportCraft(UUID payerId, String worldId, int blockX, int blockZ,
+                                     String outputGoodId, int outputQuantity, double grossValue) {
+            lastPayer = payerId;
+            return new TaxReport(TaxOutcome.NO_TAX, null, outputGoodId, 0.0, 0.0);
+        }
+
     }
 
     private static final class RecordingRail implements PaymentRail {
@@ -65,4 +72,27 @@ class BukkitEconomyBridgeTest {
         assertEquals(TaxOutcome.NO_TAX, b.reportSale(null, "world", 1, 2, "carrot", 10.0).outcome());
         assertEquals(null, db.lastPayer);
     }
+    @Test
+    void delegatesCraftPayerUuid() {
+        UUID id = UUID.randomUUID();
+        OfflinePlayer op = mock(OfflinePlayer.class);
+        when(op.getUniqueId()).thenReturn(id);
+        CapturingBridge db = new CapturingBridge();
+        BukkitEconomyBridge b = new BukkitEconomyBridge(db);
+
+        b.reportCraft(op, "world", 1, 2, "carrot", 2, 10.0);
+
+        assertEquals(id, db.lastPayer);
+    }
+
+    @Test
+    void nullCraftPayerDelegatesNullUuid() {
+        CapturingBridge db = new CapturingBridge();
+        BukkitEconomyBridge b = new BukkitEconomyBridge(db);
+
+        assertEquals(TaxOutcome.NO_TAX,
+                b.reportCraft(null, "world", 1, 2, "carrot", 2, 10.0).outcome());
+        assertEquals(null, db.lastPayer);
+    }
+
 }

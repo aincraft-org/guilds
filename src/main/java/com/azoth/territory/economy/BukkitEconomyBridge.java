@@ -29,4 +29,23 @@ public final class BukkitEconomyBridge {
                 goodId,
                 grossAmount);
     }
+    public TaxReport reportCraft(
+            OfflinePlayer payer,
+            String worldId,
+            int blockX,
+            int blockZ,
+            String outputGoodId,
+            int outputQuantity,
+            double grossValue
+    ) {
+        return delegate.reportCraft(
+                payer == null ? null : payer.getUniqueId(),
+                worldId,
+                blockX,
+                blockZ,
+                outputGoodId,
+                outputQuantity,
+                grossValue);
+    }
+
 }
