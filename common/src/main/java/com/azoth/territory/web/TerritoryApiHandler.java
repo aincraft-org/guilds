@@ -44,6 +44,8 @@ public final class TerritoryApiHandler implements HttpHandler {
     private final Supplier<TerritoryRepository> storeSupplier;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Logger log;
+    /** Serializes stage → save → replace so concurrent mutations cannot clobber each other. */
+    private final Object mutationLock = new Object();
 
     public TerritoryApiHandler(
             WebConfig config,
@@ -241,8 +243,12 @@ public final class TerritoryApiHandler implements HttpHandler {
     private void upsertBody(HttpExchange exchange) throws IOException {
         String body = HttpResponses.readBody(exchange);
         Territory t = json.fromJsonString(body);
-        registry.register(t);
-        persistQuietly();
+        synchronized (mutationLock) {
+            TerritoryRegistry staged = stagedCopy();
+            staged.register(t);
+            persistOrThrow(staged);
+            registry.replaceAll(staged.list());
+        }
         HttpResponses.json(exchange, 200, json.gson().toJson(json.toJson(t)), config);
     }
 
@@ -255,18 +261,25 @@ public final class TerritoryApiHandler implements HttpHandler {
             throw new IllegalArgumentException("path id does not match body id");
         }
         Territory t = json.fromJson(o);
-        registry.register(t);
-        persistQuietly();
+        synchronized (mutationLock) {
+            TerritoryRegistry staged = stagedCopy();
+            staged.register(t);
+            persistOrThrow(staged);
+            registry.replaceAll(staged.list());
+        }
         HttpResponses.json(exchange, 200, json.gson().toJson(json.toJson(t)), config);
     }
 
     private void delete(HttpExchange exchange, String id) throws IOException {
-        boolean removed = registry.unregister(id);
-        if (!removed) {
-            HttpResponses.notFound(exchange, config);
-            return;
+        synchronized (mutationLock) {
+            TerritoryRegistry staged = stagedCopy();
+            if (!staged.unregister(id)) {
+                HttpResponses.notFound(exchange, config);
+                return;
+            }
+            persistOrThrow(staged);
+            registry.replaceAll(staged.list());
         }
-        persistQuietly();
         HttpResponses.noContent(exchange, config);
     }
 
@@ -301,16 +314,23 @@ public final class TerritoryApiHandler implements HttpHandler {
         HttpResponses.json(exchange, 200, json.gson().toJson(o), config);
     }
 
-    private void persistQuietly() {
+    /**
+     * Copy of the live registry for a staged mutation. The copy is persisted
+     * first; only a successful save swaps it into {@link #registry}, so a
+     * failed remote save can never leave memory ahead of the store.
+     */
+    private TerritoryRegistry stagedCopy() {
+        TerritoryRegistry next = new TerritoryRegistry();
+        next.replaceAll(registry.list());
+        return next;
+    }
+
+    private void persistOrThrow(TerritoryRegistry staged) throws IOException {
         TerritoryRepository store = storeSupplier.get();
         if (store == null) {
-            return;
+            throw new IllegalStateException("no territory store configured — mutations disabled");
         }
-        try {
-            store.save(registry);
-        } catch (IOException e) {
-            log.log(Level.WARNING, "Failed to persist after API mutation", e);
-        }
+        store.save(staged);
     }
 
     static String normalizePath(String path) {
