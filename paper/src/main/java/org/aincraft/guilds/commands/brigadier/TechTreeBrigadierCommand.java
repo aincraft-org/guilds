@@ -7,7 +7,6 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.gui.TechTreeGUI;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.aincraft.guilds.models.TechTreeBranch;
@@ -15,12 +14,6 @@ import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.TechTreeService;
 import org.aincraft.guilds.services.GuildService;
-import org.aincraft.guilds.web.SessionManager;
-import org.aincraft.guilds.web.WebServerConfig;
-import org.aincraft.guilds.web.TechTreeSession;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
-import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -37,26 +30,19 @@ import java.util.Optional;
  */
 public class TechTreeBrigadierCommand {
 
-    private final JavaPlugin plugin;
     private final TechTreeService techTreeService;
     private final GuildService guildService;
     private final ResidentService residentService;
     private final TechTreeGUI techTreeGUI;
-    private final SessionManager sessionManager;
-    private final WebServerConfig webServerConfig;
 
 
-    public TechTreeBrigadierCommand(JavaPlugin plugin, TechTreeService techTreeService,
+    public TechTreeBrigadierCommand(TechTreeService techTreeService,
                                     GuildService guildService, ResidentService residentService,
-                                    TechTreeGUI techTreeGUI, SessionManager sessionManager,
-                                    WebServerConfig webServerConfig) {
-        this.plugin = plugin;
+                                    TechTreeGUI techTreeGUI) {
         this.techTreeService = techTreeService;
         this.guildService = guildService;
         this.residentService = residentService;
         this.techTreeGUI = techTreeGUI;
-        this.sessionManager = sessionManager;
-        this.webServerConfig = webServerConfig;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -101,8 +87,6 @@ public class TechTreeBrigadierCommand {
                         return builder.buildFuture();
                     })
                     .executes(this::handleListBranch)))
-            .then(Commands.literal("web")
-                .executes(this::handleWeb))
             .build();
     }
 
@@ -301,34 +285,4 @@ public class TechTreeBrigadierCommand {
                 .orElse(null);
     }
 
-    private int handleWeb(CommandContext<CommandSourceStack> ctx) {
-        var sender = ctx.getSource().getSender();
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(net.kyori.adventure.text.Component.text("This command can only be used by players.",
-                    net.kyori.adventure.text.format.NamedTextColor.RED));
-            return 0;
-        }
-
-        Guild guild = getPlayerGuild(sender);
-        if (guild == null) {
-            player.sendMessage(net.kyori.adventure.text.Component.text("You must be in a town to use the web tech tree.",
-                    net.kyori.adventure.text.format.NamedTextColor.RED));
-            return 0;
-        }
-
-        TechTreeSession session = sessionManager.createSession(player, guild);
-        String host = plugin.getServer().getIp().isEmpty() ? "localhost" : plugin.getServer().getIp();
-        String port = String.valueOf(webServerConfig.getPort());
-        String url = "https://guilds-techtree.vercel.app/s/" + session.getSessionId() + "?host=" + host + ":" + port;
-
-        player.sendMessage(net.kyori.adventure.text.Component.text("🌿 Tech Tree Web Interface", net.kyori.adventure.text.format.NamedTextColor.GREEN));
-        player.sendMessage(net.kyori.adventure.text.Component.text("Click to open: ", net.kyori.adventure.text.format.NamedTextColor.GRAY)
-                .append(net.kyori.adventure.text.Component.text("[Open Tech Tree]", net.kyori.adventure.text.format.NamedTextColor.AQUA, net.kyori.adventure.text.format.TextDecoration.UNDERLINED)
-                        .clickEvent(ClickEvent.openUrl(url))
-                        .hoverEvent(HoverEvent.showText(net.kyori.adventure.text.Component.text("Opens in your browser", net.kyori.adventure.text.format.NamedTextColor.GRAY)))));
-        player.sendMessage(net.kyori.adventure.text.Component.text("Session expires in " + webServerConfig.getSessionTimeoutMinutes() + " minutes.",
-                net.kyori.adventure.text.format.NamedTextColor.DARK_GRAY));
-
-        return Command.SINGLE_SUCCESS;
-    }
 }

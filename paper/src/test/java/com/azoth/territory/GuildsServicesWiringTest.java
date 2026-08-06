@@ -31,7 +31,6 @@ class GuildsServicesWiringTest {
         assertNotNull(services.getGuildService());
         assertNotNull(services.getPermissionService());
         assertNotNull(services.getCommandRegistry());
-        assertNotNull(services.getWebServer());
     }
 
     @Test

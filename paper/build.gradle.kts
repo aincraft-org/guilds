@@ -18,10 +18,7 @@ dependencies {
     // (HikariCP comes from :common via api)
     implementation("org.xerial:sqlite-jdbc:3.45.3.0")
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
-    implementation("io.javalin:javalin:6.3.0")
     implementation("org.slf4j:slf4j-simple:2.0.16")
-    // Gson also needed at runtime by Guilds web; Paper may provide it, but shade for self-containment
-    implementation("com.google.code.gson:gson:2.11.0")
 
     testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     testImplementation(platform("org.junit:junit-bom:5.11.4"))

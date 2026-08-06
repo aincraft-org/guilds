@@ -40,7 +40,7 @@ Multi-module Gradle layout (`api` / `common` / `paper`):
 
 Produces the single Paper plugin JAR:
 `paper/build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
-(shadow/fat jar with Guilds runtime libraries: HikariCP, SQLite, Caffeine, Javalin).
+(shadow/fat jar with Guilds runtime libraries: HikariCP, SQLite, Caffeine).
 
 ```bash
 ./gradlew test

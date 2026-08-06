@@ -59,9 +59,6 @@ import org.aincraft.guilds.services.impl.TechTreeServiceImpl;
 import org.aincraft.guilds.services.impl.GuildLevelServiceImpl;
 import org.aincraft.guilds.services.impl.GuildServiceImpl;
 import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
-import org.aincraft.guilds.web.SessionManager;
-import org.aincraft.guilds.web.WebServer;
-import org.aincraft.guilds.web.WebServerConfig;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -125,11 +122,6 @@ public class GuildsServices {
     // Plot types
     private final PlotTypeRegistry plotTypeRegistry;
     private final PlotTypeHandlerManager plotTypeHandlerManager;
-
-    // Web
-    private final WebServerConfig webServerConfig;
-    private final SessionManager sessionManager;
-    private final WebServer webServer;
 
     // GUI
     private final TechTreeGUI techTreeGUI;
@@ -210,12 +202,6 @@ public class GuildsServices {
         plotTypeHandlerManager = new PlotTypeHandlerManager(plotTypeRegistry,
                 Logger.getLogger(PlotTypeHandlerManager.class.getName()));
 
-        // Web
-        webServerConfig = WebServerConfig.loadFromConfig(config);
-        sessionManager = new SessionManager(webServerConfig, Logger.getLogger(SessionManager.class.getName()));
-        webServer = new WebServer(techTreeService, guildService, sessionManager, webServerConfig,
-                Logger.getLogger(WebServer.class.getName()));
-
         // GUI
         techTreeGUI = new TechTreeGUI(plugin, techTreeService, guildService, residentService);
 
@@ -230,8 +216,8 @@ public class GuildsServices {
         allianceListener = new AllianceListener(allianceService, guildService, residentService);
 
         // Commands (built before the registry, which owns them)
-        TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(plugin, techTreeService,
-                guildService, residentService, techTreeGUI, sessionManager, webServerConfig);
+        TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(techTreeService,
+                guildService, residentService, techTreeGUI);
         GuildBrigadierCommand guildCommand = new GuildBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, techTreeCommand, plotTypeRegistry, governanceSource);
         PlotBrigadierCommand plotCommand = new PlotBrigadierCommand(plugin, residentService, guildService,
@@ -260,17 +246,9 @@ public class GuildsServices {
     }
 
     /**
-     * Starts the guilds subsystem on the host plugin (web server, config sync, commands, listeners).
+     * Starts the guilds subsystem on the host plugin (config sync, commands, listeners).
      */
     public void enable() {
-        try {
-            webServer.start();
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Guilds subsystem failed to start — service wiring unavailable.", e);
-            enabled = false;
-            return;
-        }
-
         initializeServices();
         registerCommands();
         registerListeners();
@@ -279,20 +257,10 @@ public class GuildsServices {
     }
 
     /**
-     * Stops the guilds subsystem (web server, sessions).
+     * Stops the guilds subsystem.
      */
     public void disable() {
         enabled = false;
-        if (webServer != null) {
-            try {
-                webServer.stop();
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Error stopping guilds web server", e);
-            }
-        }
-        if (sessionManager != null) {
-            sessionManager.shutdown();
-        }
         plugin.getLogger().info("Guilds subsystem has been disabled.");
     }
 
@@ -473,18 +441,6 @@ public class GuildsServices {
 
     public PlotTypeHandlerManager getPlotTypeHandlerManager() {
         return plotTypeHandlerManager;
-    }
-
-    public WebServerConfig getWebServerConfig() {
-        return webServerConfig;
-    }
-
-    public SessionManager getSessionManager() {
-        return sessionManager;
-    }
-
-    public WebServer getWebServer() {
-        return webServer;
     }
 
     public TechTreeGUI getTechTreeGUI() {

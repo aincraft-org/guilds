@@ -7,8 +7,8 @@ description = "Azoth Territory shared implementation — Paper-free persistence,
 dependencies {
     api(project(":api"))
 
-    // Domain persistence + web payloads; Paper ships Gson at runtime but we
-    // shade it for self-containment (Guilds web uses it too).
+    // Domain persistence + territory web payloads; Paper ships Gson at runtime
+    // but we shade it for self-containment.
     implementation("com.google.code.gson:gson:2.11.0")
 
     // Remote PostgreSQL store for territory persistence. HikariCP is declared
