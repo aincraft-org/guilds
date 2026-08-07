@@ -34,7 +34,7 @@ public class AddBlueprintMigration implements DatabaseMigration {
                     name TEXT NOT NULL UNIQUE,
                     author_uuid TEXT NOT NULL,
                     guild_id TEXT NOT NULL,
-                    schematic_data BLOB,
+                    schematic_data BYTEA,
                     created_at TEXT NOT NULL
                 )
             """);
