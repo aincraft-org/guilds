@@ -4,6 +4,7 @@ import com.azoth.territory.permission.BlockProtection;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Location;
 import org.aincraft.guilds.services.GuildService;
+import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -18,6 +19,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -27,6 +29,7 @@ import static org.mockito.Mockito.when;
 class GuildHearthstoneServiceImplTest {
 
     private JavaPlugin plugin;
+    private Server server;
     private GuildService guildService;
     private BlockProtection blockProtection;
     private GuildHearthstoneServiceImpl service;
@@ -34,7 +37,7 @@ class GuildHearthstoneServiceImplTest {
     @BeforeEach
     void setUp() {
         plugin = mock(JavaPlugin.class);
-        org.bukkit.Server server = mock(org.bukkit.Server.class);
+        server = mock(Server.class);
         when(plugin.getServer()).thenReturn(server);
         guildService = mock(GuildService.class);
         blockProtection = mock(BlockProtection.class);
@@ -45,7 +48,7 @@ class GuildHearthstoneServiceImplTest {
     void teleport_denied_whenNoGuild() {
         UUID uuid = UUID.randomUUID();
         Player player = mock(Player.class);
-        when(plugin.getServer().getPlayer(uuid)).thenReturn(player);
+        when(server.getPlayer(uuid)).thenReturn(player);
         when(player.isOnline()).thenReturn(true);
         when(guildService.getAllGuilds()).thenReturn(List.of());
 
@@ -59,8 +62,9 @@ class GuildHearthstoneServiceImplTest {
     void teleport_denied_whenSpawnNotSet() {
         UUID uuid = UUID.randomUUID();
         Player player = mock(Player.class);
-        when(plugin.getServer().getPlayer(uuid)).thenReturn(player);
+        when(server.getPlayer(uuid)).thenReturn(player);
         when(player.isOnline()).thenReturn(true);
+        when(player.getUniqueId()).thenReturn(uuid);
         Guild guild = new Guild();
         guild.setId(UUID.randomUUID().toString());
         guild.setName("g");
@@ -79,8 +83,9 @@ class GuildHearthstoneServiceImplTest {
     void teleport_denied_whenDestinationProtected() {
         UUID uuid = UUID.randomUUID();
         Player player = mock(Player.class);
-        when(plugin.getServer().getPlayer(uuid)).thenReturn(player);
+        when(server.getPlayer(uuid)).thenReturn(player);
         when(player.isOnline()).thenReturn(true);
+        when(player.getUniqueId()).thenReturn(uuid);
         Guild guild = new Guild();
         guild.setId(UUID.randomUUID().toString());
         guild.setName("g");
@@ -96,8 +101,8 @@ class GuildHearthstoneServiceImplTest {
         model.setPitch(0);
         when(guildService.getGuildSpawn("g")).thenReturn(Optional.of(model));
         World world = mock(World.class);
-        when(plugin.getServer().getWorld("world")).thenReturn(world);
-        when(blockProtection.canTeleportInto(any(), any(), any(), any())).thenReturn(false);
+        when(server.getWorld("world")).thenReturn(world);
+        when(blockProtection.canTeleportInto(any(), anyInt(), anyInt(), any())).thenReturn(false);
 
         boolean result = service.teleportToGuildSpawn(uuid);
 
@@ -110,8 +115,9 @@ class GuildHearthstoneServiceImplTest {
     void teleport_success_setsCooldownAndTeleports() {
         UUID uuid = UUID.randomUUID();
         Player player = mock(Player.class);
-        when(plugin.getServer().getPlayer(uuid)).thenReturn(player);
+        when(server.getPlayer(uuid)).thenReturn(player);
         when(player.isOnline()).thenReturn(true);
+        when(player.getUniqueId()).thenReturn(uuid);
         Guild guild = new Guild();
         guild.setId(UUID.randomUUID().toString());
         guild.setName("g");
@@ -127,9 +133,9 @@ class GuildHearthstoneServiceImplTest {
         model.setPitch(0);
         when(guildService.getGuildSpawn("g")).thenReturn(Optional.of(model));
         World world = mock(World.class);
-        when(plugin.getServer().getWorld("world")).thenReturn(world);
+        when(server.getWorld("world")).thenReturn(world);
         org.bukkit.Location bukkit = new org.bukkit.Location(world, 0, 64, 0, 0, 0);
-        when(blockProtection.canTeleportInto(any(), any(), any(), any())).thenReturn(true);
+        when(blockProtection.canTeleportInto(any(), anyInt(), anyInt(), any())).thenReturn(true);
         when(player.teleport(any(org.bukkit.Location.class))).thenReturn(true);
 
         boolean result = service.teleportToGuildSpawn(uuid);
