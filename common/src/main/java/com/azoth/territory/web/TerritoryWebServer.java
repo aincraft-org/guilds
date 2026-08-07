@@ -79,10 +79,8 @@ public final class TerritoryWebServer implements AutoCloseable {
         TerritoryApiHandler api = new TerritoryApiHandler(
                 config, proxy, registry, json, store, influenceSupplier, log
         );
-        StaticWebHandler web = new StaticWebHandler(config);
 
         server.createContext("/api", api);
-        server.createContext("/", web);
 
         executor = Executors.newFixedThreadPool(
                 Math.max(2, Runtime.getRuntime().availableProcessors()),

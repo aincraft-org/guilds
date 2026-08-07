@@ -12,11 +12,11 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
   database; territory, influence, reconciliation, facilities, expenses, and
   Guilds tables share the same connection pool.
 - Admin command: `/territory [lookup|list|reload|save|web]`
-- **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
-  - Map UI at `/` (canvas viewer over chunk/polygon boundaries)
+- **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`) — REST API only:
   - REST API under `/api/*`
   - Optional **TLS** via PKCS12/JKS keystore
   - **Reverse-proxy** aware (`X-Forwarded-Proto/Host/For`, `X-Real-IP`, `public-base-url`)
+  - The interactive map is **squaremap** (see below), not the API port
 
 ## Build
 
@@ -31,8 +31,7 @@ Multi-module Gradle layout (`api` / `common` / `paper`):
   (`…permission` / `…economy` interfaces and DTOs). Pure Java; no Bukkit types.
 - **`common/`** — Paper-free shared implementation: persistence
   (`…persist`), economy (`…economy`), governance logic (`…permission`),
-  and the JDK HTTP web submodule (`…web`, with its map UI under
-  `common/src/main/resources/web/`).
+  and the JDK HTTP REST API submodule (`…web`).
 - **`paper/`** — the single Paper plugin: main class, listeners, commands,
   Vault/economy bridges, and the integrated Guilds subsystem
   (`org.aincraft.guilds`, including `plugin.yml` / `config.yml` /
@@ -302,7 +301,6 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/` | Map UI |
 | GET | `/api/health` | Liveness + territory count |
 | GET | `/api/meta` | Public origin, scheme, proxy/TLS flags |
 | GET | `/api/territories` | Full registry JSON |

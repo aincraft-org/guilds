@@ -1,6 +1,6 @@
 # Azoth Territory configuration
 
-# Embedded web submodule (map UI + REST API).
+# Embedded web submodule (REST API only; the map is served by squaremap).
 # Typical production: leave tls.enabled=false and terminate HTTPS on nginx/Caddy,
 # then reverse-proxy to this port with trust-proxy: true.
 web:

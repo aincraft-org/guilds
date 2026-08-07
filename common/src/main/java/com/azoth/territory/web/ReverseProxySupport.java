@@ -12,7 +12,7 @@ import java.util.Optional;
  * {@code X-Forwarded-*} headers when trust-proxy is enabled.
  * <p>
  * Typical deployment: nginx/Caddy terminates TLS and proxies to the embedded
- * plain HTTP port; the map UI and API still see the public HTTPS origin.
+ * plain HTTP port; the API still sees the public HTTPS origin.
  */
 public final class ReverseProxySupport {
     private final WebConfig config;

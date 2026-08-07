@@ -97,7 +97,7 @@ class TerritoryWebServerTest {
     }
 
     @Test
-    void httpApi_listResolveAndStaticUi() throws Exception {
+    void httpApi_listResolveAndProxyMeta() throws Exception {
         WebConfig cfg = new WebConfig(
                 true, "127.0.0.1", port, "", true, "", true,
                 WebConfig.TlsSettings.disabled()
@@ -128,11 +128,10 @@ class TerritoryWebServerTest {
         JsonObject outside = getJson("http://127.0.0.1:" + port + "/api/resolve?world=world&x=9000&z=9000");
         assertFalse(outside.get("contained").getAsBoolean());
 
-        // Static UI
-        String html = getText("http://127.0.0.1:" + port + "/");
-        assertTrue(html.contains("Azoth Territory"), "index.html should be served");
-        String js = getText("http://127.0.0.1:" + port + "/app.js");
-        assertTrue(js.contains("/api/territories"));
+        // The embedded map UI is gone — squaremap renders territories; root is a 404.
+        HttpURLConnection root = (HttpURLConnection) URI.create("http://127.0.0.1:" + port + "/")
+                .toURL().openConnection();
+        assertEquals(404, root.getResponseCode());
 
         // Reverse-proxy meta
         HttpURLConnection conn = (HttpURLConnection) URI.create("http://127.0.0.1:" + port + "/api/meta")
