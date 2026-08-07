@@ -70,13 +70,14 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
      * call; later calls are no-ops. Returns the resulting snapshot.
      */
     public GuildStorageSnapshot ensureBank(String guildId) throws IOException {
-        requireGuildId(guildId);
+        guildId = requireGuildId(guildId);
         try (Connection connection = database.connection()) {
             connection.setAutoCommit(false);
             try {
                 insertBank(connection, guildId);
-                insertTab(connection, guildId, GENERAL_TAB_ID, "General", 0, initialCapacitySlots);
-                insertPolicy(connection, guildId, GuildStoragePolicy.defaults());
+                insertInitialTab(connection, guildId, GENERAL_TAB_ID, "General", 0,
+                        initialCapacitySlots);
+                insertDefaultPolicy(connection, guildId, GuildStoragePolicy.defaults());
                 connection.commit();
             } catch (SQLException | RuntimeException e) {
                 rollback(connection);
@@ -90,9 +91,12 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
 
     /** Loads the full snapshot for a guild; empty tabs/slots with the default policy when no bank exists. */
     public GuildStorageSnapshot load(String guildId) throws IOException {
-        requireGuildId(guildId);
+        guildId = requireGuildId(guildId);
         try (Connection connection = database.connection()) {
-            List<StorageTab> tabs = new ArrayList<>();
+            connection.setAutoCommit(false);
+            connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+            try {
+                List<StorageTab> tabs = new ArrayList<>();
             try (PreparedStatement statement = connection.prepareStatement(
                     "SELECT tab_id, display_name, ordinal, capacity_slots, unlocked "
                             + "FROM guild_storage_tabs WHERE guild_id = ? ORDER BY ordinal")) {
@@ -140,7 +144,12 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
                     }
                 }
             }
-            return new GuildStorageSnapshot(guildId, tabs, occupiedSlots, policy);
+                connection.commit();
+                return new GuildStorageSnapshot(guildId, tabs, occupiedSlots, policy);
+            } catch (SQLException | RuntimeException e) {
+                rollback(connection);
+                throw e;
+            }
         } catch (SQLException | RuntimeException e) {
             throw new IOException("Failed to load guild storage for guild " + guildId, e);
         }
@@ -149,8 +158,8 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
     /** Upserts the guild policy idempotently and writes a MANAGE audit row atomically. */
     public StorageResult setPolicy(String guildId, GuildStoragePolicy policy,
                                    UUID actorUuid, String facilityId) throws IOException {
-        requireGuildId(guildId);
-        requireAudit(actorUuid, facilityId);
+        guildId = requireGuildId(guildId);
+        facilityId = requireAudit(actorUuid, facilityId);
         Objects.requireNonNull(policy, "policy");
         try (Connection connection = database.connection()) {
             connection.setAutoCommit(false);
@@ -178,8 +187,8 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
      */
     public StorageResult put(String guildId, StorageAddress address, OpaqueItemPayload payload,
                              UUID actorUuid, String facilityId) throws IOException {
-        requireGuildId(guildId);
-        requireAudit(actorUuid, facilityId);
+        guildId = requireGuildId(guildId);
+        facilityId = requireAudit(actorUuid, facilityId);
         Objects.requireNonNull(address, "address");
         StorageStatus validation = validatePayload(payload);
         if (validation != StorageStatus.SUCCESS) {
@@ -227,8 +236,8 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
      */
     public StorageWithdrawResult remove(String guildId, StorageAddress address,
                                         UUID actorUuid, String facilityId) throws IOException {
-        requireGuildId(guildId);
-        requireAudit(actorUuid, facilityId);
+        guildId = requireGuildId(guildId);
+        facilityId = requireAudit(actorUuid, facilityId);
         Objects.requireNonNull(address, "address");
         if (!guildId.equals(address.guildId())) {
             return new StorageWithdrawResult(StorageStatus.INVALID_ITEM,
@@ -284,11 +293,12 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
     public StorageResult unlockTab(String guildId, String tabId, String displayName,
                                    int ordinal, int capacitySlots,
                                    UUID actorUuid, String facilityId) throws IOException {
-        requireGuildId(guildId);
-        requireAudit(actorUuid, facilityId);
+        guildId = requireGuildId(guildId);
+        facilityId = requireAudit(actorUuid, facilityId);
         if (tabId == null || tabId.trim().isEmpty()) {
             return new StorageResult(StorageStatus.INVALID_ITEM, "Tab id must not be blank");
         }
+        tabId = tabId.trim();
         if (displayName == null) {
             return new StorageResult(StorageStatus.INVALID_ITEM, "Display name is required");
         }
@@ -322,19 +332,25 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
         return new StorageResult(StorageStatus.SUCCESS, "Tab unlocked");
     }
 
-    private static void requireGuildId(String guildId) {
+    /** Normalizes a guild id: rejects null/blank and returns the trimmed form. */
+    private static String requireGuildId(String guildId) {
         Objects.requireNonNull(guildId, "guildId");
-        if (guildId.trim().isEmpty()) {
+        String trimmed = guildId.trim();
+        if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("guildId must not be blank");
         }
+        return trimmed;
     }
 
-    private static void requireAudit(UUID actorUuid, String facilityId) {
+    /** Normalizes audit inputs: rejects null/blank facility and returns the trimmed form. */
+    private static String requireAudit(UUID actorUuid, String facilityId) {
         Objects.requireNonNull(actorUuid, "actorUuid");
         Objects.requireNonNull(facilityId, "facilityId");
-        if (facilityId.trim().isEmpty()) {
+        String trimmed = facilityId.trim();
+        if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("facilityId must not be blank");
         }
+        return trimmed;
     }
 
     /** Validates the payload fields before any SQL; never inspects item semantics. */
@@ -382,6 +398,24 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
         }
     }
 
+    /**
+     * Insert-only default policy creation: the explicit {@code setPolicy} upsert
+     * is the only operation that may change an existing policy, so repeated
+     * {@code ensureBank} calls never overwrite custom thresholds.
+     */
+    private static void insertDefaultPolicy(Connection connection, String guildId,
+                                            GuildStoragePolicy policy) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO guild_storage_policies (guild_id, deposit_rank, withdraw_rank, manage_rank, updated_at) "
+                        + "VALUES (?, ?, ?, ?, NOW()) ON CONFLICT (guild_id) DO NOTHING")) {
+            statement.setString(1, guildId);
+            statement.setString(2, policy.depositRank().name());
+            statement.setString(3, policy.withdrawRank().name());
+            statement.setString(4, policy.manageRank().name());
+            statement.executeUpdate();
+        }
+    }
+
     private static void insertTab(Connection connection, String guildId, String tabId,
                                   String displayName, int ordinal, int capacitySlots) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
@@ -392,6 +426,27 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
                         + "ordinal = EXCLUDED.ordinal, "
                         + "capacity_slots = EXCLUDED.capacity_slots, "
                         + "unlocked = TRUE")) {
+            statement.setString(1, guildId);
+            statement.setString(2, tabId);
+            statement.setString(3, displayName);
+            statement.setInt(4, ordinal);
+            statement.setInt(5, capacitySlots);
+            statement.executeUpdate();
+        }
+    }
+
+    /**
+     * Insert-only initial tab creation: existing tabs keep their capacity and
+     * metadata, so a changed constructor default only applies to the first
+     * bank/tab creation. Expansion via {@code unlockTab} keeps its explicit
+     * upsert semantics.
+     */
+    private static void insertInitialTab(Connection connection, String guildId, String tabId,
+                                         String displayName, int ordinal, int capacitySlots) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO guild_storage_tabs "
+                        + "(guild_id, tab_id, display_name, ordinal, capacity_slots, unlocked) "
+                        + "VALUES (?, ?, ?, ?, ?, TRUE) ON CONFLICT (guild_id, tab_id) DO NOTHING")) {
             statement.setString(1, guildId);
             statement.setString(2, tabId);
             statement.setString(3, displayName);

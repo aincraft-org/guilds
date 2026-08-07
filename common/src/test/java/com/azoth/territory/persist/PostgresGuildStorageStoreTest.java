@@ -76,6 +76,62 @@ class PostgresGuildStorageStoreTest {
     }
 
     @Test
+    void customPolicySurvivesRepeatedEnsureBank() throws Exception {
+        String guildId = uniqueGuild("policy");
+        GuildStoragePolicy custom = new GuildStoragePolicy(
+                StorageRank.ASSISTANT, StorageRank.MAYOR, StorageRank.MAYOR);
+
+        store.ensureBank(guildId);
+        assertEquals(StorageStatus.SUCCESS,
+                store.setPolicy(guildId, custom, UUID.randomUUID(), "facility-policy").status());
+
+        assertEquals(custom, store.ensureBank(guildId).policy());
+    }
+
+    @Test
+    void existingGeneralCapacityAndMetadataSurviveChangedDefault() throws Exception {
+        String guildId = uniqueGuild("capacity");
+        UUID actor = UUID.randomUUID();
+
+        store.ensureBank(guildId);
+        assertEquals(StorageStatus.SUCCESS,
+                store.unlockTab(guildId, "general", "Custom General", 0, 54,
+                        actor, "facility-capacity").status());
+
+        PostgresGuildStorageStore changedDefaults = new PostgresGuildStorageStore(database, 99, 54);
+        GuildStorageSnapshot loaded = changedDefaults.ensureBank(guildId);
+        StorageTab general = loaded.tabs().get(0);
+        assertEquals("Custom General", general.displayName());
+        assertEquals(54, general.capacitySlots());
+        assertEquals(0, general.ordinal());
+    }
+
+    @Test
+    void textualIdentifiersAreTrimmedAtStoreBoundary() throws Exception {
+        String guildId = uniqueGuild("trimmed");
+        String tabId = "tab-trimmed";
+        String facilityId = "facility-trimmed";
+        UUID actor = UUID.randomUUID();
+
+        store.ensureBank("  " + guildId + "  ");
+        assertEquals(StorageStatus.SUCCESS,
+                store.unlockTab(" " + guildId + " ", " " + tabId + " ",
+                        "Trimmed", 1, 54, actor, " " + facilityId + " ").status());
+        StorageAddress address = new StorageAddress(" " + guildId + " ", " " + tabId + " ", 0);
+        assertEquals(StorageStatus.SUCCESS,
+                store.put(" " + guildId + " ", address,
+                        new OpaqueItemPayload("schema", "{\"trimmed\":true}", "fp-trimmed"),
+                        actor, " " + facilityId + " ").status());
+
+        GuildStorageSnapshot loaded = store.load(" " + guildId + " ");
+        assertEquals(guildId, loaded.guildId());
+        assertTrue(loaded.tabs().stream().anyMatch(tab -> tab.id().equals(tabId)));
+        assertTrue(loaded.occupiedSlots().containsKey(new StorageAddress(guildId, tabId, 0)));
+        assertEquals(2, count("guild_storage_audit",
+                "guild_id = ? AND facility_id = ?", guildId, facilityId));
+    }
+
+    @Test
     void opaquePayloadPolicyTabUnlockAndAuditRoundTrip() throws Exception {
         String guildId = uniqueGuild("roundtrip");
         UUID actor = UUID.randomUUID();
