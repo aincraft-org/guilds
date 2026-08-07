@@ -23,5 +23,6 @@ class PostgresDatabaseTest {
         database = new PostgresDatabase(new DatabaseSettings(
                 "ignored", 5432, "ignored", "ignored", "", false, 5, url));
         database.initializeSchema();
+        database.initializeSchema();
     }
 }

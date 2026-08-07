@@ -19,7 +19,50 @@ public final class PostgresDatabase implements AutoCloseable {
             "CREATE TABLE IF NOT EXISTS influence_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
             "CREATE TABLE IF NOT EXISTS reconciliation_entries (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)",
             "CREATE TABLE IF NOT EXISTS facilities (id TEXT PRIMARY KEY, doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS expenses (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS expenses (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS guild_storage_banks ("
+                    + "guild_id TEXT PRIMARY KEY,"
+                    + "schema_version INTEGER NOT NULL,"
+                    + "created_at TIMESTAMPTZ NOT NULL,"
+                    + "updated_at TIMESTAMPTZ NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS guild_storage_tabs ("
+                    + "guild_id TEXT NOT NULL,"
+                    + "tab_id TEXT NOT NULL,"
+                    + "display_name TEXT NOT NULL,"
+                    + "ordinal INTEGER NOT NULL,"
+                    + "capacity_slots INTEGER NOT NULL CHECK (capacity_slots > 0),"
+                    + "unlocked BOOLEAN NOT NULL DEFAULT TRUE,"
+                    + "PRIMARY KEY (guild_id, tab_id),"
+                    + "UNIQUE (guild_id, ordinal),"
+                    + "FOREIGN KEY (guild_id) REFERENCES guild_storage_banks (guild_id) ON DELETE CASCADE)",
+            "CREATE TABLE IF NOT EXISTS guild_storage_slots ("
+                    + "guild_id TEXT NOT NULL,"
+                    + "tab_id TEXT NOT NULL,"
+                    + "slot_index INTEGER NOT NULL CHECK (slot_index >= 0),"
+                    + "item_schema TEXT NOT NULL,"
+                    + "item_fingerprint TEXT NOT NULL,"
+                    + "item_payload JSONB NOT NULL,"
+                    + "updated_at TIMESTAMPTZ NOT NULL,"
+                    + "PRIMARY KEY (guild_id, tab_id, slot_index),"
+                    + "FOREIGN KEY (guild_id, tab_id) REFERENCES guild_storage_tabs (guild_id, tab_id) ON DELETE CASCADE)",
+            "CREATE TABLE IF NOT EXISTS guild_storage_policies ("
+                    + "guild_id TEXT PRIMARY KEY,"
+                    + "deposit_rank TEXT NOT NULL,"
+                    + "withdraw_rank TEXT NOT NULL,"
+                    + "manage_rank TEXT NOT NULL,"
+                    + "updated_at TIMESTAMPTZ NOT NULL,"
+                    + "FOREIGN KEY (guild_id) REFERENCES guild_storage_banks (guild_id) ON DELETE CASCADE)",
+            "CREATE TABLE IF NOT EXISTS guild_storage_audit ("
+                    + "id BIGSERIAL PRIMARY KEY,"
+                    + "guild_id TEXT NOT NULL,"
+                    + "actor_uuid UUID NOT NULL,"
+                    + "operation TEXT NOT NULL,"
+                    + "tab_id TEXT NOT NULL,"
+                    + "slot_index INTEGER,"
+                    + "item_schema TEXT,"
+                    + "item_fingerprint TEXT,"
+                    + "facility_id TEXT NOT NULL,"
+                    + "created_at TIMESTAMPTZ NOT NULL)"
     };
 
     private final HikariDataSource dataSource;
