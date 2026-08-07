@@ -41,6 +41,9 @@ import java.util.UUID;
  */
 public final class GuildStorageServiceImpl implements GuildStorageService {
 
+    /** User-safe denial message shared by every facility-identity failure. */
+    private static final String WRONG_FACILITY_MESSAGE = "That is not the facility you are acting on";
+
     private final GuildService guildService;
     private final FacilityRegistry facilityRegistry;
     private final GovernanceRegistry governanceRegistry;
@@ -76,6 +79,7 @@ public final class GuildStorageServiceImpl implements GuildStorageService {
     public StorageResult deposit(UUID actor, StorageAddress address, OpaqueItemPayload payload,
                                  String facilityId, String world, int blockX, int blockY, int blockZ) {
         try {
+            requireFacilityId(facilityId);
             AuthorizedAccess access = authorize(actor, facilityId, world, blockX, blockY, blockZ);
             requireRank(loadPolicy(access.guildId()).depositRank(), access.rank(), "deposit");
             return store.put(access.guildId(), address, payload, actor, facilityId.trim());
@@ -91,6 +95,7 @@ public final class GuildStorageServiceImpl implements GuildStorageService {
                                           String facilityId, String world,
                                           int blockX, int blockY, int blockZ) {
         try {
+            requireFacilityId(facilityId);
             AuthorizedAccess access = authorize(actor, facilityId, world, blockX, blockY, blockZ);
             requireRank(loadPolicy(access.guildId()).withdrawRank(), access.rank(), "withdraw");
             return store.remove(access.guildId(), address, actor, facilityId.trim());
@@ -107,6 +112,7 @@ public final class GuildStorageServiceImpl implements GuildStorageService {
                                    String facilityId, String world,
                                    int blockX, int blockY, int blockZ) {
         try {
+            requireFacilityId(facilityId);
             AuthorizedAccess access = authorize(actor, facilityId, world, blockX, blockY, blockZ);
             requireTargetGuild(access, guildId);
             requireRank(loadPolicy(access.guildId()).manageRank(), access.rank(), "manage");
@@ -123,6 +129,7 @@ public final class GuildStorageServiceImpl implements GuildStorageService {
                                    int ordinal, int capacitySlots, String facilityId,
                                    String world, int blockX, int blockY, int blockZ) {
         try {
+            requireFacilityId(facilityId);
             AuthorizedAccess access = authorize(actor, facilityId, world, blockX, blockY, blockZ);
             requireTargetGuild(access, guildId);
             requireRank(loadPolicy(access.guildId()).manageRank(), access.rank(), "manage");
@@ -132,6 +139,18 @@ public final class GuildStorageServiceImpl implements GuildStorageService {
             return new StorageResult(denied.status(), denied.getMessage());
         } catch (IOException e) {
             return new StorageResult(StorageStatus.STORAGE_ERROR, "Storage is temporarily unavailable");
+        }
+    }
+
+    /**
+     * Rejects null or blank facility identity before any registry, policy, or
+     * store interaction. Mutations must always name the exact facility the
+     * actor is acting on; the resolved-facility equality check below is only
+     * meaningful for non-blank ids.
+     */
+    private static void requireFacilityId(String facilityId) {
+        if (facilityId == null || facilityId.trim().isEmpty()) {
+            throw new DeniedException(StorageStatus.WRONG_FACILITY, WRONG_FACILITY_MESSAGE);
         }
     }
 
@@ -151,8 +170,7 @@ public final class GuildStorageServiceImpl implements GuildStorageService {
                     StorageStatus.WRONG_FACILITY, "That facility is not guild storage");
         }
         if (expectedFacilityId != null && !facility.id().equals(expectedFacilityId.trim())) {
-            throw new DeniedException(
-                    StorageStatus.WRONG_FACILITY, "That is not the facility you are acting on");
+            throw new DeniedException(StorageStatus.WRONG_FACILITY, WRONG_FACILITY_MESSAGE);
         }
         GuildBody governing = governanceRegistry.governingGuildForTerritory(facility.territoryId())
                 .orElseThrow(() -> new DeniedException(

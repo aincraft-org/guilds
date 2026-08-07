@@ -253,6 +253,43 @@ class GuildStorageServiceImplTest {
         assertEquals(StorageStatus.WRONG_FACILITY, result.status());
         verifyNoInteractions(store);
     }
+    @Test
+    void nullFacilityIdIsDeniedBeforePolicyOrStoreAccessAcrossMutations() throws IOException {
+        StorageResult deposited = service.deposit(
+                member, address, payload, null, WORLD, X, Y, Z);
+        StorageWithdrawResult withdrawn = service.withdraw(
+                member, address, null, WORLD, X, Y, Z);
+        StorageResult policy = service.setPolicy(
+                member, GUILD_ID, GuildStoragePolicy.defaults(), null, WORLD, X, Y, Z);
+        StorageResult tab = service.unlockTab(
+                member, GUILD_ID, "rare", "Rare", 1, 9, null, WORLD, X, Y, Z);
+
+        assertWrongFacility(deposited);
+        assertWrongFacility(withdrawn);
+        assertWrongFacility(policy);
+        assertWrongFacility(tab);
+        verifyNoInteractions(store);
+    }
+
+    @Test
+    void blankFacilityIdIsDeniedBeforePolicyOrStoreAccess() throws IOException {
+        StorageResult result = service.deposit(
+                member, address, payload, "  ", WORLD, X, Y, Z);
+
+        assertEquals(StorageStatus.WRONG_FACILITY, result.status());
+        assertEquals("That is not the facility you are acting on", result.message());
+        verifyNoInteractions(store);
+    }
+
+    private void assertWrongFacility(StorageResult result) {
+        assertEquals(StorageStatus.WRONG_FACILITY, result.status());
+        assertEquals("That is not the facility you are acting on", result.message());
+    }
+
+    private void assertWrongFacility(StorageWithdrawResult result) {
+        assertEquals(StorageStatus.WRONG_FACILITY, result.status());
+        assertEquals("That is not the facility you are acting on", result.message());
+    }
 
     @Test
     void openStoreIOExceptionReturnsStorageErrorWithoutSnapshot() throws IOException {
