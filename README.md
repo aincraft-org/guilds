@@ -46,6 +46,22 @@ Produces the single Paper plugin JAR:
 ./gradlew test
 ```
 
+### Local pre-commit checks
+
+Install the repository-managed pre-commit hook once per clone:
+
+```bash
+./scripts/install-git-hooks.sh
+```
+
+The hook runs `./gradlew --no-daemon check`, including Error Prone, SpotBugs,
+PMD, Checkstyle, and the test suite. To remove the repository-local hook
+configuration:
+
+```bash
+git config --local --unset core.hooksPath
+```
+
 ### Integrated Guilds subsystem
 
 Guilds production sources live under the `paper/` module tree

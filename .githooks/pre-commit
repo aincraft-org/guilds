@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+if [[ ! -x ./gradlew ]]; then
+    printf '%s\n' 'pre-commit: ./gradlew is missing or not executable' >&2
+    exit 1
+fi
+
+exec ./gradlew --no-daemon check
