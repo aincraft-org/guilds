@@ -431,10 +431,16 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     }
 
     /**
-     * Reload territories from PostgreSQL.
+     * Reload territories from PostgreSQL, then revalidate and refresh the
+     * facility directory against the replacement territory set so removed or
+     * moved territories cannot leave stale facilities resolvable through the
+     * economy bridge or persisted on shutdown.
      */
     public void reloadTerritories() throws IOException {
         store.loadInto(registry);
+        if (facilityStore != null && facilityRegistry != null) {
+            facilityStore.loadInto(facilityRegistry);
+        }
     }
 
     /**

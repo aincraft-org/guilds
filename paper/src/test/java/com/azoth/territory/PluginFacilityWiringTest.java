@@ -65,6 +65,12 @@ class PluginFacilityWiringTest {
         assertTrue(facilitySave >= 0);
         assertTrue(territorySave > facilitySave);
         assertTrue(databaseClose > territorySave);
+        int reloadMethod = source.indexOf("public void reloadTerritories()");
+        int reloadTerritoryLoad = source.indexOf("store.loadInto(registry)", reloadMethod);
+        int reloadFacilityLoad = source.indexOf("facilityStore.loadInto(facilityRegistry)", reloadTerritoryLoad);
+        assertTrue(reloadMethod >= 0);
+        assertTrue(reloadTerritoryLoad > reloadMethod);
+        assertTrue(reloadFacilityLoad > reloadTerritoryLoad);
     }
 
     /**
