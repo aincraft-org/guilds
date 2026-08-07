@@ -189,7 +189,9 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
                              UUID actorUuid, String facilityId) throws IOException {
         guildId = requireGuildId(guildId);
         facilityId = requireAudit(actorUuid, facilityId);
-        Objects.requireNonNull(address, "address");
+        if (address == null) {
+            return new StorageResult(StorageStatus.INVALID_ITEM, "Address must not be null");
+        }
         StorageStatus validation = validatePayload(payload);
         if (validation != StorageStatus.SUCCESS) {
             return new StorageResult(validation, "Invalid item payload");
@@ -238,7 +240,10 @@ public final class PostgresGuildStorageStore implements AutoCloseable {
                                         UUID actorUuid, String facilityId) throws IOException {
         guildId = requireGuildId(guildId);
         facilityId = requireAudit(actorUuid, facilityId);
-        Objects.requireNonNull(address, "address");
+        if (address == null) {
+            return new StorageWithdrawResult(StorageStatus.INVALID_ITEM,
+                    "Address must not be null", Optional.empty());
+        }
         if (!guildId.equals(address.guildId())) {
             return new StorageWithdrawResult(StorageStatus.INVALID_ITEM,
                     "Address guild does not match storage guild", Optional.empty());

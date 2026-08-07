@@ -132,6 +132,38 @@ class PostgresGuildStorageStoreTest {
     }
 
     @Test
+    void nullAddressPutReturnsInvalidItem() throws Exception {
+        String guildId = uniqueGuild("null-put");
+        UUID actor = UUID.randomUUID();
+        String facility = "facility-null-put";
+        OpaqueItemPayload payload = new OpaqueItemPayload("schema", "{\"value\":1}", "fingerprint");
+
+        store.ensureBank(guildId);
+        int auditBefore = count("guild_storage_audit", "guild_id = ?", guildId);
+
+        StorageResult result = store.put(guildId, null, payload, actor, facility);
+
+        assertEquals(StorageStatus.INVALID_ITEM, result.status());
+        assertEquals(auditBefore, count("guild_storage_audit", "guild_id = ?", guildId));
+    }
+
+    @Test
+    void nullAddressRemoveReturnsInvalidItemWithEmptyPayload() throws Exception {
+        String guildId = uniqueGuild("null-remove");
+        UUID actor = UUID.randomUUID();
+        String facility = "facility-null-remove";
+
+        store.ensureBank(guildId);
+        int auditBefore = count("guild_storage_audit", "guild_id = ?", guildId);
+
+        StorageWithdrawResult result = store.remove(guildId, null, actor, facility);
+
+        assertEquals(StorageStatus.INVALID_ITEM, result.status());
+        assertTrue(result.payload().isEmpty());
+        assertEquals(auditBefore, count("guild_storage_audit", "guild_id = ?", guildId));
+    }
+
+    @Test
     void opaquePayloadPolicyTabUnlockAndAuditRoundTrip() throws Exception {
         String guildId = uniqueGuild("roundtrip");
         UUID actor = UUID.randomUUID();
