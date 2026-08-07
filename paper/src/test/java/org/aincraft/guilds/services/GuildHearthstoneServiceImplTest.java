@@ -134,7 +134,6 @@ class GuildHearthstoneServiceImplTest {
         when(guildService.getGuildSpawn("g")).thenReturn(Optional.of(model));
         World world = mock(World.class);
         when(server.getWorld("world")).thenReturn(world);
-        org.bukkit.Location bukkit = new org.bukkit.Location(world, 0, 64, 0, 0, 0);
         when(blockProtection.canTeleportInto(any(), anyInt(), anyInt(), any())).thenReturn(true);
         when(player.teleport(any(org.bukkit.Location.class))).thenReturn(true);
 
