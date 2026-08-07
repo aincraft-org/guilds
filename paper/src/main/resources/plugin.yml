@@ -1,7 +1,7 @@
 name: AzothTerritory
 version: ${version}
 main: com.azoth.territory.AzothTerritoryPlugin
-api-version: '1.21'
+api-version: '26.2'
 description: ${description}
 author: Azoth
 website: https://github.com/azoth/azoth-territory

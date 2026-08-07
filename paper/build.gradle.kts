@@ -9,11 +9,11 @@ dependencies {
     implementation(project(":api"))
     implementation(project(":common"))
 
-    compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
-    // squaremap integration (renders territory polygons). squaremap 1.3.4 targets
-    // Minecraft 1.21.4 — matches the paper-api version above. compileOnly: the
+    compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
+    // squaremap integration (renders territory polygons). squaremap 1.3.15 targets
+    // Minecraft 26.2 — matches the paper-api version above. compileOnly: the
     // squaremap jar is provided by the server (downloaded by the runServer task).
-    compileOnly("xyz.jpenilla:squaremap-api:1.3.4")
+    compileOnly("xyz.jpenilla:squaremap-api:1.3.15")
     // Compile-time only for the Vault economy bridge; Vault is a softdepend.
     compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
         exclude(group = "org.bukkit", module = "bukkit")
@@ -21,15 +21,15 @@ dependencies {
 
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
-    testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:26.2.build.111-stable")
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("com.github.MilkBowl:VaultAPI:1.7") {
         exclude(group = "org.bukkit", module = "bukkit")
     }
-    testImplementation("org.mockito:mockito-core:5.14.2")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
 }
 
 tasks.processResources {
@@ -73,13 +73,13 @@ tasks.assemble {
 }
 
 // Local test server: ./gradlew :paper:runServer
-// Boots Paper 1.21.4 with the azoth-territory shadow jar plus the squaremap
-// 1.3.4 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
+// Boots Paper 26.2 with the azoth-territory shadow jar plus the squaremap
+// 1.3.15 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
 // serves its live web map on http://localhost:8080 by default.
 tasks.runServer {
-    minecraftVersion("1.21.4")
+    minecraftVersion("26.2")
     runDirectory.set(layout.projectDirectory.dir("run"))
     downloadPlugins {
-        github("jpenilla", "squaremap", "v1.3.4", "squaremap-paper-mc1.21.4-1.3.4.jar")
+        github("jpenilla", "squaremap", "v1.3.15", "squaremap-paper-mc26.2-1.3.15.jar")
     }
 }

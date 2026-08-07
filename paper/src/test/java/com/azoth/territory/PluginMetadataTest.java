@@ -26,7 +26,7 @@ class PluginMetadataTest {
             assertTrue(yaml.contains("main: com.azoth.territory.AzothTerritoryPlugin"),
                     "main class missing: " + yaml);
             assertTrue(yaml.contains("api-version:"), "api-version missing: " + yaml);
-            assertTrue(yaml.contains("1.21"), "api-version should be 1.21.x: " + yaml);
+            assertTrue(yaml.contains("26.2"), "api-version should be 26.2: " + yaml);
             // Single identity: no second Guilds main on this descriptor
             assertTrue(!yaml.contains("main: org.aincraft.guilds.GuildsPlugin"),
                     "must not declare GuildsPlugin as a second main");

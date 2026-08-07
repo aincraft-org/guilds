@@ -52,10 +52,10 @@ Produces the single Paper plugin JAR:
 ./gradlew :paper:runServer
 ```
 
-The `runServer` task (run-paper 3.0.2) downloads Paper **1.21.4**, loads the
+The `runServer` task (run-paper 3.0.2) downloads Paper **26.2**, loads the
 azoth-territory shadow jar, and runs it in `paper/run/`. It also auto-downloads
-the **squaremap 1.3.4** Paper jar (the release that targets MC 1.21.4, pinned
-to the GitHub `v1.3.4` asset) so the live map is available out of the box at
+the **squaremap 1.3.15** Paper jar (the release that targets MC 26.2, pinned
+to the GitHub `v1.3.15` asset) so the live map is available out of the box at
 `http://localhost:8080`.
 
 Territory/zone boundaries are rendered as squaremap layers by the in-plugin
