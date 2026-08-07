@@ -1,4 +1,16 @@
+import com.github.spotbugs.snom.SpotBugsTask
+import com.github.spotbugs.snom.Confidence
+import com.github.spotbugs.snom.Effort
+import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.plugins.quality.Checkstyle
+import org.gradle.api.plugins.quality.Pmd
+import org.gradle.api.plugins.quality.PmdExtension
 import org.gradle.api.tasks.testing.Test
+
+plugins {
+    id("net.ltgt.errorprone") version "5.1.0" apply false
+    id("com.github.spotbugs") version "6.5.10" apply false
+}
 
 group = "com.azoth"
 version = "1.0.0-SNAPSHOT"
@@ -8,6 +20,49 @@ description = "Azoth Territory — large polygonal/chunk territories with Wilder
 // Delivery unit stays the single shadowed Paper plugin JAR built by :paper.
 subprojects {
     apply(plugin = "java")
+
+    apply(plugin = "pmd")
+    apply(plugin = "checkstyle")
+    apply(plugin = "com.github.spotbugs")
+    apply(plugin = "net.ltgt.errorprone")
+
+    dependencies {
+        add("errorprone", "com.google.errorprone:error_prone_core:2.50.0")
+        add("spotbugs", "com.github.spotbugs:spotbugs:4.10.3")
+    }
+    extensions.configure<PmdExtension> {
+        toolVersion = "7.26.0"
+    }
+    tasks.withType<Pmd>().configureEach {
+        ruleSetFiles = files(rootProject.file("config/pmd/pmd.xml"))
+        ruleSets = emptyList()
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+        }
+    }
+
+    tasks.withType<Checkstyle>().configureEach {
+        configFile = rootProject.file("config/checkstyle/checkstyle.xml")
+        reports {
+            xml.required.set(true)
+            html.required.set(true)
+        }
+    }
+    tasks.withType<SpotBugsTask>().configureEach {
+        effort.set(Effort.MAX)
+        // Gate and reports use high-confidence findings; lower-confidence findings stay outside this policy.
+        reportLevel.set(Confidence.HIGH)
+        excludeFilter.set(rootProject.file("config/spotbugs/exclude.xml"))
+        reports {
+            create("xml") {
+                required.set(true)
+            }
+            create("html") {
+                required.set(true)
+            }
+        }
+    }
 
     group = rootProject.group
     version = rootProject.version

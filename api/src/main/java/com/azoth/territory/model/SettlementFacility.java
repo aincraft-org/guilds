@@ -16,6 +16,7 @@ public record SettlementFacility(
         int y,
         int z
 ) {
+    @SuppressWarnings("SelfAssignment")
     public SettlementFacility {
         id = requireText(id, "id");
         name = name == null || name.isBlank() ? id : name.trim();
