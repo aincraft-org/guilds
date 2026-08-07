@@ -23,9 +23,11 @@ import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.persist.DatabaseSettings;
 import com.azoth.territory.persist.DatabaseSettingsLoader;
 import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresFacilityStore;
 import com.azoth.territory.persist.PostgresReconciliationStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
+import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
@@ -52,6 +54,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private EconomyBridge economyBridge;
     private BukkitEconomyBridge bukkitEconomyBridge;
     private PostgresReconciliationStore reconciliationStore;
+    private FacilityRegistry facilityRegistry;
+    private PostgresFacilityStore facilityStore;
     private GuildsServices guilds;
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
@@ -72,6 +76,11 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.reconciliationStore = new PostgresReconciliationStore(database);
             this.store.loadInto(registry);
             getLogger().info("Loaded " + registry.size() + " territor(y/ies) from PostgreSQL");
+            this.facilityRegistry = new FacilityRegistry(registry);
+            this.facilityStore = new PostgresFacilityStore(database);
+            this.facilityStore.loadInto(facilityRegistry);
+            getLogger().info("Loaded " + facilityRegistry.list().size()
+                    + " settlement facilit(y/ies) from PostgreSQL");
         } catch (IOException e) {
             getLogger().log(Level.SEVERE,
                     "PostgreSQL persistence is mandatory; plugin startup aborted", e);
@@ -128,7 +137,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             }
             this.economyBridge = new EconomyBridge(
                     registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(), rail, simulation);
-            this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge);
+            this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge, facilityRegistry);
             try {
                 economyBridge.loadUnresolvedTransactions(reconciliationStore.load());
             } catch (IOException e) {
@@ -223,6 +232,15 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 reconciliationStore.save(economyBridge.unresolvedTransactions());
             } catch (IOException e) {
                 getLogger().log(Level.SEVERE, "Failed to save reconciliation queue", e);
+            }
+        }
+        if (facilityStore != null && facilityRegistry != null) {
+            try {
+                facilityStore.save(facilityRegistry);
+                getLogger().info("Saved " + facilityRegistry.list().size()
+                        + " settlement facilit(y/ies)");
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to save facilities", e);
             }
         }
         if (store != null && registry != null) {
@@ -378,6 +396,14 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
     public PostgresTerritoryStore getStore() {
         return store;
+    }
+
+    public FacilityRegistry getFacilityRegistry() {
+        return facilityRegistry;
+    }
+
+    public PostgresFacilityStore getFacilityStore() {
+        return facilityStore;
     }
 
     public GovernanceRegistry getGovernance() {
