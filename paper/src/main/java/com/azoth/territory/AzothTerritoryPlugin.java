@@ -16,6 +16,8 @@ import com.azoth.territory.influence.InfluenceListener;
 import com.azoth.territory.influence.PostgresInfluenceStore;
 import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
+import com.azoth.territory.model.SettlementFacility;
+import com.azoth.territory.model.Territory;
 import com.azoth.territory.permission.BlockProtection;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.permission.GovernanceSource;
@@ -296,7 +298,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                     new TerritoryJson(),
                     store,
                     () -> Optional.ofNullable(influenceEngine),
-                    getLogger()
+                    getLogger(),
+                    facilityRegistry,
+                    facilityStore
             );
             webServer.start();
         } catch (Exception e) {
@@ -435,11 +439,26 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
      * facility directory against the replacement territory set so removed or
      * moved territories cannot leave stale facilities resolvable through the
      * economy bridge or persisted on shutdown.
+     * <p>
+     * The old registry state is captured first. If facility revalidation
+     * fails, both live registries are restored to that old coherent state
+     * before the failure is rethrown — a failed reload never leaves new
+     * territories paired with stale facilities that shutdown would persist.
      */
     public void reloadTerritories() throws IOException {
+        List<Territory> oldTerritories = registry.list();
+        List<SettlementFacility> oldFacilities = facilityRegistry != null ? facilityRegistry.list() : List.of();
         store.loadInto(registry);
-        if (facilityStore != null && facilityRegistry != null) {
-            facilityStore.loadInto(facilityRegistry);
+        try {
+            if (facilityStore != null && facilityRegistry != null) {
+                facilityStore.loadInto(facilityRegistry);
+            }
+        } catch (IOException e) {
+            registry.replaceAll(oldTerritories);
+            if (facilityRegistry != null) {
+                facilityRegistry.replaceAll(oldFacilities);
+            }
+            throw e;
         }
     }
 

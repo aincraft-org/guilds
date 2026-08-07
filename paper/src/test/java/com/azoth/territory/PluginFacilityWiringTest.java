@@ -65,12 +65,24 @@ class PluginFacilityWiringTest {
         assertTrue(facilitySave >= 0);
         assertTrue(territorySave > facilitySave);
         assertTrue(databaseClose > territorySave);
+        // reloadTerritories() must capture the old registry state, load
+        // territories, then revalidate facilities; on facility load failure
+        // it must restore both live registries to the old coherent state
+        // before rethrowing, so a failed reload can never leave new
+        // territories paired with stale facilities that shutdown would
+        // persist.
         int reloadMethod = source.indexOf("public void reloadTerritories()");
+        int reloadOldTerritories = source.indexOf("registry.list()", reloadMethod);
         int reloadTerritoryLoad = source.indexOf("store.loadInto(registry)", reloadMethod);
-        int reloadFacilityLoad = source.indexOf("facilityStore.loadInto(facilityRegistry)", reloadTerritoryLoad);
+        int reloadFacilityLoad = source.indexOf("facilityStore.loadInto(facilityRegistry)", reloadMethod);
+        int reloadRestoreTerritories = source.indexOf("registry.replaceAll(oldTerritories)", reloadMethod);
+        int reloadRestoreFacilities = source.indexOf("facilityRegistry.replaceAll(oldFacilities)", reloadMethod);
         assertTrue(reloadMethod >= 0);
-        assertTrue(reloadTerritoryLoad > reloadMethod);
+        assertTrue(reloadOldTerritories > reloadMethod);
+        assertTrue(reloadTerritoryLoad > reloadOldTerritories);
         assertTrue(reloadFacilityLoad > reloadTerritoryLoad);
+        assertTrue(reloadRestoreTerritories > reloadFacilityLoad);
+        assertTrue(reloadRestoreFacilities > reloadRestoreTerritories);
     }
 
     /**

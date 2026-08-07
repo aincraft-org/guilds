@@ -3,10 +3,14 @@ package com.azoth.territory.web;
 import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
+import com.azoth.territory.model.FacilityType;
+import com.azoth.territory.model.SettlementFacility;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresFacilityStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
+import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +38,7 @@ class TerritoryApiPersistenceTest {
 
     private TerritoryRegistry registry;
     private PostgresDatabase database;
+    private PostgresFacilityStore facilityStore;
     private TerritoryWebServer server;
     private int port;
     private FailingStore store;
@@ -62,6 +67,7 @@ class TerritoryApiPersistenceTest {
                         new BlockPos(100, 100), new BlockPos(0, 100)))));
         database = PostgresTestDatabase.open();
         store = new FailingStore(database);
+        facilityStore = new PostgresFacilityStore(database);
         port = freePort();
     }
 
@@ -87,6 +93,28 @@ class TerritoryApiPersistenceTest {
         assertEquals(1, store.saveAttempts.get());
     }
 
+    /**
+     * Regression (P1 finding 2): with a facility directory wired in, a
+     * territory mutation that would orphan a facility must be rejected with
+     * 400 BEFORE the store is touched — never 500, never persisted, never
+     * published.
+     */
+    @Test
+    void territoryMutationThatWouldOrphanFacilitiesIsRejectedBeforePersisting() throws Exception {
+        FacilityRegistry facilities = new FacilityRegistry(registry);
+        facilities.register(new SettlementFacility(
+                "guild-storage", "Guild Storage", "everfall",
+                FacilityType.STORAGE, "world", 5, 64, 5));
+        facilityStore.save(facilities);
+        server = startServer(facilities);
+
+        int code = send("DELETE", "/api/territories/everfall", null);
+
+        assertEquals(400, code);
+        assertEquals(0, store.saveAttempts.get(), "rejected mutation must never reach the store");
+        assertTrue(registry.get("everfall").isPresent(), "rejected delete must not mutate the live registry");
+    }
+
     @Test
     void failedPersistOnDeleteReturns500AndLeavesRegistryUntouched() throws Exception {
         server = startServer();
@@ -98,9 +126,14 @@ class TerritoryApiPersistenceTest {
     }
 
     private TerritoryWebServer startServer() throws IOException {
+        return startServer(null);
+    }
+
+    private TerritoryWebServer startServer(FacilityRegistry facilities) throws IOException {
         TerritoryWebServer s = new TerritoryWebServer(
                 new WebConfig(true, "127.0.0.1", port, "", true, "", true, WebConfig.TlsSettings.disabled()),
-                registry, new TerritoryJson(), store, () -> java.util.Optional.empty(), Logger.getGlobal());
+                registry, new TerritoryJson(), store, () -> java.util.Optional.empty(), Logger.getGlobal(),
+                facilities, facilityStore);
         s.start();
         return s;
     }

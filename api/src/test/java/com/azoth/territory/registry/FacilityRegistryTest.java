@@ -81,6 +81,61 @@ class FacilityRegistryTest {
         assertTrue(facilities.list().isEmpty());
     }
 
+    /**
+     * A {@link FacilityRegistry} bound to a candidate {@link TerritoryRegistry}
+     * rejects the persisted facility set when the mutation removes the
+     * territory that hosts a facility — the validation used by the web API
+     * before publishing territory mutations.
+     */
+    @Test
+    void candidateRegistryRejectsFacilitiesWhoseTerritoryWasRemoved() {
+        TerritoryRegistry live = new TerritoryRegistry(List.of(territory("t1")));
+        FacilityRegistry facilities = new FacilityRegistry(live);
+        facilities.register(facility("market", FacilityType.TRADING_POST, 5, 5));
+
+        TerritoryRegistry candidate = new TerritoryRegistry();
+        assertThrows(IllegalArgumentException.class,
+                () -> new FacilityRegistry(candidate).replaceAll(facilities.list()));
+    }
+
+    /**
+     * The same validation rejects a relocation that moves the territory
+     * boundary away from a hosted facility.
+     */
+    @Test
+    void candidateRegistryRejectsFacilitiesOutsideRelocatedTerritory() {
+        TerritoryRegistry live = new TerritoryRegistry(List.of(territory("t1")));
+        FacilityRegistry facilities = new FacilityRegistry(live);
+        facilities.register(facility("market", FacilityType.TRADING_POST, 5, 5));
+
+        Territory moved = new Territory("t1", "t1", "world", Boundary.ofPolygon(List.of(
+                new BlockPos(1000, 1000), new BlockPos(1100, 1000),
+                new BlockPos(1100, 1100), new BlockPos(1000, 1100))));
+        TerritoryRegistry candidate = new TerritoryRegistry(List.of(moved));
+        assertThrows(IllegalArgumentException.class,
+                () -> new FacilityRegistry(candidate).replaceAll(facilities.list()));
+    }
+
+    /**
+     * Mutations that keep every facility inside its territory (adding an
+     * unrelated territory) pass candidate validation unchanged.
+     */
+    @Test
+    void candidateRegistryAcceptsMutationsThatKeepFacilitiesValid() {
+        TerritoryRegistry live = new TerritoryRegistry(List.of(territory("t1")));
+        FacilityRegistry facilities = new FacilityRegistry(live);
+        SettlementFacility market = facility("market", FacilityType.TRADING_POST, 5, 5);
+        facilities.register(market);
+
+        Territory unrelated = new Territory("t2", "t2", "world", Boundary.ofPolygon(List.of(
+                new BlockPos(1000, 1000), new BlockPos(1100, 1000),
+                new BlockPos(1100, 1100), new BlockPos(1000, 1100))));
+        TerritoryRegistry candidate = new TerritoryRegistry(List.of(territory("t1"), unrelated));
+        FacilityRegistry validated = new FacilityRegistry(candidate);
+        validated.replaceAll(facilities.list());
+        assertEquals(List.of(market), validated.list());
+    }
+
     @Test
     void differentFacilityTypesCanUseDifferentLocations() {
         FacilityRegistry facilities = new FacilityRegistry(

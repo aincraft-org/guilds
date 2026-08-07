@@ -3,12 +3,16 @@ package com.azoth.territory.web;
 import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
+import com.azoth.territory.model.FacilityType;
+import com.azoth.territory.model.SettlementFacility;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.model.Zone;
 import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresFacilityStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
+import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -33,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.cert.X509Certificate;
 import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,6 +55,7 @@ class TerritoryWebServerTest {
     private TerritoryRegistry registry;
     private PostgresDatabase database;
     private PostgresTerritoryStore store;
+    private PostgresFacilityStore facilityStore;
     private int port;
     private TerritoryWebServer server;
 
@@ -59,6 +65,7 @@ class TerritoryWebServerTest {
         database = PostgresTestDatabase.open();
         registry = new TerritoryRegistry();
         store = new PostgresTerritoryStore(database);
+        facilityStore = new PostgresFacilityStore(database);
         registry.register(new Territory(
                 "everfall",
                 "Everfall",
@@ -188,6 +195,102 @@ class TerritoryWebServerTest {
         int del = delete("http://127.0.0.1:" + port + "/api/territories/brightwood");
         assertEquals(204, del);
         assertFalse(registry.get("brightwood").isPresent());
+    }
+
+    @Test
+    void httpApi_rejectsTerritoryMutationsThatWouldOrphanFacilities() throws Exception {
+        SettlementFacility storage = new SettlementFacility(
+                "guild-storage", "Guild Storage", "everfall",
+                FacilityType.STORAGE, "world", 5, 64, 5);
+        FacilityRegistry facilities = new FacilityRegistry(registry);
+        facilities.register(storage);
+        facilityStore.save(facilities);
+        WebConfig cfg = new WebConfig(
+                true, "127.0.0.1", port, "", false, "", true,
+                WebConfig.TlsSettings.disabled()
+        );
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), store,
+                () -> java.util.Optional.empty(), Logger.getGlobal(), facilities, facilityStore);
+        server.start();
+
+        // Seed a deterministic persisted state (full-replace saves).
+        String brightwood = """
+                {
+                  "id": "brightwood",
+                  "name": "Brightwood",
+                  "world": "world",
+                  "defaultZoneType": "WILDERNESS",
+                  "boundary": {
+                    "polygon": [
+                      {"x": 1000, "z": 1000},
+                      {"x": 1200, "z": 1000},
+                      {"x": 1200, "z": 1200},
+                      {"x": 1000, "z": 1200}
+                    ],
+                    "chunks": []
+                  },
+                  "zones": []
+                }
+                """;
+        assertEquals("brightwood", putJson("http://127.0.0.1:" + port + "/api/territories/brightwood", brightwood)
+                .get("id").getAsString());
+        assertEquals(204, delete("http://127.0.0.1:" + port + "/api/territories/brightwood"));
+
+        // DELETE of the territory hosting the facility is rejected; neither
+        // the live registry nor the persisted set changes.
+        HttpURLConnection del = (HttpURLConnection) URI.create(
+                "http://127.0.0.1:" + port + "/api/territories/everfall").toURL().openConnection();
+        del.setRequestMethod("DELETE");
+        assertEquals(400, del.getResponseCode());
+        assertTrue(registry.get("everfall").isPresent(), "rejected delete must not mutate the live registry");
+        assertEquals(Optional.of(storage), facilities.resolve("world", 5, 64, 5));
+
+        // Relocating the territory away from the facility is rejected too.
+        String moved = """
+                {
+                  "id": "everfall",
+                  "name": "Everfall",
+                  "world": "world",
+                  "defaultZoneType": "WILDERNESS",
+                  "boundary": {
+                    "polygon": [
+                      {"x": 2000, "z": 2000},
+                      {"x": 2200, "z": 2000},
+                      {"x": 2200, "z": 2200},
+                      {"x": 2000, "z": 2200}
+                    ],
+                    "chunks": []
+                  },
+                  "zones": []
+                }
+                """;
+        HttpURLConnection put = (HttpURLConnection) URI.create(
+                "http://127.0.0.1:" + port + "/api/territories/everfall").toURL().openConnection();
+        put.setRequestMethod("PUT");
+        put.setDoOutput(true);
+        put.setRequestProperty("Content-Type", "application/json");
+        try (OutputStream os = put.getOutputStream()) {
+            os.write(moved.getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(400, put.getResponseCode());
+        assertTrue(registry.get("everfall").orElseThrow().contains(5, 64),
+                "rejected relocation must keep the live registry at the original boundary");
+
+        // The persisted set still holds the original territory, and the
+        // facility is still resolvable through its registry.
+        TerritoryRegistry persisted = new TerritoryRegistry();
+        store.loadInto(persisted);
+        assertEquals(1, persisted.size());
+        assertTrue(persisted.get("everfall").isPresent());
+        assertTrue(persisted.get("everfall").orElseThrow().contains(5, 64),
+                "rejected mutations must not persist an orphaned facility state");
+        assertEquals(Optional.of(storage), facilities.resolve("world", 5, 64, 5));
+
+        // A facility-less territory can still be created and deleted.
+        String second = brightwood;
+        assertEquals("brightwood", putJson("http://127.0.0.1:" + port + "/api/territories/brightwood", second)
+                .get("id").getAsString());
+        assertEquals(204, delete("http://127.0.0.1:" + port + "/api/territories/brightwood"));
     }
 
     @Test

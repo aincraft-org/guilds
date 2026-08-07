@@ -7,7 +7,9 @@ import com.azoth.territory.model.LookupResult;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.persist.TerritoryJson;
+import com.azoth.territory.persist.PostgresFacilityStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
+import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -44,6 +46,9 @@ public final class TerritoryApiHandler implements HttpHandler {
     private final PostgresTerritoryStore store;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Logger log;
+    /** Facility directory and store wired by the plugin; null in facility-less deployments. */
+    private final FacilityRegistry facilityRegistry;
+    private final PostgresFacilityStore facilityStore;
     /** Serializes stage → save → replace so concurrent mutations cannot clobber each other. */
     private final Object mutationLock = new Object();
 
@@ -56,6 +61,20 @@ public final class TerritoryApiHandler implements HttpHandler {
             Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
+        this(config, proxy, registry, json, store, influenceSupplier, log, null, null);
+    }
+
+    public TerritoryApiHandler(
+            WebConfig config,
+            ReverseProxySupport proxy,
+            TerritoryRegistry registry,
+            TerritoryJson json,
+            PostgresTerritoryStore store,
+            Supplier<Optional<InfluenceService>> influenceSupplier,
+            Logger log,
+            FacilityRegistry facilityRegistry,
+            PostgresFacilityStore facilityStore
+    ) {
         this.config = config;
         this.proxy = proxy;
         this.registry = registry;
@@ -63,6 +82,8 @@ public final class TerritoryApiHandler implements HttpHandler {
         this.store = store;
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.log = log;
+        this.facilityRegistry = facilityRegistry;
+        this.facilityStore = facilityStore;
     }
 
     @Override
@@ -246,8 +267,7 @@ public final class TerritoryApiHandler implements HttpHandler {
         synchronized (mutationLock) {
             TerritoryRegistry staged = stagedCopy();
             staged.register(t);
-            persistOrThrow(staged);
-            registry.replaceAll(staged.list());
+            publishMutation(staged);
         }
         HttpResponses.json(exchange, 200, json.gson().toJson(json.toJson(t)), config);
     }
@@ -264,8 +284,7 @@ public final class TerritoryApiHandler implements HttpHandler {
         synchronized (mutationLock) {
             TerritoryRegistry staged = stagedCopy();
             staged.register(t);
-            persistOrThrow(staged);
-            registry.replaceAll(staged.list());
+            publishMutation(staged);
         }
         HttpResponses.json(exchange, 200, json.gson().toJson(json.toJson(t)), config);
     }
@@ -277,8 +296,7 @@ public final class TerritoryApiHandler implements HttpHandler {
                 HttpResponses.notFound(exchange, config);
                 return;
             }
-            persistOrThrow(staged);
-            registry.replaceAll(staged.list());
+            publishMutation(staged);
         }
         HttpResponses.noContent(exchange, config);
     }
@@ -323,6 +341,50 @@ public final class TerritoryApiHandler implements HttpHandler {
         TerritoryRegistry next = new TerritoryRegistry();
         next.replaceAll(registry.list());
         return next;
+    }
+
+    /**
+     * Validate the staged territory mutation against the persisted facilities,
+     * then persist and publish it. The facility check runs against a
+     * {@link FacilityRegistry} bound to the candidate territory set BEFORE the
+     * store save, so a territory delete or relocation that would orphan a
+     * facility is rejected with 400 and never reaches the database or the
+     * live registries. On success the live facility directory is refreshed
+     * from the validated load so memory and the store stay in lockstep.
+     */
+    private void publishMutation(TerritoryRegistry staged) throws IOException {
+        FacilityRegistry candidateFacilities = validateFacilities(staged);
+        persistOrThrow(staged);
+        registry.replaceAll(staged.list());
+        if (candidateFacilities != null && facilityRegistry != null) {
+            facilityRegistry.replaceAll(candidateFacilities.list());
+        }
+    }
+
+    /**
+     * Reload persisted facilities into a registry bound to the candidate
+     * territories. {@link FacilityRegistry#replaceAll} revalidates every
+     * facility against the candidate set; an invalid facility surfaces as an
+     * {@link IOException} from the store, which is translated to a client
+     * rejection (400) here so the mutation is refused before persisting.
+     *
+     * @return the validated candidate facility registry, or {@code null} when
+     *         no facility store is wired (facility-less deployments)
+     */
+    private FacilityRegistry validateFacilities(TerritoryRegistry staged) throws IOException {
+        if (facilityStore == null) {
+            return null;
+        }
+        FacilityRegistry candidateFacilities = new FacilityRegistry(staged);
+        try {
+            facilityStore.loadInto(candidateFacilities);
+        } catch (IOException e) {
+            if (e.getCause() instanceof IllegalArgumentException) {
+                throw new IllegalArgumentException("territory mutation rejected: " + e.getCause().getMessage(), e);
+            }
+            throw e;
+        }
+        return candidateFacilities;
     }
 
     private void persistOrThrow(TerritoryRegistry staged) throws IOException {

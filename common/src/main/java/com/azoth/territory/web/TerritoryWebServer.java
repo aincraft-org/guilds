@@ -2,7 +2,9 @@ package com.azoth.territory.web;
 
 import com.azoth.territory.influence.InfluenceService;
 import com.azoth.territory.persist.TerritoryJson;
+import com.azoth.territory.persist.PostgresFacilityStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
+import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
@@ -40,6 +42,9 @@ public final class TerritoryWebServer implements AutoCloseable {
     private final PostgresTerritoryStore store;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Logger log;
+    /** Facility directory and store wired by the plugin; null in facility-less deployments. */
+    private final FacilityRegistry facilityRegistry;
+    private final PostgresFacilityStore facilityStore;
 
     private HttpServer server;
     private ExecutorService executor;
@@ -53,12 +58,27 @@ public final class TerritoryWebServer implements AutoCloseable {
             Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
+        this(config, registry, json, store, influenceSupplier, log, null, null);
+    }
+
+    public TerritoryWebServer(
+            WebConfig config,
+            TerritoryRegistry registry,
+            TerritoryJson json,
+            PostgresTerritoryStore store,
+            Supplier<Optional<InfluenceService>> influenceSupplier,
+            Logger log,
+            FacilityRegistry facilityRegistry,
+            PostgresFacilityStore facilityStore
+    ) {
         this.config = Objects.requireNonNull(config, "config");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.json = json == null ? new TerritoryJson() : json;
         this.store = Objects.requireNonNull(store, "store");
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.log = log == null ? Logger.getLogger("AzothTerritoryWeb") : log;
+        this.facilityRegistry = facilityRegistry;
+        this.facilityStore = facilityStore;
     }
 
     public synchronized void start() throws IOException {
@@ -77,7 +97,8 @@ public final class TerritoryWebServer implements AutoCloseable {
         }
 
         TerritoryApiHandler api = new TerritoryApiHandler(
-                config, proxy, registry, json, store, influenceSupplier, log
+                config, proxy, registry, json, store, influenceSupplier, log,
+                facilityRegistry, facilityStore
         );
         StaticWebHandler web = new StaticWebHandler(config);
 
