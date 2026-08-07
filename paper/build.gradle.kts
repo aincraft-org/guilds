@@ -1,5 +1,6 @@
 plugins {
     id("io.github.goooler.shadow") version "8.1.8"
+    id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
 description = "Azoth Territory Paper plugin — Bukkit glue, listeners, commands, and the integrated Guilds subsystem"
@@ -9,6 +10,10 @@ dependencies {
     implementation(project(":common"))
 
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    // squaremap integration (renders territory polygons). squaremap 1.3.4 targets
+    // Minecraft 1.21.4 — matches the paper-api version above. compileOnly: the
+    // squaremap jar is provided by the server (downloaded by the runServer task).
+    compileOnly("xyz.jpenilla:squaremap-api:1.3.4")
     // Compile-time only for the Vault economy bridge; Vault is a softdepend.
     compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
         exclude(group = "org.bukkit", module = "bukkit")
@@ -65,4 +70,16 @@ tasks.named("build") {
 // Prefer shadow artifact as the assembled plugin product
 tasks.assemble {
     dependsOn(tasks.shadowJar)
+}
+
+// Local test server: ./gradlew :paper:runServer
+// Boots Paper 1.21.4 with the azoth-territory shadow jar plus the squaremap
+// 1.3.4 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
+// serves its live web map on http://localhost:8080 by default.
+tasks.runServer {
+    minecraftVersion("1.21.4")
+    runDirectory.set(layout.projectDirectory.dir("run"))
+    downloadPlugins {
+        github("jpenilla", "squaremap", "v1.3.4", "squaremap-paper-mc1.21.4-1.3.4.jar")
+    }
 }

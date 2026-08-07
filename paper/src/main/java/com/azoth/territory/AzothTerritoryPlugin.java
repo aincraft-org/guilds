@@ -27,6 +27,7 @@ import com.azoth.territory.persist.PostgresReconciliationStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.registry.TerritoryRegistry;
+import com.azoth.territory.squaremap.TerritorySquaremapBridge;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
 import com.azoth.territory.web.WebConfigLoader;
@@ -55,6 +56,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private GuildsServices guilds;
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
+    private TerritorySquaremapBridge squaremapBridge;
 
     @Override
     public void onEnable() {
@@ -163,6 +165,11 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 "Registered territory protection listeners "
                         + "(break/place/fire/explosions/mob-spawn/entity-grief/interaction/pvp/teleport)");
 
+        // squaremap integration: render territory/zone boundaries as map layers.
+        // Self-degrading when squaremap is absent; must start after registry load.
+        this.squaremapBridge = new TerritorySquaremapBridge(this, registry);
+        this.squaremapBridge.start();
+
         // Territory influence race (accrual → declare → countdown flip).
         InfluenceConfig influenceConfig = InfluenceConfigLoader.fromBukkit(getConfig());
         if (influenceConfig.enabled()) {
@@ -210,6 +217,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         disableGuildsSubsystem();
+        stopSquaremap();
         stopWeb();
         if (influenceEngine != null) {
             try {
@@ -291,6 +299,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         if (webServer != null) {
             webServer.stop();
             webServer = null;
+        }
+    }
+
+    private void stopSquaremap() {
+        if (squaremapBridge != null) {
+            squaremapBridge.stop();
+            squaremapBridge = null;
         }
     }
 

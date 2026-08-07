@@ -46,6 +46,34 @@ Produces the single Paper plugin JAR:
 ./gradlew test
 ```
 
+### Local test server (`runServer`) with squaremap
+
+```bash
+./gradlew :paper:runServer
+```
+
+The `runServer` task (run-paper 3.0.2) downloads Paper **1.21.4**, loads the
+azoth-territory shadow jar, and runs it in `paper/run/`. It also auto-downloads
+the **squaremap 1.3.4** Paper jar (the release that targets MC 1.21.4, pinned
+to the GitHub `v1.3.4` asset) so the live map is available out of the box at
+`http://localhost:8080`.
+
+Territory/zone boundaries are rendered as squaremap layers by the in-plugin
+bridge (`com.azoth.territory.squaremap.TerritorySquaremapBridge`):
+
+- **Azoth Territories** layer — polygon outlines per territory
+- **Azoth Zones** layer — zone fills coloured by type (green WILDERNESS /
+  yellow CLAIMABLE) with name tooltips
+
+The bridge refreshes every 5 seconds, so boundaries created via the REST API
+(`/api/territories`), `/territory reload`, or influence flips appear on the map
+automatically. squaremap is a **soft dependency**: without the jar the plugin
+logs a warning and the map layers are skipped.
+
+Accept the EULA on first run (`paper/run/eula.txt`). The plugin requires the
+shared PostgreSQL database (see "Persistence" below) — point `database.*` in
+`paper/run/plugins/AzothTerritory/config.yml` at a reachable instance.
+
 ### Local pre-commit checks
 
 Install the repository-managed pre-commit hook once per clone:

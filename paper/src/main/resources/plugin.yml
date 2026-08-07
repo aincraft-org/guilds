@@ -6,7 +6,7 @@ description: ${description}
 author: Azoth
 website: https://github.com/azoth/azoth-territory
 load: POSTWORLD
-softdepend: [Vault, WorldEdit, WorldGuard, triumph-gui]
+softdepend: [Vault, WorldEdit, WorldGuard, triumph-gui, squaremap]
 commands:
   territory:
     description: Inspect territory and zone at a location
