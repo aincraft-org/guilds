@@ -66,7 +66,11 @@ public final class PostgresFacilityStore {
         } catch (SQLException | RuntimeException e) {
             throw new IOException("Failed to load facilities from PostgreSQL", e);
         }
-        registry.replaceAll(loaded);
+        try {
+            registry.replaceAll(loaded);
+        } catch (RuntimeException e) {
+            throw new IOException("Failed to validate facilities loaded from PostgreSQL", e);
+        }
     }
 
     private static JsonObject toJson(SettlementFacility facility) {
