@@ -22,6 +22,7 @@ dependencies {
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
     testImplementation("io.papermc.paper:paper-api:26.2.build.111-stable")
+    testImplementation("xyz.jpenilla:squaremap-api:1.3.15")
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

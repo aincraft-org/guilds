@@ -292,11 +292,14 @@ public final class TerritorySquaremapBridge implements Listener {
     // --- Geometry --------------------------------------------------------------
 
     /**
-     * Converts a domain {@link Boundary} to a squaremap {@link MultiPolygon}.
-     * Polygonal and/or chunk vertices are combined (union semantics, matching
-     * {@link Boundary#contains}). A {@link Polygon} is used when there is a
-     * single part so the stroke renders as one clean outline; multiple parts
-     * (or polygon + chunk islands) collapse into a MultiPolygon.
+     * Converts a domain {@link Boundary} to a squaremap marker. Polygonal and
+     * chunk vertices are combined (union semantics, matching
+     * {@link Boundary#contains}). Chunk sets are merged into
+     * chunk-border-aligned outline rings (holes preserved) so the map renders
+     * one clean boundary instead of a square per chunk. A single part comes
+     * out as a plain polygon so the stroke is one clean outline; multiple
+     * parts (separate islands, or polygon + chunk outlines) become a
+     * MultiPolygon.
      */
     private static Marker asMultiPolygon(Boundary boundary) {
         List<MultiPolygon.MultiPolygonPart> parts = new ArrayList<>();
@@ -304,9 +307,7 @@ public final class TerritorySquaremapBridge implements Listener {
             parts.add(MultiPolygon.part(points(boundary.polygon())));
         }
         if (boundary.hasChunks()) {
-            for (ChunkPos chunk : boundary.chunks()) {
-                parts.add(MultiPolygon.part(chunkRect(chunk)));
-            }
+            parts.addAll(ChunkOutlines.toParts(boundary.chunks()));
         }
         if (parts.isEmpty()) {
             // Cannot happen for a valid territory/zone (boundary is non-empty),
@@ -314,8 +315,10 @@ public final class TerritorySquaremapBridge implements Listener {
             return Marker.multiPolygon();
         }
         if (parts.size() == 1) {
-            List<Point> main = parts.get(0).mainPolygon();
-            return Marker.polygon(main);
+            MultiPolygon.MultiPolygonPart only = parts.get(0);
+            if (only.negativeSpace().isEmpty()) {
+                return Marker.polygon(only.mainPolygon());
+            }
         }
         return Marker.multiPolygon(parts);
     }
@@ -326,17 +329,5 @@ public final class TerritorySquaremapBridge implements Listener {
             out.add(Point.of(v.x(), v.z()));
         }
         return out;
-    }
-
-    /** Exclusive-max rectangle for a chunk (matches {@link Boundary#chunkAsPolygon}). */
-    private static List<Point> chunkRect(ChunkPos chunk) {
-        int minX = chunk.chunkX() * 16;
-        int minZ = chunk.chunkZ() * 16;
-        return List.of(
-                Point.of(minX, minZ),
-                Point.of(minX + 16, minZ),
-                Point.of(minX + 16, minZ + 16),
-                Point.of(minX, minZ + 16)
-        );
     }
 }
