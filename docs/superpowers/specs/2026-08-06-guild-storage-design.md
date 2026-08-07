@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS guild_storage_slots (
     tab_id TEXT NOT NULL,
     slot_index INTEGER NOT NULL CHECK (slot_index >= 0),
     item_schema TEXT NOT NULL,
+    item_fingerprint TEXT NOT NULL,
     item_payload JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (guild_id, tab_id, slot_index),
@@ -183,6 +184,9 @@ CREATE TABLE IF NOT EXISTS guild_storage_audit (
 
 The first bank creation transaction creates the bank, the default policy, and
 the `general` tab. Slot writes and audit writes commit atomically.
+
+Each slot preserves the codec-provided fingerprint alongside the opaque JSONB
+payload so a storage round trip does not lose item-layer integrity metadata.
 
 Deposit, withdraw, and expansion mutations lock the bank/tab rows (or use an
 optimistic version check) and commit before the UI reports success. A failed
@@ -231,7 +235,7 @@ Tests must cover:
 - exact facility/location enforcement;
 - no access through a non-storage facility or remote command;
 - tab/capacity expansion hook;
-- opaque payload deposit/withdraw round trip;
+- opaque payload and fingerprint deposit/withdraw round trip;
 - transaction rollback on codec, audit, and database failure;
 - concurrent slot conflict behavior;
 - PostgreSQL restart round trip and idempotent schema initialization.
