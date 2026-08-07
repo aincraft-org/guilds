@@ -22,6 +22,18 @@ public final class PostgresDatabase implements AutoCloseable {
             "CREATE TABLE IF NOT EXISTS expenses (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)"
     };
 
+    static {
+        // The JDBC driver is shaded into the plugin jar. Paper loads plugins
+        // through their own classloaders, so DriverManager (system classloader)
+        // never sees the driver from the service file. Register it explicitly —
+        // this is the standard fix for shaded JDBC drivers on Bukkit/Paper.
+        try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException e) {
+            throw new ExceptionInInitializerError("PostgreSQL JDBC driver missing: " + e.getMessage());
+        }
+    }
+
     private final HikariDataSource dataSource;
 
     public PostgresDatabase(DatabaseSettings settings) throws IOException {
