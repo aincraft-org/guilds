@@ -62,10 +62,10 @@ public class AllianceServiceImpl implements AllianceService {
     private void loadAllAlliances() {
         String sql = """
             SELECT n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at,
-                   GROUP_CONCAT(DISTINCT nm.guild_id) as member_guilds,
-                   GROUP_CONCAT(DISTINCT nmin.player_uuid) as ministers,
-                   GROUP_CONCAT(DISTINCT nr.other_alliance) as relations,
-                   GROUP_CONCAT(DISTINCT nr.relation_type) as relation_types
+                   STRING_AGG(DISTINCT nm.guild_id, ',') as member_guilds,
+                   STRING_AGG(DISTINCT nmin.player_uuid, ',') as ministers,
+                   STRING_AGG(DISTINCT nr.other_alliance, ',') as relations,
+                   STRING_AGG(DISTINCT nr.relation_type, ',') as relation_types
             FROM alliances n
             LEFT JOIN alliance_members nm ON n.id = nm.alliance_id
             LEFT JOIN alliance_ministers nmin ON n.id = nmin.alliance_id

@@ -45,7 +45,9 @@ class PermissionServiceImplTest {
 
     @AfterEach
     void tearDown() {
-        services.databaseManager().shutdown();
+        if (services != null) {
+            services.databaseManager().shutdown();
+        }
     }
 
     private int flags() {

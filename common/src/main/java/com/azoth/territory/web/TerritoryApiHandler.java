@@ -7,7 +7,7 @@ import com.azoth.territory.model.LookupResult;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryRepository;
+import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -41,7 +41,7 @@ public final class TerritoryApiHandler implements HttpHandler {
     private final ReverseProxySupport proxy;
     private final TerritoryRegistry registry;
     private final TerritoryJson json;
-    private final Supplier<TerritoryRepository> storeSupplier;
+    private final PostgresTerritoryStore store;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Logger log;
     /** Serializes stage → save → replace so concurrent mutations cannot clobber each other. */
@@ -52,7 +52,7 @@ public final class TerritoryApiHandler implements HttpHandler {
             ReverseProxySupport proxy,
             TerritoryRegistry registry,
             TerritoryJson json,
-            Supplier<TerritoryRepository> storeSupplier,
+            PostgresTerritoryStore store,
             Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
@@ -60,7 +60,7 @@ public final class TerritoryApiHandler implements HttpHandler {
         this.proxy = proxy;
         this.registry = registry;
         this.json = json;
-        this.storeSupplier = storeSupplier;
+        this.store = store;
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.log = log;
     }
@@ -326,10 +326,6 @@ public final class TerritoryApiHandler implements HttpHandler {
     }
 
     private void persistOrThrow(TerritoryRegistry staged) throws IOException {
-        TerritoryRepository store = storeSupplier.get();
-        if (store == null) {
-            throw new IllegalStateException("no territory store configured — mutations disabled");
-        }
         store.save(staged);
     }
 

@@ -3,7 +3,6 @@ package org.aincraft.guilds.database.migration;
 import org.aincraft.guilds.models.GuildPermission;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -39,7 +38,14 @@ public class PermissionMigration {
      * Populate the permission mapping table with current GuildPermission enum values
      */
     private static void populatePermissionMapping(Connection connection) throws SQLException {
-        String sql = "INSERT OR REPLACE INTO permission_flag_mapping (permission_name, legacy_bitmask, category, description) VALUES (?, ?, ?, ?)";
+        String sql = """
+                INSERT INTO permission_flag_mapping (permission_name, legacy_bitmask, category, description)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT (permission_name) DO UPDATE SET
+                    legacy_bitmask = EXCLUDED.legacy_bitmask,
+                    category = EXCLUDED.category,
+                    description = EXCLUDED.description
+                """;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (GuildPermission permission : GuildPermission.values()) {
@@ -57,13 +63,9 @@ public class PermissionMigration {
      * Add temporary columns for enum-based storage
      */
     public static void addEnumColumns(Connection connection) throws SQLException {
-        String sql = """
-            ALTER TABLE permissions ADD COLUMN permissions_enum TEXT DEFAULT NULL;
-            ALTER TABLE permissions ADD COLUMN explicit_denials TEXT DEFAULT NULL;
-            """;
-
         try (Statement statement = connection.createStatement()) {
-            statement.execute(sql);
+            statement.execute("ALTER TABLE permissions ADD COLUMN IF NOT EXISTS permissions_enum TEXT DEFAULT NULL");
+            statement.execute("ALTER TABLE permissions ADD COLUMN IF NOT EXISTS explicit_denials TEXT DEFAULT NULL");
         }
     }
 
@@ -81,11 +83,11 @@ public class PermissionMigration {
         String sql = """
             UPDATE permissions
             SET permissions_enum = (
-                SELECT GROUP_CONCAT(permission_name)
+                SELECT string_agg(permission_name, ',')
                 FROM permission_flag_mapping
-                WHERE (permissions_flags & legacy_bitmask) != 0
+                WHERE (permissions_flags & legacy_bitmask) <> 0
             )
-            WHERE permissions_flags IS NOT NULL AND permissions_flags != 0
+            WHERE permissions_flags IS NOT NULL AND permissions_flags <> 0
             """;
 
         try (Statement statement = connection.createStatement()) {
@@ -139,7 +141,7 @@ public class PermissionMigration {
             String convertSql = """
                 UPDATE permission_test
                 SET permissions_enum = (
-                    SELECT GROUP_CONCAT(permission_name)
+                    SELECT string_agg(permission_name, ',')
                     FROM permission_flag_mapping
                     WHERE (permissions_flags & legacy_bitmask) != 0
                 )
@@ -237,43 +239,4 @@ public class PermissionMigration {
         }
     }
 
-    /**
-     * Main method for standalone testing
-     */
-    public static void main(String[] args) {
-        String dbUrl = "jdbc:sqlite:guilds.db";
-
-        try (Connection connection = DriverManager.getConnection(dbUrl)) {
-            System.out.println("=== PERMISSION MIGRATION UTILITY ===");
-
-            // Show current stats
-            MigrationStats beforeStats = getMigrationStats(connection);
-            System.out.println("Before: " + beforeStats);
-
-            // Test conversion on sample data
-            System.out.println("\n=== TESTING CONVERSION ===");
-            testConversion(connection);
-
-            // Ask user if they want to proceed with full migration
-            System.out.println("\nProceed with full migration? (y/n)");
-            // In real usage, you would read user input here
-
-            // Perform full migration
-            System.out.println("\n=== PERFORMING FULL MIGRATION ===");
-            int convertedRows = convertLegacyFlags(connection);
-            System.out.println("Converted " + convertedRows + " permission records");
-
-            // Validate conversion
-            boolean isValid = validateConversion(connection);
-            System.out.println("Validation passed: " + isValid);
-
-            // Show final stats
-            MigrationStats afterStats = getMigrationStats(connection);
-            System.out.println("After: " + afterStats);
-
-        } catch (Exception e) {
-            System.err.println("Migration failed: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
 }

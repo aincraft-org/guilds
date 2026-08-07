@@ -1,11 +1,9 @@
 package com.azoth.territory.model;
 
-import com.azoth.territory.persist.TerritoryStore;
+import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,8 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class GovernmentTerritoryTest {
 
-    @TempDir
-    Path tempDir;
 
     private static Boundary square(int min, int max) {
         return Boundary.ofPolygon(List.of(
@@ -78,12 +74,9 @@ class GovernmentTerritoryTest {
         assertEquals(GovernmentForm.DEMOCRACY,
                 original.resolve("world", 250, 250).governmentForm().orElseThrow());
 
-        Path file = tempDir.resolve("territories.json");
-        TerritoryStore store = new TerritoryStore(file);
-        store.save(original);
-
+        TerritoryJson json = new TerritoryJson();
         TerritoryRegistry reloaded = new TerritoryRegistry();
-        store.loadInto(reloaded);
+        reloaded.replaceAll(json.registryFromJson(json.registryToJson(original)));
         assertEquals(3, reloaded.size());
 
         Government mon = reloaded.get("mon-land").orElseThrow().government();

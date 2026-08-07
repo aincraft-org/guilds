@@ -66,9 +66,17 @@ public class TechTreeServiceImpl implements TechTreeService {
         ensureDefinitionsLoaded();
 
         String sql = """
-            INSERT OR REPLACE INTO tech_tree_nodes
+            INSERT INTO tech_tree_nodes
                 (id, name, branch, cost, prerequisites, effects, position_x, position_y)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                branch = EXCLUDED.branch,
+                cost = EXCLUDED.cost,
+                prerequisites = EXCLUDED.prerequisites,
+                effects = EXCLUDED.effects,
+                position_x = EXCLUDED.position_x,
+                position_y = EXCLUDED.position_y
             """;
 
         try (Connection conn = databaseManager.getConnection();
@@ -231,8 +239,9 @@ public class TechTreeServiceImpl implements TechTreeService {
         // Delete existing unlocks for this guild and re-insert
         String deleteSql = "DELETE FROM guild_unlocked_nodes WHERE guild_id = ?";
         String insertSql = """
-            INSERT OR REPLACE INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
+            INSERT INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
             VALUES (?, ?, ?)
+            ON CONFLICT (guild_id, node_id) DO UPDATE SET unlocked_at = EXCLUDED.unlocked_at
             """;
 
         try (Connection conn = databaseManager.getConnection()) {

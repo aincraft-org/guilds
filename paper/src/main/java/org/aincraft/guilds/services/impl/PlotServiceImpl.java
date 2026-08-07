@@ -945,8 +945,10 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean grantPlotPermission(UUID plotId, String targetType, String targetId, int permissionFlag, UUID grantedBy) {
-        String sql = "INSERT OR REPLACE INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid) " +
-                    "VALUES (?, 'plot', ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid) " +
+                    "VALUES (?, 'plot', ?, ?, ?, ?, ?, ?) " +
+                    "ON CONFLICT (id) DO UPDATE SET permissions_flags = EXCLUDED.permissions_flags, " +
+                    "granted_at = EXCLUDED.granted_at, granted_by_uuid = EXCLUDED.granted_by_uuid";
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {

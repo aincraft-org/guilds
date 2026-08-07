@@ -59,9 +59,12 @@ public class SpecializationServiceImpl implements SpecializationService {
     public void setSpecialization(String guildId, GuildSpecialization specialization) {
         databaseManager.executeTransaction(conn -> {
             String sql = """
-                INSERT OR REPLACE INTO guild_specializations
+                INSERT INTO guild_specializations
                 (guild_id, specialization, set_at)
                 VALUES (?, ?, ?)
+                ON CONFLICT (guild_id) DO UPDATE SET
+                    specialization = EXCLUDED.specialization,
+                    set_at = EXCLUDED.set_at
                 """;
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, guildId);

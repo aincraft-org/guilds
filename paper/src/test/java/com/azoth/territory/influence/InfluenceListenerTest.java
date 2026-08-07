@@ -1,5 +1,7 @@
 package com.azoth.territory.influence;
 
+import com.azoth.territory.PostgresTestDatabase;
+import com.azoth.territory.persist.PostgresDatabase;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.bukkit.event.EventHandler;
@@ -12,7 +14,6 @@ import org.bukkit.event.inventory.CraftItemEvent;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -26,15 +27,20 @@ class InfluenceListenerTest {
 
     @Test
     void influenceListener_isListenerAndHoldsEngine() {
-        TerritoryRegistry territories = new TerritoryRegistry();
-        GovernanceRegistry governance = new GovernanceRegistry(territories);
-        InfluenceEngine engine = new InfluenceEngine(governance, InfluenceConfig.defaults(),
-                new InfluenceStore(Path.of("influence-test.json")),
-                (t, g) -> { }, Logger.getLogger("test"));
-        InfluenceListener listener = new InfluenceListener(governance, engine);
+        PostgresDatabase database = PostgresTestDatabase.open();
+        try {
+            TerritoryRegistry territories = new TerritoryRegistry();
+            GovernanceRegistry governance = new GovernanceRegistry(territories);
+            InfluenceEngine engine = new InfluenceEngine(governance, InfluenceConfig.defaults(),
+                    new PostgresInfluenceStore(database),
+                    (t, g) -> { }, Logger.getLogger("test"));
+            InfluenceListener listener = new InfluenceListener(governance, engine);
 
-        assertTrue(listener instanceof Listener);
-        assertEquals(engine, listener.engine());
+            assertTrue(listener instanceof Listener);
+            assertEquals(engine, listener.engine());
+        } finally {
+            database.close();
+        }
     }
 
     @Test

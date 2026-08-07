@@ -1,5 +1,6 @@
 package com.azoth.territory.influence;
 
+import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Government;
@@ -10,13 +11,12 @@ import com.azoth.territory.permission.FakeGovernanceSource;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.permission.GuildToggles;
+import com.azoth.territory.persist.PostgresDatabase;
 import com.azoth.territory.registry.TerritoryRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,14 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InfluenceEngineAccrualTest {
 
-    @TempDir
-    Path tempDir;
 
     private TerritoryRegistry territories;
     private FakeGovernanceSource source;
     private GovernanceRegistry governance;
     private InfluenceConfig config;
-    private InfluenceStore store;
+    private PostgresInfluenceStore store;
+    private PostgresDatabase database;
     private InfluenceEngine engine;
     private long now;
 
@@ -58,9 +57,17 @@ class InfluenceEngineAccrualTest {
         source = new FakeGovernanceSource();
         governance = new GovernanceRegistry(territories, source);
         config = InfluenceConfig.defaults();
-        store = new InfluenceStore(tempDir.resolve("influence.json"));
+        database = PostgresTestDatabase.open();
+        store = new PostgresInfluenceStore(database);
         engine = new InfluenceEngine(governance, config, store, (t, g) -> { }, Logger.getLogger("test"));
         now = 1_000_000L;
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (database != null) {
+            database.close();
+        }
     }
 
     private void registerTerritory(String id, String ownerGuildId) {

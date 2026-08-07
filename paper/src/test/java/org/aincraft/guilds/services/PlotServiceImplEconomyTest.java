@@ -69,7 +69,9 @@ class PlotServiceImplEconomyTest {
 
     @AfterEach
     void tearDown() {
-        services.databaseManager().shutdown();
+        if (services != null) {
+            services.databaseManager().shutdown();
+        }
     }
 
     private GuildBlock plotAt(int x, int z) {

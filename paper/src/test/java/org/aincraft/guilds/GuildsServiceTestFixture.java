@@ -1,5 +1,7 @@
 package org.aincraft.guilds;
 
+import com.azoth.territory.PostgresTestDatabase;
+import com.azoth.territory.persist.PostgresDatabase;
 import org.aincraft.guilds.config.DatabaseConfig;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
@@ -19,7 +21,6 @@ import org.aincraft.guilds.services.impl.PlotServiceImpl;
 import org.aincraft.guilds.services.impl.ResidentServiceImpl;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 
@@ -27,9 +28,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Test fixture: real SQLite-backed guilds services wired exactly like the
- * {@link GuildsServices} composition root (including the late-bound
- * permission-service setters), against a fresh database in a temp folder.
+ * Test fixture: real PostgreSQL-backed guilds services wired exactly like the
+ * {@link GuildsServices} composition root, against the shared integration
+ * database configured by {@code AZOTH_TEST_JDBC_URL}.
  */
 public final class GuildsServiceTestFixture {
 
@@ -51,11 +52,11 @@ public final class GuildsServiceTestFixture {
         when(plugin.getDataFolder()).thenReturn(tempDir.toFile());
         when(plugin.getLogger()).thenReturn(Logger.getLogger("guilds-test"));
 
-        File databaseFile = tempDir.resolve("guilds.db").toFile();
-        DatabaseConfig databaseConfig = new DatabaseConfig(
-                plugin, databaseFile, "jdbc:sqlite:" + databaseFile.getAbsolutePath());
+        PostgresDatabase database = PostgresTestDatabase.open();
+        DatabaseConfig databaseConfig = new DatabaseConfig(plugin, database);
         SchemaInitializer schemaInitializer = new SchemaInitializer(plugin);
-        DatabaseManager databaseManager = new DatabaseManager(plugin, databaseConfig, schemaInitializer);
+        DatabaseManager databaseManager = new DatabaseManager(
+                plugin, databaseConfig, schemaInitializer, true);
 
         Logger logger = Logger.getLogger("guilds-test");
         ResidentServiceImpl residentImpl = new ResidentServiceImpl(databaseManager, logger);

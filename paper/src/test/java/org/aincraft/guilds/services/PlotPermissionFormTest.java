@@ -18,7 +18,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.util.List;
 import java.util.UUID;
 
@@ -94,7 +93,9 @@ class PlotPermissionFormTest {
 
     @AfterEach
     void tearDown() {
-        services.databaseManager().shutdown();
+        if (services != null) {
+            services.databaseManager().shutdown();
+        }
     }
 
     /** Guild-owned plot at chunk (0,0) — blocks 0..15. */
@@ -118,7 +119,7 @@ class PlotPermissionFormTest {
         try (Connection connection = services.databaseManager().getDataSource().getConnection();
              PreparedStatement statement = connection.prepareStatement(
                      "UPDATE guilds SET public_enabled = ? WHERE id = ?")) {
-            statement.setInt(1, open ? 1 : 0);
+            statement.setBoolean(1, open);
             statement.setString(2, guildId);
             statement.executeUpdate();
         }
@@ -287,8 +288,11 @@ class PlotPermissionFormTest {
         String guildId = guilds.getGuild("Alpha").orElseThrow().getId();
         wireTerritory(guildId, 0, 200);
         try (Connection connection = services.databaseManager().getDataSource().getConnection();
-             Statement statement = connection.createStatement()) {
-            statement.execute("UPDATE guilds SET public_enabled = 1 WHERE id = '" + guildId + "'");
+             PreparedStatement statement = connection.prepareStatement(
+                     "UPDATE guilds SET public_enabled = ? WHERE id = ?")) {
+            statement.setBoolean(1, true);
+            statement.setString(2, guildId);
+            statement.executeUpdate();
         }
 
         assertTrue(permissions.canBuild(outsider, 50, 50, WORLD), "public guild: build allowed");

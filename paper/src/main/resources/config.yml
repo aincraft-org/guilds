@@ -26,14 +26,10 @@ web:
     password: changeit
     key-password: changeit
 
-# Territory persistence backend. Default: local territories.json.
-# Set enabled: true to store territories in a remote PostgreSQL database
-# instead — the map UI and REST API then serve Postgres-backed data.
+# All persistent state uses the shared PostgreSQL database.
 # The database must exist and the configured role must be able to create
-# tables. If Postgres is unreachable at startup the plugin logs SEVERE and
-# the web submodule does not start (no fallback to the JSON file).
+# tables. If PostgreSQL is unreachable at startup the plugin disables itself.
 database:
-  enabled: false
   host: 127.0.0.1
   port: 5432
   name: azoth_territory
@@ -42,7 +38,7 @@ database:
   ssl: false
   pool-size: 10
   # Optional full JDBC URL — wins over host/port/name/ssl. Use for cloud
-  # Postgres with extra parameters, e.g.
+  # PostgreSQL with extra parameters, e.g.
   # jdbc-url: "jdbc:postgresql://db.example.com:5432/azoth?sslmode=verify-full"
   jdbc-url: ""
 
@@ -69,5 +65,5 @@ influence:
   declare-countdown-hours: 24
   # Days after a flip before a new race may start on that territory.
   post-flip-cooldown-days: 7
-  # Seconds between batched influence.json flushes (bar changes only).
+  # Seconds between batched PostgreSQL flushes (bar changes only).
   flush-seconds: 60

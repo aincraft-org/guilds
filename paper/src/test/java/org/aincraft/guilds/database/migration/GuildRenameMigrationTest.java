@@ -1,18 +1,19 @@
 package org.aincraft.guilds.database.migration;
 
+import com.azoth.territory.PostgresTestDatabase;
+import com.azoth.territory.persist.PostgresDatabase;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Logger;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,23 +37,34 @@ import static org.mockito.Mockito.when;
  */
 class GuildRenameMigrationTest {
 
-    private Path dbFile;
+    private PostgresDatabase database;
     private Connection connection;
+    private String schemaName;
 
     @BeforeEach
     void setUp() throws Exception {
-        dbFile = Files.createTempFile("guilds-rename-test", ".db");
-        Files.delete(dbFile); // let SQLite create the file itself
-        connection = DriverManager.getConnection("jdbc:sqlite:" + dbFile);
+        database = PostgresTestDatabase.open();
+        schemaName = "guild_rename_" + UUID.randomUUID().toString().replace("-", "");
+        connection = database.connection();
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("CREATE SCHEMA " + schemaName);
+            statement.execute("SET search_path TO " + schemaName);
+        }
     }
 
     @AfterEach
     void tearDown() throws Exception {
         if (connection != null && !connection.isClosed()) {
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("DROP SCHEMA IF EXISTS " + schemaName + " CASCADE");
+            }
             connection.close();
         }
-        Files.deleteIfExists(dbFile);
+        if (database != null) {
+            database.close();
+        }
     }
+
 
     private static JavaPlugin plugin() {
         JavaPlugin plugin = mock(JavaPlugin.class);
@@ -329,7 +341,7 @@ class GuildRenameMigrationTest {
                 )
                 """);
 
-            // Legacy index names (SQLite keeps these when tables are renamed)
+            // Legacy index names survive table renames and must be recreated.
             statement.execute("CREATE INDEX idx_residents_town ON residents(town_name)");
             statement.execute("CREATE INDEX idx_towns_name ON towns(name)");
             statement.execute("CREATE INDEX idx_town_blocks_location ON town_blocks(x, z, world)");
@@ -365,32 +377,32 @@ class GuildRenameMigrationTest {
     }
 
     private boolean tableExists(String name) throws SQLException {
-        return query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '" + name + "'");
+        return query("SELECT 1 FROM information_schema.tables "
+                + "WHERE table_schema = current_schema() AND table_name = ?", name);
     }
 
     private boolean indexExists(String name) throws SQLException {
-        return query("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = '"
-                + name + "' AND name NOT LIKE 'sqlite_autoindex%'");
+        return query("SELECT 1 FROM pg_indexes "
+                + "WHERE schemaname = current_schema() AND indexname = ?", name);
     }
 
     private boolean columnExists(String table, String column) throws SQLException {
-        try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
-            while (resultSet.next()) {
-                if (column.equals(resultSet.getString("name"))) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return query("SELECT 1 FROM information_schema.columns "
+                + "WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
+                table, column);
     }
 
-    private boolean query(String sql) throws SQLException {
-        try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(sql)) {
-            return resultSet.next();
+    private boolean query(String sql, String... parameters) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (int index = 0; index < parameters.length; index++) {
+                statement.setString(index + 1, parameters[index]);
+            }
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
+            }
         }
     }
+
 
     private Object scalar(String sql) throws SQLException {
         try (Statement statement = connection.createStatement();

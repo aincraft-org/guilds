@@ -7,7 +7,6 @@ import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.registry.TerritoryRegistry;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +20,7 @@ import java.util.logging.Logger;
  * <p>
  * Thread-safe: all mutations are {@code synchronized}. Ownership of the
  * territories registry is shared with the plugin; flips register the new
- * owner and ask {@link OwnershipPersister} to persist territories.json.
+ * owner and ask {@link OwnershipPersister} to persist the ownership change.
  */
 public final class InfluenceEngine implements InfluenceService {
 
@@ -36,19 +35,19 @@ public final class InfluenceEngine implements InfluenceService {
 
     private final GovernanceRegistry governance;
     private final InfluenceConfig config;
-    private final InfluenceStore store;
+    private final PostgresInfluenceStore store;
     private final OwnershipPersister persister;
     private final Logger log;
 
     private final InfluenceState state = new InfluenceState();
     private boolean dirty;
-    /** True when even the corrupt-file backup failed — subsystem fails closed. */
+    /** True when PostgreSQL state could not be loaded — subsystem fails closed. */
     private boolean loadFailed;
 
     public InfluenceEngine(
             GovernanceRegistry governance,
             InfluenceConfig config,
-            InfluenceStore store,
+            PostgresInfluenceStore store,
             OwnershipPersister persister,
             Logger log
     ) {
@@ -394,15 +393,9 @@ public final class InfluenceEngine implements InfluenceService {
         } catch (IOException e) {
             state.entries.clear();
             dirty = false;
-            try {
-                Path backup = store.backupCorrupt();
-                log.log(Level.SEVERE, "Failed to load influence state — corrupt file preserved at " + backup
-                        + "; starting with an empty race state (restore the backup and restart to recover)", e);
-            } catch (IOException backupError) {
-                log.log(Level.SEVERE, "Failed to load influence state AND could not preserve the corrupt file at "
-                        + store.file() + " — influence subsystem disabled until the file is removed or fixed", e);
-                loadFailed = true;
-            }
+            loadFailed = true;
+            log.log(Level.SEVERE,
+                    "Failed to load influence state from PostgreSQL; influence subsystem disabled", e);
             return List.of();
         }
         state.entries.clear();

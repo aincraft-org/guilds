@@ -1,5 +1,6 @@
 package com.azoth.territory.influence;
 
+import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Government;
@@ -10,14 +11,13 @@ import com.azoth.territory.permission.FakeGovernanceSource;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.permission.GuildToggles;
+import com.azoth.territory.persist.PostgresDatabase;
 import com.azoth.territory.registry.TerritoryRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,14 +31,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InfluenceEngineLifecycleTest {
 
-    @TempDir
-    Path tempDir;
 
     private TerritoryRegistry territories;
     private FakeGovernanceSource source;
     private GovernanceRegistry governance;
     private InfluenceConfig config;
-    private InfluenceStore store;
+    private PostgresInfluenceStore store;
+    private PostgresDatabase database;
     private InfluenceEngine engine;
     private List<InfluenceEngine.TerritoryFlip> flips;
     private List<String> persistedOwnership;
@@ -69,11 +68,19 @@ class InfluenceEngineLifecycleTest {
         source = new FakeGovernanceSource();
         governance = new GovernanceRegistry(territories, source);
         config = InfluenceConfig.defaults();
-        store = new InfluenceStore(tempDir.resolve("influence.json"));
+        database = PostgresTestDatabase.open();
+        store = new PostgresInfluenceStore(database);
         flips = new ArrayList<>();
         persistedOwnership = new ArrayList<>();
         freshEngine();
         now = 1_000_000L;
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (database != null) {
+            database.close();
+        }
     }
 
     private void setupEverfallContest() {
@@ -413,24 +420,6 @@ class InfluenceEngineLifecycleTest {
         assertFalse(store.load().entries.containsKey("ghost"));
     }
 
-    @Test
-    void recover_corruptFile_preservesBackupAndStartsEmpty() throws Exception {
-        Files.writeString(tempDir.resolve("influence.json"), "{ corrupt content");
-        setupEverfallContest();
-        freshEngine();
-
-        List<InfluenceEngine.TerritoryFlip> flipped = engine.recover(now);
-
-        assertTrue(flipped.isEmpty());
-        assertFalse(Files.exists(tempDir.resolve("influence.json")),
-                "corrupt file must be moved aside");
-        boolean backupExists = Files.list(tempDir).anyMatch(
-                p -> p.getFileName().toString().startsWith("influence.json.corrupt-"));
-        assertTrue(backupExists, "corrupt backup must exist");
-        // The subsystem is usable again with fresh state.
-        assertTrue(engine.accrue("everfall", "rival-guild",
-                InfluenceSource.PVP_KILL, now, null).isPresent());
-    }
 
     @Test
     void recover_finalizesMarkerWhenOwnershipAlreadyApplied() throws IOException {
@@ -459,23 +448,6 @@ class InfluenceEngineLifecycleTest {
         assertNull(recovered.pendingFlip, "marker finalized");
     }
 
-    @Test
-    void declare_persistFailure_returnsStorageErrorAndRollsBack() throws Exception {
-        setupEverfallContest();
-        pushRivalToCap();
-        // A directory at the target path makes the atomic move fail.
-        Files.createDirectory(tempDir.resolve("influence.json"));
-
-        DeclareResult result = engine.declare("everfall", "rival-guild", "m:rival-guild", now);
-
-        assertEquals(DeclareStatus.STORAGE_ERROR, result.status());
-        assertNull(engine.influence("everfall").orElseThrow().declaration(),
-                "declaration must roll back so a retry is safe");
-        // Retry succeeds once the blocker is removed.
-        Files.delete(tempDir.resolve("influence.json"));
-        assertEquals(DeclareStatus.DECLARED,
-                engine.declare("everfall", "rival-guild", "m:rival-guild", now).status());
-    }
 
     @Test
     void accrue_duringCooldown_isNoOp() throws IOException {
@@ -560,7 +532,6 @@ class InfluenceEngineLifecycleTest {
     void flush_persistsOnlyWhenDirty() throws IOException {
         setupEverfallContest();
         engine.flush();
-        assertFalse(Files.exists(tempDir.resolve("influence.json")));
 
         engine.accrue("everfall", "rival-guild", InfluenceSource.PVP_KILL, now, null);
         engine.flush();

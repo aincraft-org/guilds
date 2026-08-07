@@ -8,9 +8,9 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 - Boundaries as **polygons** (block XZ vertices), **chunk sets**, or both (union)
 - **Zones** nested under a territory: `WILDERNESS` and `CLAIMABLE`
 - Spatial **resolve(world, x, z)** → territory + zone type (or uncontained)
-- **Persistence**: JSON save/load (`plugins/AzothTerritory/territories.json`) or
-  **remote PostgreSQL** (`database.enabled: true`) — the map UI and REST API
-  serve Postgres-backed data when configured
+- **Persistence**: all durable state uses one shared remote PostgreSQL
+  database; territory, influence, reconciliation, facilities, expenses, and
+  Guilds tables share the same connection pool.
 - Admin command: `/territory [lookup|list|reload|save|web]`
 - **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
   - Map UI at `/` (canvas viewer over chunk/polygon boundaries)
@@ -40,7 +40,7 @@ Multi-module Gradle layout (`api` / `common` / `paper`):
 
 Produces the single Paper plugin JAR:
 `paper/build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
-(shadow/fat jar with Guilds runtime libraries: HikariCP, SQLite, Caffeine).
+(shadow/fat jar with Guilds runtime libraries: HikariCP, PostgreSQL, Caffeine).
 
 ```bash
 ./gradlew test
@@ -91,9 +91,9 @@ docs/plans under `docs/archived-guilds/docs/` for reference.
 Governments are first-class through the guilds subsystem: **guilds are the
 local/regional governments** and **alliances are the alliance entities** (a
 guild may be a member of one alliance). The territory layer records only an
-optional binding (`governedByGuildId`); all governance data lives in the
-guilds database (`guilds.db`). The "nation" vocabulary is retired — the
-entities are guilds and alliances.
+optional binding (`governedByGuildId`); all governance data lives in the shared
+PostgreSQL database. The "nation" vocabulary is retired — the entities are
+guilds and alliances.
 
 Resolution (via `GovernanceRegistry` + `GovernanceSource`, implemented by
 `GuildsGovernanceSource`):
@@ -139,8 +139,8 @@ Policy passed = governance.decreePolicy("everfall", "tax", "mayor-uuid", true, n
 
 Ineligible proposers/voters throw. Policy content is **decision data only** (no world enforcement yet).
 
-Persisted in `territories.json` as `"government"` + `"policies"` + optional
-`"governedByGuildId"`.
+Persisted in the shared PostgreSQL database as territory JSONB documents,
+including `"government"`, `"policies"`, and optional `"governedByGuildId"`.
 
 ### Guilds, alliances, and permissions
 
@@ -279,7 +279,7 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 | GET | `/api/meta` | Public origin, scheme, proxy/TLS flags |
 | GET | `/api/territories` | Full registry JSON |
 | GET | `/api/territories/{id}` | One territory |
-| PUT | `/api/territories/{id}` | Create/update (persists to the configured store — PostgreSQL or JSON) |
+| PUT | `/api/territories/{id}` | Create/update (persists to PostgreSQL) |
 | DELETE | `/api/territories/{id}` | Remove |
 | GET | `/api/resolve?world=&x=&z=` | Spatial lookup |
 | GET | `/api/influence` | Influence race state per territory (404 when the engine is disabled) |
@@ -318,13 +318,13 @@ If `web.api-token` is non-empty, send `X-Api-Token: <token>` or `Authorization: 
 
 ## Persistence
 
-Territories default to `plugins/AzothTerritory/territories.json`. To point the
-web thing at a **remote PostgreSQL** database instead, set `database.enabled:
-true` in `config.yml`:
+All durable plugin state is stored in one shared PostgreSQL database and one
+HikariCP pool. Territory, influence, reconciliation, facility, expense, and
+Guilds data are initialized in PostgreSQL; there are no JSON, SQLite, or
+per-store fallback backends.
 
 ```yaml
 database:
-  enabled: true
   host: db.example.com
   port: 5432
   name: azoth_territory
@@ -332,14 +332,12 @@ database:
   password: "…"
   ssl: true
   pool-size: 10
+  # Optional full JDBC URL; wins over host/port/name/ssl.
+  jdbc-url: ""
 ```
 
-The database must exist and the role must be able to create tables (the
-`territories` table is created automatically). A `database.jdbc-url` override
-accepts any valid PostgreSQL JDBC URL and wins over `host`/`port`/`name`/`ssl`.
-
-Failure is loud: if Postgres is unreachable at startup the plugin logs SEVERE
-and the web submodule does not start — it never silently serves the JSON file
-when PostgreSQL was requested. API mutations (`PUT`/`DELETE`) commit to the
-database *before* updating the in-memory registry, so a failed remote save
-returns HTTP 500 and leaves the served data unchanged.
+The database must exist and the configured role must be able to create tables.
+The plugin initializes the schema at startup and disables itself if PostgreSQL
+is unreachable. API mutations (`PUT`/`DELETE`) commit to PostgreSQL before
+updating the in-memory registry, so a failed save returns HTTP 500 and leaves
+the served data unchanged.

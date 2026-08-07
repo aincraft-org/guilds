@@ -1,127 +1,35 @@
 package org.aincraft.guilds.config;
 
-
-
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
+import com.azoth.territory.persist.PostgresDatabase;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.sql.DataSource;
-import java.io.File;
+import java.util.Objects;
 
 /**
- * Database configuration manager for Guilds plugin
+ * View of the host plugin's shared PostgreSQL data source.
+ *
+ * <p>Guilds does not own a second pool or a database file.</p>
  */
-public class DatabaseConfig {
-
+public final class DatabaseConfig {
     private final JavaPlugin plugin;
-    private final File databaseFile;
-    private final String databaseUrl;
-    private DataSource dataSource;
+    private final PostgresDatabase database;
 
-
-    public DatabaseConfig(JavaPlugin plugin,
-                          File databaseFile,
-                          String databaseUrl) {
-        this.plugin = plugin;
-        this.databaseFile = databaseFile;
-        this.databaseUrl = databaseUrl;
-        setupDataSource();
+    public DatabaseConfig(JavaPlugin plugin, PostgresDatabase database) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.database = Objects.requireNonNull(database, "database");
     }
 
-    /**
-     * Set up the HikariCP data source
-     */
-    private void setupDataSource() {
-        HikariConfig config = new HikariConfig();
-
-        // SQLite configuration
-        config.setJdbcUrl(databaseUrl);
-        config.setDriverClassName("org.sqlite.JDBC");
-
-        // Connection pool settings
-        config.setMaximumPoolSize(10);
-        config.setMinimumIdle(2);
-        config.setIdleTimeout(300000); // 5 minutes
-        config.setMaxLifetime(600000); // 10 minutes
-        config.setConnectionTimeout(30000); // 30 seconds
-
-        // SQLite specific settings
-        config.addDataSourceProperty("cachePrepStmts", "true");
-        config.addDataSourceProperty("prepStmtCacheSize", "250");
-        config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-
-        // Enable foreign key support in SQLite
-        config.addDataSourceProperty("foreign_keys", "true");
-
-        // Set connection test query for SQLite
-        config.setConnectionTestQuery("SELECT 1");
-
-        try {
-            dataSource = new HikariDataSource(config);
-            plugin.getLogger().info("Database connection pool initialized successfully.");
-        } catch (Exception e) {
-            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to initialize database connection pool", e);
-        }
-    }
-
-    /**
-     * Get the configured data source
-     * @return HikariCP data source
-     */
     public DataSource getDataSource() {
-        return dataSource;
+        return database.dataSource();
     }
 
-    /**
-     * Get the database file
-     * @return Database file
-     */
-    public File getDatabaseFile() {
-        return databaseFile;
-    }
-
-    /**
-     * Get the database URL
-     * @return Database URL
-     */
-    public String getDatabaseUrl() {
-        return databaseUrl;
-    }
-
-    /**
-     * Check if the database file exists
-     * @return True if database file exists
-     */
-    public boolean databaseExists() {
-        return databaseFile.exists();
-    }
-
-    /**
-     * Create the database file and directory if they don't exist
-     */
     public void ensureDatabaseExists() {
-        if (!databaseFile.exists()) {
-            try {
-                File parentDir = databaseFile.getParentFile();
-                if (parentDir != null && !parentDir.exists()) {
-                    parentDir.mkdirs();
-                }
-                databaseFile.createNewFile();
-                plugin.getLogger().info("Created new database file: " + databaseFile.getAbsolutePath());
-            } catch (Exception e) {
-                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Failed to create database file", e);
-            }
-        }
+        // PostgreSQL connectivity and common schema are initialized by the host.
     }
 
-    /**
-     * Close the data source and cleanup resources
-     */
     public void shutdown() {
-        if (dataSource instanceof HikariDataSource) {
-            ((HikariDataSource) dataSource).close();
-            plugin.getLogger().info("Database connection pool closed.");
-        }
+        // The host plugin owns and closes the shared pool.
+        plugin.getLogger().info("Guilds released shared PostgreSQL data source.");
     }
 }

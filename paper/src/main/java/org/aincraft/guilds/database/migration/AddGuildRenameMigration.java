@@ -27,10 +27,8 @@ import java.sql.Statement;
  *   <li>The whole sequence runs in a transaction; any failure rolls back so
  *       no half-renamed schema is left behind.</li>
  * </ul>
- * <p>
- * Note: SQLite only rewrites {@code REFERENCES} clauses when foreign keys are
- * enabled (this plugin never enables them), so legacy FK declarations that
- * pointed at {@code towns} are inert and not rewritten here.
+ * Legacy foreign-key declarations are intentionally left untouched; this
+ * migration renames the active tables and columns only.
  */
 public class AddGuildRenameMigration implements DatabaseMigration {
 
@@ -79,8 +77,8 @@ public class AddGuildRenameMigration implements DatabaseMigration {
             renameColumn(connection, "broadcast_messages", "town_id", "guild_id");
             renameColumn(connection, "economy_transactions", "town_id", "guild_id");
 
-            // Indexes: SQLite keeps index names when a table is renamed, so the
-            // old names must be dropped explicitly and recreated under new names.
+            // Renaming a table does not rename its existing indexes, so the old
+            // names must be dropped explicitly and recreated under new names.
             recreateIndex(connection, "idx_residents_town", "idx_residents_guild", "residents", "guild_name");
             recreateIndex(connection, "idx_towns_name", "idx_guilds_name", "guilds", "name");
             recreateIndex(connection, "idx_town_blocks_location", "idx_guild_blocks_location", "guild_blocks", "x, z, world");
@@ -163,7 +161,7 @@ public class AddGuildRenameMigration implements DatabaseMigration {
 
     private static boolean tableExists(Connection connection, String name) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")) {
+                "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = ?")) {
             statement.setString(1, name);
             try (ResultSet resultSet = statement.executeQuery()) {
                 return resultSet.next();
@@ -173,7 +171,7 @@ public class AddGuildRenameMigration implements DatabaseMigration {
 
     private static boolean indexExists(Connection connection, String name) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ? AND name NOT LIKE 'sqlite_autoindex%'")) {
+                "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = ?")) {
             statement.setString(1, name);
             try (ResultSet resultSet = statement.executeQuery()) {
                 return resultSet.next();
@@ -182,15 +180,16 @@ public class AddGuildRenameMigration implements DatabaseMigration {
     }
 
     private static boolean columnExists(Connection connection, String table, String column) throws SQLException {
-        try (Statement statement = connection.createStatement();
-             ResultSet resultSet = statement.executeQuery("PRAGMA table_info(" + table + ")")) {
-            while (resultSet.next()) {
-                if (column.equals(resultSet.getString("name"))) {
-                    return true;
-                }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?
+                """)) {
+            statement.setString(1, table);
+            statement.setString(2, column);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
             }
         }
-        return false;
     }
 
     @Override

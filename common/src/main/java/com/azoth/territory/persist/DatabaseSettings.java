@@ -9,7 +9,6 @@ import java.util.Objects;
  * {@link DatabaseSettingsLoader}.
  */
 public final class DatabaseSettings {
-    private final boolean enabled;
     private final String host;
     private final int port;
     private final String name;
@@ -20,7 +19,6 @@ public final class DatabaseSettings {
     private final String jdbcUrlOverride;
 
     public DatabaseSettings(
-            boolean enabled,
             String host,
             int port,
             String name,
@@ -30,7 +28,6 @@ public final class DatabaseSettings {
             int poolSize,
             String jdbcUrlOverride
     ) {
-        this.enabled = enabled;
         this.host = Objects.requireNonNull(host, "host");
         this.port = port;
         this.name = Objects.requireNonNull(name, "name");
@@ -41,13 +38,9 @@ public final class DatabaseSettings {
         this.jdbcUrlOverride = jdbcUrlOverride == null ? "" : jdbcUrlOverride;
     }
 
-    public static DatabaseSettings disabled() {
-        return new DatabaseSettings(false, "127.0.0.1", 5432, "azoth_territory", "azoth",
+    public static DatabaseSettings defaults() {
+        return new DatabaseSettings("127.0.0.1", 5432, "azoth_territory", "azoth",
                 "", false, 10, "");
-    }
-
-    public boolean enabled() {
-        return enabled;
     }
 
     public String host() {

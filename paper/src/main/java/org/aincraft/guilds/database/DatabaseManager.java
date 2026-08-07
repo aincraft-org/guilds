@@ -23,13 +23,19 @@ public class DatabaseManager {
     private final DatabaseConfig databaseConfig;
     private final DataSource dataSource;
     private final SchemaInitializer schemaInitializer;
-
+    private final boolean ownsDataSource;
 
     public DatabaseManager(JavaPlugin plugin, DatabaseConfig databaseConfig, SchemaInitializer schemaInitializer) {
+        this(plugin, databaseConfig, schemaInitializer, false);
+    }
+
+    public DatabaseManager(JavaPlugin plugin, DatabaseConfig databaseConfig,
+                           SchemaInitializer schemaInitializer, boolean ownsDataSource) {
         this.plugin = plugin;
         this.databaseConfig = databaseConfig;
         this.dataSource = databaseConfig.getDataSource();
         this.schemaInitializer = schemaInitializer;
+        this.ownsDataSource = ownsDataSource;
 
         // Initialize database
         initializeDatabase();
@@ -40,7 +46,6 @@ public class DatabaseManager {
      */
     public void initializeDatabase() {
         try {
-            // Ensure database file exists
             databaseConfig.ensureDatabaseExists();
 
             // Test connection
@@ -80,15 +85,11 @@ public class DatabaseManager {
      * Close the database connection pool
      */
     public void shutdown() {
-        if (dataSource instanceof javax.sql.DataSource) {
-            try {
-                if (dataSource instanceof com.zaxxer.hikari.HikariDataSource) {
-                    ((com.zaxxer.hikari.HikariDataSource) dataSource).close();
-                }
-                plugin.getLogger().info("Database connection pool closed.");
-            } catch (Exception e) {
-                plugin.getLogger().log(Level.WARNING, "Error closing database connection pool: " + e.getMessage(), e);
-            }
+        if (ownsDataSource && dataSource instanceof com.zaxxer.hikari.HikariDataSource hikari) {
+            hikari.close();
+            plugin.getLogger().info("Guilds test database pool closed.");
+        } else {
+            plugin.getLogger().info("Guilds database manager released shared PostgreSQL resources.");
         }
     }
 

@@ -20,6 +20,7 @@ import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.GuildsConfig;
 import org.aincraft.guilds.database.DatabaseManager;
+import com.azoth.territory.persist.PostgresDatabase;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
 import org.aincraft.guilds.gui.TechTreeGUI;
 import org.aincraft.guilds.listeners.AllianceListener;
@@ -137,28 +138,22 @@ public class GuildsServices {
     private final GuildChatListener guildChatListener;
     private final AllianceListener allianceListener;
 
-    public GuildsServices(JavaPlugin plugin) {
+    // Hearthstone (deferred until BlockProtection is available)
+    private org.aincraft.guilds.services.GuildHearthstoneService hearthstoneService;
+    private org.aincraft.guilds.listeners.GuildHearthstoneListener hearthstoneListener;
+
+    public GuildsServices(JavaPlugin plugin, PostgresDatabase database) {
         this.plugin = plugin;
 
         // Guilds config file (namespaced away from the territory config.yml)
         saveDefaultConfig();
         reloadConfig();
 
-        // Data directory and SQLite location (was @Named("dataDirectory"/"databaseFile"/"databaseUrl"))
-        File dataDirectory = plugin.getDataFolder();
-        if (!dataDirectory.exists()) {
-            dataDirectory.mkdirs();
-        }
-        File databaseFile = new File(dataDirectory, "guilds.db");
-        String databaseUrl = "jdbc:sqlite:" + databaseFile.getAbsolutePath();
-
-        // Config (eager singletons in the old module)
         guildsConfig = new GuildsConfig(config);
-        databaseConfig = new DatabaseConfig(plugin, databaseFile, databaseUrl);
+        databaseConfig = new DatabaseConfig(plugin, database);
         guildLevelConfigLoader = new GuildLevelConfigLoader(config, plugin.getLogger());
         techTreeConfigLoader = new TechTreeConfigLoader(plugin);
 
-        // Database (SchemaInitializer was JIT-injected once; keep one shared instance)
         SchemaInitializer schemaInitializer = new SchemaInitializer(plugin);
         databaseManager = new DatabaseManager(plugin, databaseConfig, schemaInitializer);
 
@@ -214,6 +209,10 @@ public class GuildsServices {
                 guildService, Logger.getLogger(GuildBroadcastListener.class.getName()));
         guildChatListener = new GuildChatListener(plugin, chatService, guildService, residentService);
         allianceListener = new AllianceListener(allianceService, guildService, residentService);
+
+        // Hearthstone service/listener are deferred until BlockProtection is available.
+        this.hearthstoneService = null;
+        this.hearthstoneListener = null;
 
         // Commands (built before the registry, which owns them)
         TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(techTreeService,
@@ -341,7 +340,30 @@ public class GuildsServices {
         plugin.getServer().getPluginManager().registerEvents(guildBroadcastListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(techTreeGUI, plugin);
 
+        if (hearthstoneListener != null) {
+            plugin.getServer().getPluginManager().registerEvents(hearthstoneListener, plugin);
+        }
+
         plugin.getLogger().info("Guilds event listeners registered.");
+    }
+
+    /**
+     * Lazily construct and register the hearthstone teleport service/listener
+     * once the canonical {@link BlockProtection} is available.
+     */
+    public void registerHearthstone(com.azoth.territory.permission.BlockProtection blockProtection) {
+        if (blockProtection == null || hearthstoneService != null) {
+            return;
+        }
+        String matName = config.getString("hearthstone.item", "ENDER_PEARL");
+        org.bukkit.Material material = org.bukkit.Material.getMaterial(
+                matName == null ? "ENDER_PEARL" : matName.trim().toUpperCase(java.util.Locale.ROOT));
+        if (material == null) material = org.bukkit.Material.ENDER_PEARL;
+        long cooldown = config.getLong("hearthstone.cooldown-seconds", 30);
+        hearthstoneService = new org.aincraft.guilds.services.impl.GuildHearthstoneServiceImpl(
+                plugin, guildService, blockProtection, cooldown);
+        hearthstoneListener = new org.aincraft.guilds.listeners.GuildHearthstoneListener(
+                hearthstoneService, material);
     }
 
     public GuildsConfig getGuildsConfig() {

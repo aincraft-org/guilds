@@ -1,12 +1,14 @@
 package com.azoth.territory.web;
 
+import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.model.Zone;
 import com.azoth.territory.model.ZoneType;
+import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -46,14 +48,17 @@ class TerritoryWebServerTest {
     Path tempDir;
 
     private TerritoryRegistry registry;
-    private TerritoryStore store;
-    private TerritoryWebServer server;
+    private PostgresDatabase database;
+    private PostgresTerritoryStore store;
     private int port;
+    private TerritoryWebServer server;
 
     @BeforeEach
     void setUp() throws Exception {
         registry = new TerritoryRegistry();
-        store = new TerritoryStore(tempDir.resolve("territories.json"));
+        database = PostgresTestDatabase.open();
+        registry = new TerritoryRegistry();
+        store = new PostgresTerritoryStore(database);
         registry.register(new Territory(
                 "everfall",
                 "Everfall",
@@ -86,6 +91,9 @@ class TerritoryWebServerTest {
         if (server != null) {
             server.stop();
         }
+        if (database != null) {
+            database.close();
+        }
     }
 
     @Test
@@ -94,7 +102,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", true, "", true,
                 WebConfig.TlsSettings.disabled()
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
         assertTrue(server.isRunning());
 
@@ -152,7 +160,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", false, "", true,
                 WebConfig.TlsSettings.disabled()
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
 
         String body = """
@@ -176,7 +184,6 @@ class TerritoryWebServerTest {
         JsonObject put = putJson("http://127.0.0.1:" + port + "/api/territories/brightwood", body);
         assertEquals("brightwood", put.get("id").getAsString());
         assertEquals(2, registry.size());
-        assertTrue(Files.isRegularFile(store.file()));
 
         int del = delete("http://127.0.0.1:" + port + "/api/territories/brightwood");
         assertEquals(204, del);
@@ -189,7 +196,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", false, "secret-token", true,
                 WebConfig.TlsSettings.disabled()
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
 
         HttpURLConnection unauthorized = (HttpURLConnection) URI.create(
@@ -216,7 +223,7 @@ class TerritoryWebServerTest {
                 true, "127.0.0.1", port, "", false, "", true,
                 WebConfig.TlsSettings.of(ksPath, password)
         );
-        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
+        server = new TerritoryWebServer(cfg, registry, new TerritoryJson(), store, () -> java.util.Optional.empty(), Logger.getGlobal());
         server.start();
 
         trustAllHttps();

@@ -1,8 +1,10 @@
 package com.azoth.territory.web;
 
+import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.influence.DeclareResult;
 import com.azoth.territory.influence.DeclareStatus;
 import com.azoth.territory.influence.Declaration;
+import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.influence.InfluenceBar;
 import com.azoth.territory.influence.InfluenceService;
 import com.azoth.territory.influence.TerritoryInfluenceState;
@@ -10,8 +12,8 @@ import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryStore;
+import com.azoth.territory.persist.PostgresTerritoryStore;
+import com.azoth.territory.persist.PostgresDatabase;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -19,7 +21,6 @@ import com.google.gson.JsonParser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -27,7 +28,6 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
@@ -37,13 +37,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InfluenceWebTest {
 
-    @TempDir
-    Path tempDir;
 
     private TerritoryRegistry registry;
-    private TerritoryStore store;
-    private TerritoryWebServer server;
+    private PostgresDatabase database;
+    private PostgresTerritoryStore store;
     private int port;
+    private TerritoryWebServer server;
 
     private static InfluenceService service() {
         return new InfluenceService() {
@@ -88,8 +87,9 @@ class InfluenceWebTest {
 
     @BeforeEach
     void setUp() throws Exception {
+        database = PostgresTestDatabase.open();
         registry = new TerritoryRegistry();
-        store = new TerritoryStore(tempDir.resolve("territories.json"));
+        store = new PostgresTerritoryStore(database);
         registry.register(new Territory("everfall", "Everfall", "world",
                 Boundary.ofPolygon(List.of(
                         new BlockPos(0, 0), new BlockPos(100, 0),
@@ -103,6 +103,9 @@ class InfluenceWebTest {
         if (server != null) {
             server.stop();
         }
+        if (database != null) {
+            database.close();
+        }
     }
 
     private void startServer(Optional<InfluenceService> service) throws Exception {
@@ -111,7 +114,7 @@ class InfluenceWebTest {
                 WebConfig.TlsSettings.disabled()
         );
         server = new TerritoryWebServer(cfg, registry, new TerritoryJson(),
-                () -> store, () -> service, Logger.getLogger("influence-web-test"));
+                store, () -> service, Logger.getLogger("influence-web-test"));
         server.start();
     }
 

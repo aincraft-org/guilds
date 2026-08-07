@@ -1,10 +1,12 @@
 package com.azoth.territory.web;
 
+import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Territory;
+import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryRepository;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,26 +33,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TerritoryApiPersistenceTest {
 
     private TerritoryRegistry registry;
-    private FailingStore store;
+    private PostgresDatabase database;
     private TerritoryWebServer server;
     private int port;
+    private FailingStore store;
 
     /** Store whose save always fails — simulates an unreachable remote PostgreSQL. */
-    private static final class FailingStore implements TerritoryRepository {
+    private static final class FailingStore extends PostgresTerritoryStore {
         final AtomicInteger saveAttempts = new AtomicInteger();
 
-        @Override
-        public void loadInto(TerritoryRegistry registry) {
+        private FailingStore(PostgresDatabase database) {
+            super(database);
         }
 
         @Override
         public void save(TerritoryRegistry registry) throws IOException {
             saveAttempts.incrementAndGet();
             throw new IOException("connection refused (test)");
-        }
-
-        @Override
-        public void close() {
         }
     }
 
@@ -61,7 +60,8 @@ class TerritoryApiPersistenceTest {
                 Boundary.ofPolygon(List.of(
                         new BlockPos(0, 0), new BlockPos(100, 0),
                         new BlockPos(100, 100), new BlockPos(0, 100)))));
-        store = new FailingStore();
+        database = PostgresTestDatabase.open();
+        store = new FailingStore(database);
         port = freePort();
     }
 
@@ -70,8 +70,10 @@ class TerritoryApiPersistenceTest {
         if (server != null) {
             server.stop();
         }
+        if (database != null) {
+            database.close();
+        }
     }
-
     @Test
     void failedPersistOnPutReturns500AndLeavesRegistryUntouched() throws Exception {
         server = startServer();
@@ -98,7 +100,7 @@ class TerritoryApiPersistenceTest {
     private TerritoryWebServer startServer() throws IOException {
         TerritoryWebServer s = new TerritoryWebServer(
                 new WebConfig(true, "127.0.0.1", port, "", true, "", true, WebConfig.TlsSettings.disabled()),
-                registry, new TerritoryJson(), () -> store, () -> java.util.Optional.empty(), Logger.getGlobal());
+                registry, new TerritoryJson(), store, () -> java.util.Optional.empty(), Logger.getGlobal());
         s.start();
         return s;
     }

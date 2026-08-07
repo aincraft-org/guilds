@@ -14,10 +14,6 @@ dependencies {
         exclude(group = "org.bukkit", module = "bukkit")
     }
 
-    // Guilds runtime libraries — shaded into the single plugin JAR
-    // (HikariCP comes from :common via api)
-    implementation("org.xerial:sqlite-jdbc:3.45.3.0")
-    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
     testImplementation("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")

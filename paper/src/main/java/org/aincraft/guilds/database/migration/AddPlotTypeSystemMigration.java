@@ -22,7 +22,6 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws java.sql.SQLException {
         try (Statement statement = connection.createStatement()) {
-            // Create plot type definitions table
             statement.execute("""
                 CREATE TABLE IF NOT EXISTS plot_type_definitions (
                     type_name TEXT PRIMARY KEY,
@@ -31,139 +30,77 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
                     plugin_name TEXT,
                     metadata TEXT,
                     permissions TEXT,
-                    is_enabled BOOLEAN DEFAULT 1,
+                    is_enabled BOOLEAN DEFAULT TRUE,
                     created_at TEXT NOT NULL
                 )
             """);
-
-            // Extend guild_blocks table with optional plot_type_definition reference
             statement.execute("""
-                ALTER TABLE guild_blocks ADD COLUMN plot_type_definition TEXT DEFAULT NULL
+                ALTER TABLE guild_blocks ADD COLUMN IF NOT EXISTS plot_type_definition TEXT DEFAULT NULL
             """);
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_plugin "
+                    + "ON plot_type_definitions(plugin_name)");
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_enabled "
+                    + "ON plot_type_definitions(is_enabled)");
+            statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_plot_type_def "
+                    + "ON guild_blocks(plot_type_definition)");
+        }
 
-            // Insert built-in plot type definitions
-            String currentTime = java.time.LocalDateTime.now().toString();
+        String currentTime = java.time.LocalDateTime.now().toString();
+        seed(connection, "default", "Default", "Standard residential plot", "{}", "[]", currentTime);
+        seed(connection, "shop", "Shop", "Commercial plot for shops and markets",
+                "{\"shop_type\": \"commercial\"}", "[]", currentTime);
+        seed(connection, "farm", "Farm", "Agricultural plot for farming",
+                "{\"crop_growth_bonus\": 1.2}", "[]", currentTime);
+        seed(connection, "wilderness", "Wilderness", "Unclaimed territory",
+                "{\"unclaimable\": true}", "[]", currentTime);
+        seed(connection, "bank", "Bank", "Financial services plot",
+                "{\"bank_services\": [\"deposit\", \"withdraw\", \"exchange\"]}",
+                "[\"guilds.admin.bank\"]", currentTime);
+        seed(connection, "inn", "Inn", "Hospitality and accommodation plot",
+                "{\"bed_healing\": true}", "[]", currentTime);
+        seed(connection, "embassy", "Embassy", "Diplomatic representation plot",
+                "{\"diplomatic_immunity\": true}", "[\"guilds.admin.embassy\"]", currentTime);
+        seed(connection, "jail", "Jail", "Law enforcement and detention plot",
+                "{\"prison_effect\": true}", "[\"guilds.admin.jail\"]", currentTime);
+        seed(connection, "arena", "Arena", "Combat and entertainment plot",
+                "{\"pvp_enabled\": true}", "[]", currentTime);
+    }
 
-            // Default plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
+    private static void seed(Connection connection, String typeName, String displayName, String description,
+                             String metadata, String permissions, String createdAt) throws java.sql.SQLException {
+        try (java.sql.PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO plot_type_definitions (
                     type_name, display_name, description, plugin_name, metadata,
                     permissions, is_enabled, created_at
-                ) VALUES (
-                    'default', 'Default', 'Standard residential plot', NULL, '{}',
-                    '[]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Shop plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'shop', 'Shop', 'Commercial plot for shops and markets', NULL,
-                    '{"shop_type": "commercial"}', '[]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Farm plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'farm', 'Farm', 'Agricultural plot for farming', NULL,
-                    '{"crop_growth_bonus": 1.2}', '[]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Wilderness plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'wilderness', 'Wilderness', 'Unclaimed territory', NULL,
-                    '{"unclaimable": true}', '[]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Bank plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'bank', 'Bank', 'Financial services plot', NULL,
-                    '{"bank_services": ["deposit", "withdraw", "exchange"]}',
-                    '["guilds.admin.bank"]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Inn plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'inn', 'Inn', 'Hospitality and accommodation plot', NULL,
-                    '{"bed_healing": true}', '[]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Embassy plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'embassy', 'Embassy', 'Diplomatic representation plot', NULL,
-                    '{"diplomatic_immunity": true}', '["guilds.admin.embassy"]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Jail plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'jail', 'Jail', 'Law enforcement and detention plot', NULL,
-                    '{"prison_effect": true}', '["guilds.admin.jail"]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Arena plot type
-            statement.execute(String.format("""
-                INSERT OR REPLACE INTO plot_type_definitions (
-                    type_name, display_name, description, plugin_name, metadata,
-                    permissions, is_enabled, created_at
-                ) VALUES (
-                    'arena', 'Arena', 'Combat and entertainment plot', NULL,
-                    '{"pvp_enabled": true}', '[]', 1, '%s'
-                )
-            """, currentTime));
-
-            // Create indexes for performance
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_plugin ON plot_type_definitions(plugin_name)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_enabled ON plot_type_definitions(is_enabled)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_plot_type_def ON guild_blocks(plot_type_definition)");
+                ) VALUES (?, ?, ?, NULL, ?, ?, TRUE, ?)
+                ON CONFLICT (type_name) DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    description = EXCLUDED.description,
+                    metadata = EXCLUDED.metadata,
+                    permissions = EXCLUDED.permissions,
+                    is_enabled = EXCLUDED.is_enabled,
+                    created_at = EXCLUDED.created_at
+                """)) {
+            statement.setString(1, typeName);
+            statement.setString(2, displayName);
+            statement.setString(3, description);
+            statement.setString(4, metadata);
+            statement.setString(5, permissions);
+            statement.setString(6, createdAt);
+            statement.executeUpdate();
         }
     }
 
     @Override
     public boolean isApplied(Connection connection) throws java.sql.SQLException {
-        try (Statement statement = connection.createStatement()) {
-            // Check if plot_type_definitions table exists
-            try (java.sql.ResultSet resultSet = statement.executeQuery(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='plot_type_definitions'")) {
-
-                if (resultSet.next()) {
-                    return resultSet.getInt(1) > 0;
-                }
+        try (Statement statement = connection.createStatement();
+             java.sql.ResultSet resultSet = statement.executeQuery(
+                     "SELECT COUNT(*) FROM information_schema.tables "
+                             + "WHERE table_schema = current_schema() AND table_name = 'plot_type_definitions'")) {
+            if (resultSet.next()) {
+                return resultSet.getInt(1) > 0;
             }
         } catch (java.sql.SQLException e) {
-            // Table doesn't exist yet
             return false;
         }
         return false;

@@ -13,7 +13,7 @@ import com.azoth.territory.influence.InfluenceConfig;
 import com.azoth.territory.influence.InfluenceConfigLoader;
 import com.azoth.territory.influence.InfluenceEngine;
 import com.azoth.territory.influence.InfluenceListener;
-import com.azoth.territory.influence.InfluenceStore;
+import com.azoth.territory.influence.PostgresInfluenceStore;
 import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
 import com.azoth.territory.permission.BlockProtection;
@@ -22,11 +22,10 @@ import com.azoth.territory.permission.GovernanceSource;
 import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.persist.DatabaseSettings;
 import com.azoth.territory.persist.DatabaseSettingsLoader;
-import com.azoth.territory.persist.PostgresTerritoryRepository;
-import com.azoth.territory.persist.ReconciliationStore;
+import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresReconciliationStore;
+import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryRepository;
-import com.azoth.territory.persist.TerritoryStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
@@ -38,24 +37,24 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 
 public final class AzothTerritoryPlugin extends JavaPlugin {
     private TerritoryRegistry registry;
-    private TerritoryRepository store;
+    private PostgresDatabase database;
+    private PostgresTerritoryStore store;
     private GovernanceRegistry governance;
     private BlockProtection blockProtection;
     private TerritoryWebServer webServer;
     private WebConfig webConfig;
     private EconomyBridge economyBridge;
     private BukkitEconomyBridge bukkitEconomyBridge;
-    private ReconciliationStore reconciliationStore;
+    private PostgresReconciliationStore reconciliationStore;
     private GuildsServices guilds;
     private InfluenceEngine influenceEngine;
-    private InfluenceStore influenceStore;
+    private PostgresInfluenceStore influenceStore;
 
     @Override
     public void onEnable() {
@@ -65,24 +64,22 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         }
 
         this.registry = new TerritoryRegistry();
-        Path dataFile = getDataFolder().toPath().resolve(TerritoryStore.DEFAULT_FILE_NAME);
-        this.reconciliationStore = new ReconciliationStore(
-                getDataFolder().toPath().resolve(ReconciliationStore.DEFAULT_FILE_NAME));
         try {
-            this.store = createStore(dataFile);
+            DatabaseSettings settings = DatabaseSettingsLoader.fromValues(getConfig().getValues(true));
+            this.database = new PostgresDatabase(settings);
+            this.database.initializeSchema();
+            this.store = new PostgresTerritoryStore(database);
+            this.reconciliationStore = new PostgresReconciliationStore(database);
+            this.store.loadInto(registry);
+            getLogger().info("Loaded " + registry.size() + " territor(y/ies) from PostgreSQL");
         } catch (IOException e) {
-            this.store = null;
             getLogger().log(Level.SEVERE,
-                    "Territory persistence unavailable (database.enabled=true) — "
-                            + "territory data and web submodule disabled", e);
-        }
-        if (store != null) {
-            try {
-                store.loadInto(registry);
-                getLogger().info("Loaded " + registry.size() + " territor(y/ies) from " + describeStore(dataFile));
-            } catch (IOException e) {
-                getLogger().log(Level.SEVERE, "Failed to load territories from " + describeStore(dataFile), e);
+                    "PostgreSQL persistence is mandatory; plugin startup aborted", e);
+            if (database != null) {
+                database.close();
             }
+            getServer().getPluginManager().disablePlugin(this);
+            return;
         }
 
         // Guilds subsystem is the governance source (guilds as local governments,
@@ -140,8 +137,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             economyBridge.setUnresolvedTransactionSink(entries -> {
                 if (!entries.isEmpty()) {
                     getLogger().log(Level.SEVERE, "Settlement reconciliation required; "
-                            + entries.size() + " unresolved transaction(s) persisted to "
-                            + reconciliationStore.file());
+                            + entries.size() + " unresolved transaction(s) persisted to PostgreSQL");
                 }
                 try {
                     reconciliationStore.save(entries);
@@ -160,6 +156,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 new ProtectionListener(blockProtection), this);
         getServer().getPluginManager().registerEvents(
                 new InteractionProtectionListener(blockProtection), this);
+        if (this.guilds != null) {
+            this.guilds.registerHearthstone(blockProtection);
+        }
         getLogger().info(
                 "Registered territory protection listeners "
                         + "(break/place/fire/explosions/mob-spawn/entity-grief/interaction/pvp/teleport)");
@@ -168,8 +167,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         InfluenceConfig influenceConfig = InfluenceConfigLoader.fromBukkit(getConfig());
         if (influenceConfig.enabled()) {
             try {
-                this.influenceStore = new InfluenceStore(
-                        getDataFolder().toPath().resolve("influence.json"));
+                this.influenceStore = new PostgresInfluenceStore(database);
                 this.influenceEngine = new InfluenceEngine(
                         governance, influenceConfig, influenceStore,
                         (territoryId, newOwnerGuildId) -> saveTerritories(),
@@ -235,8 +233,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 getLogger().log(Level.SEVERE, "Failed to save territories", e);
             }
         }
-        if (store != null) {
-            store.close();
+        if (database != null) {
+            database.close();
         }
     }
 
@@ -266,28 +264,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         }
     }
 
-    /**
-     * Pick the territory store: {@link TerritoryStore} (JSON file) unless
-     * {@code database.enabled: true}, which requires a reachable remote
-     * PostgreSQL — no silent fallback.
-     *
-     * @throws IOException when Postgres is configured but unreachable
-     */
-    private TerritoryRepository createStore(Path dataFile) throws IOException {
-        DatabaseSettings db = DatabaseSettingsLoader.fromValues(getConfig().getValues(true));
-        if (!db.enabled()) {
-            return new TerritoryStore(dataFile);
-        }
-        PostgresTerritoryRepository repo = new PostgresTerritoryRepository(db);
-        getLogger().info("Territory persistence: remote PostgreSQL at " + db.jdbcUrl());
-        return repo;
-    }
-
-    private String describeStore(Path dataFile) {
-        return store instanceof PostgresTerritoryRepository
-                ? "PostgreSQL"
-                : dataFile.getFileName().toString();
-    }
 
     private void startWebIfEnabled() {
         try {
@@ -296,15 +272,11 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 getLogger().info("Territory web submodule disabled (web.enabled=false)");
                 return;
             }
-            if (store == null) {
-                getLogger().warning("Territory web submodule not started: no territory store (see previous errors)");
-                return;
-            }
             this.webServer = new TerritoryWebServer(
                     webConfig,
                     registry,
                     new TerritoryJson(),
-                    () -> store,
+                    store,
                     () -> Optional.ofNullable(influenceEngine),
                     getLogger()
             );
@@ -330,7 +302,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
      */
     private void constructGuildsSubsystem() {
         try {
-            this.guilds = new GuildsServices(this);
+            this.guilds = new GuildsServices(this, database);
         } catch (Exception e) {
             getLogger().log(Level.SEVERE,
                     "Failed to construct guilds subsystem — governance falls back to territory-local", e);
@@ -404,7 +376,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         return registry;
     }
 
-    public TerritoryRepository getStore() {
+    public PostgresTerritoryStore getStore() {
         return store;
     }
 
@@ -433,14 +405,14 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     }
 
     /**
-     * Reload territories from disk (admin command / tests).
+     * Reload territories from PostgreSQL.
      */
     public void reloadTerritories() throws IOException {
         store.loadInto(registry);
     }
 
     /**
-     * Persist current registry to disk.
+     * Persist current registry to PostgreSQL.
      */
     public void saveTerritories() throws IOException {
         store.save(registry);

@@ -2,7 +2,7 @@ package com.azoth.territory.web;
 
 import com.azoth.territory.influence.InfluenceService;
 import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryRepository;
+import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
@@ -37,7 +37,7 @@ public final class TerritoryWebServer implements AutoCloseable {
     private final WebConfig config;
     private final TerritoryRegistry registry;
     private final TerritoryJson json;
-    private final Supplier<TerritoryRepository> storeSupplier;
+    private final PostgresTerritoryStore store;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Logger log;
 
@@ -49,14 +49,14 @@ public final class TerritoryWebServer implements AutoCloseable {
             WebConfig config,
             TerritoryRegistry registry,
             TerritoryJson json,
-            Supplier<TerritoryRepository> storeSupplier,
+            PostgresTerritoryStore store,
             Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
         this.config = Objects.requireNonNull(config, "config");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.json = json == null ? new TerritoryJson() : json;
-        this.storeSupplier = storeSupplier == null ? () -> null : storeSupplier;
+        this.store = Objects.requireNonNull(store, "store");
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.log = log == null ? Logger.getLogger("AzothTerritoryWeb") : log;
     }
@@ -77,7 +77,7 @@ public final class TerritoryWebServer implements AutoCloseable {
         }
 
         TerritoryApiHandler api = new TerritoryApiHandler(
-                config, proxy, registry, json, storeSupplier, influenceSupplier, log
+                config, proxy, registry, json, store, influenceSupplier, log
         );
         StaticWebHandler web = new StaticWebHandler(config);
 

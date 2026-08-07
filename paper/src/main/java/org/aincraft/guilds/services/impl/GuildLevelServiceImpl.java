@@ -506,10 +506,15 @@ public class GuildLevelServiceImpl implements GuildLevelService {
     private void recordLevelBenefits(Guild guild, GuildLevel level) {
         try {
             String sql = """
-                INSERT OR REPLACE INTO guild_level_benefits (id, guild_id, level, benefit_type, benefit_value, unlocked_at)
+                INSERT INTO guild_level_benefits (id, guild_id, level, benefit_type, benefit_value, unlocked_at)
                 VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO UPDATE SET
+                    guild_id = EXCLUDED.guild_id,
+                    level = EXCLUDED.level,
+                    benefit_type = EXCLUDED.benefit_type,
+                    benefit_value = EXCLUDED.benefit_value,
+                    unlocked_at = EXCLUDED.unlocked_at
                 """;
-
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
@@ -602,12 +607,19 @@ public class GuildLevelServiceImpl implements GuildLevelService {
             }
 
             String sql = """
-                INSERT OR REPLACE INTO guild_levels (
+                INSERT INTO guild_levels (
                     level, resource_costs_json, tech_points_reward, claim_limit_bonus,
                     assistant_slots_bonus, daily_income_bonus, unlocked_plot_types, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (level) DO UPDATE SET
+                    resource_costs_json = EXCLUDED.resource_costs_json,
+                    tech_points_reward = EXCLUDED.tech_points_reward,
+                    claim_limit_bonus = EXCLUDED.claim_limit_bonus,
+                    assistant_slots_bonus = EXCLUDED.assistant_slots_bonus,
+                    daily_income_bonus = EXCLUDED.daily_income_bonus,
+                    unlocked_plot_types = EXCLUDED.unlocked_plot_types,
+                    created_at = EXCLUDED.created_at
                 """;
-
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 

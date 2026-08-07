@@ -46,6 +46,11 @@ economy:
   daily_upkeep: true
   upkeep_cost: 10.0
 
+# Hearthstone teleport settings
+hearthstone:
+  item: "ENDER_PEARL"
+  cooldown-seconds: 30
+
 # Town Level System Configuration
 town_levels:
   max_level: 150

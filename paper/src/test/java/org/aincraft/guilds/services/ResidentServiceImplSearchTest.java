@@ -37,7 +37,9 @@ class ResidentServiceImplSearchTest {
 
     @AfterEach
     void tearDown() {
-        services.databaseManager().shutdown();
+        if (services != null) {
+            services.databaseManager().shutdown();
+        }
     }
 
     private List<String> names(String prefix, int limit) {

@@ -403,21 +403,16 @@ public class SchemaInitializer {
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {
-            // Check if spawn_x column exists
-            try (Statement statement = connection.createStatement()) {
-                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(guilds)")) {
-                    while (resultSet.next()) {
-                        String columnName = resultSet.getString("name");
-                        if ("spawn_x".equals(columnName)) {
-                            return true;
-                        }
-                    }
-                }
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'guilds' AND column_name = 'spawn_x'
+                    """);
+                 ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
             } catch (SQLException e) {
-                // Table doesn't exist or other error, consider not applied
                 return false;
             }
-            return false;
         }
 
         @Override
@@ -460,21 +455,16 @@ public class SchemaInitializer {
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {
-            // Check if home_block_y column exists
-            try (Statement statement = connection.createStatement()) {
-                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(guilds)")) {
-                    while (resultSet.next()) {
-                        String columnName = resultSet.getString("name");
-                        if ("home_block_y".equals(columnName)) {
-                            return true;
-                        }
-                    }
-                }
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'guilds' AND column_name = 'home_block_y'
+                    """);
+                 ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
             } catch (SQLException e) {
-                // Table doesn't exist or other error, consider not applied
                 return false;
             }
-            return false;
         }
 
         @Override
@@ -591,20 +581,16 @@ public class SchemaInitializer {
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {
-            // Check if town_level column exists
-            try (Statement statement = connection.createStatement()) {
-                try (ResultSet resultSet = statement.executeQuery("PRAGMA table_info(guilds)")) {
-                    while (resultSet.next()) {
-                        String columnName = resultSet.getString("name");
-                        if ("guild_level".equals(columnName)) {
-                            return true;
-                        }
-                    }
-                }
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'guilds' AND column_name = 'guild_level'
+                    """);
+                 ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next();
             } catch (SQLException e) {
                 return false;
             }
-            return false;
         }
 
         @Override
@@ -749,8 +735,7 @@ public class SchemaInitializer {
                     ALTER TABLE guilds ADD COLUMN public_enabled BOOLEAN DEFAULT FALSE
                 """);
 
-                // Initialize existing guilds with default values from permissions map if it exists
-                // For now, set defaults - guilds can be migrated from JSON permissions later
+                // Initialize existing guilds with defaults; legacy permission migration is separate.
                 statement.execute("""
                     UPDATE guilds
                     SET pvp_enabled = FALSE,
