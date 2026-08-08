@@ -4,25 +4,33 @@ import org.aincraft.guilds.GuildsServiceTestFixture;
 import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildLevel;
 import org.aincraft.guilds.services.impl.GuildLevelServiceImpl;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class GuildLevelServiceImplUpgradeTest {
 
@@ -67,6 +75,28 @@ class GuildLevelServiceImplUpgradeTest {
     }
 
     @Test
+    void levelBenefits_useDistinctKeysForEachUnlockedPlotType() throws Exception {
+        GuildLevelServiceImpl service = newService(
+                mock(DatabaseManager.class), mock(GuildService.class));
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+        when(connection.prepareStatement(anyString())).thenReturn(statement);
+        GuildLevel level = new GuildLevel(
+                2, Map.of(), 0, 0, 0, 0.0, List.of("BANK", "MARKET"));
+
+        Method recordBenefits = GuildLevelServiceImpl.class.getDeclaredMethod(
+                "recordLevelBenefits", Connection.class, String.class, GuildLevel.class);
+        recordBenefits.setAccessible(true);
+        recordBenefits.invoke(service, connection, "guild-id", level);
+
+        ArgumentCaptor<String> benefitTypes = ArgumentCaptor.forClass(String.class);
+        verify(statement, times(2)).setString(eq(4), benefitTypes.capture());
+        verify(statement, times(2)).executeUpdate();
+        assertEquals(List.of("unlocked_plot_type:BANK", "unlocked_plot_type:MARKET"),
+                benefitTypes.getAllValues());
+    }
+
+    @Test
     void upgrade_persistsLevelConsumesProgressAndRecordsBenefits(@TempDir Path tempDir) throws Exception {
         GuildsServiceTestFixture.Services services = GuildsServiceTestFixture.create(tempDir);
         try {
@@ -87,7 +117,7 @@ class GuildLevelServiceImplUpgradeTest {
                     "SELECT tech_points FROM guilds WHERE id = ?", guild.getId()));
             assertEquals("{}", databaseString(services.databaseManager(),
                     "SELECT upgrade_progress FROM guilds WHERE id = ?", guild.getId()));
-            assertEquals(1, benefitCount(services.databaseManager(), guild.getId(), 2));
+            assertEquals(3, benefitCount(services.databaseManager(), guild.getId(), 2));
         } finally {
             services.databaseManager().shutdown();
         }
@@ -111,7 +141,7 @@ class GuildLevelServiceImplUpgradeTest {
             GuildLevelService.UpgradeResult second = service.performGuildUpgrade(staleGuild);
 
             assertFalse(second.isSuccessful());
-            assertEquals(1, benefitCount(services.databaseManager(), guild.getId(), 2));
+            assertEquals(3, benefitCount(services.databaseManager(), guild.getId(), 2));
         } finally {
             services.databaseManager().shutdown();
         }
@@ -132,7 +162,7 @@ class GuildLevelServiceImplUpgradeTest {
                      INSERT INTO guild_levels (
                          level, resource_costs_json, tech_points_reward, claim_limit_bonus,
                          assistant_slots_bonus, daily_income_bonus, unlocked_plot_types, created_at)
-                     VALUES (2, '{"DIAMOND":5}', 1, 0, 0, 0.0, '[]', ?)
+                     VALUES (2, '{"DIAMOND":5}', 1, 0, 0, 0.0, '["BANK","MARKET"]', ?)
                      ON CONFLICT (level) DO UPDATE SET resource_costs_json = EXCLUDED.resource_costs_json,
                          tech_points_reward = EXCLUDED.tech_points_reward
                      """);

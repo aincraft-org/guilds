@@ -619,7 +619,8 @@ public class GuildLevelServiceImpl implements GuildLevelService {
                         String.valueOf(level.getTechPointsReward()), now);
             }
             for (String plotType : level.getUnlockedPlotTypes()) {
-                insertLevelBenefit(statement, guildId, level, "unlocked_plot_type", plotType, now);
+                insertLevelBenefit(
+                        statement, guildId, level, "unlocked_plot_type:" + plotType, plotType, now);
             }
         }
     }
