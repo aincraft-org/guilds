@@ -12,6 +12,7 @@ import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.permission.GuildToggles;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.bukkit.Location;
+import org.bukkit.damage.DamageSource;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -250,7 +251,8 @@ class HarvestBonusListenerTest {
         when(victim.getLocation()).thenReturn(new Location(world, 10, 64, 10));
         when(victim.getWorld()).thenReturn(world);
         List<ItemStack> drops = new ArrayList<>(List.of(mockedStack(2)));
-        PlayerDeathEvent event = new PlayerDeathEvent(victim, null, drops, 0, "death");
+        DamageSource damageSource = mock(DamageSource.class);
+        PlayerDeathEvent event = new PlayerDeathEvent(victim, damageSource, drops, 0, "death");
 
         listener.onEntityDeath(event);
 
@@ -267,7 +269,8 @@ class HarvestBonusListenerTest {
         when(mob.getLocation()).thenReturn(new Location(world, 10, 64, 10));
         when(mob.getWorld()).thenReturn(world);
         List<ItemStack> drops = new ArrayList<>(List.of(mockedStack(2)));
-        EntityDeathEvent event = new EntityDeathEvent(mob, null, drops);
+        DamageSource damageSource = mock(DamageSource.class);
+        EntityDeathEvent event = new EntityDeathEvent(mob, damageSource, drops);
 
         listener.onEntityDeath(event);
 
@@ -286,7 +289,8 @@ class HarvestBonusListenerTest {
         when(mob.getLocation()).thenReturn(new Location(world, 10, 64, 10));
         List<ItemStack> drops = new ArrayList<>(List.of(mockedStack(6)));
         ItemStack vanillaLootingResult = drops.get(0);
-        EntityDeathEvent event = new EntityDeathEvent(mob, null, drops);
+        DamageSource damageSource = mock(DamageSource.class);
+        EntityDeathEvent event = new EntityDeathEvent(mob, damageSource, drops);
 
         listener.onEntityDeath(event);
 
