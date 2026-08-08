@@ -91,8 +91,10 @@ public final class TerritoryWebServer implements AutoCloseable {
             server = HttpServer.create(addr, 0);
         }
 
+        SessionStore sessions = new SessionStore(
+                config.apiToken(), config.sessionTtlSeconds(), java.time.Clock.systemUTC());
         TerritoryApiHandler api = new TerritoryApiHandler(
-                config, proxy, registry, json, store, influenceSupplier, standingSupplier, log
+                config, proxy, registry, json, store, influenceSupplier, standingSupplier, sessions, log
         );
 
         server.createContext("/api", api);

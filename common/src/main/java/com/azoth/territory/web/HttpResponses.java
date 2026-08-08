@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 final class HttpResponses {
     private HttpResponses() {
@@ -21,6 +23,55 @@ final class HttpResponses {
         h.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         h.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Token");
         h.set("Access-Control-Max-Age", "86400");
+    }
+
+    /**
+     * Reads a single cookie value from the request {@code Cookie} header.
+     */
+    static Optional<String> cookie(HttpExchange exchange, String name) {
+        List<String> cookies = exchange.getRequestHeaders().get("Cookie");
+        if (cookies == null || cookies.isEmpty()) {
+            return Optional.empty();
+        }
+        String prefix = name + "=";
+        for (String header : cookies) {
+            if (header == null || header.isBlank()) {
+                continue;
+            }
+            for (String part : header.split(";")) {
+                String trimmed = part.trim();
+                if (trimmed.startsWith(prefix)) {
+                    return Optional.of(trimmed.substring(prefix.length()));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Appends a Set-Cookie header. Does not send the response.
+     */
+    static void setCookie(
+            HttpExchange exchange,
+            String name,
+            String value,
+            long maxAgeSeconds,
+            boolean secure
+    ) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(name).append('=').append(value == null ? "" : value);
+        sb.append("; Path=/; HttpOnly; SameSite=Lax");
+        if (maxAgeSeconds >= 0) {
+            sb.append("; Max-Age=").append(maxAgeSeconds);
+        }
+        if (secure) {
+            sb.append("; Secure");
+        }
+        exchange.getResponseHeaders().add("Set-Cookie", sb.toString());
+    }
+
+    static void clearCookie(HttpExchange exchange, String name, boolean secure) {
+        setCookie(exchange, name, "", 0, secure);
     }
 
     static void json(HttpExchange exchange, int status, String body, WebConfig config) throws IOException {

@@ -37,6 +37,8 @@ import java.util.logging.Logger;
  * DELETE /api/territories/{id}
  * GET    /api/resolve?world=&amp;x=&amp;z=
  * GET    /api/meta   (proxy/tls info for the UI)
+ * POST   /api/session  (API token → session cookie)
+ * DELETE /api/session  (logout)
  * </pre>
  */
 public final class TerritoryApiHandler implements HttpHandler {
@@ -47,6 +49,7 @@ public final class TerritoryApiHandler implements HttpHandler {
     private final PostgresTerritoryStore store;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
     private final Supplier<Optional<StandingService>> standingSupplier;
+    private final SessionStore sessions;
     private final Logger log;
     /** Serializes stage → save → replace so concurrent mutations cannot clobber each other. */
     private final Object mutationLock = new Object();
@@ -60,7 +63,7 @@ public final class TerritoryApiHandler implements HttpHandler {
             Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
-        this(config, proxy, registry, json, store, influenceSupplier, Optional::empty, log);
+        this(config, proxy, registry, json, store, influenceSupplier, Optional::empty, null, log);
     }
 
     public TerritoryApiHandler(
@@ -73,6 +76,20 @@ public final class TerritoryApiHandler implements HttpHandler {
             Supplier<Optional<StandingService>> standingSupplier,
             Logger log
     ) {
+        this(config, proxy, registry, json, store, influenceSupplier, standingSupplier, null, log);
+    }
+
+    public TerritoryApiHandler(
+            WebConfig config,
+            ReverseProxySupport proxy,
+            TerritoryRegistry registry,
+            TerritoryJson json,
+            PostgresTerritoryStore store,
+            Supplier<Optional<InfluenceService>> influenceSupplier,
+            Supplier<Optional<StandingService>> standingSupplier,
+            SessionStore sessions,
+            Logger log
+    ) {
         this.config = config;
         this.proxy = proxy;
         this.registry = registry;
@@ -80,6 +97,9 @@ public final class TerritoryApiHandler implements HttpHandler {
         this.store = store;
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.standingSupplier = standingSupplier == null ? Optional::empty : standingSupplier;
+        this.sessions = sessions == null
+                ? new SessionStore(config.apiToken(), config.sessionTtlSeconds(), java.time.Clock.systemUTC())
+                : sessions;
         this.log = log;
     }
 
@@ -114,6 +134,14 @@ public final class TerritoryApiHandler implements HttpHandler {
             }
             if ("/meta".equals(path) && "GET".equals(method)) {
                 meta(exchange);
+                return;
+            }
+            if ("/session".equals(path) && "POST".equals(method)) {
+                createSession(exchange);
+                return;
+            }
+            if ("/session".equals(path) && "DELETE".equals(method)) {
+                destroySession(exchange);
                 return;
             }
             if ("/territories".equals(path) && "GET".equals(method)) {
@@ -164,6 +192,11 @@ public final class TerritoryApiHandler implements HttpHandler {
         if ("GET".equals(method) && ("/health".equals(path) || "/meta".equals(path))) {
             return false;
         }
+        // Login is public: token is validated in the body, not via cookie/header yet.
+        // Logout is also public so an expired cookie can still be cleared.
+        if ("/session".equals(path) && ("POST".equals(method) || "DELETE".equals(method))) {
+            return false;
+        }
         // When a token is configured, require it for all API calls except health/meta
         return true;
     }
@@ -184,7 +217,42 @@ public final class TerritoryApiHandler implements HttpHandler {
                 return true;
             }
         }
-        return false;
+        Optional<String> sessionId = HttpResponses.cookie(exchange, SessionStore.COOKIE_NAME);
+        return sessionId.isPresent() && sessions.isValid(sessionId.get());
+    }
+
+    private void createSession(HttpExchange exchange) throws IOException {
+        if (!config.requiresAuth()) {
+            HttpResponses.json(exchange, 200, "{\"ok\":true,\"authRequired\":false}", config);
+            return;
+        }
+        String body = HttpResponses.readBody(exchange);
+        String token = "";
+        if (body != null && !body.isBlank()) {
+            JsonObject o = JsonParser.parseString(body).getAsJsonObject();
+            if (o.has("token") && !o.get("token").isJsonNull()) {
+                token = o.get("token").getAsString();
+            }
+        }
+        Optional<String> id = sessions.create(token);
+        if (id.isEmpty()) {
+            HttpResponses.unauthorized(exchange, config);
+            return;
+        }
+        HttpResponses.setCookie(
+                exchange,
+                SessionStore.COOKIE_NAME,
+                id.get(),
+                sessions.ttlSeconds(),
+                proxy.isSecure(exchange)
+        );
+        HttpResponses.json(exchange, 200, "{\"ok\":true}", config);
+    }
+
+    private void destroySession(HttpExchange exchange) throws IOException {
+        HttpResponses.cookie(exchange, SessionStore.COOKIE_NAME).ifPresent(sessions::invalidate);
+        HttpResponses.clearCookie(exchange, SessionStore.COOKIE_NAME, proxy.isSecure(exchange));
+        HttpResponses.noContent(exchange, config);
     }
 
     private void health(HttpExchange exchange) throws IOException {
@@ -207,6 +275,8 @@ public final class TerritoryApiHandler implements HttpHandler {
         o.addProperty("secure", proxy.isSecure(exchange));
         proxy.clientIp(exchange).ifPresent(ip -> o.addProperty("clientIp", ip));
         o.addProperty("authRequired", config.requiresAuth());
+        o.addProperty("squaremapTileBaseUrl", config.squaremapTileBaseUrl());
+        o.addProperty("sessionTtlSeconds", config.sessionTtlSeconds());
         HttpResponses.json(exchange, 200, json.gson().toJson(o), config);
     }
 
