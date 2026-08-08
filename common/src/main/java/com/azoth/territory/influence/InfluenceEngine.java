@@ -5,6 +5,7 @@ import com.azoth.territory.permission.AllianceBody;
 import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.registry.TerritoryRegistry;
+import com.azoth.territory.standing.StandingService;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ public final class InfluenceEngine implements InfluenceService {
     private final PostgresInfluenceStore store;
     private final OwnershipPersister persister;
     private final Logger log;
+    private final StandingService standingService;
 
     private final InfluenceState state = new InfluenceState();
     private boolean dirty;
@@ -51,11 +53,31 @@ public final class InfluenceEngine implements InfluenceService {
             OwnershipPersister persister,
             Logger log
     ) {
+        this(governance, config, store, persister, log, null);
+    }
+
+    public InfluenceEngine(
+            GovernanceRegistry governance,
+            InfluenceConfig config,
+            PostgresInfluenceStore store,
+            OwnershipPersister persister,
+            Logger log,
+            StandingService standingService
+    ) {
         this.governance = Objects.requireNonNull(governance, "governance");
         this.config = Objects.requireNonNull(config, "config");
         this.store = Objects.requireNonNull(store, "store");
         this.persister = Objects.requireNonNull(persister, "persister");
         this.log = Objects.requireNonNull(log, "log");
+        this.standingService = standingService;
+    }
+
+    /** Influence accrual multiplier from the standing engine (1.0 when absent). */
+    private double influenceMultiplierFor(String guildId) {
+        if (standingService == null) {
+            return 1.0;
+        }
+        return standingService.influenceMultiplierFor(guildId);
     }
 
     private boolean unusable() {
@@ -105,7 +127,8 @@ public final class InfluenceEngine implements InfluenceService {
         if (!canContest(entry.ownerGuildId, guildId)) {
             return Optional.empty();
         }
-        double value = round2(entry.bars.getOrDefault(guildId, 0.0) + config.valueOf(source));
+        double value = round2((entry.bars.getOrDefault(guildId, 0.0) + config.valueOf(source))
+                * influenceMultiplierFor(guildId));
         entry.bars.put(guildId, Math.min(config.cap(), value));
         dirty = true;
         return Optional.of(new InfluenceBar(guildId, entry.bars.get(guildId)));

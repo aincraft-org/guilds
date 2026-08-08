@@ -27,6 +27,10 @@ import com.azoth.territory.persist.PostgresReconciliationStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.registry.TerritoryRegistry;
+import com.azoth.territory.standing.PostgresStandingStore;
+import com.azoth.territory.standing.StandingConfig;
+import com.azoth.territory.standing.StandingConfigLoader;
+import com.azoth.territory.standing.StandingEngine;
 import com.azoth.territory.squaremap.TerritorySquaremapBridge;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
@@ -56,6 +60,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private GuildsServices guilds;
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
+    private StandingEngine standingEngine;
+    private PostgresStandingStore standingStore;
     private TerritorySquaremapBridge squaremapBridge;
 
     @Override
@@ -170,6 +176,16 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         this.squaremapBridge = new TerritorySquaremapBridge(this, registry);
         this.squaremapBridge.start();
 
+        // Standing engine (constructed before influence so the influence hook
+        // can read development tiers; listeners + flush timer wired in Task 6).
+        StandingConfig standingConfig = StandingConfigLoader.load(
+                        new java.io.File(getDataFolder(), "bonuses.json").toPath())
+                .orElse(StandingConfig.defaults());
+        this.standingStore = new PostgresStandingStore(database);
+        this.standingEngine = new StandingEngine(
+                governance, standingConfig, standingStore, getLogger());
+        this.standingEngine.recover(System.currentTimeMillis());
+
         // Territory influence race (accrual → declare → countdown flip).
         InfluenceConfig influenceConfig = InfluenceConfigLoader.fromBukkit(getConfig());
         if (influenceConfig.enabled()) {
@@ -178,7 +194,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 this.influenceEngine = new InfluenceEngine(
                         governance, influenceConfig, influenceStore,
                         (territoryId, newOwnerGuildId) -> saveTerritories(),
-                        getLogger());
+                        getLogger(),
+                        standingEngine);
                 broadcastFlips(influenceEngine.recover(System.currentTimeMillis()));
                 getServer().getPluginManager().registerEvents(
                         new InfluenceListener(governance, influenceEngine), this);
@@ -219,6 +236,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         disableGuildsSubsystem();
         stopSquaremap();
         stopWeb();
+        if (standingEngine != null) {
+            try {
+                standingEngine.flush();
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to flush standing state on disable", e);
+            }
+        }
         if (influenceEngine != null) {
             try {
                 influenceEngine.flush();
@@ -362,6 +386,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
     public InfluenceEngine getInfluenceEngine() {
         return influenceEngine;
+    }
+
+    public StandingEngine getStandingEngine() {
+        return standingEngine;
     }
 
     private void broadcastFlips(List<InfluenceEngine.TerritoryFlip> flips) {
