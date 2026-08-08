@@ -9,6 +9,10 @@ import com.azoth.territory.model.LookupResult;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.permission.GuildBody;
+import com.azoth.territory.standing.StandingBar;
+import com.azoth.territory.standing.StandingEngine;
+import com.azoth.territory.standing.StandingTier;
+import com.azoth.territory.standing.TerritoryStandingState;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
@@ -54,9 +58,13 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
                     ? influenceAdmin(sender, args)
                     : influence(sender, args);
             case "declare" -> declare(sender, args);
+            case "standing" -> args.length > 1 && ("set".equalsIgnoreCase(args[1])
+                    || "reset".equalsIgnoreCase(args[1]))
+                    ? standingAdmin(sender, args)
+                    : standing(sender, args);
             default -> {
                 sender.sendMessage(Component.text(
-                        "Usage: /" + label + " [lookup|list|reload|save|web|govern|influence|declare]",
+                        "Usage: /" + label + " [lookup|list|reload|save|web|govern|influence|declare|standing]",
                         NamedTextColor.RED));
                 yield true;
             }
@@ -375,12 +383,94 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
         return result.isContained() ? result.territoryId().orElse(null) : null;
     }
 
+    // ── Standing ──────────────────────────────────────────────────────────
+
+    private StandingEngine standingEngine() {
+        return plugin.getStandingEngine();
+    }
+
+    /** /territory standing [territoryId] — show standing bars and tier. */
+    private boolean standing(CommandSender sender, String[] args) {
+        StandingEngine engine = standingEngine();
+        if (engine == null) {
+            sender.sendMessage(Component.text("Standing subsystem unavailable.", NamedTextColor.RED));
+            return true;
+        }
+        String territoryId = args.length >= 2 && !args[1].isBlank() ? args[1] : territoryAt(sender);
+        if (territoryId == null) {
+            sender.sendMessage(Component.text("You must stand inside a territory or name one.",
+                    NamedTextColor.RED));
+            return true;
+        }
+        Optional<TerritoryStandingState> state = engine.standing(territoryId);
+        if (state.isEmpty()) {
+            sender.sendMessage(Component.text("No standing for territory '" + territoryId + "'.",
+                    NamedTextColor.YELLOW));
+            return true;
+        }
+        TerritoryStandingState s = state.get();
+        sender.sendMessage(Component.text("Standing for " + territoryId
+                + " (owner: " + s.ownerGuildId() + "):", NamedTextColor.GOLD));
+        for (StandingBar bar : s.bars()) {
+            Optional<StandingTier> tier = engine.tierFor(territoryId, bar.guildId());
+            sender.sendMessage(Component.text("  " + bar.guildId() + ": " + bar.value()
+                    + (tier.isPresent() ? " (tier " + tier.get().level() + ")" : ""),
+                    NamedTextColor.YELLOW));
+        }
+        return true;
+    }
+
+    /**
+     * /territory standing set <territoryId> <guildId> <value> |
+     *                 standing reset <territoryId>
+     */
+    private boolean standingAdmin(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("azoth.territory.admin") && !sender.isOp()) {
+            sender.sendMessage(Component.text("No permission.", NamedTextColor.RED));
+            return true;
+        }
+        StandingEngine engine = standingEngine();
+        if (engine == null) {
+            sender.sendMessage(Component.text("Standing subsystem unavailable.", NamedTextColor.RED));
+            return true;
+        }
+        if (args.length >= 2 && "reset".equalsIgnoreCase(args[1])) {
+            if (args.length < 3) {
+                sender.sendMessage(Component.text("Usage: /territory standing reset <territoryId>",
+                        NamedTextColor.RED));
+                return true;
+            }
+            boolean removed = engine.adminReset(args[2]);
+            sender.sendMessage(Component.text(removed
+                    ? "Standing state dropped for " + args[2] + "."
+                    : "No standing state for " + args[2] + ".", NamedTextColor.GREEN));
+            return true;
+        }
+        if (args.length < 5 || !"set".equalsIgnoreCase(args[1])) {
+            sender.sendMessage(Component.text(
+                    "Usage: /territory standing set <territoryId> <guildId> <value> | reset <territoryId>",
+                    NamedTextColor.RED));
+            return true;
+        }
+        try {
+            double value = Double.parseDouble(args[4]);
+            boolean ok = engine.adminSet(args[2], args[3], value);
+            sender.sendMessage(Component.text(ok
+                    ? "Set standing of " + args[3] + " on " + args[2] + " to " + value + "."
+                    : "Unknown territory or guild.", NamedTextColor.GREEN));
+            return true;
+        } catch (NumberFormatException e) {
+            sender.sendMessage(Component.text("Value must be a number.", NamedTextColor.RED));
+            return true;
+        }
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             String p = args[0].toLowerCase(Locale.ROOT);
             return Arrays.asList("lookup", "list", "reload", "save", "web", "govern",
-                            "influence", "declare").stream()
+                            "influence", "declare", "standing").stream()
                     .filter(s -> s.startsWith(p))
                     .collect(Collectors.toCollection(ArrayList::new));
         }
