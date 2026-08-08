@@ -75,6 +75,7 @@ export function createEditorMap(containerId, options = {}) {
 
   const shapes = L.layerGroup().addTo(map);
   const draft = L.layerGroup().addTo(map);
+  const grid = L.layerGroup().addTo(map);
 
   function clearShapes() {
     shapes.clearLayers();
@@ -82,6 +83,33 @@ export function createEditorMap(containerId, options = {}) {
   function clearDraft() {
     draft.clearLayers();
   }
+
+  /** Draw a light chunk grid around the map center (updates on move/zoom). */
+  function redrawChunkGrid() {
+    grid.clearLayers();
+    if (map.getZoom() < 2) return;
+    const bounds = map.getBounds();
+    const sw = toPoint(bounds.getSouthWest());
+    const ne = toPoint(bounds.getNorthEast());
+    const minX = Math.floor(Math.min(sw.x, ne.x) / 16) - 1;
+    const maxX = Math.ceil(Math.max(sw.x, ne.x) / 16) + 1;
+    const minZ = Math.floor(Math.min(sw.y, ne.y) / 16) - 1;
+    const maxZ = Math.ceil(Math.max(sw.y, ne.y) / 16) + 1;
+    // Cap lines for performance
+    if ((maxX - minX) * (maxZ - minZ) > 80 * 80) return;
+    const style = { color: '#ffffff', weight: 1, opacity: 0.08, interactive: false };
+    for (let cx = minX; cx <= maxX; cx++) {
+      const x = cx * 16;
+      L.polyline([toLatLng(x, minZ * 16), toLatLng(x, maxZ * 16)], style).addTo(grid);
+    }
+    for (let cz = minZ; cz <= maxZ; cz++) {
+      const z = cz * 16;
+      L.polyline([toLatLng(minX * 16, z), toLatLng(maxX * 16, z)], style).addTo(grid);
+    }
+  }
+
+  map.on('moveend zoomend', redrawChunkGrid);
+  setTimeout(redrawChunkGrid, 0);
 
   function polygonLatLngs(vertices) {
     return (vertices || []).map((v) => toLatLng(v.x, v.z));

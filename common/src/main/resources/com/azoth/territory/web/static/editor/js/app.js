@@ -220,8 +220,23 @@ async function bootstrap() {
     }
   });
 
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    try {
+      await api.logout();
+    } catch {
+      /* ignore */
+    }
+    if (meta.authRequired) {
+      setLoginVisible(true);
+      setSessionStatus('Signed out');
+      showBanner('Signed out');
+    }
+  });
+
   document.getElementById('btn-save').addEventListener('click', async () => {
-    const ids = selection ? [selection.territoryId] : [...state.dirtyIds];
+    // Prefer all dirty territories; fall back to current selection
+    let ids = [...state.dirtyIds];
+    if (ids.length === 0 && selection) ids = [selection.territoryId];
     if (ids.length === 0) {
       showBanner('Nothing to save');
       return;

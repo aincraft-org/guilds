@@ -68,6 +68,7 @@ button {
 }
 button:hover { filter: brightness(1.08); }
 button.primary { background: var(--ok); border-color: #4a8a50; font-weight: 600; }
+button.ghost { background: transparent; border-color: var(--border); color: var(--muted); }
 button.danger { background: #5a3030; border-color: var(--danger); color: #f0c0c0; margin-top: 12px; }
 button.tool.active { background: var(--accent); border-color: #7ec8ff; color: #0b1220; }
 button.tool.erase { background: #5a3d3d; }
