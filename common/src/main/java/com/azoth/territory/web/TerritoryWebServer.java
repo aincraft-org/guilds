@@ -98,6 +98,11 @@ public final class TerritoryWebServer implements AutoCloseable {
         );
 
         server.createContext("/api", api);
+        server.createContext("/editor", new StaticFileHandler(
+                "/editor",
+                "com/azoth/territory/web/static/editor",
+                config
+        ));
 
         executor = Executors.newFixedThreadPool(
                 Math.max(2, Runtime.getRuntime().availableProcessors()),
@@ -113,7 +118,8 @@ public final class TerritoryWebServer implements AutoCloseable {
         String scheme = config.https() ? "https" : "http";
         log.info("Territory web listening on " + scheme + "://" + config.bindHost() + ":" + config.port()
                 + (config.trustProxy() ? " (trust reverse-proxy headers)" : "")
-                + (config.publicBaseUrl().isEmpty() ? "" : " publicBaseUrl=" + config.publicBaseUrl()));
+                + (config.publicBaseUrl().isEmpty() ? "" : " publicBaseUrl=" + config.publicBaseUrl())
+                + " editor=/editor/");
     }
 
     public synchronized void stop() {

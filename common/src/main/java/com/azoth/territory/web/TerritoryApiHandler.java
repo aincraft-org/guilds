@@ -97,9 +97,15 @@ public final class TerritoryApiHandler implements HttpHandler {
         this.store = store;
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.standingSupplier = standingSupplier == null ? Optional::empty : standingSupplier;
-        this.sessions = sessions == null
-                ? new SessionStore(config.apiToken(), config.sessionTtlSeconds(), java.time.Clock.systemUTC())
-                : sessions;
+        if (sessions != null) {
+            this.sessions = sessions;
+        } else if (config != null) {
+            this.sessions = new SessionStore(
+                    config.apiToken(), config.sessionTtlSeconds(), java.time.Clock.systemUTC());
+        } else {
+            // Unit tests may construct a partial handler (e.g. standingJson only).
+            this.sessions = new SessionStore("", WebConfig.DEFAULT_SESSION_TTL_SECONDS, java.time.Clock.systemUTC());
+        }
         this.log = log;
     }
 

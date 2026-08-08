@@ -12,11 +12,12 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
   database; territory, influence, reconciliation, facilities, expenses, and
   Guilds tables share the same connection pool.
 - Admin command: `/territory [lookup|list|reload|save|web|upkeep]`
-- **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`) — REST API only:
+- **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
   - REST API under `/api/*`
+  - **Admin map editor** at `/editor/` (draw territories/zones; chunk-medium tools)
   - Optional **TLS** via PKCS12/JKS keystore
   - **Reverse-proxy** aware (`X-Forwarded-Proto/Host/For`, `X-Real-IP`, `public-base-url`)
-  - The interactive map is **squaremap** (see below), not the API port
+  - The public live map is **squaremap** (see below); the editor is on the API port
 
 ## Build
 
@@ -66,11 +67,26 @@ in-plugin bridge (`com.azoth.territory.squaremap.TerritorySquaremapBridge`):
 - **Azoth Influence** layer — neutral territory strokes, or red contest
   fills/strokes with owner and leading-attacker tooltips while a race is active
 
-The bridge refreshes every 5 seconds, so boundaries created via the REST API
-(`/api/territories`), `/territory reload`, or influence flips appear on the map
-automatically. The influence layer is also refreshed from the persisted race
+The bridge refreshes every 5 seconds, so boundaries created via the REST API,
+the **admin map editor**, `/territory reload`, or influence flips appear on the
+map automatically. The influence layer is also refreshed from the persisted race
 state. squaremap is a **soft dependency**: without the jar the plugin logs a
 warning and all map layers are skipped.
+
+### Admin map editor
+
+Open `http://localhost:8765/editor/` (same host/port as the territory web
+submodule). Features:
+
+- Login with `web.api-token` → HttpOnly `AZOTH_SESSION` cookie
+  (`POST /api/session`; TTL from `web.session-ttl-seconds`)
+- Leaflet basemap from squaremap tiles (`web.squaremap-tile-base-url`, default
+  `http://localhost:8080` → tiles at
+  `{base}/tiles/{world}/{z}/{x}_{y}.png`, tile size 512)
+- Chunk-snapped tools: polygon, paint, rect, erase; create/edit territories
+  and nested zones; Save via `PUT /api/territories/{id}`
+
+Public squaremap stays view-only; no squaremap fork required.
 
 Accept the EULA on first run (`paper/run/eula.txt`). The plugin requires the
 shared PostgreSQL database (see "Persistence" below) — point `database.*` in
@@ -317,8 +333,11 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/editor/` | Admin map editor (static UI) |
 | GET | `/api/health` | Liveness + territory count |
-| GET | `/api/meta` | Public origin, scheme, proxy/TLS flags |
+| GET | `/api/meta` | Public origin, scheme, proxy/TLS flags, tile base URL |
+| POST | `/api/session` | Exchange API token for `AZOTH_SESSION` cookie |
+| DELETE | `/api/session` | Logout (clear session cookie) |
 | GET | `/api/territories` | Full registry JSON |
 | GET | `/api/territories/{id}` | One territory |
 | PUT | `/api/territories/{id}` | Create/update (persists to PostgreSQL) |

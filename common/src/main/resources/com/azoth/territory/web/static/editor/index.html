@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Azoth Map Editor</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="" />
+  <link rel="stylesheet" href="css/editor.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <header class="brand">Azoth Map Editor</header>
+      <label class="field">
+        <span class="label">World</span>
+        <select id="world-select"></select>
+      </label>
+      <div class="label">Territories</div>
+      <div id="territory-tree" class="tree"></div>
+      <div class="sidebar-actions">
+        <button type="button" id="btn-add-territory">+ Territory</button>
+        <button type="button" id="btn-add-zone">+ Zone</button>
+      </div>
+      <div id="session-status" class="session-status"></div>
+    </aside>
+
+    <main id="main">
+      <div id="toolbar">
+        <button type="button" data-tool="select" class="tool active">Select</button>
+        <button type="button" data-tool="polygon" class="tool">Polygon</button>
+        <button type="button" data-tool="paint" class="tool">Paint</button>
+        <button type="button" data-tool="rect" class="tool">Rect</button>
+        <button type="button" data-tool="erase" class="tool erase">Erase</button>
+        <span class="spacer"></span>
+        <button type="button" id="btn-save" class="primary">Save</button>
+      </div>
+      <div id="map"></div>
+      <div id="coords"></div>
+      <div id="banner" class="banner hidden"></div>
+    </main>
+
+    <aside id="inspector">
+      <div class="label">Inspector</div>
+      <div id="inspector-empty" class="muted">Select a territory or zone</div>
+      <div id="inspector-form" class="hidden">
+        <label class="field"><span class="label">ID</span>
+          <input id="insp-id" type="text" autocomplete="off" /></label>
+        <label class="field"><span class="label">Name</span>
+          <input id="insp-name" type="text" autocomplete="off" /></label>
+        <label class="field" id="insp-type-wrap"><span class="label">Zone type</span>
+          <select id="insp-type">
+            <option value="WILDERNESS">WILDERNESS</option>
+            <option value="CLAIMABLE">CLAIMABLE</option>
+          </select>
+        </label>
+        <div id="insp-stats" class="muted"></div>
+        <button type="button" id="btn-delete" class="danger">Delete…</button>
+      </div>
+    </aside>
+  </div>
+
+  <div id="login-modal" class="modal hidden">
+    <div class="modal-card">
+      <h2>Admin login</h2>
+      <p class="muted">Enter the web API token from config.yml</p>
+      <label class="field">
+        <span class="label">API token</span>
+        <input id="login-token" type="password" autocomplete="current-password" />
+      </label>
+      <p id="login-error" class="error hidden"></p>
+      <button type="button" id="btn-login" class="primary">Sign in</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
