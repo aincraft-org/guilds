@@ -19,6 +19,8 @@ public final class WebConfigLoader {
         boolean trustProxy = bool(cfg, "web.trust-proxy", true);
         String token = str(cfg, "web.api-token", "");
         boolean cors = bool(cfg, "web.cors", true);
+        String tileBase = str(cfg, "web.squaremap-tile-base-url", "");
+        long sessionTtl = longOf(cfg, "web.session-ttl-seconds", WebConfig.DEFAULT_SESSION_TTL_SECONDS);
 
         boolean tlsEnabled = bool(cfg, "web.tls.enabled", false);
         WebConfig.TlsSettings tls;
@@ -36,7 +38,8 @@ public final class WebConfigLoader {
             tls = WebConfig.TlsSettings.disabled();
         }
 
-        return new WebConfig(enabled, host, port, publicBase, trustProxy, token, cors, tls);
+        return new WebConfig(
+                enabled, host, port, publicBase, trustProxy, token, cors, tls, tileBase, sessionTtl);
     }
 
     private static boolean bool(Map<String, Object> cfg, String key, boolean def) {
@@ -57,6 +60,21 @@ public final class WebConfigLoader {
         if (value instanceof String s) {
             try {
                 return Integer.parseInt(s);
+            } catch (NumberFormatException ignored) {
+                return def;
+            }
+        }
+        return def;
+    }
+
+    private static long longOf(Map<String, Object> cfg, String key, long def) {
+        Object value = cfg.get(key);
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        if (value instanceof String s) {
+            try {
+                return Long.parseLong(s);
             } catch (NumberFormatException ignored) {
                 return def;
             }

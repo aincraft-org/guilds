@@ -14,8 +14,14 @@ web:
   # Honour X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-For, X-Real-IP
   trust-proxy: true
   # If non-empty, API calls (except /api/health and /api/meta) require
-  # header X-Api-Token or Authorization: Bearer <token>
+  # header X-Api-Token or Authorization: Bearer <token>, or a valid
+  # AZOTH_SESSION cookie from POST /api/session (admin map editor).
   api-token: ""
+  # squaremap public origin for editor basemap tiles (no trailing slash).
+  # Example: http://localhost:8080 — empty disables tiles (chunk grid only).
+  squaremap-tile-base-url: "http://localhost:8080"
+  # Session cookie TTL for the admin map editor (seconds). Default 8 hours.
+  session-ttl-seconds: 28800
   cors: true
   # Optional direct TLS on the embedded server (PKCS12 or JKS keystore).
   # Prefer reverse-proxy TLS in production unless you have a reason not to.

@@ -7,6 +7,8 @@ import java.util.Objects;
  * Configuration for the embedded territory web submodule (HTTP/HTTPS + reverse proxy).
  */
 public final class WebConfig {
+    public static final long DEFAULT_SESSION_TTL_SECONDS = 28_800L;
+
     private final boolean enabled;
     private final String bindHost;
     private final int port;
@@ -15,6 +17,8 @@ public final class WebConfig {
     private final String apiToken;
     private final boolean corsEnabled;
     private final TlsSettings tls;
+    private final String squaremapTileBaseUrl;
+    private final long sessionTtlSeconds;
 
     public WebConfig(
             boolean enabled,
@@ -25,6 +29,22 @@ public final class WebConfig {
             String apiToken,
             boolean corsEnabled,
             TlsSettings tls
+    ) {
+        this(enabled, bindHost, port, publicBaseUrl, trustProxy, apiToken, corsEnabled, tls, "",
+                DEFAULT_SESSION_TTL_SECONDS);
+    }
+
+    public WebConfig(
+            boolean enabled,
+            String bindHost,
+            int port,
+            String publicBaseUrl,
+            boolean trustProxy,
+            String apiToken,
+            boolean corsEnabled,
+            TlsSettings tls,
+            String squaremapTileBaseUrl,
+            long sessionTtlSeconds
     ) {
         this.enabled = enabled;
         this.bindHost = bindHost == null || bindHost.isBlank() ? "0.0.0.0" : bindHost.trim();
@@ -37,6 +57,12 @@ public final class WebConfig {
         this.apiToken = apiToken == null ? "" : apiToken;
         this.corsEnabled = corsEnabled;
         this.tls = tls == null ? TlsSettings.disabled() : tls;
+        this.squaremapTileBaseUrl = squaremapTileBaseUrl == null ? "" : squaremapTileBaseUrl.trim()
+                .replaceAll("/+$", "");
+        if (sessionTtlSeconds < 1) {
+            throw new IllegalArgumentException("sessionTtlSeconds must be positive");
+        }
+        this.sessionTtlSeconds = sessionTtlSeconds;
     }
 
     public static WebConfig defaults() {
@@ -48,7 +74,9 @@ public final class WebConfig {
                 true,
                 "",
                 true,
-                TlsSettings.disabled()
+                TlsSettings.disabled(),
+                "",
+                DEFAULT_SESSION_TTL_SECONDS
         );
     }
 
@@ -90,6 +118,18 @@ public final class WebConfig {
 
     public boolean https() {
         return tls.enabled();
+    }
+
+    /**
+     * Base URL for squaremap (no trailing slash), e.g. {@code http://localhost:8080}.
+     * Empty means the editor shows a chunk grid only.
+     */
+    public String squaremapTileBaseUrl() {
+        return squaremapTileBaseUrl;
+    }
+
+    public long sessionTtlSeconds() {
+        return sessionTtlSeconds;
     }
 
     /**
