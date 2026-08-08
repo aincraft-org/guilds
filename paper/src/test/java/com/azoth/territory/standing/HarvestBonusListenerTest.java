@@ -1,6 +1,5 @@
 package com.azoth.territory.standing;
 
-import com.azoth.territory.PostgresTestDatabase;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Government;
@@ -11,27 +10,33 @@ import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.permission.GovernanceSource;
 import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.persist.PostgresDatabase;
 import com.azoth.territory.registry.TerritoryRegistry;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -45,7 +50,6 @@ class HarvestBonusListenerTest {
     private TerritoryRegistry territories;
     private TestGovernanceSource source;
     private GovernanceRegistry governance;
-    private PostgresDatabase database;
     private StandingEngine engine;
     private HarvestBonusListener listener;
     private World world;
@@ -57,9 +61,7 @@ class HarvestBonusListenerTest {
         territories = new TerritoryRegistry();
         source = new TestGovernanceSource();
         governance = new GovernanceRegistry(territories, source);
-        database = PostgresTestDatabase.open();
-        engine = new StandingEngine(governance, StandingConfig.defaults(),
-                new PostgresStandingStore(database), Logger.getLogger("test"));
+        engine = new StandingEngine(governance, StandingConfig.defaults(), null, Logger.getLogger("test"));
         listener = new HarvestBonusListener(governance, engine);
         world = mock(World.class);
         when(world.getName()).thenReturn("world");
@@ -79,12 +81,6 @@ class HarvestBonusListenerTest {
         when(owner.getLocation()).thenReturn(new Location(world, 10, 64, 10));
     }
 
-    @AfterEach
-    void tearDown() {
-        if (database != null) {
-            database.close();
-        }
-    }
 
     private void accrueToTier3() {
         for (int i = 0; i < 30; i++) {
@@ -157,11 +153,16 @@ class HarvestBonusListenerTest {
         return stack;
     }
 
-    private void stubInventory(Player player) {
+    private ItemStack stubInventory(Player player) {
         PlayerInventory inv = mock(PlayerInventory.class);
         ItemStack empty = mockedStack(0);
         when(inv.getItemInMainHand()).thenReturn(empty);
         when(player.getInventory()).thenReturn(inv);
+        return empty;
+    }
+
+    private void stubDrops(Block block, ItemStack base) {
+        when(block.getDrops(any(ItemStack.class), any())).thenReturn(List.of(base));
     }
 
     @Test
@@ -170,7 +171,7 @@ class HarvestBonusListenerTest {
 
         Block block = insideBlock();
         ItemStack base = mockedStack(2);
-        when(block.getDrops()).thenReturn(List.of(base));
+        stubDrops(block, base);
         stubInventory(owner);
 
         BlockBreakEvent event = new BlockBreakEvent(block, owner);
@@ -192,7 +193,7 @@ class HarvestBonusListenerTest {
 
         Block block = insideBlock();
         ItemStack base = mockedStack(2);
-        when(block.getDrops()).thenReturn(List.of(base));
+        stubDrops(block, base);
         BlockBreakEvent event = new BlockBreakEvent(block, outsider);
         listener.onBlockBreak(event);
 
@@ -205,7 +206,7 @@ class HarvestBonusListenerTest {
 
         Block block = insideBlock();
         ItemStack base = mockedStack(4);
-        when(block.getDrops()).thenReturn(List.of(base));
+        stubDrops(block, base);
         stubInventory(owner);
 
         BlockBreakEvent event = new BlockBreakEvent(block, owner);
@@ -213,5 +214,84 @@ class HarvestBonusListenerTest {
 
         // Base 4 diamonds * 1.5 → bonus = floor(4 * 0.5) = 2 extra diamonds.
         verify(world).dropItemNaturally(any(Location.class), argThat(s -> s.getAmount() == 2));
+    }
+
+    @Test
+    void blockBreak_usesPlayerToolAndEntityContext() {
+        accrueToTier3();
+
+        Block block = insideBlock();
+        ItemStack base = mockedStack(2);
+        ItemStack tool = stubInventory(owner);
+        stubDrops(block, base);
+
+        listener.onBlockBreak(new BlockBreakEvent(block, owner));
+
+        verify(block).getDrops(tool, owner);
+    }
+
+    @Test
+    void handlers_mutateBeforeMonitor() throws Exception {
+        Method blockMethod = HarvestBonusListener.class.getDeclaredMethod(
+                "onBlockBreak", BlockBreakEvent.class);
+        Method entityMethod = HarvestBonusListener.class.getDeclaredMethod(
+                "onEntityDeath", EntityDeathEvent.class);
+
+        assertEquals(EventPriority.HIGH, blockMethod.getAnnotation(EventHandler.class).priority());
+        assertEquals(EventPriority.HIGH, entityMethod.getAnnotation(EventHandler.class).priority());
+    }
+
+    @Test
+    void entityDeath_ignoresPlayerVictims() {
+        accrueToTier3();
+
+        Player victim = mock(Player.class);
+        when(victim.getKiller()).thenReturn(owner);
+        when(victim.getLocation()).thenReturn(new Location(world, 10, 64, 10));
+        when(victim.getWorld()).thenReturn(world);
+        List<ItemStack> drops = new ArrayList<>(List.of(mockedStack(2)));
+        PlayerDeathEvent event = new PlayerDeathEvent(victim, null, drops, 0, "death");
+
+        listener.onEntityDeath(event);
+
+        assertEquals(1, event.getDrops().size());
+        verify(world, never()).dropItemNaturally(any(), any());
+    }
+
+    @Test
+    void entityDeath_appendsStandingExtraWithoutSpawningWorldItem() {
+        accrueToTier3();
+
+        LivingEntity mob = mock(LivingEntity.class);
+        when(mob.getKiller()).thenReturn(owner);
+        when(mob.getLocation()).thenReturn(new Location(world, 10, 64, 10));
+        when(mob.getWorld()).thenReturn(world);
+        List<ItemStack> drops = new ArrayList<>(List.of(mockedStack(2)));
+        EntityDeathEvent event = new EntityDeathEvent(mob, null, drops);
+
+        listener.onEntityDeath(event);
+
+        assertEquals(2, event.getDrops().size());
+        assertEquals(2, event.getDrops().get(0).getAmount());
+        assertEquals(1, event.getDrops().get(1).getAmount());
+        verify(world, never()).dropItemNaturally(any(), any());
+    }
+
+    @Test
+    void entityDeath_keepsLootingResultAndAppendsFromCanonicalEventDrops() {
+        accrueToTier3();
+
+        LivingEntity mob = mock(LivingEntity.class);
+        when(mob.getKiller()).thenReturn(owner);
+        when(mob.getLocation()).thenReturn(new Location(world, 10, 64, 10));
+        List<ItemStack> drops = new ArrayList<>(List.of(mockedStack(6)));
+        ItemStack vanillaLootingResult = drops.get(0);
+        EntityDeathEvent event = new EntityDeathEvent(mob, null, drops);
+
+        listener.onEntityDeath(event);
+
+        assertSame(vanillaLootingResult, event.getDrops().get(0));
+        assertEquals(6, event.getDrops().get(0).getAmount());
+        assertEquals(3, event.getDrops().get(1).getAmount());
     }
 }

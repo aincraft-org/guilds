@@ -14,12 +14,16 @@ import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Applies the standing tier's harvest multiplier to block and mob drops
- * for governing-guild members inside the territory (spec §6). Multiplies
- * base drops only; Fortune/Looting are never re-rolled.
+ * for governing-guild members inside the territory. Block drops use the
+ * player's tool-aware Bukkit calculation. Mob drops intentionally use the
+ * canonical {@link EntityDeathEvent#getDrops()} result: Bukkit exposes that
+ * list after vanilla loot (including Looting), so this listener leaves the
+ * originals unchanged, appends standing copies, and never regenerates loot.
  */
 public final class HarvestBonusListener implements Listener {
 
@@ -31,7 +35,7 @@ public final class HarvestBonusListener implements Listener {
         this.engine = engine;
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         double multiplier = multiplierAt(player, event.getBlock().getLocation());
@@ -39,8 +43,8 @@ public final class HarvestBonusListener implements Listener {
             return;
         }
         Block block = event.getBlock();
-        // Base drops without any tool enchantment (no-arg getDrops = empty hand):
-        Collection<ItemStack> base = block.getDrops();
+        ItemStack tool = player.getInventory().getItemInMainHand();
+        Collection<ItemStack> base = block.getDrops(tool, player);
         for (ItemStack drop : base) {
             int bonus = (int) Math.floor(drop.getAmount() * (multiplier - 1.0));
             if (bonus > 0) {
@@ -51,8 +55,11 @@ public final class HarvestBonusListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDeath(EntityDeathEvent event) {
+        if (event.getEntity() instanceof Player) {
+            return;
+        }
         if (event.getEntity().getKiller() == null) {
             return;
         }
@@ -61,13 +68,12 @@ public final class HarvestBonusListener implements Listener {
         if (multiplier <= 1.0) {
             return;
         }
-        for (ItemStack drop : event.getDrops()) {
+        for (ItemStack drop : List.copyOf(event.getDrops())) {
             int bonus = (int) Math.floor(drop.getAmount() * (multiplier - 1.0));
             if (bonus > 0) {
                 ItemStack extra = drop.clone();
                 extra.setAmount(bonus);
-                event.getEntity().getWorld().dropItemNaturally(
-                        event.getEntity().getLocation().add(0.5, 0.5, 0.5), extra);
+                event.getDrops().add(extra);
             }
         }
     }
