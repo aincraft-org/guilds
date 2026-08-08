@@ -325,6 +325,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                     new TerritoryJson(),
                     store,
                     () -> Optional.ofNullable(influenceEngine),
+                    () -> Optional.ofNullable(standingEngine),
                     getLogger()
             );
             webServer.start();

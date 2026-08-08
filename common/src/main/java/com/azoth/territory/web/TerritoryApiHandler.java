@@ -9,6 +9,9 @@ import com.azoth.territory.model.ZoneType;
 import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.registry.TerritoryRegistry;
+import com.azoth.territory.standing.StandingBar;
+import com.azoth.territory.standing.StandingService;
+import com.azoth.territory.standing.TerritoryStandingState;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -43,6 +46,7 @@ public final class TerritoryApiHandler implements HttpHandler {
     private final TerritoryJson json;
     private final PostgresTerritoryStore store;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
+    private final Supplier<Optional<StandingService>> standingSupplier;
     private final Logger log;
     /** Serializes stage → save → replace so concurrent mutations cannot clobber each other. */
     private final Object mutationLock = new Object();
@@ -56,12 +60,26 @@ public final class TerritoryApiHandler implements HttpHandler {
             Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
+        this(config, proxy, registry, json, store, influenceSupplier, Optional::empty, log);
+    }
+
+    public TerritoryApiHandler(
+            WebConfig config,
+            ReverseProxySupport proxy,
+            TerritoryRegistry registry,
+            TerritoryJson json,
+            PostgresTerritoryStore store,
+            Supplier<Optional<InfluenceService>> influenceSupplier,
+            Supplier<Optional<StandingService>> standingSupplier,
+            Logger log
+    ) {
         this.config = config;
         this.proxy = proxy;
         this.registry = registry;
         this.json = json;
         this.store = store;
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
+        this.standingSupplier = standingSupplier == null ? Optional::empty : standingSupplier;
         this.log = log;
     }
 
@@ -126,6 +144,10 @@ public final class TerritoryApiHandler implements HttpHandler {
             }
             if ("/influence".equals(path) && "GET".equals(method)) {
                 influenceList(exchange);
+                return;
+            }
+            if ("/standing".equals(path) && "GET".equals(method)) {
+                standingList(exchange);
                 return;
             }
 
@@ -201,7 +223,54 @@ public final class TerritoryApiHandler implements HttpHandler {
         JsonObject body = json.toJson(t.get());
         influenceSupplier.get().flatMap(s -> s.influence(id))
                 .ifPresent(state -> body.add("influence", toInfluenceJson(state)));
+        standingSupplier.get().flatMap(s -> s.standing(id))
+                .ifPresent(state -> body.add("standing", toStandingJson(state)));
         HttpResponses.json(exchange, 200, json.gson().toJson(body), config);
+    }
+
+    private void standingList(HttpExchange exchange) throws IOException {
+        Optional<StandingService> service = standingSupplier.get();
+        if (service.isEmpty()) {
+            HttpResponses.notFound(exchange, config);
+            return;
+        }
+        JsonObject root = new JsonObject();
+        root.add("standing", standingStateArray(service.get()));
+        HttpResponses.json(exchange, 200, json.gson().toJson(root), config);
+    }
+
+    /** JSON for all standing states (spec §9). */
+    public String standingJson() {
+        Optional<StandingService> service = standingSupplier.get();
+        if (service.isEmpty()) {
+            return "{\"standing\":[]}";
+        }
+        JsonObject root = new JsonObject();
+        root.add("standing", standingStateArray(service.get()));
+        return root.toString();
+    }
+
+    private static JsonArray standingStateArray(StandingService service) {
+        JsonArray out = new JsonArray();
+        for (TerritoryStandingState s : service.all()) {
+            out.add(toStandingJson(s));
+        }
+        return out;
+    }
+
+    private static JsonObject toStandingJson(TerritoryStandingState state) {
+        JsonObject out = new JsonObject();
+        out.addProperty("territoryId", state.territoryId());
+        out.addProperty("ownerGuildId", state.ownerGuildId());
+        JsonArray bars = new JsonArray();
+        for (StandingBar bar : state.bars()) {
+            JsonObject b = new JsonObject();
+            b.addProperty("guildId", bar.guildId());
+            b.addProperty("value", bar.value());
+            bars.add(b);
+        }
+        out.add("bars", bars);
+        return out;
     }
 
     private void influenceList(HttpExchange exchange) throws IOException {

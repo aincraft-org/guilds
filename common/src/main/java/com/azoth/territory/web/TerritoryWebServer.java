@@ -4,6 +4,7 @@ import com.azoth.territory.influence.InfluenceService;
 import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.registry.TerritoryRegistry;
+import com.azoth.territory.standing.StandingService;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsParameters;
@@ -39,6 +40,7 @@ public final class TerritoryWebServer implements AutoCloseable {
     private final TerritoryJson json;
     private final PostgresTerritoryStore store;
     private final Supplier<Optional<InfluenceService>> influenceSupplier;
+    private final Supplier<Optional<StandingService>> standingSupplier;
     private final Logger log;
 
     private HttpServer server;
@@ -53,11 +55,24 @@ public final class TerritoryWebServer implements AutoCloseable {
             Supplier<Optional<InfluenceService>> influenceSupplier,
             Logger log
     ) {
+        this(config, registry, json, store, influenceSupplier, Optional::empty, log);
+    }
+
+    public TerritoryWebServer(
+            WebConfig config,
+            TerritoryRegistry registry,
+            TerritoryJson json,
+            PostgresTerritoryStore store,
+            Supplier<Optional<InfluenceService>> influenceSupplier,
+            Supplier<Optional<StandingService>> standingSupplier,
+            Logger log
+    ) {
         this.config = Objects.requireNonNull(config, "config");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.json = json == null ? new TerritoryJson() : json;
         this.store = Objects.requireNonNull(store, "store");
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
+        this.standingSupplier = standingSupplier == null ? Optional::empty : standingSupplier;
         this.log = log == null ? Logger.getLogger("AzothTerritoryWeb") : log;
     }
 
@@ -77,7 +92,7 @@ public final class TerritoryWebServer implements AutoCloseable {
         }
 
         TerritoryApiHandler api = new TerritoryApiHandler(
-                config, proxy, registry, json, store, influenceSupplier, log
+                config, proxy, registry, json, store, influenceSupplier, standingSupplier, log
         );
 
         server.createContext("/api", api);
