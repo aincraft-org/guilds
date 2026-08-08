@@ -31,6 +31,8 @@ import com.azoth.territory.standing.PostgresStandingStore;
 import com.azoth.territory.standing.StandingConfig;
 import com.azoth.territory.standing.StandingConfigLoader;
 import com.azoth.territory.standing.StandingEngine;
+import com.azoth.territory.standing.HarvestBonusListener;
+import com.azoth.territory.standing.StandingListener;
 import com.azoth.territory.squaremap.TerritorySquaremapBridge;
 import com.azoth.territory.web.TerritoryWebServer;
 import com.azoth.territory.web.WebConfig;
@@ -185,6 +187,19 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         this.standingEngine = new StandingEngine(
                 governance, standingConfig, standingStore, getLogger());
         this.standingEngine.recover(System.currentTimeMillis());
+        getServer().getPluginManager().registerEvents(
+                new StandingListener(governance, standingEngine), this);
+        getServer().getPluginManager().registerEvents(
+                new HarvestBonusListener(governance, standingEngine), this);
+        long standingFlushTicks = Math.max(1, 60L * 20L);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            try {
+                standingEngine.flush();
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to flush standing state", e);
+            }
+        }, standingFlushTicks, standingFlushTicks);
+        getLogger().info("Territory standing + harvest bonuses enabled");
 
         // Territory influence race (accrual → declare → countdown flip).
         InfluenceConfig influenceConfig = InfluenceConfigLoader.fromBukkit(getConfig());
