@@ -24,15 +24,21 @@ import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.persist.DatabaseSettings;
 import com.azoth.territory.persist.DatabaseSettingsLoader;
 import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresFacilityStore;
 import com.azoth.territory.persist.PostgresExpenseStore;
 import com.azoth.territory.persist.PostgresReconciliationStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
+import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.registry.TerritoryRegistry;
 import com.azoth.territory.standing.PostgresStandingStore;
 import com.azoth.territory.standing.StandingConfig;
 import com.azoth.territory.standing.StandingConfigLoader;
 import com.azoth.territory.standing.StandingEngine;
+import com.azoth.territory.standing.StandingTier;
+import com.azoth.territory.persist.PostgresUpkeepStore;
+import com.azoth.territory.upkeep.UpkeepConfig;
+import com.azoth.territory.upkeep.UpkeepEngine;
 import com.azoth.territory.standing.HarvestBonusListener;
 import com.azoth.territory.standing.StandingListener;
 import com.azoth.territory.squaremap.TerritorySquaremapBridge;
@@ -42,16 +48,20 @@ import com.azoth.territory.web.WebConfigLoader;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.aincraft.guilds.GuildsServices;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
 
 public final class AzothTerritoryPlugin extends JavaPlugin {
     private TerritoryRegistry registry;
+    private FacilityRegistry facilities;
+    private PostgresFacilityStore facilityStore;
     private PostgresDatabase database;
     private PostgresTerritoryStore store;
     private GovernanceRegistry governance;
@@ -65,6 +75,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private ExpenseLedger expenseLedger;
     private boolean expenseLedgerLoaded;
     private GuildsServices guilds;
+    private UpkeepEngine upkeepEngine;
+    private PostgresUpkeepStore upkeepStore;
+    private BukkitTask upkeepTask;
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
     private StandingEngine standingEngine;
@@ -90,6 +103,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.store = new PostgresTerritoryStore(database);
             this.reconciliationStore = new PostgresReconciliationStore(database);
             this.store.loadInto(registry);
+            this.facilities = new FacilityRegistry(registry);
+            this.facilityStore = new PostgresFacilityStore(database);
+            this.facilityStore.loadInto(facilities);
             getLogger().info("Loaded " + registry.size() + " territor(y/ies) from PostgreSQL");
         } catch (IOException e) {
             getLogger().log(Level.SEVERE,
@@ -158,7 +174,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.economyBridge = new EconomyBridge(
                     registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(),
                     rail, simulation, expenseLedger);
-            this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge);
+            this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge, facilities);
             try {
                 economyBridge.loadUnresolvedTransactions(reconciliationStore.load());
             } catch (IOException e) {
@@ -220,6 +236,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             }
         }, standingFlushTicks, standingFlushTicks);
         getLogger().info("Territory standing + harvest bonuses enabled");
+        startUpkeep();
 
         // Territory influence race (accrual → declare → countdown flip).
         InfluenceConfig influenceConfig = InfluenceConfigLoader.fromBukkit(getConfig());
@@ -285,11 +302,19 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 getLogger().log(Level.SEVERE, "Failed to flush influence state on disable", e);
             }
         }
+        stopUpkeep();
         if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
             try {
                 expenseStore.save(expenseLedger.entries());
             } catch (IOException e) {
                 getLogger().log(Level.SEVERE, "Failed to flush expense journal on disable", e);
+            }
+        }
+        if (facilityStore != null && facilities != null) {
+            try {
+                facilityStore.save(facilities);
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to flush facility state on disable", e);
             }
         }
         if (reconciliationStore != null && economyBridge != null) {
@@ -311,6 +336,94 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             database.close();
         }
     }
+    private void startUpkeep() {
+        if (!getConfig().getBoolean("upkeep.enabled", true)) {
+            getLogger().info("Territory upkeep disabled (upkeep.enabled=false)");
+            return;
+        }
+        if (economyBridge == null) {
+            getLogger().warning("Territory upkeep disabled because the economy bridge is unavailable");
+            return;
+        }
+        UpkeepConfig defaults = UpkeepConfig.defaults();
+        try {
+            long intervalDays = getConfig().getLong("upkeep.interval-days", 7L);
+            long graceDays = getConfig().getLong("upkeep.grace-days", 2L);
+            long checkSeconds = getConfig().getLong("upkeep.check-seconds", 60L);
+            if (checkSeconds <= 0L) {
+                throw new IllegalArgumentException("upkeep.check-seconds must be positive");
+            }
+            UpkeepConfig config = new UpkeepConfig(
+                    getConfig().getDouble("upkeep.base-amount", defaults.baseAmount()),
+                    getConfig().getDouble("upkeep.chunk-amount", defaults.chunkAmount()),
+                    getConfig().getDouble("upkeep.facility-amount", defaults.facilityAmount()),
+                    getConfig().getDouble(
+                            "upkeep.development-level-amount", defaults.developmentLevelAmount()),
+                    daysToMillis(intervalDays),
+                    daysToMillis(graceDays));
+            this.upkeepStore = new PostgresUpkeepStore(database);
+            this.upkeepEngine = new UpkeepEngine(
+                    registry, economyBridge, facilities, config, upkeepStore, this::developmentLevelFor);
+            long now = System.currentTimeMillis();
+            upkeepEngine.recover(now);
+            long checkTicks = Math.max(1L, Math.multiplyExact(checkSeconds, 20L));
+            this.upkeepTask = getServer().getScheduler().runTaskTimer(
+                    this, this::tickUpkeep, checkTicks, checkTicks);
+            getLogger().info("Territory upkeep enabled (interval " + intervalDays + "d, grace "
+                    + graceDays + "d)");
+        } catch (Exception e) {
+            getLogger().log(Level.SEVERE, "Failed to start territory upkeep — disabled", e);
+            this.upkeepEngine = null;
+            this.upkeepStore = null;
+            this.upkeepTask = null;
+        }
+    }
+
+    private void tickUpkeep() {
+        if (upkeepEngine == null) {
+            return;
+        }
+        try {
+            upkeepEngine.tick(System.currentTimeMillis());
+        } catch (IOException e) {
+            getLogger().log(Level.SEVERE, "Failed to persist territory upkeep state", e);
+        } catch (RuntimeException e) {
+            getLogger().log(Level.SEVERE, "Territory upkeep tick failed", e);
+        }
+    }
+
+    private void stopUpkeep() {
+        if (upkeepTask != null) {
+            upkeepTask.cancel();
+            upkeepTask = null;
+        }
+        if (upkeepStore != null && upkeepEngine != null) {
+            try {
+                upkeepStore.save(upkeepEngine.all());
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to flush territory upkeep state on disable", e);
+            }
+        }
+    }
+
+    private int developmentLevelFor(String territoryId) {
+        if (standingEngine == null) {
+            return 0;
+        }
+        return registry.get(territoryId)
+                .flatMap(territory -> territory.governedByGuildId()
+                        .flatMap(guildId -> standingEngine.tierFor(territoryId, guildId)))
+                .map(StandingTier::level)
+                .orElse(0);
+    }
+
+    private static long daysToMillis(long days) {
+        if (days <= 0L) {
+            throw new IllegalArgumentException("upkeep day values must be positive");
+        }
+        return Math.multiplyExact(TimeUnit.DAYS.toMillis(1), days);
+    }
+
 
     private net.milkbowl.vault.economy.Economy resolveVaultEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) {
@@ -433,6 +546,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
     public StandingEngine getStandingEngine() {
         return standingEngine;
+    }
+
+    public UpkeepEngine getUpkeepEngine() {
+        return upkeepEngine;
     }
 
     private void broadcastFlips(List<InfluenceEngine.TerritoryFlip> flips) {

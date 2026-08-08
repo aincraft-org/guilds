@@ -58,6 +58,11 @@ class PluginMetadataTest {
                     "config.yml must ship the post-flip cooldown default");
             assertTrue(yaml.contains("declare-countdown-hours: 24"),
                     "config.yml must ship the declare countdown default");
+            assertTrue(yaml.contains("upkeep:"), "config.yml must ship the upkeep block");
+            assertTrue(yaml.contains("interval-days: 7"),
+                    "config.yml must ship the upkeep interval default");
+            assertTrue(yaml.contains("grace-days: 2"),
+                    "config.yml must ship the upkeep grace default");
         }
     }
 }

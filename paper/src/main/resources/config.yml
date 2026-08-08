@@ -47,6 +47,17 @@ database:
 economy:
   mode: VAULT
 
+# Recurring treasury upkeep for governed territories.
+upkeep:
+  enabled: true
+  base-amount: 100.0
+  chunk-amount: 0.5
+  facility-amount: 10.0
+  development-level-amount: 25.0
+  interval-days: 7
+  grace-days: 2
+  check-seconds: 60
+
 # Territory influence race (New World style): rival guilds accrue influence in
 # enemy-alliance territories; at 100% they may declare and take over after a
 # countdown. Both sides must belong to alliances.

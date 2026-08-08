@@ -13,6 +13,8 @@ import com.azoth.territory.standing.StandingBar;
 import com.azoth.territory.standing.StandingEngine;
 import com.azoth.territory.standing.StandingTier;
 import com.azoth.territory.standing.TerritoryStandingState;
+import com.azoth.territory.upkeep.UpkeepEngine;
+import com.azoth.territory.upkeep.UpkeepState;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
@@ -58,13 +60,15 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
                     ? influenceAdmin(sender, args)
                     : influence(sender, args);
             case "declare" -> declare(sender, args);
+            case "upkeep" -> upkeep(sender, args);
             case "standing" -> args.length > 1 && ("set".equalsIgnoreCase(args[1])
                     || "reset".equalsIgnoreCase(args[1]))
                     ? standingAdmin(sender, args)
                     : standing(sender, args);
             default -> {
                 sender.sendMessage(Component.text(
-                        "Usage: /" + label + " [lookup|list|reload|save|web|govern|influence|declare|standing]",
+                        "Usage: /" + label
+                                + " [lookup|list|reload|save|web|govern|influence|declare|standing|upkeep]",
                         NamedTextColor.RED));
                 yield true;
             }
@@ -218,6 +222,37 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+
+    /** /territory upkeep [territoryId] — show the latest durable upkeep state. */
+    private boolean upkeep(CommandSender sender, String[] args) {
+        UpkeepEngine engine = plugin.getUpkeepEngine();
+        if (engine == null) {
+            sender.sendMessage(Component.text("Territory upkeep is disabled.", NamedTextColor.RED));
+            return true;
+        }
+        String territoryId = args.length > 1 && !args[1].isBlank() ? args[1] : territoryAt(sender);
+        if (territoryId == null) {
+            sender.sendMessage(Component.text(
+                    "Usage: /territory upkeep <territoryId>", NamedTextColor.RED));
+            return true;
+        }
+        UpkeepState state = engine.state(territoryId).orElse(null);
+        if (state == null) {
+            sender.sendMessage(Component.text(
+                    "No upkeep state for '" + territoryId + "'.", NamedTextColor.YELLOW));
+            return true;
+        }
+        String grace = state.graceDeadlineEpochMs() == 0L
+                ? "none" : Long.toString(state.graceDeadlineEpochMs());
+        String outcome = state.lastOutcome() == null ? "NONE" : state.lastOutcome().name();
+        sender.sendMessage(Component.text("Upkeep — " + state.territoryId(), NamedTextColor.GOLD));
+        sender.sendMessage(Component.text("Amount: " + state.amount(), NamedTextColor.WHITE));
+        sender.sendMessage(Component.text("Status: " + state.status().name(), NamedTextColor.WHITE));
+        sender.sendMessage(Component.text("Next due: " + state.nextDueEpochMs(), NamedTextColor.WHITE));
+        sender.sendMessage(Component.text("Grace deadline: " + grace, NamedTextColor.WHITE));
+        sender.sendMessage(Component.text("Last outcome: " + outcome, NamedTextColor.WHITE));
+        return true;
+    }
     private InfluenceEngine engine() {
         InfluenceEngine engine = plugin.getInfluenceEngine();
         return engine == null ? null : engine;
@@ -470,7 +505,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1) {
             String p = args[0].toLowerCase(Locale.ROOT);
             return Arrays.asList("lookup", "list", "reload", "save", "web", "govern",
-                            "influence", "declare", "standing").stream()
+                            "influence", "declare", "standing", "upkeep").stream()
                     .filter(s -> s.startsWith(p))
                     .collect(Collectors.toCollection(ArrayList::new));
         }
