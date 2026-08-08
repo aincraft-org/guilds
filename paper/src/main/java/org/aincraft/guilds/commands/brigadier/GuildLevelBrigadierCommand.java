@@ -10,6 +10,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.ResourceType;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
@@ -19,6 +20,7 @@ import org.aincraft.guilds.services.GuildService;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,11 +62,11 @@ public class GuildLevelBrigadierCommand {
             .then(Commands.literal("deposit")
                 .then(Commands.argument("resource", StringArgumentType.word())
                     .suggests((ctx, builder) -> {
-                        // Suggest common materials
-                        for (String resource : Arrays.asList("DIAMOND", "GOLD_INGOT", "IRON_INGOT", "EMERALD",
-                                                             "NETHERITE_INGOT", "COAL", "QUARTZ", "REDSTONE")) {
-                            if (resource.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
-                                builder.suggest(resource);
+                        for (String resource : resourceService.getSupportedResourceTypes()) {
+                            String suggestion = resource.toUpperCase(Locale.ROOT);
+                            if (suggestion.toLowerCase(Locale.ROOT)
+                                    .startsWith(builder.getRemainingLowerCase())) {
+                                builder.suggest(suggestion);
                             }
                         }
                         return builder.buildFuture();
@@ -81,7 +83,7 @@ public class GuildLevelBrigadierCommand {
                 .then(Commands.argument("type", StringArgumentType.word())
                     .suggests((ctx, builder) -> {
                         for (String type : Arrays.asList("level", "residents", "balance", "techpoints")) {
-                            if (type.toLowerCase().startsWith(builder.getRemainingLowerCase())) {
+                            if (type.toLowerCase(Locale.ROOT).startsWith(builder.getRemainingLowerCase())) {
                                 builder.suggest(type);
                             }
                         }
@@ -110,7 +112,9 @@ public class GuildLevelBrigadierCommand {
         player.sendMessage("§f/townlevel top [type] [count]§7 - Show top guilds (level/residents/balance/techpoints)");
 
         player.sendMessage("§7");
-        player.sendMessage("§7Supported Resources: Any Minecraft item (DIAMOND, GOLD_INGOT, NETHERITE_INGOT, etc.)");
+        player.sendMessage("§7Supported Resources: "
+                + String.join(", ", resourceService.getSupportedResourceTypes()).toUpperCase(Locale.ROOT));
+        player.sendMessage("§7Only configured guild upgrade resources can be deposited.");
         player.sendMessage("§7Example: /townlevel deposit DIAMOND 10");
         player.sendMessage("§7Aliases: /tl deposit DIAMOND 10");
 
@@ -166,61 +170,41 @@ public class GuildLevelBrigadierCommand {
 
         String playerGuild = getPlayerGuild(player);
         if (playerGuild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
-
         Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
         if (guildOpt.isEmpty()) {
-            player.sendMessage("§cTown not found!");
+            player.sendMessage("§cGuild not found!");
             return 0;
         }
 
         Guild guild = guildOpt.get();
-        String resourceType = StringArgumentType.getString(ctx, "resource").toUpperCase();
+        String resourceType = StringArgumentType.getString(ctx, "resource");
         int amount = IntegerArgumentType.getInteger(ctx, "amount");
-
-        if (!resourceService.isSupportedResourceType(resourceType)) {
-            player.sendMessage("§cUnsupported resource type: " + resourceType);
-            player.sendMessage("§eSupported resources: Any Minecraft item (DIAMOND, GOLD_INGOT, NETHERITE_INGOT, etc.)");
+        ResourceService.ContributionResult result = resourceService.processContribution(
+                guild, player.getUniqueId(), resourceType, amount);
+        if (!result.isSuccessful()) {
+            player.sendMessage("§c" + result.getMessage());
             return 0;
         }
 
-        // Check if player has enough resources
-        if (!hasEnoughResources(player, resourceType, amount)) {
-            player.sendMessage("§cYou don't have enough " + resourceType + " in your inventory!");
-            player.sendMessage("§eRequired: " + amount + ", Available: " + getResourceCount(player, resourceType));
-            return 0;
-        }
-
-        // Remove resources from player inventory
-        if (!removeResources(player, resourceType, amount)) {
-            player.sendMessage("§cFailed to remove resources from your inventory!");
-            return 0;
-        }
-
-        // Add to guild upgrade progress
-        int previousAmount = guild.getUpgradeProgress().getOrDefault(resourceType, 0);
-        guild.contributeToUpgrade(resourceType, amount);
-        guildService.updateGuild(guild);
-
-        int newAmount = guild.getUpgradeProgress().getOrDefault(resourceType, 0);
-        player.sendMessage("§aSuccessfully contributed " + amount + " " + resourceType + " to town upgrade!");
-        player.sendMessage("§eTotal contributed: " + newAmount + " " + resourceType);
-
-        // Show upgrade progress if applicable
+        String normalized = normalizeResourceKey(resourceType);
+        int newAmount = guild.getUpgradeProgress().getOrDefault(normalized, 0);
+        player.sendMessage("§a" + result.getMessage());
+        player.sendMessage("§eTotal contributed: " + newAmount + " " + normalized);
         guildLevelService.getNextGuildLevel(guild).ifPresent(nextLevel -> {
-            Map<String, Integer> requirements = nextLevel.getResourceCosts();
-            if (requirements.containsKey(resourceType)) {
-                int required = requirements.get(resourceType);
-                if (newAmount >= required) {
-                    player.sendMessage("§aYou have enough " + resourceType + " for the next level!");
-                } else {
-                    player.sendMessage("§eProgress for next level: " + newAmount + "/" + required + " " + resourceType);
-                }
+            int required = nextLevel.getResourceCosts().entrySet().stream()
+                    .filter(entry -> normalizeResourceKey(entry.getKey()).equals(normalized))
+                    .mapToInt(Map.Entry::getValue)
+                    .findFirst()
+                    .orElse(0);
+            if (required > 0) {
+                String progress = newAmount >= required ? "§aRequirement met"
+                        : "§eProgress: " + newAmount + "/" + required;
+                player.sendMessage("§7" + normalized + ": " + progress);
             }
         });
-
         return Command.SINGLE_SUCCESS;
     }
 
@@ -236,35 +220,28 @@ public class GuildLevelBrigadierCommand {
             player.sendMessage("§cYou are not in a town!");
             return 0;
         }
-
         Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
         if (guildOpt.isEmpty()) {
             player.sendMessage("§cTown not found!");
             return 0;
         }
 
-        Guild guild = guildOpt.get();
-
-        player.sendMessage("§e=== Town Resource Bank ===");
-
-        Map<String, Integer> progress = guild.getUpgradeProgress();
-        if (progress.isEmpty()) {
+        player.sendMessage("§e=== Guild Resource Bank ===");
+        List<org.aincraft.guilds.models.GuildResource> resources =
+                resourceService.getGuildResources(guildOpt.get().getId());
+        if (resources.isEmpty()) {
             player.sendMessage("§7No resources contributed yet.");
-            player.sendMessage("§eUse /town level deposit <resource> <amount> to contribute!");
+            player.sendMessage("§eUse /townlevel deposit <resource> <amount> to contribute!");
             return Command.SINGLE_SUCCESS;
         }
-
-        for (Map.Entry<String, Integer> entry : progress.entrySet()) {
-            if (entry.getValue() > 0) {
-                player.sendMessage("§7" + entry.getKey().substring(0, 1).toUpperCase() +
-                                 entry.getKey().substring(1) + ": " +
-                                 "§a" + entry.getValue());
+        for (org.aincraft.guilds.models.GuildResource resource : resources) {
+            if (resource.getAmount() > 0) {
+                player.sendMessage("§7" + resource.getResourceType().getNormalizedName()
+                        + ": §a" + resource.getAmount());
             }
         }
-
         player.sendMessage("§7");
-        player.sendMessage("§eUse '/town level' to see upgrade requirements");
-
+        player.sendMessage("§eUse '/townlevel level' to see upgrade requirements");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -288,6 +265,12 @@ public class GuildLevelBrigadierCommand {
         }
 
         Guild guild = guildOpt.get();
+        boolean authorized = guild.getMayorUuid() != null
+                && guild.getMayorUuid().equals(player.getUniqueId());
+        if (!authorized && !player.hasPermission("guilds.admin.town")) {
+            player.sendMessage("§cOnly the guild mayor or a guild administrator can upgrade this guild.");
+            return 0;
+        }
 
         if (guild.getGuildLevel() >= guildLevelService.getMaxLevel()) {
             player.sendMessage("§aYour town is already at the maximum level!");
@@ -332,23 +315,20 @@ public class GuildLevelBrigadierCommand {
             player.sendMessage("§cTown not found!");
             return 0;
         }
-
         Guild guild = guildOpt.get();
 
-        player.sendMessage("§e=== Town Contribution Status ===");
+        player.sendMessage("§e=== Guild Contribution Status ===");
 
-        Map<String, Integer> contributions = guild.getUpgradeProgress();
+        Map<String, Integer> contributions = guildLevelService.calculateTotalContributions(guild);
         if (contributions.isEmpty()) {
             player.sendMessage("§7No resources contributed yet.");
-            player.sendMessage("§eUse /town level deposit <resource> <amount> to contribute!");
+            player.sendMessage("§eUse /townlevel deposit <resource> <amount> to contribute!");
             return Command.SINGLE_SUCCESS;
         }
 
         int totalContributions = contributions.values().stream().mapToInt(Integer::intValue).sum();
-
         player.sendMessage("§eTotal Contributed Items: §a" + totalContributions);
-        player.sendMessage("§eTown Level: §a" + guild.getGuildLevel());
-
+        player.sendMessage("§eGuild Level: §a" + guild.getGuildLevel());
         player.sendMessage("§eContributions by Type:");
         for (Map.Entry<String, Integer> entry : contributions.entrySet()) {
             if (entry.getValue() > 0) {
@@ -356,18 +336,16 @@ public class GuildLevelBrigadierCommand {
             }
         }
 
-        // Show player's progress toward next level
         guildLevelService.getNextGuildLevel(guild).ifPresent(nextLevel -> {
-            Map<String, Integer> required = nextLevel.getResourceCosts();
             player.sendMessage("§eProgress to Level " + nextLevel.getLevel() + ":");
-            for (Map.Entry<String, Integer> req : required.entrySet()) {
-                int has = contributions.getOrDefault(req.getKey(), 0);
-                String status = has >= req.getValue() ? "§a✓" : "§c✗";
-                player.sendMessage("§7  " + status + " " + req.getKey() + ": " +
-                                 "§e" + has + "§7/§e" + req.getValue());
+            for (Map.Entry<String, Integer> requirement : nextLevel.getResourceCosts().entrySet()) {
+                String key = normalizeResourceKey(requirement.getKey());
+                int contributed = contributions.getOrDefault(key, 0);
+                String status = contributed >= requirement.getValue() ? "§a✓" : "§c✗";
+                player.sendMessage("§7  " + status + " " + key + ": §e"
+                        + contributed + "§7/§e" + requirement.getValue());
             }
         });
-
         return Command.SINGLE_SUCCESS;
     }
 
@@ -382,7 +360,7 @@ public class GuildLevelBrigadierCommand {
 
         List<Guild> topGuilds = guildService.getRankedGuilds(criteria, limit);
 
-        player.sendMessage("§e=== Top Towns by " + criteria.substring(0, 1).toUpperCase() + criteria.substring(1) + " ===");
+        player.sendMessage("§e=== Top Towns by " + criteria.substring(0, 1).toUpperCase(Locale.ROOT) + criteria.substring(1) + " ===");
 
         for (int i = 0; i < topGuilds.size(); i++) {
             Guild guild = topGuilds.get(i);
@@ -401,6 +379,12 @@ public class GuildLevelBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static String normalizeResourceKey(String resourceType) {
+        return ResourceType.fromString(resourceType)
+                .map(ResourceType::getNormalizedName)
+                .orElseGet(() -> resourceType == null
+                        ? "" : resourceType.trim().toLowerCase(Locale.ROOT));
+    }
     private String getPlayerGuild(org.bukkit.entity.Player player) {
         UUID playerUuid = player.getUniqueId();
         return residentService.getResident(playerUuid)
@@ -409,67 +393,5 @@ public class GuildLevelBrigadierCommand {
                 .orElse(null);
     }
 
-    private org.bukkit.Material getMaterialForResource(String resourceType) {
-        try {
-            return org.bukkit.Material.valueOf(resourceType.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
-    private boolean hasEnoughResources(org.bukkit.entity.Player player, String resourceType, int amount) {
-        org.bukkit.Material material = getMaterialForResource(resourceType);
-        if (material == null) return false;
-
-        int playerAmount = 0;
-        for (org.bukkit.inventory.ItemStack item : player.getInventory().getContents()) {
-            if (item != null && item.getType() == material) {
-                playerAmount += item.getAmount();
-            }
-        }
-
-        return playerAmount >= amount;
-    }
-
-    private int getResourceCount(org.bukkit.entity.Player player, String resourceType) {
-        org.bukkit.Material material = getMaterialForResource(resourceType);
-        if (material == null) return 0;
-
-        int count = 0;
-        for (org.bukkit.inventory.ItemStack item : player.getInventory().getContents()) {
-            if (item != null && item.getType() == material) {
-                count += item.getAmount();
-            }
-        }
-
-        return count;
-    }
-
-    private boolean removeResources(org.bukkit.entity.Player player, String resourceType, int amount) {
-        org.bukkit.Material material = getMaterialForResource(resourceType);
-        if (material == null) return false;
-
-        int remaining = amount;
-        org.bukkit.inventory.ItemStack[] contents = player.getInventory().getContents();
-
-        for (int i = 0; i < contents.length && remaining > 0; i++) {
-            org.bukkit.inventory.ItemStack item = contents[i];
-            if (item != null && item.getType() == material) {
-                int stackAmount = item.getAmount();
-                if (stackAmount <= remaining) {
-                    remaining -= stackAmount;
-                    contents[i] = null;
-                } else {
-                    item.setAmount(stackAmount - remaining);
-                    remaining = 0;
-                }
-            }
-        }
-
-        player.getInventory().setContents(contents);
-        player.updateInventory();
-
-        return remaining == 0;
-    }
 
 }

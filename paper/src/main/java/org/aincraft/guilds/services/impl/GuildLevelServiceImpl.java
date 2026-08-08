@@ -8,6 +8,7 @@ import org.aincraft.guilds.config.model.LevelDefinition;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildLevel;
+import org.aincraft.guilds.models.ResourceType;
 import org.aincraft.guilds.services.GuildLevelService;
 import org.aincraft.guilds.services.GuildService;
 
@@ -17,12 +18,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -35,7 +38,6 @@ public class GuildLevelServiceImpl implements GuildLevelService {
 
     private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
-    private final GuildService guildService;
     private final GuildLevelConfigLoader configLoader;
 
     // Cache for guild level definitions
@@ -46,8 +48,26 @@ public class GuildLevelServiceImpl implements GuildLevelService {
     public GuildLevelServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager, GuildService guildService, GuildLevelConfigLoader configLoader) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
-        this.guildService = guildService;
         this.configLoader = configLoader;
+    }
+    private record UpgradeMutation(
+            boolean successful,
+            String message,
+            int previousLevel,
+            int newLevel,
+            int techPointsEarned,
+            int newTechPoints
+    ) {
+        private static UpgradeMutation failure(int previousLevel, String message) {
+            return new UpgradeMutation(false, message, previousLevel, previousLevel, 0, 0);
+        }
+
+        private static UpgradeMutation success(
+                int previousLevel, int newLevel, int techPointsEarned, int newTechPoints) {
+            return new UpgradeMutation(
+                    true, "Successfully upgraded", previousLevel, newLevel,
+                    techPointsEarned, newTechPoints);
+        }
     }
 
     @Override
@@ -95,11 +115,10 @@ public class GuildLevelServiceImpl implements GuildLevelService {
     @Override
     public UpgradeEligibility checkUpgradeEligibility(Guild guild) {
         if (guild == null) {
-            return new UpgradeEligibility(false, "Town not found", Map.of(), Map.of(), Map.of());
+            return new UpgradeEligibility(false, "Guild not found", Map.of(), Map.of(), Map.of());
         }
-
         if (isAtMaxLevel(guild)) {
-            return new UpgradeEligibility(false, "Town is already at maximum level", Map.of(), Map.of(), Map.of());
+            return new UpgradeEligibility(false, "Guild is already at maximum level", Map.of(), Map.of(), Map.of());
         }
 
         Optional<GuildLevel> nextLevelOpt = getNextGuildLevel(guild);
@@ -108,72 +127,120 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         }
 
         GuildLevel nextLevel = nextLevelOpt.get();
-        Map<String, Integer> requiredResources = nextLevel.getResourceCosts();
+        Map<String, Integer> requiredResources = new HashMap<>();
+        for (Map.Entry<String, Integer> entry : nextLevel.getResourceCosts().entrySet()) {
+            requiredResources.merge(
+                    normalizeResourceKey(entry.getKey()), entry.getValue(), Integer::sum);
+        }
         Map<String, Integer> contributedResources = calculateTotalContributions(guild);
         Map<String, Boolean> resourceStatus = new HashMap<>();
-
         boolean allRequirementsMet = true;
         for (Map.Entry<String, Integer> entry : requiredResources.entrySet()) {
-            String resourceType = entry.getKey();
-            int required = entry.getValue();
-            int contributed = contributedResources.getOrDefault(resourceType, 0);
-            boolean hasEnough = contributed >= required;
-            resourceStatus.put(resourceType, hasEnough);
-
-            if (!hasEnough) {
-                allRequirementsMet = false;
-            }
+            int contributed = contributedResources.getOrDefault(entry.getKey(), 0);
+            boolean hasEnough = contributed >= entry.getValue();
+            resourceStatus.put(entry.getKey(), hasEnough);
+            allRequirementsMet &= hasEnough;
         }
-
-        String reason = allRequirementsMet ? "All requirements met" : "Insufficient resources for upgrade";
-
-        return new UpgradeEligibility(allRequirementsMet, reason, requiredResources, contributedResources, resourceStatus);
+        String reason = allRequirementsMet
+                ? "All requirements met"
+                : "Insufficient resources for upgrade";
+        return new UpgradeEligibility(
+                allRequirementsMet, reason, requiredResources, contributedResources, resourceStatus);
     }
 
     @Override
     public UpgradeResult performGuildUpgrade(Guild guild) {
         if (guild == null) {
-            return new UpgradeResult(false, "Town not found", 0, 0, 0);
+            return new UpgradeResult(false, "Guild not found", 0, 0, 0);
         }
 
-        int previousLevel = guild.getGuildLevel();
-
-        if (isAtMaxLevel(guild)) {
-            return new UpgradeResult(false, "Town is already at maximum level", previousLevel, previousLevel, 0);
-        }
-
-        UpgradeEligibility eligibility = checkUpgradeEligibility(guild);
-        if (!eligibility.isEligible()) {
-            return new UpgradeResult(false, eligibility.getReason(), previousLevel, previousLevel, 0);
-        }
-
-        Optional<GuildLevel> nextLevelOpt = getNextGuildLevel(guild);
-        if (nextLevelOpt.isEmpty()) {
-            return new UpgradeResult(false, "Next level not available", previousLevel, previousLevel, 0);
-        }
-
-        GuildLevel nextLevel = nextLevelOpt.get();
-        int newLevel = nextLevel.getLevel();
-        int techPointsEarned = nextLevel.getTechPointsReward();
-
+        int requestedLevel = guild.getGuildLevel();
+        initializeCacheIfNeeded();
+        Optional<UpgradeMutation> mutation;
         try {
-            // Update guild level and tech points
-            guild.levelUp(newLevel, techPointsEarned);
-
-            // Save changes to database
-            guildService.updateGuild(guild);
-
-            // Record level benefits
-            recordLevelBenefits(guild, nextLevel);
-
-            plugin.getLogger().info("Town " + guild.getName() + " upgraded from level " + previousLevel + " to level " + newLevel);
-
-            return new UpgradeResult(true, "Successfully upgraded to level " + newLevel, previousLevel, newLevel, techPointsEarned);
-
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to upgrade town " + guild.getName() + ": " + e.getMessage(), e);
-            return new UpgradeResult(false, "Database error during upgrade", previousLevel, previousLevel, 0);
+            mutation = databaseManager.executeTransactionWithResult(
+                    connection -> upgradeInTransaction(connection, guild.getId()));
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to upgrade guild " + guild.getName(), e);
+            return new UpgradeResult(false, "Database error during upgrade",
+                    requestedLevel, requestedLevel, 0);
         }
+        if (mutation == null || mutation.isEmpty()) {
+            return new UpgradeResult(false, "Database error during upgrade",
+                    requestedLevel, requestedLevel, 0);
+        }
+
+        UpgradeMutation result = mutation.get();
+        if (!result.successful()) {
+            return new UpgradeResult(false, result.message(),
+                    result.previousLevel(), result.previousLevel(), 0);
+        }
+
+        // Reflect the committed row only after the transaction succeeds.
+        guild.setGuildLevel(result.newLevel());
+        guild.setTechPoints(result.newTechPoints());
+        guild.setUpgradeProgress(Map.of());
+        plugin.getLogger().info("Guild " + guild.getName() + " upgraded from level "
+                + result.previousLevel() + " to level " + result.newLevel());
+        return new UpgradeResult(
+                true,
+                "Successfully upgraded to level " + result.newLevel(),
+                result.previousLevel(),
+                result.newLevel(),
+                result.techPointsEarned());
+    }
+
+    private UpgradeMutation upgradeInTransaction(Connection connection, String guildId)
+            throws SQLException {
+        int currentLevel;
+        int currentTechPoints;
+        String progressJson;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT guild_level, tech_points, upgrade_progress FROM guilds WHERE id = ? FOR UPDATE")) {
+            statement.setString(1, guildId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return UpgradeMutation.failure(0, "Guild not found");
+                }
+                currentLevel = result.getInt("guild_level");
+                currentTechPoints = result.getInt("tech_points");
+                progressJson = result.getString("upgrade_progress");
+            }
+        }
+
+        if (currentLevel >= getMaxLevel()) {
+            return UpgradeMutation.failure(currentLevel, "Guild is already at maximum level");
+        }
+        GuildLevel nextLevel = levelCache.get(currentLevel + 1);
+        if (nextLevel == null) {
+            return UpgradeMutation.failure(currentLevel, "Next level not available");
+        }
+
+        Map<String, Integer> progress = parseUpgradeProgressJson(progressJson);
+        for (Map.Entry<String, Integer> requirement : nextLevel.getResourceCosts().entrySet()) {
+            if (progress.getOrDefault(normalizeResourceKey(requirement.getKey()), 0) < requirement.getValue()) {
+                return UpgradeMutation.failure(currentLevel, "Insufficient resources for upgrade");
+            }
+        }
+
+        int newLevel = nextLevel.getLevel();
+        int newTechPoints = currentTechPoints + nextLevel.getTechPointsReward();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE guilds
+                   SET guild_level = ?, tech_points = ?, upgrade_progress = '{}'
+                 WHERE id = ? AND guild_level = ?
+                """)) {
+            statement.setInt(1, newLevel);
+            statement.setInt(2, newTechPoints);
+            statement.setString(3, guildId);
+            statement.setInt(4, currentLevel);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("Guild level changed during upgrade");
+            }
+        }
+        recordLevelBenefits(connection, guildId, nextLevel);
+        return UpgradeMutation.success(
+                currentLevel, newLevel, nextLevel.getTechPointsReward(), newTechPoints);
     }
 
     @Override
@@ -181,9 +248,19 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         if (guild == null) {
             return Map.of();
         }
-
-        // For now, use the guild's upgrade progress
-        // In a full implementation, this would sum from the resource_contributions table
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT upgrade_progress FROM guilds WHERE id = ?")) {
+            statement.setString(1, guild.getId());
+            try (ResultSet result = statement.executeQuery()) {
+                if (result.next()) {
+                    return parseUpgradeProgressJson(result.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().log(Level.WARNING,
+                    "Failed to load guild upgrade progress for " + guild.getId(), e);
+        }
         return new HashMap<>(guild.getUpgradeProgress());
     }
 
@@ -192,14 +269,23 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         if (guild == null) {
             return 0.0;
         }
-
         Optional<GuildLevel> nextLevelOpt = getNextGuildLevel(guild);
         if (nextLevelOpt.isEmpty()) {
-            return 100.0; // At max level
+            return 100.0;
         }
 
-        GuildLevel nextLevel = nextLevelOpt.get();
-        return guild.getOverallUpgradeProgress(nextLevel.getResourceCosts());
+        Map<String, Integer> contributions = calculateTotalContributions(guild);
+        double totalProgress = 0.0;
+        int resourceCount = 0;
+        for (Map.Entry<String, Integer> requirement : nextLevelOpt.get().getResourceCosts().entrySet()) {
+            if (requirement.getValue() > 0) {
+                totalProgress += Math.min(100.0,
+                        contributions.getOrDefault(normalizeResourceKey(requirement.getKey()), 0) * 100.0
+                                / requirement.getValue());
+                resourceCount++;
+            }
+        }
+        return resourceCount == 0 ? 0.0 : totalProgress / resourceCount;
     }
 
     @Override
@@ -467,6 +553,12 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         }
     }
 
+    private static String normalizeResourceKey(String key) {
+        return ResourceType.fromString(key)
+                .map(ResourceType::getNormalizedName)
+                .orElseGet(() -> key == null ? "" : key.trim().toLowerCase(Locale.ROOT));
+    }
+
     /**
      * Simple JSON parser for upgrade progress
      */
@@ -488,7 +580,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
             for (String pair : pairs) {
                 String[] keyValue = pair.split(":");
                 if (keyValue.length == 2) {
-                    String key = keyValue[0].trim().replace("\"", "");
+                    String key = normalizeResourceKey(keyValue[0].trim().replace("\"", ""));
                     int value = Integer.parseInt(keyValue[1].trim());
                     progress.put(key, value);
                 }
@@ -500,88 +592,56 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         return progress;
     }
 
-    /**
-     * Record level benefits for a guild
-     */
-    private void recordLevelBenefits(Guild guild, GuildLevel level) {
-        try {
-            String sql = """
-                INSERT INTO guild_level_benefits (id, guild_id, level, benefit_type, benefit_value, unlocked_at)
+    private void recordLevelBenefits(
+            Connection connection, String guildId, GuildLevel level) throws SQLException {
+        String sql = """
+                INSERT INTO guild_level_benefits
+                    (id, guild_id, level, benefit_type, benefit_value, unlocked_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (id) DO UPDATE SET
-                    guild_id = EXCLUDED.guild_id,
-                    level = EXCLUDED.level,
-                    benefit_type = EXCLUDED.benefit_type,
-                    benefit_value = EXCLUDED.benefit_value,
-                    unlocked_at = EXCLUDED.unlocked_at
+                ON CONFLICT (guild_id, level, benefit_type) DO NOTHING
                 """;
-            try (Connection connection = databaseManager.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sql)) {
-
-                String benefitId = UUID.randomUUID().toString();
-                String currentTime = java.time.LocalDateTime.now().toString();
-
-                // Record claim limit bonus
-                if (level.getClaimLimitBonus() > 0) {
-                    statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, guild.getId());
-                    statement.setInt(3, level.getLevel());
-                    statement.setString(4, "claim_limit_bonus");
-                    statement.setString(5, String.valueOf(level.getClaimLimitBonus()));
-                    statement.setString(6, currentTime);
-                    statement.addBatch();
-                }
-
-                // Record assistant slots bonus
-                if (level.getAssistantSlotsBonus() > 0) {
-                    statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, guild.getId());
-                    statement.setInt(3, level.getLevel());
-                    statement.setString(4, "assistant_slots_bonus");
-                    statement.setString(5, String.valueOf(level.getAssistantSlotsBonus()));
-                    statement.setString(6, currentTime);
-                    statement.addBatch();
-                }
-
-                // Record daily income bonus
-                if (level.getDailyIncomeBonus() > 0) {
-                    statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, guild.getId());
-                    statement.setInt(3, level.getLevel());
-                    statement.setString(4, "daily_income_bonus");
-                    statement.setString(5, String.valueOf(level.getDailyIncomeBonus()));
-                    statement.setString(6, currentTime);
-                    statement.addBatch();
-                }
-
-                // Record tech points
-                if (level.getTechPointsReward() > 0) {
-                    statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, guild.getId());
-                    statement.setInt(3, level.getLevel());
-                    statement.setString(4, "tech_points_reward");
-                    statement.setString(5, String.valueOf(level.getTechPointsReward()));
-                    statement.setString(6, currentTime);
-                    statement.addBatch();
-                }
-
-                // Record unlocked plot types
-                for (String plotType : level.getUnlockedPlotTypes()) {
-                    statement.setString(1, UUID.randomUUID().toString());
-                    statement.setString(2, guild.getId());
-                    statement.setInt(3, level.getLevel());
-                    statement.setString(4, "unlocked_plot_type");
-                    statement.setString(5, plotType);
-                    statement.setString(6, currentTime);
-                    statement.addBatch();
-                }
-
-                statement.executeBatch();
+        String now = LocalDateTime.now().toString();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            if (level.getClaimLimitBonus() > 0) {
+                insertLevelBenefit(statement, guildId, level, "claim_limit_bonus",
+                        String.valueOf(level.getClaimLimitBonus()), now);
             }
-
-        } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to record level benefits for town " + guild.getName() + ": " + e.getMessage(), e);
+            if (level.getAssistantSlotsBonus() > 0) {
+                insertLevelBenefit(statement, guildId, level, "assistant_slots_bonus",
+                        String.valueOf(level.getAssistantSlotsBonus()), now);
+            }
+            if (level.getDailyIncomeBonus() > 0) {
+                insertLevelBenefit(statement, guildId, level, "daily_income_bonus",
+                        String.valueOf(level.getDailyIncomeBonus()), now);
+            }
+            if (level.getTechPointsReward() > 0) {
+                insertLevelBenefit(statement, guildId, level, "tech_points_reward",
+                        String.valueOf(level.getTechPointsReward()), now);
+            }
+            for (String plotType : level.getUnlockedPlotTypes()) {
+                insertLevelBenefit(statement, guildId, level, "unlocked_plot_type", plotType, now);
+            }
         }
+    }
+
+    private static void insertLevelBenefit(
+            PreparedStatement statement,
+            String guildId,
+            GuildLevel level,
+            String benefitType,
+            String benefitValue,
+            String unlockedAt
+    ) throws SQLException {
+        String benefitId = UUID.nameUUIDFromBytes(
+                (guildId + ":" + level.getLevel() + ":" + benefitType + ":" + benefitValue)
+                        .getBytes(StandardCharsets.UTF_8)).toString();
+        statement.setString(1, benefitId);
+        statement.setString(2, guildId);
+        statement.setInt(3, level.getLevel());
+        statement.setString(4, benefitType);
+        statement.setString(5, benefitValue);
+        statement.setString(6, unlockedAt);
+        statement.executeUpdate();
     }
 
     /**

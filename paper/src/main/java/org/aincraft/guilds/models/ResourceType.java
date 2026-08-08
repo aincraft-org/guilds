@@ -1,6 +1,7 @@
 package org.aincraft.guilds.models;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -52,15 +53,15 @@ public enum ResourceType {
 
     /**
      * Get the normalized lowercase name of this resource type
-     * @return Lowercase name (e.g., "diamond", "gold")
+     * @return Lowercase enum name (e.g., "diamond", "gold")
      */
     public String getNormalizedName() {
-        return name().toLowerCase();
+        return name().toLowerCase(Locale.ROOT);
     }
 
     /**
      * Parse a string into a ResourceType enum
-     * Case-insensitive matching on both enum name and display name
+     * Case-insensitive matching on enum, material, and display names
      * @param type String representation of resource type
      * @return Optional containing the ResourceType, or empty if not found
      */
@@ -69,12 +70,14 @@ public enum ResourceType {
             return Optional.empty();
         }
 
-        String normalized = type.toLowerCase().trim();
+        String trimmed = type.trim();
+        String normalized = trimmed.toLowerCase(Locale.ROOT);
 
         return Arrays.stream(values())
-                .filter(rt -> rt.name().equalsIgnoreCase(normalized) ||
-                             rt.getNormalizedName().equals(normalized) ||
-                             rt.displayName.equalsIgnoreCase(type))
+                .filter(rt -> rt.name().equalsIgnoreCase(normalized)
+                        || rt.getNormalizedName().equals(normalized)
+                        || rt.materialName.equalsIgnoreCase(normalized)
+                        || rt.displayName.equalsIgnoreCase(trimmed))
                 .findFirst();
     }
 
