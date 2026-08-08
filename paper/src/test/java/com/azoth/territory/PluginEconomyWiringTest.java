@@ -18,6 +18,8 @@ import com.azoth.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -66,6 +68,40 @@ class PluginEconomyWiringTest {
         assertEquals(java.util.Optional.of(facility), bridge.resolveFacility("world", 5, 64, 5));
     }
 
+
+    @Test
+    void pluginWiresDurableExpenseLedgerAcrossLifecycle() throws Exception {
+        String source = Files.readString(findMainSource());
+
+        assertTrue(source.contains("new PostgresExpenseStore(database)"),
+                "plugin must construct the PostgreSQL expense store");
+        assertTrue(source.contains("new ExpenseLedger"),
+                "plugin must construct an expense ledger");
+        assertTrue(source.contains("expenseStore.load()"),
+                "plugin must load expense entries before economy use");
+        assertTrue(source.contains("expenseStore.save(expenseLedger.entries())"),
+                "plugin must flush expense entries on shutdown");
+    }
+
+    private static Path findMainSource() throws Exception {
+        Path cwd = Path.of("").toAbsolutePath();
+        Path candidate = cwd.resolve("src/main/java/com/azoth/territory/AzothTerritoryPlugin.java");
+        if (Files.isRegularFile(candidate)) {
+            return candidate;
+        }
+        Path p = cwd;
+        for (int i = 0; i < 4; i++) {
+            Path tryPath = p.resolve("src/main/java/com/azoth/territory/AzothTerritoryPlugin.java");
+            if (Files.isRegularFile(tryPath)) {
+                return tryPath;
+            }
+            p = p.getParent();
+            if (p == null) {
+                break;
+            }
+        }
+        throw new IllegalStateException("Could not locate AzothTerritoryPlugin.java from " + cwd);
+    }
     private static final class TestRail implements PaymentRail {
         @Override
         public SettlementResult settle(UUID payerId, String territoryId, double amount) {

@@ -2,6 +2,7 @@ package com.azoth.territory;
 
 import com.azoth.territory.command.TerritoryCommand;
 import com.azoth.territory.economy.BukkitEconomyBridge;
+import com.azoth.territory.economy.ExpenseLedger;
 import com.azoth.territory.economy.EconomyBridge;
 import com.azoth.territory.economy.EconomyConfig;
 import com.azoth.territory.economy.PaymentRail;
@@ -23,6 +24,7 @@ import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.persist.DatabaseSettings;
 import com.azoth.territory.persist.DatabaseSettingsLoader;
 import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.PostgresExpenseStore;
 import com.azoth.territory.persist.PostgresReconciliationStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
 import com.azoth.territory.persist.TerritoryJson;
@@ -59,6 +61,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private EconomyBridge economyBridge;
     private BukkitEconomyBridge bukkitEconomyBridge;
     private PostgresReconciliationStore reconciliationStore;
+    private PostgresExpenseStore expenseStore;
+    private ExpenseLedger expenseLedger;
+    private boolean expenseLedgerLoaded;
     private GuildsServices guilds;
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
@@ -115,6 +120,16 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         try {
             EconomyConfig economyConfig = EconomyConfig.fromBukkit(getConfig());
             boolean simulation = economyConfig.mode() == EconomyConfig.Mode.SIMULATION;
+            this.expenseStore = new PostgresExpenseStore(database);
+            this.expenseLedger = new ExpenseLedger(entries -> {
+                try {
+                    expenseStore.save(entries);
+                } catch (IOException e) {
+                    throw new IllegalStateException("Failed to persist expense journal", e);
+                }
+            });
+            this.expenseLedger.load(expenseStore.load());
+            this.expenseLedgerLoaded = true;
             PaymentRail rail;
             if (simulation) {
                 rail = new SimulationTreasury();
@@ -141,7 +156,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 }
             }
             this.economyBridge = new EconomyBridge(
-                    registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(), rail, simulation);
+                    registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(),
+                    rail, simulation, expenseLedger);
             this.bukkitEconomyBridge = new BukkitEconomyBridge(economyBridge);
             try {
                 economyBridge.loadUnresolvedTransactions(reconciliationStore.load());
@@ -267,6 +283,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 influenceEngine.flush();
             } catch (IOException e) {
                 getLogger().log(Level.SEVERE, "Failed to flush influence state on disable", e);
+            }
+        }
+        if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
+            try {
+                expenseStore.save(expenseLedger.entries());
+            } catch (IOException e) {
+                getLogger().log(Level.SEVERE, "Failed to flush expense journal on disable", e);
             }
         }
         if (reconciliationStore != null && economyBridge != null) {
