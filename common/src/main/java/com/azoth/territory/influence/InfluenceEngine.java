@@ -127,8 +127,8 @@ public final class InfluenceEngine implements InfluenceService {
         if (!canContest(entry.ownerGuildId, guildId)) {
             return Optional.empty();
         }
-        double value = round2((entry.bars.getOrDefault(guildId, 0.0) + config.valueOf(source))
-                * influenceMultiplierFor(guildId));
+        double value = round2(entry.bars.getOrDefault(guildId, 0.0)
+                + config.valueOf(source) * influenceMultiplierFor(guildId));
         entry.bars.put(guildId, Math.min(config.cap(), value));
         dirty = true;
         return Optional.of(new InfluenceBar(guildId, entry.bars.get(guildId)));

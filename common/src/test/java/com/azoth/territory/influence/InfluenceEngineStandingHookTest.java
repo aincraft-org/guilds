@@ -111,6 +111,21 @@ class InfluenceEngineStandingHookTest {
     }
 
     @Test
+    void accrual_multiplierAppliesToSourceOnlyNotAccumulatedBar() {
+        // Bar at 50, then a PVP kill with multiplier 1.5:
+        // expected = 50 + (10 * 1.5) = 65, not (50 + 10) * 1.5 = 90.
+        setupContest();
+        engine = new InfluenceEngine(governance, InfluenceConfig.defaults(), store,
+                (t, g) -> { }, Logger.getLogger("test"), new FakeStanding(1.5));
+        engine.adminSet("everfall", "rival-guild", 50.0, 1_000_000L);
+
+        Optional<InfluenceBar> bar = engine.accrue("everfall", "rival-guild",
+                InfluenceSource.PVP_KILL, 1_000_000L, null);
+        assertTrue(bar.isPresent());
+        assertEquals(65.0, bar.get().value(), 0.001);
+    }
+
+    @Test
     void accrual_withoutStandingService_usesDefaultMultiplier() {
         setupContest();
         engine = new InfluenceEngine(governance, InfluenceConfig.defaults(), store,
