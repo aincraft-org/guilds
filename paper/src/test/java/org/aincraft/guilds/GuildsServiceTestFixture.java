@@ -6,6 +6,7 @@ import org.aincraft.guilds.config.DatabaseConfig;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
 import org.aincraft.guilds.services.AllianceService;
+import org.aincraft.guilds.services.GuildContractService;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.GuildToggleService;
 import org.aincraft.guilds.services.LocationService;
@@ -13,6 +14,7 @@ import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.impl.AllianceServiceImpl;
+import org.aincraft.guilds.services.impl.GuildContractServiceImpl;
 import org.aincraft.guilds.services.impl.GuildServiceImpl;
 import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
 import org.aincraft.guilds.services.impl.LocationServiceImpl;
@@ -40,7 +42,8 @@ public final class GuildsServiceTestFixture {
             GuildService guildService,
             PlotService plotService,
             PermissionService permissionService,
-            AllianceService allianceService
+            AllianceService allianceService,
+            GuildContractService guildContractService
     ) {
     }
 
@@ -72,6 +75,8 @@ public final class GuildsServiceTestFixture {
         guildImpl.setPermissionService(permissionImpl);
         plotImpl.setPermissionService(permissionImpl);
 
-        return new Services(databaseManager, residentImpl, guildImpl, plotImpl, permissionImpl, allianceImpl);
+        GuildContractServiceImpl contractImpl = new GuildContractServiceImpl(databaseManager, guildImpl);
+
+        return new Services(databaseManager, residentImpl, guildImpl, plotImpl, permissionImpl, allianceImpl, contractImpl);
     }
 }

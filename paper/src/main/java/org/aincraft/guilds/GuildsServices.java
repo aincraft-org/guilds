@@ -44,6 +44,7 @@ import org.aincraft.guilds.services.ResourceService;
 import org.aincraft.guilds.services.SpecializationService;
 import org.aincraft.guilds.services.TechTreeService;
 import org.aincraft.guilds.services.GuildLevelService;
+import org.aincraft.guilds.services.GuildContractService;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.GuildToggleService;
 import org.aincraft.guilds.services.impl.BroadcastServiceImpl;
@@ -58,6 +59,7 @@ import org.aincraft.guilds.services.impl.ResourceServiceImpl;
 import org.aincraft.guilds.services.impl.SpecializationServiceImpl;
 import org.aincraft.guilds.services.impl.TechTreeServiceImpl;
 import org.aincraft.guilds.services.impl.GuildLevelServiceImpl;
+import org.aincraft.guilds.services.impl.GuildContractServiceImpl;
 import org.aincraft.guilds.services.impl.GuildServiceImpl;
 import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -109,6 +111,7 @@ public class GuildsServices {
     private final GuildToggleService guildToggleService;
     private final PermissionService permissionService;
     private final GuildLevelService guildLevelService;
+    private final GuildContractService guildContractService;
     private final ResourceService resourceService;
     private final TechTreeService techTreeService;
     private final SpecializationService specializationService;
@@ -179,6 +182,7 @@ public class GuildsServices {
         plotImpl.setPermissionService(permissionService);
 
         guildLevelService = new GuildLevelServiceImpl(plugin, databaseManager, guildService, guildLevelConfigLoader);
+        guildContractService = new GuildContractServiceImpl(databaseManager, guildService);
         resourceService = new ResourceServiceImpl(plugin, databaseManager, guildService);
         techTreeService = new TechTreeServiceImpl(plugin, databaseManager, techTreeConfigLoader, guildService);
         specializationService = new SpecializationServiceImpl(plugin, databaseManager, guildService);
@@ -412,6 +416,10 @@ public class GuildsServices {
 
     public GuildLevelService getGuildLevelService() {
         return guildLevelService;
+    }
+
+    public GuildContractService getGuildContractService() {
+        return guildContractService;
     }
 
     public ResourceService getResourceService() {
