@@ -14,6 +14,9 @@ import com.azoth.territory.influence.InfluenceConfig;
 import com.azoth.territory.influence.InfluenceConfigLoader;
 import com.azoth.territory.influence.InfluenceEngine;
 import com.azoth.territory.influence.InfluenceListener;
+import com.azoth.territory.influence.InfluenceService;
+import com.azoth.territory.influence.InfluenceStatusFormatter;
+import com.azoth.territory.influence.InfluenceStatusTask;
 import com.azoth.territory.influence.PostgresInfluenceStore;
 import com.azoth.territory.listener.InteractionProtectionListener;
 import com.azoth.territory.listener.ProtectionListener;
@@ -80,6 +83,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private BukkitTask upkeepTask;
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
+    private BukkitTask influenceStatusTask;
     private StandingEngine standingEngine;
     private PostgresStandingStore standingStore;
     private TerritorySquaremapBridge squaremapBridge;
@@ -209,9 +213,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 "Registered territory protection listeners "
                         + "(break/place/fire/explosions/mob-spawn/entity-grief/interaction/pvp/teleport)");
 
-        // squaremap integration: render territory/zone boundaries as map layers.
+        // squaremap integration: render territory/zone/influence boundaries as map layers.
         // Self-degrading when squaremap is absent; must start after registry load.
-        this.squaremapBridge = new TerritorySquaremapBridge(this, registry);
+        this.squaremapBridge = new TerritorySquaremapBridge(
+                this,
+                registry,
+                () -> Optional.ofNullable(influenceEngine)
+                        .map(engine -> (InfluenceService) engine));
         this.squaremapBridge.start();
 
         // Standing engine (constructed before influence so the influence hook
@@ -260,6 +268,12 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                         getLogger().log(Level.SEVERE, "Failed to flush influence state", e);
                     }
                 }, flushTicks, flushTicks);
+                this.influenceStatusTask = getServer().getScheduler().runTaskTimer(
+                        this,
+                        new InfluenceStatusTask(
+                                registry, influenceEngine, new InfluenceStatusFormatter()),
+                        1L,
+                        20L);
                 getLogger().info("Territory influence race enabled (cap " + influenceConfig.cap() + ")");
             } catch (Exception e) {
                 getLogger().log(Level.SEVERE, "Failed to start influence system — disabled", e);
@@ -285,9 +299,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        stopInfluenceStatus();
         disableGuildsSubsystem();
-        stopSquaremap();
         stopWeb();
+        stopSquaremap();
         if (standingEngine != null) {
             try {
                 standingEngine.flush();
@@ -403,6 +418,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             } catch (IOException e) {
                 getLogger().log(Level.SEVERE, "Failed to flush territory upkeep state on disable", e);
             }
+        }
+    }
+
+    private void stopInfluenceStatus() {
+        if (influenceStatusTask != null) {
+            influenceStatusTask.cancel();
+            influenceStatusTask = null;
         }
     }
 

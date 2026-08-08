@@ -57,17 +57,20 @@ the **squaremap 1.3.15** Paper jar (the release that targets MC 26.2, pinned
 to the GitHub `v1.3.15` asset) so the live map is available out of the box at
 `http://localhost:8080`.
 
-Territory/zone boundaries are rendered as squaremap layers by the in-plugin
-bridge (`com.azoth.territory.squaremap.TerritorySquaremapBridge`):
+Territory/zone/influence boundaries are rendered as squaremap layers by the
+in-plugin bridge (`com.azoth.territory.squaremap.TerritorySquaremapBridge`):
 
 - **Azoth Territories** layer — polygon outlines per territory
 - **Azoth Zones** layer — zone fills coloured by type (green WILDERNESS /
   yellow CLAIMABLE) with name tooltips
+- **Azoth Influence** layer — neutral territory strokes, or red contest
+  fills/strokes with owner and leading-attacker tooltips while a race is active
 
 The bridge refreshes every 5 seconds, so boundaries created via the REST API
 (`/api/territories`), `/territory reload`, or influence flips appear on the map
-automatically. squaremap is a **soft dependency**: without the jar the plugin
-logs a warning and the map layers are skipped.
+automatically. The influence layer is also refreshed from the persisted race
+state. squaremap is a **soft dependency**: without the jar the plugin logs a
+warning and all map layers are skipped.
 
 Accept the EULA on first run (`paper/run/eula.txt`). The plugin requires the
 shared PostgreSQL database (see "Persistence" below) — point `database.*` in
@@ -318,10 +321,16 @@ territory (PvP kills, PvE kills, block breaks; values in `bonuses.json`).
 Standing raises development **tiers**, which grant:
 
 - **Harvest bonuses** — extra drops from blocks (ores/crops) and mobs killed
-  inside the territory (base drops only; Fortune/Looting unaffected).
+  inside the territory. Block drops use the player's tool context, preserving
+  normal Fortune behavior; mob extras are appended to the post-vanilla
+  `EntityDeathEvent` drops, preserving the vanilla Looting result without
+  rerolling loot.
 - **Influence bonuses** — the governing guild's influence accrual in other
   territories is multiplied by its highest tier across the territories it
   governs.
+- **Influence status** — players inside an active race see an action-bar
+  summary with owner, sorted attacker bars, declarability, declarations, and
+  cooldowns. The squaremap influence layer shows the same contest at a glance.
 
 Config: `bonuses.json` (data folder). State persists to PostgreSQL
 (`standing_state`). Read-only REST: `/api/standing`, and a `standing` object

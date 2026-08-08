@@ -1,5 +1,8 @@
 package com.azoth.territory.squaremap;
 
+import com.azoth.territory.influence.InfluenceBar;
+import com.azoth.territory.influence.InfluenceService;
+import com.azoth.territory.influence.TerritoryInfluenceState;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.ChunkPos;
@@ -28,10 +31,13 @@ import xyz.jpenilla.squaremap.api.marker.MultiPolygon;
 
 import java.awt.Color;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Renders azoth-territory boundaries as squaremap layers.
@@ -61,12 +67,24 @@ public final class TerritorySquaremapBridge implements Listener {
     private final Map<String, SimpleLayerProvider> territoryLayers = new HashMap<>();
     /** World namespace -> provider for the zone layer on that world. */
     private final Map<String, SimpleLayerProvider> zoneLayers = new HashMap<>();
+    /** World namespace -> provider for the influence contest layer on that world. */
+    private final Map<String, SimpleLayerProvider> influenceLayers = new HashMap<>();
+
+    private final Supplier<Optional<InfluenceService>> influenceSupplier;
 
     public TerritorySquaremapBridge(Plugin plugin, TerritoryRegistry registry) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin");
-        this.registry = Objects.requireNonNull(registry, "registry");
+        this(plugin, registry, Optional::empty);
     }
 
+    public TerritorySquaremapBridge(
+            Plugin plugin,
+            TerritoryRegistry registry,
+            Supplier<Optional<InfluenceService>> influenceSupplier
+    ) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.registry = Objects.requireNonNull(registry, "registry");
+        this.influenceSupplier = Objects.requireNonNull(influenceSupplier, "influenceSupplier");
+    }
     /**
      * Starts the bridge. Safe to call multiple times.
      */
@@ -106,6 +124,7 @@ public final class TerritorySquaremapBridge implements Listener {
         unregisterAll();
         territoryLayers.clear();
         zoneLayers.clear();
+        influenceLayers.clear();
         plugin.getLogger().info("Territory squaremap bridge stopped");
     }
 
@@ -147,10 +166,17 @@ public final class TerritorySquaremapBridge implements Listener {
                         .layerPriority(51)
                         .zIndex(51)
                         .build();
+                SimpleLayerProvider influenceLayer = SimpleLayerProvider.builder("Azoth Influence")
+                        .showControls(true)
+                        .layerPriority(52)
+                        .zIndex(52)
+                        .build();
                 mapWorld.layerRegistry().register(Key.of("azoth_territories"), territoryLayer);
                 mapWorld.layerRegistry().register(Key.of("azoth_zones"), zoneLayer);
+                mapWorld.layerRegistry().register(Key.of("azoth_influence"), influenceLayer);
                 territoryLayers.put(world.getName(), territoryLayer);
                 zoneLayers.put(world.getName(), zoneLayer);
+                influenceLayers.put(world.getName(), influenceLayer);
                 plugin.getLogger().info("Registered squaremap layers for world '" + world.getName() + "'");
             } catch (IllegalArgumentException e) {
                 // A layer with the same key is already registered (double enable) — skip.
@@ -162,7 +188,9 @@ public final class TerritorySquaremapBridge implements Listener {
 
     private void unregisterWorld(World world) {
         String name = world.getName();
-        if (!territoryLayers.containsKey(name) && !zoneLayers.containsKey(name)) {
+        if (!territoryLayers.containsKey(name)
+                && !zoneLayers.containsKey(name)
+                && !influenceLayers.containsKey(name)) {
             return;
         }
         Squaremap api = SquaremapProvider.get();
@@ -173,6 +201,9 @@ public final class TerritorySquaremapBridge implements Listener {
                 }
                 if (zoneLayers.remove(name) != null) {
                     mapWorld.layerRegistry().unregister(Key.of("azoth_zones"));
+                }
+                if (influenceLayers.remove(name) != null) {
+                    mapWorld.layerRegistry().unregister(Key.of("azoth_influence"));
                 }
             } catch (IllegalArgumentException ignored) {
                 // Layer already unregistered (world unload raced our check).
@@ -208,14 +239,23 @@ public final class TerritorySquaremapBridge implements Listener {
             }
         }
         for (Map.Entry<String, SimpleLayerProvider> e : territoryLayers.entrySet()) {
-            refreshWorld(e.getKey(), e.getValue(), zoneLayers.get(e.getKey()));
+            refreshWorld(e.getKey(), e.getValue(), zoneLayers.get(e.getKey()),
+                    influenceLayers.get(e.getKey()));
         }
     }
 
-    private void refreshWorld(String worldName, SimpleLayerProvider territoryLayer, SimpleLayerProvider zoneLayer) {
+    private void refreshWorld(
+            String worldName,
+            SimpleLayerProvider territoryLayer,
+            SimpleLayerProvider zoneLayer,
+            SimpleLayerProvider influenceLayer
+    ) {
         territoryLayer.clearMarkers();
         if (zoneLayer != null) {
             zoneLayer.clearMarkers();
+        }
+        if (influenceLayer != null) {
+            influenceLayer.clearMarkers();
         }
         List<Territory> inWorld = new ArrayList<>();
         for (Territory territory : registry.list()) {
@@ -223,6 +263,7 @@ public final class TerritorySquaremapBridge implements Listener {
                 inWorld.add(territory);
             }
         }
+        Optional<InfluenceService> influence = influenceSupplier.get();
         for (Territory territory : inWorld) {
             Key territoryKey = Key.of("azoth_t_" + keyPart(territory.id()));
             Marker territoryMarker = asMultiPolygon(territory.boundary());
@@ -233,6 +274,26 @@ public final class TerritorySquaremapBridge implements Listener {
                     .hoverTooltip(territory.name())
                     .build());
             territoryLayer.addMarker(territoryKey, territoryMarker);
+
+            if (influenceLayer != null) {
+                Optional<TerritoryInfluenceState> state = influence
+                        .flatMap(service -> service.influence(territory.id()));
+                Marker influenceMarker = asMultiPolygon(territory.boundary());
+                boolean contested = state.isPresent() && hasActiveContest(state.get());
+                MarkerOptions.Builder options = MarkerOptions.builder()
+                        .strokeColor(contested ? INFLUENCE_CONTEST_STROKE : INFLUENCE_NEUTRAL_STROKE)
+                        .strokeWeight(contested ? INFLUENCE_CONTEST_STROKE_WEIGHT : 2)
+                        .fill(contested)
+                        .hoverTooltip(territory.name());
+                if (contested) {
+                    options.fillColor(INFLUENCE_CONTEST_FILL)
+                            .fillOpacity(INFLUENCE_CONTEST_FILL_OPACITY)
+                            .clickTooltip(influenceTooltip(territory, state.get()));
+                }
+                influenceMarker.markerOptions(options.build());
+                influenceLayer.addMarker(
+                        Key.of("azoth_i_" + keyPart(territory.id())), influenceMarker);
+            }
 
             for (Zone zone : territory.zones()) {
                 Key zoneKey = Key.of("azoth_z_" + keyPart(territory.id()) + "_" + keyPart(zone.id()));
@@ -254,6 +315,11 @@ public final class TerritorySquaremapBridge implements Listener {
 
     private static final Color TERRITORY_STROKE = new Color(30, 30, 110);
     private static final int TERRITORY_STROKE_WEIGHT = 3;
+    private static final Color INFLUENCE_NEUTRAL_STROKE = new Color(100, 100, 100);
+    private static final Color INFLUENCE_CONTEST_STROKE = new Color(190, 45, 45);
+    private static final Color INFLUENCE_CONTEST_FILL = new Color(220, 75, 55);
+    private static final int INFLUENCE_CONTEST_STROKE_WEIGHT = 4;
+    private static final double INFLUENCE_CONTEST_FILL_OPACITY = 0.28;
 
     private static Color zoneColor(ZoneType type) {
         return switch (type) {
@@ -287,6 +353,38 @@ public final class TerritorySquaremapBridge implements Listener {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    private static boolean hasActiveContest(TerritoryInfluenceState state) {
+        return !state.bars().isEmpty() || state.declaration() != null;
+    }
+
+    private static Optional<InfluenceBar> leadingBar(TerritoryInfluenceState state) {
+        return state.bars().stream()
+                .sorted(Comparator.comparingDouble(InfluenceBar::value)
+                        .reversed()
+                        .thenComparing(InfluenceBar::guildId))
+                .findFirst();
+    }
+
+    private static String influenceTooltip(Territory territory, TerritoryInfluenceState state) {
+        String owner = state.ownerGuildId() == null || state.ownerGuildId().isBlank()
+                ? "none"
+                : state.ownerGuildId();
+        String leader = leadingBar(state)
+                .map(InfluenceBar::guildId)
+                .orElse("none");
+        StringBuilder tooltip = new StringBuilder("<b>")
+                .append(htmlEscape(territory.name()))
+                .append("</b><br/>Owner: ")
+                .append(htmlEscape(owner))
+                .append("<br/>Top attacker: ")
+                .append(htmlEscape(leader));
+        if (state.declaration() != null) {
+            tooltip.append("<br/>Declaration: ")
+                    .append(htmlEscape(state.declaration().guildId()));
+        }
+        return tooltip.toString();
     }
 
     // --- Geometry --------------------------------------------------------------
