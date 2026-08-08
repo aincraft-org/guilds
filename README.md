@@ -11,7 +11,7 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 - **Persistence**: all durable state uses one shared remote PostgreSQL
   database; territory, influence, reconciliation, facilities, expenses, and
   Guilds tables share the same connection pool.
-- Admin command: `/territory [lookup|list|reload|save|web]`
+- Admin command: `/territory [lookup|list|reload|save|web|upkeep]`
 - **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`) — REST API only:
   - REST API under `/api/*`
   - Optional **TLS** via PKCS12/JKS keystore
@@ -38,7 +38,7 @@ Multi-module Gradle layout (`api` / `common` / `paper`):
   `guilds-config.yml` / `techtree.yml`).
 
 Produces the single Paper plugin JAR:
-`paper/build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`
+`paper/build/libs/azoth-territory-1.1.0.jar`
 (shadow/fat jar with Guilds runtime libraries: HikariCP, PostgreSQL, Caffeine).
 
 ```bash
@@ -107,6 +107,19 @@ do not overwrite the territory `config.yml`. The historical `guilds/` directory
 was fully merged into the root `src/` tree and removed; the archived MockBukkit
 test suite lives under `docs/archived-guilds-test/` and the historical Guilds
 docs/plans under `docs/archived-guilds/docs/` for reference.
+
+### Guild progression
+
+Guild residents use `/townlevel deposit <resource> <amount>` to contribute
+`DIAMOND`, `GOLD`, `IRON`, `EMERALD`, or `EXPERIENCE` resources. Material aliases
+such as `GOLD_INGOT` are accepted. Deposits remove items from the player's
+inventory and atomically persist the guild resource bank, contribution history,
+and upgrade progress; a failed database write refunds the inventory items.
+
+Only the guild mayor or a holder of `guilds.admin.town` may run
+`/townlevel upgrade`. The upgrade rechecks the locked database row, consumes the
+current progress exactly once, awards tech points, and records idempotent level
+benefits.
 
 ## Spatial rules
 
@@ -367,6 +380,32 @@ web:
 ### API token
 
 If `web.api-token` is non-empty, send `X-Api-Token: <token>` or `Authorization: Bearer <token>` on API calls (health/meta stay open).
+
+## Territory upkeep
+
+Governed territories are charged recurring treasury upkeep through the configured
+economy bridge. The assessment is:
+`base-amount + chunk-amount × footprint + facility-amount × facilities +
+development-level-amount × development level`.
+
+Upkeep state is durable and idempotent across restarts. A failed charge enters
+`GRACE` until `grace-days` elapse, then becomes `SUSPENDED`; a successful charge
+advances the next due period. Inspect the current state with
+`/territory upkeep [territoryId]`.
+
+The packaged defaults in `config.yml` are:
+
+```yaml
+upkeep:
+  enabled: true
+  base-amount: 100.0
+  chunk-amount: 0.5
+  facility-amount: 10.0
+  development-level-amount: 25.0
+  interval-days: 7
+  grace-days: 2
+  check-seconds: 60
+```
 
 ## Persistence
 
