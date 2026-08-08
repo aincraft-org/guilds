@@ -309,6 +309,23 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 | DELETE | `/api/territories/{id}` | Remove |
 | GET | `/api/resolve?world=&x=&z=` | Spatial lookup |
 | GET | `/api/influence` | Influence race state per territory (404 when the engine is disabled) |
+| GET | `/api/standing` | Standing state per territory (404 when the engine is disabled) |
+
+### Territory standing & harvest bonuses
+
+Governing-guild members accrue **standing** from activity inside their own
+territory (PvP kills, PvE kills, block breaks; values in `bonuses.json`).
+Standing raises development **tiers**, which grant:
+
+- **Harvest bonuses** — extra drops from blocks (ores/crops) and mobs killed
+  inside the territory (base drops only; Fortune/Looting unaffected).
+- **Influence bonuses** — the governing guild's influence accrual in other
+  territories is multiplied by its highest tier across the territories it
+  governs.
+
+Config: `bonuses.json` (data folder). State persists to PostgreSQL
+(`standing_state`). Read-only REST: `/api/standing`, and a `standing` object
+on `/api/territories/{id}`. Admin: `/territory standing set|reset`.
 
 ### Reverse proxy (recommended TLS)
 
@@ -345,7 +362,7 @@ If `web.api-token` is non-empty, send `X-Api-Token: <token>` or `Authorization: 
 ## Persistence
 
 All durable plugin state is stored in one shared PostgreSQL database and one
-HikariCP pool. Territory, influence, reconciliation, facility, expense, and
+HikariCP pool. Territory, influence, standing, reconciliation, facility, expense, and
 Guilds data are initialized in PostgreSQL; there are no JSON, SQLite, or
 per-store fallback backends.
 
