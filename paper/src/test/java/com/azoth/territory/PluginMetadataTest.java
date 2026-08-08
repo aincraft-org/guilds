@@ -27,12 +27,23 @@ class PluginMetadataTest {
                     "main class missing: " + yaml);
             assertTrue(yaml.contains("api-version:"), "api-version missing: " + yaml);
             assertTrue(yaml.contains("26.2"), "api-version should be 26.2: " + yaml);
+            assertTrue(yaml.contains("version: 1.1.0"), "release version should be 1.1.0: " + yaml);
             // Single identity: no second Guilds main on this descriptor
             assertTrue(!yaml.contains("main: org.aincraft.guilds.GuildsPlugin"),
                     "must not declare GuildsPlugin as a second main");
         }
         assertNotNull(Class.forName("com.azoth.territory.AzothTerritoryPlugin"));
         assertNotNull(Class.forName("org.aincraft.guilds.GuildsServices"));
+    }
+
+    @Test
+    void standingDefaults_arePackaged() throws Exception {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream("bonuses.json")) {
+            assertNotNull(in, "bonuses.json missing from plugin resources");
+            String json = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(json.contains("\"version\": 1"), "standing resource version missing: " + json);
+            assertTrue(json.contains("\"tiers\""), "standing tiers missing: " + json);
+        }
     }
 
     @Test

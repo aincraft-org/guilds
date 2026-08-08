@@ -73,6 +73,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             getLogger().warning("Could not create data folder: " + getDataFolder());
         }
 
+        java.io.File bonusesFile = new java.io.File(getDataFolder(), "bonuses.json");
+        if (!bonusesFile.exists()) {
+            saveResource("bonuses.json", false);
+        }
         this.registry = new TerritoryRegistry();
         try {
             DatabaseSettings settings = DatabaseSettingsLoader.fromValues(getConfig().getValues(true));

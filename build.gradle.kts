@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "com.azoth"
-version = "1.0.0-SNAPSHOT"
+version = "1.1.0"
 description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
 
 // Shared configuration for the api / common / paper modules.
