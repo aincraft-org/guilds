@@ -49,8 +49,8 @@ jobs:
 
       - name: Build and verify
         env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: mintychochip
+          GITHUB_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN }}
         run: ./gradlew --no-daemon -PreleaseVersion="$RELEASE_VERSION" clean test build
 
 
