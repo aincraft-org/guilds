@@ -76,6 +76,14 @@ subprojects {
 
     repositories {
         maven("/tmp/aincraft-mint/build/maven-repo")
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/aincraft-org/mint")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: providers.gradleProperty("gpr.user").orNull ?: ""
+                password = System.getenv("GITHUB_TOKEN") ?: providers.gradleProperty("gpr.key").orNull ?: ""
+            }
+        }
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://oss.sonatype.org/content/repositories/snapshots")
