@@ -1,5 +1,9 @@
 # Guilds Plugin Configuration
 # This file contains default settings for the Guilds plugin
+guild_bank:
+  capacity_per_level: 1000.00
+  capacity_scale: 2
+  operation_timeout_ms: 5000
 
 # General Settings
 language: en
@@ -30,7 +34,7 @@ permissions:
 # Database Settings
 database:
   auto_backup: true
-  backup_interval: 3600  # seconds
+  backup_interval: 3600
 
 # Message Settings
 messages:
@@ -39,7 +43,7 @@ messages:
   error_color: "&c"
   info_color: "&e"
 
-# Economic Settings (for future integration)
+# Economic Settings
 economy:
   enabled: false
   starting_balance: 100.0
@@ -54,10 +58,6 @@ hearthstone:
 # Guild Level System Configuration
 guild_levels:
   max_level: 150
-
-  # Define requirements and benefits for each level
-  # Level 1 has no requirements (starting level)
-  # Material names must match Bukkit Material enum (DIAMOND, GOLD_INGOT, IRON_INGOT, NETHERITE_INGOT, etc.)
   levels:
     2:
       requirements:
