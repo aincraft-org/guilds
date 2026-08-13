@@ -26,9 +26,14 @@ import org.aincraft.guilds.gui.TechTreeGUI;
 import org.aincraft.guilds.listeners.AllianceListener;
 import org.aincraft.guilds.listeners.PlayerMovementListener;
 import org.aincraft.guilds.listeners.GuildBroadcastListener;
-import org.aincraft.guilds.listeners.GuildChatListener;
-import org.aincraft.guilds.listeners.GuildPublicAccessListener;
 import org.aincraft.guilds.listeners.GuildToggleListener;
+import org.aincraft.guilds.listeners.GuildPublicAccessListener;
+import org.aincraft.guilds.listeners.GuildChatListener;
+import org.aincraft.guilds.listeners.GuildBankVillagerListener;
+import org.aincraft.guilds.services.GuildBankEnrollmentService;
+import org.aincraft.guilds.services.MintGuildBankService;
+import org.aincraft.guilds.services.MintTransferPort;
+import org.aincraft.guilds.services.impl.GuildBankEnrollmentServiceImpl;
 import org.aincraft.guilds.plot.PlotTypeHandlerManager;
 import org.aincraft.guilds.plot.PlotTypeRegistry;
 import org.aincraft.guilds.plot.PlotTypeRegistryImpl;
@@ -65,6 +70,7 @@ import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+import com.azoth.territory.economy.GuildBankCapacity;
 import com.azoth.territory.economy.MintEconomyRail;
 
 import java.io.File;
@@ -93,6 +99,10 @@ public class GuildsServices {
 
     private final JavaPlugin plugin;
     private final MintEconomyRail mintEconomyRail;
+    private volatile MintGuildBankService mintGuildBankService;
+    private final GuildBankEnrollmentService guildBankEnrollmentService;
+    private GuildBrigadierCommand guildBrigadierCommand;
+    private GuildBankVillagerListener guildBankVillagerListener;
     private FileConfiguration config;
     private boolean enabled;
 
@@ -154,7 +164,6 @@ public class GuildsServices {
     public GuildsServices(JavaPlugin plugin, PostgresDatabase database, MintEconomyRail mintEconomyRail) {
         this.plugin = plugin;
         this.mintEconomyRail = mintEconomyRail;
-
         // Guilds config file (namespaced away from the territory config.yml)
         saveDefaultConfig();
         reloadConfig();
@@ -198,6 +207,8 @@ public class GuildsServices {
                 guildService, residentService, permissionService);
         chatService = new ChatServiceImpl(plugin, guildService, residentService);
         questService = new QuestServiceImpl(plugin, databaseManager);
+        guildBankEnrollmentService = new GuildBankEnrollmentServiceImpl(databaseManager, guildService, residentService,
+                Logger.getLogger(GuildBankEnrollmentServiceImpl.class.getName()));
 
         // Governance: guilds as local governments, alliances as alliances
         governanceSource = new GuildsGovernanceSource(databaseManager, guildService, allianceService,
@@ -210,7 +221,9 @@ public class GuildsServices {
 
         // GUI
         techTreeGUI = new TechTreeGUI(plugin, techTreeService, guildService, residentService);
-
+        TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(techTreeService,
+                guildService, residentService, techTreeGUI);
+        // Commands are built after all core services exist.
         // Listeners
         playerMovementListener = new PlayerMovementListener(plugin, plotService, guildService,
                 residentService, plotTypeHandlerManager, plotTypeRegistry);
@@ -225,11 +238,11 @@ public class GuildsServices {
         this.hearthstoneService = null;
         this.hearthstoneListener = null;
 
-        // Commands (built before the registry, which owns them)
-        TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(techTreeService,
-                guildService, residentService, techTreeGUI);
         GuildBrigadierCommand guildCommand = new GuildBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, techTreeCommand, plotTypeRegistry, governanceSource);
+        this.guildBrigadierCommand = guildCommand;
+        this.guildBankVillagerListener = new GuildBankVillagerListener(plugin, guildService, residentService, null,
+                config.getString("bank.villager-scoreboard-tag", "GUILD_BANK"));
         PlotBrigadierCommand plotCommand = new PlotBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, plotTypeRegistry);
         GuildsGeneralBrigadierCommand guildsGeneralCommand = new GuildsGeneralBrigadierCommand(plugin,
@@ -357,6 +370,9 @@ public class GuildsServices {
         plugin.getServer().getPluginManager().registerEvents(playerMovementListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(guildToggleListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(guildPublicAccessListener, plugin);
+        if (guildBankVillagerListener != null) {
+            plugin.getServer().getPluginManager().registerEvents(guildBankVillagerListener, plugin);
+        }
         plugin.getServer().getPluginManager().registerEvents(guildBroadcastListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(techTreeGUI, plugin);
 
@@ -389,6 +405,48 @@ public class GuildsServices {
     public MintEconomyRail getMintEconomyRail() {
         return mintEconomyRail;
     }
+
+    public MintGuildBankService bindMintTransferPort(MintTransferPort mintTransferPort) {
+        if (mintTransferPort == null) {
+            throw new IllegalArgumentException("Mint transfer port is required");
+        }
+        GuildBankCapacity capacity = new GuildBankCapacity(
+                config.getString("bank.capacity-per-level", null) == null
+                        ? java.math.BigDecimal.valueOf(1000)
+                        : new java.math.BigDecimal(config.getString("bank.capacity-per-level")),
+                config.getInt("bank.capacity-scale", 2));
+        MintGuildBankService service = new MintGuildBankService(mintTransferPort, guildBankEnrollmentService,
+                guildId -> guildService.getGuildById(guildId).orElse(null), capacity);
+        MintGuildBankService previous = this.mintGuildBankService;
+        this.mintGuildBankService = service;
+        if (guildBrigadierCommand != null) {
+            guildBrigadierCommand.setMintGuildBankService(service);
+        }
+        if (guildBankVillagerListener != null) {
+            guildBankVillagerListener.setBank(service);
+        }
+        if (previous != null && previous != service) {
+            previous.close();
+        }
+        return service;
+    }
+
+    public MintGuildBankService getMintGuildBankService() {
+        return mintGuildBankService;
+    }
+
+    public GuildBankEnrollmentService getGuildBankEnrollmentService() {
+        return guildBankEnrollmentService;
+    }
+
+    public GuildBankVillagerListener getGuildBankVillagerListener() {
+        return guildBankVillagerListener;
+    }
+
+    public GuildBrigadierCommand getGuildBrigadierCommand() {
+        return guildBrigadierCommand;
+    }
+
 
     public GuildsConfig getGuildsConfig() {
         return guildsConfig;

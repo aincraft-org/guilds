@@ -62,6 +62,7 @@ import dev.mintychochip.mint.api.service.MintClientReceiver;
 import dev.mintychochip.mint.api.id.CurrencyId;
 import com.azoth.territory.economy.MintEconomyRail;
 import com.azoth.territory.economy.MintGuildTaxSettlement;
+import org.aincraft.guilds.services.MintGuildBankService;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -80,7 +81,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             EconomyConfig config = EconomyConfig.fromBukkit(getConfig());
             this.mintEconomyRail = new MintEconomyRail(lease, CurrencyId.parse(config.mintCurrency()),
                     config.mintScale(), getLogger());
-            economyBridge.setAsyncSettlement(new MintGuildTaxSettlement(mintEconomyRail));
+            MintGuildBankService bank = guilds == null ? null : guilds.bindMintTransferPort(mintEconomyRail);
+            if (bank != null) {
+                economyBridge.setAsyncSettlement(new MintGuildTaxSettlement(bank));
+            }
             getLogger().info("Bound Mint lease; asynchronous territory taxes now credit guild accounts");
         }
     }

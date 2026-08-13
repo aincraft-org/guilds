@@ -20,8 +20,8 @@ import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.GuildService;
-import com.azoth.territory.economy.MintEconomyRail;
-import com.azoth.territory.economy.MintOperationResult;
+import org.aincraft.guilds.services.MintGuildBankService;
+import org.aincraft.guilds.services.MintTransferPort;
 import java.math.BigDecimal;
 
 import java.util.List;
@@ -42,7 +42,7 @@ public class GuildBrigadierCommand {
     private final TechTreeBrigadierCommand techTreeCommand;
     private final PlotTypeRegistry plotTypeRegistry;
     private final GuildsGovernanceSource governanceSource;
-    private final MintEconomyRail mintEconomyRail;
+    private volatile MintGuildBankService mintGuildBankService;
 
 
     public GuildBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
@@ -51,16 +51,6 @@ public class GuildBrigadierCommand {
                                TechTreeBrigadierCommand techTreeCommand,
                                PlotTypeRegistry plotTypeRegistry,
                                GuildsGovernanceSource governanceSource) {
-        this(plugin, residentService, guildService, plotService, permissionService, techTreeCommand,
-                plotTypeRegistry, governanceSource, null);
-    }
-
-    public GuildBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                               GuildService guildService, PlotService plotService,
-                               PermissionService permissionService,
-                               TechTreeBrigadierCommand techTreeCommand,
-                               PlotTypeRegistry plotTypeRegistry,
-                               GuildsGovernanceSource governanceSource, MintEconomyRail mintEconomyRail) {
         this.plugin = plugin;
         this.residentService = residentService;
         this.guildService = guildService;
@@ -69,8 +59,12 @@ public class GuildBrigadierCommand {
         this.techTreeCommand = techTreeCommand;
         this.plotTypeRegistry = plotTypeRegistry;
         this.governanceSource = governanceSource;
-        this.mintEconomyRail = mintEconomyRail;
     }
+
+    public void setMintGuildBankService(MintGuildBankService bank) {
+        this.mintGuildBankService = bank;
+    }
+
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
         return Commands.literal("guild")
@@ -146,6 +140,8 @@ public class GuildBrigadierCommand {
             // Mint-backed cash guild bank; SQL Guild.balance remains separate.
             .then(Commands.literal("bank")
                 .executes(this::handleBankBalance)
+                .then(Commands.literal("open")
+                    .executes(this::handleBankOpen))
                 .then(Commands.literal("deposit")
                     .then(Commands.argument("amount", StringArgumentType.word())
                         .executes(ctx -> handleBankTransfer(ctx, true))))
@@ -1130,15 +1126,39 @@ public class GuildBrigadierCommand {
                 + " — seat holders derive from guild roles.");
         return Command.SINGLE_SUCCESS;
     }
+    private int handleBankOpen(CommandContext<CommandSourceStack> ctx) {
+        if (!(ctx.getSource().getSender() instanceof org.bukkit.entity.Player player)) {
+            ctx.getSource().getSender().sendMessage("§cThis command can only be used by players."); return 0;
+        }
+        MintGuildBankService bank = mintGuildBankService;
+        if (bank == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
+        var resident = residentService.getResident(player.getUniqueId());
+        if (resident.isEmpty() || !resident.get().hasGuild()) { player.sendMessage("§cYou are not in a guild!"); return 0; }
+        String guild = resident.get().getGuild();
+        bank.openAccount(player.getUniqueId(), guild).thenAccept(result ->
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (result.status() == MintGuildBankService.Status.COMMITTED
+                            || result.status() == MintGuildBankService.Status.REJECTED) {
+                        player.sendMessage(result.status() == MintGuildBankService.Status.COMMITTED
+                                ? "§aGuild bank account opened." : "§cGuild bank account could not be opened.");
+                    } else {
+                        player.sendMessage("§cYou are not a current guild member.");
+                    }
+                }));
+        player.sendMessage("§7Opening Mint guild bank account...");
+        return Command.SINGLE_SUCCESS;
+    }
+
     private int handleBankBalance(CommandContext<CommandSourceStack> ctx) {
         if (!(ctx.getSource().getSender() instanceof org.bukkit.entity.Player player)) {
             ctx.getSource().getSender().sendMessage("§cThis command can only be used by players."); return 0;
         }
-        if (mintEconomyRail == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
+        MintGuildBankService bank = mintGuildBankService;
+        if (bank == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
         var resident = residentService.getResident(player.getUniqueId());
         if (resident.isEmpty() || !resident.get().hasGuild()) { player.sendMessage("§cYou are not in a guild!"); return 0; }
         String guild = resident.get().getGuild();
-        mintEconomyRail.balance(guild).thenAccept(result -> sendBankResult(player, result, "Balance: "));
+        bank.balance(guild).thenAccept(result -> sendBankResult(player, result, "Balance: "));
         player.sendMessage("§7Checking Mint guild bank balance...");
         return Command.SINGLE_SUCCESS;
     }
@@ -1147,7 +1167,8 @@ public class GuildBrigadierCommand {
         if (!(ctx.getSource().getSender() instanceof org.bukkit.entity.Player player)) {
             ctx.getSource().getSender().sendMessage("§cThis command can only be used by players."); return 0;
         }
-        if (mintEconomyRail == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
+        MintGuildBankService bank = mintGuildBankService;
+        if (bank == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
         var resident = residentService.getResident(player.getUniqueId());
         if (resident.isEmpty() || !resident.get().hasGuild()) { player.sendMessage("§cYou are not in a guild!"); return 0; }
         String guild = resident.get().getGuild();
@@ -1159,20 +1180,20 @@ public class GuildBrigadierCommand {
         try { amount = new BigDecimal(StringArgumentType.getString(ctx, "amount"));
             if (amount.signum() <= 0) throw new NumberFormatException();
         } catch (NumberFormatException ex) { player.sendMessage("§cAmount must be a positive decimal."); return 0; }
-        String key = "command-bank-" + player.getUniqueId() + "-" + guild + "-" + deposit + "-" + amount.stripTrailingZeros().toPlainString();
-        var stage = deposit ? mintEconomyRail.deposit(player.getUniqueId(), guild, amount, key)
-                : mintEconomyRail.withdraw(player.getUniqueId(), guild, amount, key);
+        String key = "command-bank-" + UUID.randomUUID();
+        var stage = deposit ? bank.deposit(player.getUniqueId(), guild, amount, key)
+                : bank.withdraw(player.getUniqueId(), guild, amount, key);
         stage.thenAccept(result -> sendBankResult(player, result, deposit ? "Deposited: " : "Withdrawn: "));
         player.sendMessage("§7Submitting Mint bank transfer...");
         return Command.SINGLE_SUCCESS;
     }
 
-    private void sendBankResult(org.bukkit.entity.Player player, MintOperationResult result, String prefix) {
+    private void sendBankResult(org.bukkit.entity.Player player, MintGuildBankService.Result result, String prefix) {
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             switch (result.status()) {
                 case COMMITTED -> player.sendMessage("§a" + prefix + (result.value() == null ? "transfer committed" : result.value()));
                 case INSUFFICIENT_FUNDS -> player.sendMessage("§cInsufficient Mint funds.");
-                case REJECTED -> player.sendMessage("§cMint rejected the operation.");
+                case REJECTED, CAPACITY_EXCEEDED, UNAUTHORIZED -> player.sendMessage("§cMint rejected the operation.");
                 case UNAVAILABLE -> player.sendMessage("§cMint guild bank is unavailable.");
             }
         });
