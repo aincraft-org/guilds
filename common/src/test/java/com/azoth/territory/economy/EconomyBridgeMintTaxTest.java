@@ -1,13 +1,26 @@
 package com.azoth.territory.economy;
 
-import static org.junit.jupiter.api.Assertions.*;
-import com.azoth.territory.decree.*;
-import com.azoth.territory.model.*;
-import com.azoth.territory.permission.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.azoth.territory.decree.DecreeEffects;
+import com.azoth.territory.decree.TaxEffect;
+import com.azoth.territory.model.AllianceBody;
+import com.azoth.territory.model.BlockPos;
+import com.azoth.territory.model.Boundary;
+import com.azoth.territory.model.Government;
+import com.azoth.territory.model.GuildBody;
+import com.azoth.territory.model.GuildToggles;
+import com.azoth.territory.model.Territory;
+import com.azoth.territory.permission.GovernanceSource;
+import com.azoth.territory.permission.GovernanceRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import java.math.BigDecimal;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import org.junit.jupiter.api.Test;
 
 class EconomyBridgeMintTaxTest {
