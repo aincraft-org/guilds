@@ -95,7 +95,7 @@ jobs:
               --arg name "Nightly ${RELEASE_VERSION}" \
               --arg target "$COMMIT_SHA" \
               --arg body "Automated nightly build.\n\nCommit: ${COMMIT_SHA}\nWorkflow run: ${RUN_URL}" \
-              '{tag_name:"nightly",target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:true}' > "$update_json"
+              '{tag_name:"nightly",target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:"true"}' > "$update_json"
             curl --fail-with-body --silent --show-error -X PATCH "${auth[@]}" -H 'Content-Type: application/json' \
               "${repo_url}/releases/${release_id}" --data-binary "@${update_json}" > "$release_json"
           else
@@ -104,7 +104,7 @@ jobs:
               --arg target "$COMMIT_SHA" \
               --arg name "Nightly ${RELEASE_VERSION}" \
               --arg body "Automated nightly build.\n\nCommit: ${COMMIT_SHA}\nWorkflow run: ${RUN_URL}" \
-              '{tag_name:$tag,target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:true}' > "$update_json"
+              '{tag_name:$tag,target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:"true"}' > "$update_json"
             curl --fail-with-body --silent --show-error -X POST "${auth[@]}" -H 'Content-Type: application/json' \
               "${repo_url}/releases" --data-binary "@${update_json}" > "$release_json"
             release_id="$(jq -r '.id' "$release_json")"
