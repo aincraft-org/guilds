@@ -89,8 +89,8 @@ public class SchemaInitializer {
         // Add guild contract system for cross-guild level-up contracts
         migrations.add(new AddGuildContractMigration());
 
-        // Widen residents.last_online to BIGINT to match the long-typed model
-        migrations.add(new AlterResidentLastOnlineMigration());
+        // Add persistent guild-bank player enrollment tracking
+        migrations.add(new AddGuildBankEnrollmentMigration());
 
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
