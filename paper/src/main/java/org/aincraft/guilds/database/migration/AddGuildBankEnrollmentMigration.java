@@ -43,12 +43,12 @@ public class AddGuildBankEnrollmentMigration implements DatabaseMigration {
 
     @Override
     public boolean isApplied(Connection connection) throws SQLException {
-        String sql = """
-            SELECT COUNT(*) FROM information_schema.tables
-            WHERE table_schema = current_schema() AND table_name = 'guild_bank_enrollments'
-            """;
-        try (Statement statement = connection.createStatement(); ResultSet result = statement.executeQuery(sql)) {
-            return result.next() && result.getInt(1) > 0;
+        String sql = "SELECT 1 FROM schema_migrations WHERE version = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, VERSION);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
         }
     }
 
