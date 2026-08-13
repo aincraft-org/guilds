@@ -41,7 +41,7 @@ public final class GuildBankVillagerListener implements Listener {
         Player player = event.getPlayer();
         var resident = residentService.getResident(player.getUniqueId());
         if (resident.isEmpty() || !resident.get().hasGuild()) return;
-        var guild = guildService.getGuildById(resident.get().getGuild());
+        var guild = guildService.getGuild(resident.get().getGuild());
         if (guild.isEmpty()) return;
         event.setCancelled(true);
         currentBank.openAccount(player.getUniqueId(), guild.get().getId()).whenComplete((result, error) ->

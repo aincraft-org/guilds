@@ -188,7 +188,7 @@ class UpkeepEngineTest {
             ExpenseOutcome outcome = switch (rail.nextStatus()) {
                 case DEBITED -> ExpenseOutcome.DEBITED;
                 case INSUFFICIENT_FUNDS -> ExpenseOutcome.INSUFFICIENT_FUNDS;
-                case VAULT_UNAVAILABLE -> ExpenseOutcome.VAULT_UNAVAILABLE;
+                case PROVIDER_UNAVAILABLE -> ExpenseOutcome.PROVIDER_UNAVAILABLE;
                 case INVALID_AMOUNT -> ExpenseOutcome.INVALID_AMOUNT;
             };
             return new ExpenseReport(outcome, territoryId, kind, amount, idempotencyKey);

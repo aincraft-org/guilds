@@ -13,21 +13,21 @@ class EconomyConfigTest {
     }
 
     @Test
-    void defaultIsVault() {
-        assertEquals(EconomyConfig.Mode.VAULT, fromYaml("").mode());
+    void defaultIsSimulation() {
+        assertEquals(EconomyConfig.Mode.SIMULATION, fromYaml("").mode());
     }
 
     @Test
     void readsExplicitMode() {
         assertEquals(EconomyConfig.Mode.SIMULATION,
                 fromYaml("economy:\n  mode: SIMULATION").mode());
-        assertEquals(EconomyConfig.Mode.VAULT,
-                fromYaml("economy:\n  mode: VAULT").mode());
+        assertEquals(EconomyConfig.Mode.MINT,
+                fromYaml("economy:\n  mode: MINT").mode());
     }
 
     @Test
-    void unknownModeFallsBackToVault() {
-        assertEquals(EconomyConfig.Mode.VAULT,
+    void unknownModeFallsBackToSimulation() {
+        assertEquals(EconomyConfig.Mode.SIMULATION,
                 fromYaml("economy:\n  mode: COINS").mode());
     }
 }

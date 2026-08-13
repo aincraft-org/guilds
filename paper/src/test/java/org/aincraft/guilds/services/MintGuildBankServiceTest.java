@@ -24,7 +24,7 @@ class MintGuildBankServiceTest {
         UUID player = UUID.randomUUID();
         AtomicInteger deposits = new AtomicInteger();
         MintTransferPort mint = new MintTransferPort() {
-            public CompletableFuture<MintOperationResult> openAccount(String id) { return committed(null); }
+            public CompletableFuture<MintOperationResult> openAccount(UUID p, String id) { return committed(null); }
             public CompletableFuture<MintOperationResult> balance(String id) { return committed(new BigDecimal("999.00")); }
             public CompletableFuture<MintOperationResult> deposit(UUID p, String id, BigDecimal a, String k) { deposits.incrementAndGet(); return committed(null); }
             public CompletableFuture<MintOperationResult> withdraw(UUID p, String id, BigDecimal a, String k) { return committed(null); }
@@ -49,7 +49,7 @@ class MintGuildBankServiceTest {
         UUID payer = UUID.randomUUID();
         AtomicInteger calls = new AtomicInteger();
         MintTransferPort mint = new MintTransferPort() {
-            public CompletableFuture<MintOperationResult> openAccount(String id) { return committed(null); }
+            public CompletableFuture<MintOperationResult> openAccount(UUID p, String id) { return committed(null); }
             public CompletableFuture<MintOperationResult> balance(String id) { return committed(new BigDecimal("1.00")); }
             public CompletableFuture<MintOperationResult> deposit(UUID p, String id, BigDecimal a, String k) { return committed(null); }
             public CompletableFuture<MintOperationResult> withdraw(UUID p, String id, BigDecimal a, String k) { return committed(null); }

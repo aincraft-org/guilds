@@ -47,20 +47,24 @@ public final class SimulationTreasury implements PaymentRail {
         }
         return update(territoryId, current - amount);
     }
-
     @Override
     public synchronized SettlementResult settle(java.util.UUID payerId, String territoryId, double amount) {
+        if (payerId == null || territoryId == null || territoryId.isBlank()) {
+            return new SettlementResult(PaymentRail.SettlementStatus.PAYER_UNAVAILABLE);
+        }
+        if (!Double.isFinite(amount) || amount <= 0.0) {
+            return new SettlementResult(PaymentRail.SettlementStatus.INSUFFICIENT_FUNDS);
+        }
         state = state.credit(territoryId, amount);
         return new SettlementResult(PaymentRail.SettlementStatus.SETTLED);
     }
-
     @Override
     public synchronized TreasuryDebitResult debitTreasury(String territoryId, double amount) {
-        if (!Double.isFinite(amount) || amount <= 0) {
-            return new TreasuryDebitResult(TreasuryDebitStatus.INVALID_AMOUNT);
-        }
         if (territoryId == null || territoryId.isBlank()) {
-            return new TreasuryDebitResult(TreasuryDebitStatus.VAULT_UNAVAILABLE);
+            return new TreasuryDebitResult(TreasuryDebitStatus.PROVIDER_UNAVAILABLE);
+        }
+        if (!Double.isFinite(amount) || amount <= 0.0) {
+            return new TreasuryDebitResult(TreasuryDebitStatus.INVALID_AMOUNT);
         }
         if (amount > state.balanceOf(territoryId)) {
             return new TreasuryDebitResult(TreasuryDebitStatus.INSUFFICIENT_FUNDS);

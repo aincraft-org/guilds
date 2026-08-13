@@ -49,12 +49,12 @@ database:
   jdbc-url: ""
 
 
-# Settlement economy: VAULT, SIMULATION, or MINT (async Mint guild accounts).
+# Settlement economy: SIMULATION or MINT (async Mint guild accounts).
 economy:
-  mode: VAULT
+  mode: SIMULATION
   mint:
     currency: coins
-    client-binding: ""
+    client-binding: AzothTerritory
     scale: 2
 
 # Recurring treasury upkeep for governed territories.

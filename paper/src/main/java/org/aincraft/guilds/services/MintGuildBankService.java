@@ -69,12 +69,15 @@ public final class MintGuildBankService implements AutoCloseable {
                         r == GuildBankEnrollmentService.EnrollmentResult.NOT_CURRENT_MEMBER
                                 ? Status.UNAUTHORIZED : Status.REJECTED, null, r.name(), null));
             }
-            return call(() -> mint.openAccount(guildId)).thenApply(Result::from);
+            return call(() -> mint.openAccount(player, guildId)).thenApply(Result::from);
         }));
     }
 
-    public CompletionStage<Result> balance(String guildId) {
-        return enqueue(guildId, () -> call(() -> mint.balance(guildId)).thenApply(Result::from));
+    public CompletionStage<Result> balance(UUID player, String guildId) {
+        return enqueue(guildId, () -> authorized(player, guildId, false).thenCompose(ok -> {
+            if (!ok) return CompletableFuture.completedFuture(new Result(Status.UNAUTHORIZED, null, "NOT_ENROLLED", null));
+            return call(() -> mint.balance(guildId)).thenApply(Result::from);
+        }));
     }
 
     public CompletionStage<Result> deposit(UUID player, String guildId, BigDecimal amount, String key) {
@@ -118,19 +121,9 @@ public final class MintGuildBankService implements AutoCloseable {
         return call(() -> mint.balance(guild.getId())).thenApply(r -> r.status() == MintOperationResult.Status.COMMITTED
                 && r.value() != null && r.value().add(amount).compareTo(capacity.forLevel(guild.getGuildLevel())) <= 0);
     }
-
     private <T> CompletionStage<T> call(Supplier<CompletionStage<T>> operation) {
         try {
-            CompletionStage<T> source = operation.get();
-            CompletableFuture<T> caller = new CompletableFuture<>();
-            timer.schedule(() -> caller.completeExceptionally(
-                    new java.util.concurrent.TimeoutException("Mint operation timed out")),
-                    timeoutMillis, TimeUnit.MILLISECONDS);
-            source.whenComplete((value, error) -> {
-                if (error != null) caller.completeExceptionally(error);
-                else caller.complete(value);
-            });
-            return caller;
+            return operation.get();
         } catch (Throwable t) {
             return CompletableFuture.failedFuture(t);
         }
@@ -149,8 +142,17 @@ public final class MintGuildBankService implements AutoCloseable {
                     returned.complete(Result.unavailable(t.getClass().getSimpleName()));
                     return CompletableFuture.completedFuture((Void) null);
                 }
-                stage.whenComplete((value, error) ->
-                        returned.complete(error == null ? value : Result.unavailable(error.getClass().getSimpleName())));
+                CompletableFuture<Result> operationResult = new CompletableFuture<>();
+                timer.schedule(() -> operationResult.complete(Result.unavailable("TIMEOUT")),
+                        timeoutMillis, TimeUnit.MILLISECONDS);
+                operationResult.whenComplete((timeoutResult, timeoutError) -> {
+                    if (timeoutError == null && timeoutResult != null) returned.complete(timeoutResult);
+                });
+                stage.whenComplete((value, error) -> {
+                    Result result = error == null ? value : Result.unavailable(error.getClass().getSimpleName());
+                    operationResult.complete(result);
+                    returned.complete(result);
+                });
                 return stage.handle((v2, e2) -> (Void) null);
             }).toCompletableFuture();
             barrier.whenComplete((v, e) -> tails.remove(id, barrier));

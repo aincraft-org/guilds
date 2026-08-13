@@ -4,6 +4,6 @@ package com.azoth.territory.economy;
 public enum TreasuryDebitStatus {
     DEBITED,
     INSUFFICIENT_FUNDS,
-    VAULT_UNAVAILABLE,
+    PROVIDER_UNAVAILABLE,
     INVALID_AMOUNT
 }

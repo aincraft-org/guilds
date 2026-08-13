@@ -124,12 +124,12 @@ class EconomyBridgeDomainTest {
     }
 
     @Test
-    void railUnavailableIsVaultUnavailable() {
+    void railUnavailableIsProviderUnavailable() {
         RecordingRail rail = new RecordingRail();
         rail.available = false;
         EconomyBridge b = bridge(rail, false);
         TaxReport r = b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0);
-        assertEquals(TaxOutcome.VAULT_UNAVAILABLE, r.outcome());
+        assertEquals(TaxOutcome.PROVIDER_UNAVAILABLE, r.outcome());
         assertEquals(0, rail.settleCalls);
     }
 
@@ -150,11 +150,11 @@ class EconomyBridgeDomainTest {
     }
 
     @Test
-    void vaultUnavailableSettlementMapsThrough() {
+    void providerUnavailableSettlementMapsThrough() {
         RecordingRail rail = new RecordingRail();
-        rail.result = new SettlementResult(PaymentRail.SettlementStatus.VAULT_UNAVAILABLE);
+        rail.result = new SettlementResult(PaymentRail.SettlementStatus.PROVIDER_UNAVAILABLE);
         EconomyBridge b = bridge(rail, false);
-        assertEquals(TaxOutcome.VAULT_UNAVAILABLE, b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0).outcome());
+        assertEquals(TaxOutcome.PROVIDER_UNAVAILABLE, b.reportSale(PAYER, WORLD, 5, 5, "carrot", 100.0).outcome());
     }
 
     @Test

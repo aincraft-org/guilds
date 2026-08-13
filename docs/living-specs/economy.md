@@ -131,9 +131,10 @@ Active capability surface (shipped or wired) and any open work still on that sur
 
 ### Capability (shipped)
 
-- [x] Mint API dependency wiring and pure asynchronous settlement contract
+- [x] Mint API dependency wiring and pure asynchronous settlement contract (GitHub Packages repository, pinned version)
 - [x] Mint account rail primitives: guild/player accounts, atomic signed transfers, balance lookup
 - [x] Async tax bridge entry points route taxes to the governing guild id
+- [x] Plugin registers a documented `MintClientReceiver`; received leases inject the Mint rail into territory tax settlement
 - [x] `/guild bank` balance/deposit/withdraw command surface (when a trusted Mint rail is available)
 
 - [x] `EconomyBridge.reportSale` — location resolve, government gate, PASSED tax rates, `PaymentRail.settle`

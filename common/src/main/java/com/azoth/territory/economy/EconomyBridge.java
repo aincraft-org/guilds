@@ -22,7 +22,7 @@ import java.util.function.Consumer;
  * Public transaction API: other plugins report sales here; Azoth applies PASSED
  * policy tax rates and settles through the active payment rail.
  *
- * <p>Pure domain code: no Bukkit or Vault dependencies.</p>
+ * <p>Pure domain code with no Bukkit or external economy-provider dependencies.</p>
  */
 public class EconomyBridge {
 
@@ -154,7 +154,7 @@ public class EconomyBridge {
             return report(TaxOutcome.SIMULATED_TAXED, territoryId, good.get().id(), rate, taxAmount);
         }
         if (!rail.available()) {
-            return report(TaxOutcome.VAULT_UNAVAILABLE, territoryId, good.get().id(), rate, taxAmount);
+            return report(TaxOutcome.PROVIDER_UNAVAILABLE, territoryId, good.get().id(), rate, taxAmount);
         }
 
         SettlementResult result = rail.settle(payerId, territoryId, taxAmount);
@@ -322,7 +322,7 @@ public class EconomyBridge {
 
         if (debit == null) {
             return removeFailedExpense(
-                    ExpenseOutcome.VAULT_UNAVAILABLE, territoryId, kind, amount, idempotencyKey);
+                    ExpenseOutcome.PROVIDER_UNAVAILABLE, territoryId, kind, amount, idempotencyKey);
         }
         return switch (debit.status()) {
             case DEBITED -> {
@@ -339,8 +339,8 @@ public class EconomyBridge {
             }
             case INSUFFICIENT_FUNDS -> removeFailedExpense(
                     ExpenseOutcome.INSUFFICIENT_FUNDS, territoryId, kind, amount, idempotencyKey);
-            case VAULT_UNAVAILABLE -> removeFailedExpense(
-                    ExpenseOutcome.VAULT_UNAVAILABLE, territoryId, kind, amount, idempotencyKey);
+            case PROVIDER_UNAVAILABLE -> removeFailedExpense(
+                    ExpenseOutcome.PROVIDER_UNAVAILABLE, territoryId, kind, amount, idempotencyKey);
             case INVALID_AMOUNT -> removeFailedExpense(
                     ExpenseOutcome.INVALID_AMOUNT, territoryId, kind, amount, idempotencyKey);
         };
@@ -382,13 +382,13 @@ public class EconomyBridge {
             UUID payerId
     ) {
         if (result == null) {
-            return report(TaxOutcome.VAULT_UNAVAILABLE, territoryId, goodId, rate, 0.0);
+            return report(TaxOutcome.PROVIDER_UNAVAILABLE, territoryId, goodId, rate, 0.0);
         }
         return switch (result.status()) {
             case SETTLED -> report(TaxOutcome.TAXED, territoryId, goodId, rate, taxAmount);
             case INSUFFICIENT_FUNDS -> report(TaxOutcome.INSUFFICIENT_FUNDS, territoryId, goodId, rate, 0.0);
             case PAYER_UNAVAILABLE -> report(TaxOutcome.PAYER_UNAVAILABLE, territoryId, goodId, rate, 0.0);
-            case VAULT_UNAVAILABLE -> report(TaxOutcome.VAULT_UNAVAILABLE, territoryId, goodId, rate, 0.0);
+            case PROVIDER_UNAVAILABLE -> report(TaxOutcome.PROVIDER_UNAVAILABLE, territoryId, goodId, rate, 0.0);
             case COMPENSATED_FAILURE -> report(TaxOutcome.SETTLEMENT_FAILED, territoryId, goodId, rate, 0.0);
             case RECONCILIATION_REQUIRED -> {
                 UnresolvedTransaction entry = new UnresolvedTransaction(

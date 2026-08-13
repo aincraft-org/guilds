@@ -10,7 +10,6 @@ import com.azoth.territory.economy.PaymentRail;
 import com.azoth.territory.economy.SettlementResult;
 import com.azoth.territory.economy.SimulationTreasury;
 import com.azoth.territory.economy.TreasuryDebitResult;
-import com.azoth.territory.economy.VaultTreasury;
 import com.azoth.territory.influence.InfluenceConfig;
 import com.azoth.territory.influence.InfluenceConfigLoader;
 import com.azoth.territory.influence.InfluenceEngine;
@@ -72,11 +71,12 @@ import java.util.logging.Level;
 public final class AzothTerritoryPlugin extends JavaPlugin {
     private volatile MintClientLease trustedMintLease;
     private volatile MintEconomyRail mintEconomyRail;
+    private MintClientReceiver mintClientReceiver;
 
     /** Mint calls this through its documented MintClientReceiver service binding. */
     public void bindMintClient(MintClientLease lease) {
         this.trustedMintLease = java.util.Objects.requireNonNull(lease, "lease");
-        if (getConfig().getString("economy.mode", "VAULT").equalsIgnoreCase("MINT")
+        if (getConfig().getString("economy.mode", "SIMULATION").equalsIgnoreCase("MINT")
                 && economyBridge != null) {
             EconomyConfig config = EconomyConfig.fromBukkit(getConfig());
             this.mintEconomyRail = new MintEconomyRail(lease, CurrencyId.parse(config.mintCurrency()),
@@ -118,12 +118,13 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        getServer().getServicesManager().register(MintClientReceiver.class,
-                new MintClientReceiver() {
-                    @Override public void bindMintClient(MintClientLease lease) {
-                        AzothTerritoryPlugin.this.bindMintClient(lease);
-                    }
-                }, this, ServicePriority.Normal);
+        mintClientReceiver = new MintClientReceiver() {
+            @Override public void bindMintClient(MintClientLease lease) {
+                AzothTerritoryPlugin.this.bindMintClient(lease);
+            }
+        };
+        getServer().getServicesManager().register(
+                MintClientReceiver.class, mintClientReceiver, this, ServicePriority.Normal);
         if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
             getLogger().warning("Could not create data folder: " + getDataFolder());
         }
@@ -195,29 +196,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             if (economyConfig.mode() == EconomyConfig.Mode.MINT) {
                 rail = new UnavailableRail();
                 getLogger().info("Mint mode awaiting the configured MintClientReceiver lease");
-            } else if (simulation) {
+            } else {
                 rail = new SimulationTreasury();
                 getLogger().info("Economy in SIMULATION mode — non-monetary ledger only, no player charges");
-            } else if (getServer().getPluginManager().getPlugin("Vault") == null) {
-                rail = new UnavailableRail();
-                getLogger().warning("Vault not found — settlement returns VAULT_UNAVAILABLE");
-            } else {
-                net.milkbowl.vault.economy.Economy vaultEconomy = resolveVaultEconomy();
-                if (vaultEconomy == null) {
-                    rail = new UnavailableRail();
-                    getLogger().warning("Vault economy provider not found — settlement returns VAULT_UNAVAILABLE");
-                } else {
-                    VaultTreasury vaultTreasury = new VaultTreasury(vaultEconomy, Bukkit::getOfflinePlayer);
-                    int provisioningFailures = vaultTreasury.provisionTerritories(
-                            registry.list().stream().map(territory -> territory.id()).toList());
-                    rail = vaultTreasury;
-                    if (provisioningFailures > 0) {
-                        getLogger().warning("Could not provision " + provisioningFailures
-                                + " territory treasury bank(s); affected sales return VAULT_UNAVAILABLE");
-                    } else {
-                        getLogger().info("Economy wired to Vault banks (territory treasury per settlement)");
-                    }
-                }
             }
             this.economyBridge = new EconomyBridge(
                     registry, governance, com.azoth.territory.decree.GoodsCatalog.defaultCatalog(),
@@ -340,10 +321,12 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         startWebIfEnabled();
         enableGuildsSubsystem();
     }
-
     @Override
     public void onDisable() {
-        getServer().getServicesManager().unregister(MintClientReceiver.class, this);
+        if (mintClientReceiver != null) {
+            getServer().getServicesManager().unregister(MintClientReceiver.class, mintClientReceiver);
+            mintClientReceiver = null;
+        }
         stopInfluenceStatus();
         disableGuildsSubsystem();
         stopWeb();
@@ -492,24 +475,15 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     }
 
 
-    private net.milkbowl.vault.economy.Economy resolveVaultEconomy() {
-        if (getServer().getPluginManager().getPlugin("Vault") == null) {
-            return null;
-        }
-        var registration = getServer().getServicesManager()
-                .getRegistration(net.milkbowl.vault.economy.Economy.class);
-        return registration == null ? null : registration.getProvider();
-    }
-
     private static final class UnavailableRail implements PaymentRail {
         @Override
         public SettlementResult settle(java.util.UUID payerId, String territoryId, double amount) {
-            return new SettlementResult(PaymentRail.SettlementStatus.PAYER_UNAVAILABLE);
+            return new SettlementResult(PaymentRail.SettlementStatus.PROVIDER_UNAVAILABLE);
         }
 
         @Override
         public TreasuryDebitResult debitTreasury(String territoryId, double amount) {
-            return new TreasuryDebitResult(com.azoth.territory.economy.TreasuryDebitStatus.VAULT_UNAVAILABLE);
+            return new TreasuryDebitResult(com.azoth.territory.economy.TreasuryDebitStatus.PROVIDER_UNAVAILABLE);
         }
 
         @Override
@@ -517,7 +491,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             return false;
         }
     }
-
 
     private void startWebIfEnabled() {
         try {
@@ -529,10 +502,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.webServer = new TerritoryWebServer(
                     webConfig,
                     registry,
-                    new TerritoryJson(),
+                    new com.azoth.territory.persist.TerritoryJson(),
                     store,
-                    () -> Optional.ofNullable(influenceEngine),
-                    () -> Optional.ofNullable(standingEngine),
+                    () -> java.util.Optional.ofNullable(influenceEngine),
                     getLogger()
             );
             webServer.start();

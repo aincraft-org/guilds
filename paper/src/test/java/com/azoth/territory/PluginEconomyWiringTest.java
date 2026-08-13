@@ -27,18 +27,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 
-/** The packaged plugin.yml soft-depends on Vault. */
+/** The packaged plugin.yml must not depend on Vault. */
 class PluginEconomyWiringTest {
     @Test
-    void pluginMetadataDeclaresSoftDependVault() throws Exception {
+    void pluginMetadataDoesNotDeclareVault() throws Exception {
         var stream = getClass().getResourceAsStream("/plugin.yml");
         assertNotNull(stream);
         String yml;
         try (stream) {
             yml = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
-        assertTrue(yml.contains("softdepend") && yml.contains("Vault"),
-                "plugin.yml must soft-depend on Vault");
+        assertTrue(!yml.contains("Vault"), "plugin.yml must not depend on Vault");
     }
     @Test
     void bukkitFacadeResolvesPersistedFacilityLocations() {

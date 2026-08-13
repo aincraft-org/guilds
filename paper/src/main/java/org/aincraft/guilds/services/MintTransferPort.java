@@ -8,7 +8,7 @@ import java.util.concurrent.CompletionStage;
 
 /** Narrow asynchronous Mint contract consumed by guild-bank coordination. */
 public interface MintTransferPort {
-    CompletionStage<MintOperationResult> openAccount(String guildId);
+    CompletionStage<MintOperationResult> openAccount(UUID playerUuid, String guildId);
 
     CompletionStage<MintOperationResult> balance(String guildId);
 

@@ -50,11 +50,14 @@ public final class MintEconomyRail implements org.aincraft.guilds.services.MintT
     }
 
     @Override
-    public CompletionStage<MintOperationResult> openAccount(String guildId) {
-        AccountId account = guildAccount(guildId);
-        return lease.accounts().ensure(account).thenApply(ignored ->
-                new MintOperationResult(MintOperationResult.Status.COMMITTED, null,
-                        java.util.Optional.empty(), java.util.Optional.empty())).exceptionally(this::unavailable);
+    public CompletionStage<MintOperationResult> openAccount(UUID playerId, String guildId) {
+        AccountId player = playerAccount(playerId);
+        AccountId guild = guildAccount(guildId);
+        return lease.accounts().ensure(player)
+                .thenCompose(ignored -> lease.accounts().ensure(guild))
+                .thenApply(ignored -> new MintOperationResult(MintOperationResult.Status.COMMITTED, null,
+                        java.util.Optional.empty(), java.util.Optional.empty()))
+                .exceptionally(this::unavailable);
     }
 
     @Override

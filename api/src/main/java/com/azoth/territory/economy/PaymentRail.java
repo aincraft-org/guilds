@@ -11,7 +11,7 @@ public interface PaymentRail {
     enum SettlementStatus {
         INSUFFICIENT_FUNDS,
         PAYER_UNAVAILABLE,
-        VAULT_UNAVAILABLE,
+        PROVIDER_UNAVAILABLE,
         SETTLED,
         COMPENSATED_FAILURE,
         RECONCILIATION_REQUIRED

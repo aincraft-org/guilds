@@ -8,7 +8,6 @@ import java.util.Locale;
 public final class EconomyConfig {
 
     public enum Mode {
-        VAULT,
         SIMULATION,
         MINT
     }
@@ -23,7 +22,7 @@ public final class EconomyConfig {
     }
 
     public EconomyConfig(Mode mode, String mintCurrency, String mintClientBinding, int mintScale) {
-        this.mode = mode == null ? Mode.VAULT : mode;
+        this.mode = mode == null ? Mode.SIMULATION : mode;
         this.mintCurrency = mintCurrency == null ? "coins" : mintCurrency;
         this.mintClientBinding = mintClientBinding == null ? "" : mintClientBinding;
         this.mintScale = mintScale < 0 ? 2 : mintScale;
@@ -35,13 +34,13 @@ public final class EconomyConfig {
     public int mintScale() { return mintScale; }
 
     public static EconomyConfig fromBukkit(FileConfiguration cfg) {
-        String raw = cfg == null ? null : cfg.getString("economy.mode", "VAULT");
-        Mode mode = Mode.VAULT;
+        String raw = cfg == null ? null : cfg.getString("economy.mode", "SIMULATION");
+        Mode mode = Mode.SIMULATION;
         if (raw != null) {
             try {
                 mode = Mode.valueOf(raw.trim().toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException ignored) {
-                mode = Mode.VAULT;
+                mode = Mode.SIMULATION;
             }
         }
         if (cfg == null) {

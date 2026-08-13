@@ -41,7 +41,6 @@ class GuildsIntegrationTest {
                     "guilds permissions present: " + yaml.substring(0, Math.min(400, yaml.length())));
             assertTrue(yaml.contains("guilds.admin") || yaml.contains("guilds.admin.*"),
                     "guilds admin permissions present");
-            assertTrue(yaml.contains("Vault"), "softdepend Vault retained for both subsystems");
         }
     }
 

@@ -1134,8 +1134,9 @@ public class GuildBrigadierCommand {
         if (bank == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
         var resident = residentService.getResident(player.getUniqueId());
         if (resident.isEmpty() || !resident.get().hasGuild()) { player.sendMessage("§cYou are not in a guild!"); return 0; }
-        String guild = resident.get().getGuild();
-        bank.openAccount(player.getUniqueId(), guild).thenAccept(result ->
+        var guild = guildService.getGuild(resident.get().getGuild());
+        if (guild.isEmpty()) { player.sendMessage("§cYour guild could not be resolved."); return 0; }
+        bank.openAccount(player.getUniqueId(), guild.get().getId()).thenAccept(result ->
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     if (result.status() == MintGuildBankService.Status.COMMITTED
                             || result.status() == MintGuildBankService.Status.REJECTED) {
@@ -1157,8 +1158,10 @@ public class GuildBrigadierCommand {
         if (bank == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
         var resident = residentService.getResident(player.getUniqueId());
         if (resident.isEmpty() || !resident.get().hasGuild()) { player.sendMessage("§cYou are not in a guild!"); return 0; }
-        String guild = resident.get().getGuild();
-        bank.balance(guild).thenAccept(result -> sendBankResult(player, result, "Balance: "));
+        var guild = guildService.getGuild(resident.get().getGuild());
+        if (guild.isEmpty()) { player.sendMessage("§cYour guild could not be resolved."); return 0; }
+        bank.balance(player.getUniqueId(), guild.get().getId())
+                .thenAccept(result -> sendBankResult(player, result, "Balance: "));
         player.sendMessage("§7Checking Mint guild bank balance...");
         return Command.SINGLE_SUCCESS;
     }
@@ -1171,7 +1174,9 @@ public class GuildBrigadierCommand {
         if (bank == null) { player.sendMessage("§cMint guild banks are unavailable."); return 0; }
         var resident = residentService.getResident(player.getUniqueId());
         if (resident.isEmpty() || !resident.get().hasGuild()) { player.sendMessage("§cYou are not in a guild!"); return 0; }
-        String guild = resident.get().getGuild();
+        var guildOpt = guildService.getGuild(resident.get().getGuild());
+        if (guildOpt.isEmpty()) { player.sendMessage("§cYour guild could not be resolved."); return 0; }
+        String guild = guildOpt.get().getId();
         String permission = deposit ? "deposit" : "withdraw";
         if (!permissionService.hasPermission(player.getUniqueId(), permission, "guild", guild)) {
             player.sendMessage("§cYou do not have permission to " + permission + " from the guild bank."); return 0;

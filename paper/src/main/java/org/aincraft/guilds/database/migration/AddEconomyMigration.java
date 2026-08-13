@@ -22,7 +22,7 @@ public class AddEconomyMigration implements DatabaseMigration {
 
     @Override
     public String getDescription() {
-        return "Add economy transactions table for Vault integration audit log";
+        return "Add economy transactions table for economy audit log";
     }
 
     @Override
