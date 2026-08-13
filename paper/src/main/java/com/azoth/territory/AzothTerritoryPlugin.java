@@ -55,7 +55,13 @@ import org.aincraft.guilds.GuildsServices;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
-
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.ServicePriority;
+import dev.mintychochip.mint.api.service.MintClientLease;
+import dev.mintychochip.mint.api.service.MintClientReceiver;
+import dev.mintychochip.mint.api.id.CurrencyId;
+import com.azoth.territory.economy.MintEconomyRail;
+import com.azoth.territory.economy.MintGuildTaxSettlement;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -63,10 +69,20 @@ import java.util.Optional;
 import java.util.logging.Level;
 
 public final class AzothTerritoryPlugin extends JavaPlugin {
-    private static volatile Object trustedMintLease;
+    private volatile MintClientLease trustedMintLease;
+    private volatile MintEconomyRail mintEconomyRail;
 
-    public static void bindTrustedMintLease(Object lease) {
-        trustedMintLease = java.util.Objects.requireNonNull(lease, "lease");
+    /** Mint calls this through its documented MintClientReceiver service binding. */
+    public void bindMintClient(MintClientLease lease) {
+        this.trustedMintLease = java.util.Objects.requireNonNull(lease, "lease");
+        if (getConfig().getString("economy.mode", "VAULT").equalsIgnoreCase("MINT")
+                && economyBridge != null) {
+            EconomyConfig config = EconomyConfig.fromBukkit(getConfig());
+            this.mintEconomyRail = new MintEconomyRail(lease, CurrencyId.parse(config.mintCurrency()),
+                    config.mintScale(), getLogger());
+            economyBridge.setAsyncSettlement(new MintGuildTaxSettlement(mintEconomyRail));
+            getLogger().info("Bound Mint lease; asynchronous territory taxes now credit guild accounts");
+        }
     }
     private TerritoryRegistry registry;
     private FacilityRegistry facilities;
@@ -98,6 +114,12 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        getServer().getServicesManager().register(MintClientReceiver.class,
+                new MintClientReceiver() {
+                    @Override public void bindMintClient(MintClientLease lease) {
+                        AzothTerritoryPlugin.this.bindMintClient(lease);
+                    }
+                }, this, ServicePriority.Normal);
         if (!getDataFolder().exists() && !getDataFolder().mkdirs()) {
             getLogger().warning("Could not create data folder: " + getDataFolder());
         }
@@ -168,7 +190,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             PaymentRail rail;
             if (economyConfig.mode() == EconomyConfig.Mode.MINT) {
                 rail = new UnavailableRail();
-                getLogger().info("Economy wired to asynchronous Mint guild-bank accounts");
+                getLogger().info("Mint mode awaiting the configured MintClientReceiver lease");
             } else if (simulation) {
                 rail = new SimulationTreasury();
                 getLogger().info("Economy in SIMULATION mode — non-monetary ledger only, no player charges");
@@ -317,6 +339,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        getServer().getServicesManager().unregister(MintClientReceiver.class, this);
         stopInfluenceStatus();
         disableGuildsSubsystem();
         stopWeb();

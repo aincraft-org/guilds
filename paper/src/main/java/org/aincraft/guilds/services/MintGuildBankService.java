@@ -81,8 +81,12 @@ public final class MintGuildBankService implements AutoCloseable {
         return credit(player, guildId, amount, key, false);
     }
 
+    public CompletionStage<Result> creditTax(UUID payerUuid, String guildId, BigDecimal amount, String key) {
+        return credit(payerUuid, guildId, amount, key, true);
+    }
+
     public CompletionStage<Result> creditTax(String guildId, BigDecimal amount, String key) {
-        return credit(null, guildId, amount, key, true);
+        return creditTax(null, guildId, amount, key);
     }
 
     private CompletionStage<Result> credit(UUID player, String guildId, BigDecimal amount, String key, boolean tax) {
@@ -90,7 +94,7 @@ public final class MintGuildBankService implements AutoCloseable {
             if (!ok) return CompletableFuture.completedFuture(new Result(Status.UNAUTHORIZED, null, "NOT_ENROLLED", null));
             return capacityCheck(guildId, amount).thenCompose(allowed -> {
                 if (!allowed) return CompletableFuture.completedFuture(new Result(Status.CAPACITY_EXCEEDED, null, "CAPACITY", null));
-                return call(() -> tax ? mint.creditTax(guildId, amount, key) : mint.deposit(player, guildId, amount, key))
+                return call(() -> tax ? mint.creditTax(player, guildId, amount, key) : mint.deposit(player, guildId, amount, key))
                         .thenApply(Result::from);
             });
         }));

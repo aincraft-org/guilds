@@ -26,7 +26,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 /** Mint-backed asynchronous economy rail for player and guild accounts. */
-public final class MintEconomyRail implements AsyncTaxSettlement {
+public final class MintEconomyRail implements org.aincraft.guilds.services.MintTransferPort {
     private final MintClientLease lease;
     private final CurrencyId currency;
     private final int scale;
@@ -49,29 +49,36 @@ public final class MintEconomyRail implements AsyncTaxSettlement {
         return AccountId.player(Objects.requireNonNull(playerId, "playerId"));
     }
 
+    @Override
+    public CompletionStage<MintOperationResult> openAccount(String guildId) {
+        AccountId account = guildAccount(guildId);
+        return lease.accounts().ensure(account).thenApply(ignored ->
+                new MintOperationResult(MintOperationResult.Status.COMMITTED, null,
+                        java.util.Optional.empty(), java.util.Optional.empty())).exceptionally(this::unavailable);
+    }
+
+    @Override
     public CompletionStage<MintOperationResult> balance(String guildId) {
         AccountId account = guildAccount(guildId);
         return lease.accounts().ensure(account)
                 .thenCompose(ignored -> lease.ledger().balance(account, currency))
                 .thenApply(snapshot -> new MintOperationResult(MintOperationResult.Status.COMMITTED,
                         snapshot.total(), java.util.Optional.empty(), java.util.Optional.empty()))
-                .exceptionally(error -> unavailable(error));
+                .exceptionally(this::unavailable);
     }
 
+    @Override
     public CompletionStage<MintOperationResult> deposit(UUID playerId, String guildId, BigDecimal amount, String key) {
         return transfer(playerId, guildId, amount, key, "deposit");
     }
 
+    @Override
     public CompletionStage<MintOperationResult> withdraw(UUID playerId, String guildId, BigDecimal amount, String key) {
         return transfer(playerId, guildId, amount, key, "withdraw");
     }
 
-    @Override
-    public CompletionStage<AsyncSettlementResult> settle(UUID payerId, String guildId, BigDecimal amount, String key) {
-        AsyncTaxSettlement.validate(payerId, guildId, amount, key);
-        return transfer(payerId, guildId, amount, key, "tax")
-                .thenApply(result -> new AsyncSettlementResult(mapStatus(result.status()),
-                        result.diagnosticCode().orElse(null), result.receiptIdentifier().orElse(null)));
+    public CompletionStage<MintOperationResult> creditTax(UUID payerId, String guildId, BigDecimal amount, String key) {
+        return transfer(payerId, guildId, amount, key, "tax");
     }
 
     private CompletionStage<MintOperationResult> transfer(UUID playerId, String guildId, BigDecimal rawAmount,
@@ -82,7 +89,7 @@ public final class MintEconomyRail implements AsyncTaxSettlement {
         BigDecimal amount = canonicalAmount(rawAmount);
         AccountId player = playerAccount(playerId);
         AccountId guild = guildAccount(guildId);
-        AccountId source = direction.equals("deposit") || direction.equals("tax") ? player : guild;
+        AccountId source = direction.equals("withdraw") ? guild : player;
         AccountId destination = source.equals(player) ? guild : player;
         return lease.accounts().ensure(source)
                 .thenCompose(ignored -> lease.accounts().ensure(destination))
@@ -93,19 +100,15 @@ public final class MintEconomyRail implements AsyncTaxSettlement {
                         "azoth.guild-bank.transfer",
                         Map.of("guild", guildId, "direction", direction, "idempotency-key", key))))
                 .thenApply(this::mapOutcome)
-                .exceptionally(error -> unavailable(error));
+                .exceptionally(this::unavailable);
     }
 
     private BigDecimal canonicalAmount(BigDecimal amount) {
         Objects.requireNonNull(amount, "amount");
         if (amount.signum() <= 0) throw new IllegalArgumentException("amount must be positive");
-        try {
-            BigDecimal result = amount.setScale(scale, RoundingMode.HALF_UP);
-            if (result.signum() <= 0) throw new IllegalArgumentException("amount rounds to zero");
-            return result;
-        } catch (ArithmeticException | NumberFormatException ex) {
-            throw new IllegalArgumentException("amount is not representable", ex);
-        }
+        BigDecimal result = amount.setScale(scale, RoundingMode.HALF_UP);
+        if (result.signum() <= 0) throw new IllegalArgumentException("amount rounds to zero");
+        return result;
     }
 
     private MintOperationResult mapOutcome(OperationOutcome<TransactionReceipt> outcome) {
@@ -128,12 +131,12 @@ public final class MintEconomyRail implements AsyncTaxSettlement {
                 error.getClass().getSimpleName(), null);
     }
 
-    private static Status mapStatus(MintOperationResult.Status status) {
+    private static AsyncSettlementResult.Status mapStatus(MintOperationResult.Status status) {
         return switch (status) {
-            case COMMITTED -> Status.COMMITTED;
-            case INSUFFICIENT_FUNDS -> Status.INSUFFICIENT_FUNDS;
-            case UNAVAILABLE -> Status.UNAVAILABLE;
-            case REJECTED -> Status.REJECTED;
+            case COMMITTED -> AsyncSettlementResult.Status.COMMITTED;
+            case INSUFFICIENT_FUNDS -> AsyncSettlementResult.Status.INSUFFICIENT_FUNDS;
+            case UNAVAILABLE -> AsyncSettlementResult.Status.UNAVAILABLE;
+            case REJECTED -> AsyncSettlementResult.Status.REJECTED;
         };
     }
 }

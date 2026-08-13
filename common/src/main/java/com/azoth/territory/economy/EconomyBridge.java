@@ -166,8 +166,18 @@ public class EconomyBridge {
      */
     public CompletionStage<TaxReport> reportSaleAsync(
             UUID payerId, String worldId, int blockX, int blockZ, String goodId,
+            double grossAmount, String eventKey) {
+        AsyncTaxSettlement settlement = asyncSettlement;
+        if (settlement == null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    report(TaxOutcome.MINT_UNAVAILABLE, null, goodId, 0.0, 0.0));
+        }
+        return reportSaleAsync(payerId, worldId, blockX, blockZ, goodId, grossAmount, eventKey, settlement);
+    }
+
+    public CompletionStage<TaxReport> reportSaleAsync(
+            UUID payerId, String worldId, int blockX, int blockZ, String goodId,
             double grossAmount, String eventKey, AsyncTaxSettlement settlement) {
-        Objects.requireNonNull(settlement, "settlement");
         if (payerId == null) return java.util.concurrent.CompletableFuture.completedFuture(
                 report(TaxOutcome.PAYER_UNAVAILABLE, null, null, 0.0, 0.0));
         if (!Double.isFinite(grossAmount) || grossAmount <= 0) return java.util.concurrent.CompletableFuture.completedFuture(
@@ -203,6 +213,20 @@ public class EconomyBridge {
                     report(TaxOutcome.MINT_UNAVAILABLE, territoryId, good.get().id(), rate, 0.0));
         }
     }
+    public CompletionStage<TaxReport> reportCraftAsync(
+            UUID payerId, String worldId, int blockX, int blockZ, String outputGoodId,
+            int outputQuantity, double grossValue, String eventKey) {
+        if (outputQuantity <= 0) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.INVALID_QUANTITY, null, outputGoodId, 0.0, 0.0));
+        AsyncTaxSettlement settlement = asyncSettlement;
+        if (settlement == null) {
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    report(TaxOutcome.MINT_UNAVAILABLE, null, outputGoodId, 0.0, 0.0));
+        }
+        return reportCraftAsync(payerId, worldId, blockX, blockZ, outputGoodId, outputQuantity,
+                grossValue, eventKey, settlement);
+    }
+
 
     public CompletionStage<TaxReport> reportCraftAsync(
             UUID payerId, String worldId, int blockX, int blockZ, String outputGoodId,

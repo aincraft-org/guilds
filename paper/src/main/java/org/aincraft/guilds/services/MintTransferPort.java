@@ -16,7 +16,5 @@ public interface MintTransferPort {
 
     CompletionStage<MintOperationResult> withdraw(UUID playerUuid, String guildId, BigDecimal amount, String idempotencyKey);
 
-    default CompletionStage<MintOperationResult> creditTax(String guildId, BigDecimal amount, String idempotencyKey) {
-        return deposit(null, guildId, amount, idempotencyKey);
-    }
+    CompletionStage<MintOperationResult> creditTax(UUID payerUuid, String guildId, BigDecimal amount, String idempotencyKey);
 }
