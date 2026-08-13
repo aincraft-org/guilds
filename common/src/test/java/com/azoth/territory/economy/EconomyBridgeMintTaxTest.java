@@ -4,12 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.azoth.territory.decree.DecreeEffects;
 import com.azoth.territory.decree.TaxEffect;
-import com.azoth.territory.model.AllianceBody;
+import com.azoth.territory.decree.GoodsCatalog;
+import com.azoth.territory.permission.AllianceBody;
 import com.azoth.territory.model.BlockPos;
 import com.azoth.territory.model.Boundary;
 import com.azoth.territory.model.Government;
-import com.azoth.territory.model.GuildBody;
-import com.azoth.territory.model.GuildToggles;
+import com.azoth.territory.permission.GuildBody;
+import com.azoth.territory.permission.GuildToggles;
 import com.azoth.territory.model.Territory;
 import com.azoth.territory.permission.GovernanceSource;
 import com.azoth.territory.permission.GovernanceRegistry;
