@@ -37,6 +37,11 @@ tasks.processResources {
         expand(props)
     }
 }
+tasks.named<Jar>("sourcesJar") {
+    archiveBaseName.set("azoth-territory")
+    archiveVersion.set(project.version.toString())
+}
+
 
 tasks.jar {
     // Thin jar kept for sources/debug; delivery unit is shadowJar
