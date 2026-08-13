@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "com.azoth"
-version = "1.1.0"
+version = providers.gradleProperty("releaseVersion").orElse("26.8.13").get()
 description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
 
 // Shared configuration for the api / common / paper modules.

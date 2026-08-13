@@ -1,0 +1,147 @@
+name: Nightly Release
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: territories-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  API_ROOT: https://api.github.com
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 26
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "26"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Calculate and validate release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(date -u +'%y.%-m.%-d').${GITHUB_RUN_NUMBER}"
+          if [[ ! "$version" =~ ^[0-9]{2}\.(1[0-2]|[1-9])\.(3[01]|[12][0-9]|[1-9])\.[1-9][0-9]*$ ]]; then
+            echo "Invalid release version: $version" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build and verify
+        run: ./gradlew --no-daemon -PreleaseVersion="$RELEASE_VERSION" clean test build
+
+      - name: Verify release artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar"
+          test -f "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar"
+
+      - name: Create or update rolling nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+          repo_url="${API_ROOT}/repos/${REPOSITORY}"
+          release_json="$(mktemp)"
+          update_json="$(mktemp)"
+          trap 'rm -f "$release_json" "$update_json"' EXIT
+
+          release_status="$(curl --silent --show-error --output "$release_json" --write-out '%{http_code}' "${auth[@]}" "${repo_url}/releases/tags/nightly")"
+          if [[ "$release_status" == "200" ]]; then
+            release_id="$(jq -r '.id' "$release_json")"
+          elif [[ "$release_status" == "404" ]]; then
+            release_id=""
+          else
+            cat "$release_json"
+            exit 1
+          fi
+
+          if [[ -n "$release_id" ]]; then
+            jq -c '.assets[] | {id,name}' "$release_json" | while IFS= read -r asset; do
+              asset_id="$(jq -r '.id' <<<"$asset")"
+              curl --fail-with-body --silent --show-error -X DELETE "${auth[@]}" "${repo_url}/releases/assets/${asset_id}"
+            done
+            jq -n \
+              --arg name "Nightly ${RELEASE_VERSION}" \
+              --arg target "$COMMIT_SHA" \
+              --arg body "Automated nightly build.\n\nCommit: ${COMMIT_SHA}\nWorkflow run: ${RUN_URL}" \
+              '{tag_name:"nightly",target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:true}' > "$update_json"
+            curl --fail-with-body --silent --show-error -X PATCH "${auth[@]}" -H 'Content-Type: application/json' \
+              "${repo_url}/releases/${release_id}" --data-binary "@${update_json}" > "$release_json"
+          else
+            jq -n \
+              --arg tag "nightly" \
+              --arg target "$COMMIT_SHA" \
+              --arg name "Nightly ${RELEASE_VERSION}" \
+              --arg body "Automated nightly build.\n\nCommit: ${COMMIT_SHA}\nWorkflow run: ${RUN_URL}" \
+              '{tag_name:$tag,target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:true}' > "$update_json"
+            curl --fail-with-body --silent --show-error -X POST "${auth[@]}" -H 'Content-Type: application/json' \
+              "${repo_url}/releases" --data-binary "@${update_json}" > "$release_json"
+            release_id="$(jq -r '.id' "$release_json")"
+          fi
+          tag_ref="${repo_url}/git/refs/tags/nightly"
+          tag_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' "${auth[@]}" "$tag_ref")"
+          if [[ "$tag_status" == "200" ]]; then
+            jq -n --arg sha "$COMMIT_SHA" '{sha:$sha,force:true}' > "$update_json"
+            curl --fail-with-body --silent --show-error -X PATCH "${auth[@]}" -H 'Content-Type: application/json' \
+              "$tag_ref" --data-binary "@${update_json}" > /dev/null
+          elif [[ "$tag_status" == "404" ]]; then
+            jq -n --arg ref "refs/tags/nightly" --arg sha "$COMMIT_SHA" '{ref:$ref,sha:$sha}' > "$update_json"
+            curl --fail-with-body --silent --show-error -X POST "${auth[@]}" -H 'Content-Type: application/json' \
+              "${repo_url}/git/refs" --data-binary "@${update_json}" > /dev/null
+          else
+            exit 1
+          fi
+
+          upload_url="$(jq -r '.upload_url' "$release_json" | sed 's/{?name,label}//')"
+          test -n "$upload_url"
+          for artifact in \
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar" \
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar"; do
+            curl --fail-with-body --silent --show-error -X POST "${auth[@]}" \
+              -H 'Content-Type: application/java-archive' \
+              "${upload_url}?name=$(basename "$artifact")" --data-binary "@${artifact}" > /dev/null
+          done
+          tag_state="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$tag_ref")"
+          test "$(jq -r '.object.sha' <<<"$tag_state")" = "$COMMIT_SHA"
+
+
+      - name: Verify nightly is latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth=(-H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28")
+          latest="$(curl --fail-with-body --silent --show-error "${auth[@]}" "${API_ROOT}/repos/${REPOSITORY}/releases/latest")"
+          nightly="$(curl --fail-with-body --silent --show-error "${auth[@]}" "${API_ROOT}/repos/${REPOSITORY}/releases/tags/nightly")"
+          test "$(jq -r '.tag_name' <<<"$latest")" = nightly
+          test "$(jq -r '.tag_name' <<<"$nightly")" = nightly
+          test "$(jq -r '.draft' <<<"$nightly")" = false
+          test "$(jq -r '.prerelease' <<<"$nightly")" = false
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar")) != null' <<<"$nightly" > /dev/null
