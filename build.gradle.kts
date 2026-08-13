@@ -75,6 +75,7 @@ subprojects {
     }
 
     repositories {
+        maven("/tmp/aincraft-mint/build/maven-repo")
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://oss.sonatype.org/content/repositories/snapshots")

@@ -70,7 +70,7 @@ public class ResourceServiceImpl implements ResourceService {
                 }
             }
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to get town resource: " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to get guild resource: " + e.getMessage(), e);
         }
 
         return Optional.empty();
@@ -101,7 +101,7 @@ public class ResourceServiceImpl implements ResourceService {
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to get town resources: " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to get guild resources: " + e.getMessage(), e);
         }
 
         return resources;
@@ -446,7 +446,7 @@ public class ResourceServiceImpl implements ResourceService {
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to clear town resource data: " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to clear guild resource data: " + e.getMessage(), e);
             return false;
         }
     }
@@ -460,7 +460,7 @@ public class ResourceServiceImpl implements ResourceService {
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
                 int deletedRows = statement.executeUpdate();
-                plugin.getLogger().info("Deleted " + deletedRows + " town resource records");
+                plugin.getLogger().info("Deleted " + deletedRows + " guild resource records");
             }
 
         } catch (SQLException e) {

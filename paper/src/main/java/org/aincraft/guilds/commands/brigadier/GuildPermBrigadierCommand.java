@@ -35,7 +35,7 @@ public class GuildPermBrigadierCommand {
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
-        return Commands.literal("townperm")
+        return Commands.literal("guildperm")
             .requires(source -> source.getSender().hasPermission("guilds.admin.perm"))
             .executes(this::showHelp)
             .build();
@@ -43,12 +43,12 @@ public class GuildPermBrigadierCommand {
 
     private int showHelp(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        sender.sendMessage("§e=== Town Permission Commands ===");
-        sender.sendMessage("§f/townperm set <role> <perms>§7 - Set role permissions");
-        sender.sendMessage("§f/townperm add <role> <perms>§7 - Add permissions to role");
-        sender.sendMessage("§f/townperm remove <role> <perms>§7 - Remove permissions from role");
-        sender.sendMessage("§f/townperm list [role]§7 - List permissions for role");
-        sender.sendMessage("§f/townperm reset <role>§7 - Reset role permissions");
+        sender.sendMessage("§e=== Guild Permission Commands ===");
+        sender.sendMessage("§f/guildperm set <role> <perms>§7 - Set role permissions");
+        sender.sendMessage("§f/guildperm add <role> <perms>§7 - Add permissions to role");
+        sender.sendMessage("§f/guildperm remove <role> <perms>§7 - Remove permissions from role");
+        sender.sendMessage("§f/guildperm list [role]§7 - List permissions for role");
+        sender.sendMessage("§f/guildperm reset <role>§7 - Reset role permissions");
         return Command.SINGLE_SUCCESS;
     }
 }

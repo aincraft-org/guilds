@@ -281,7 +281,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void removeGuild(Alliance alliance, String guildId) {
         if (alliance.getCapitalGuildId().equals(guildId)) {
-            throw new IllegalArgumentException("Cannot remove capital town from alliance");
+            throw new IllegalArgumentException("Cannot remove capital guild from alliance");
         }
 
         databaseManager.executeTransaction(connection -> {

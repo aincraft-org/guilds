@@ -37,7 +37,7 @@ class GuildsIntegrationTest {
                     "must not declare a second plugin identity named Guilds");
 
             // Guilds permissions merged onto the single descriptor
-            assertTrue(yaml.contains("guilds.town.create") || yaml.contains("guilds.town.*"),
+            assertTrue(yaml.contains("guilds.guild.create") || yaml.contains("guilds.guild.*"),
                     "guilds permissions present: " + yaml.substring(0, Math.min(400, yaml.length())));
             assertTrue(yaml.contains("guilds.admin") || yaml.contains("guilds.admin.*"),
                     "guilds admin permissions present");
@@ -56,11 +56,11 @@ class GuildsIntegrationTest {
 
             String guildsYaml = new String(guilds.readAllBytes(), StandardCharsets.UTF_8);
             String territoryYaml = new String(territory.readAllBytes(), StandardCharsets.UTF_8);
-            assertTrue(guildsYaml.contains("town_levels") || guildsYaml.contains("town:"),
+            assertTrue(guildsYaml.contains("guild_levels") || guildsYaml.contains("guild:"),
                     "guilds-config should carry town defaults");
             assertTrue(territoryYaml.contains("web:") || territoryYaml.contains("economy:"),
                     "territory config should carry web/economy settings");
-            assertFalse(territoryYaml.contains("town_levels"),
+            assertFalse(territoryYaml.contains("guild_levels"),
                     "territory config must not be overwritten by guilds defaults");
         }
     }

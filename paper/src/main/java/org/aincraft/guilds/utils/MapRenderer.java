@@ -131,8 +131,8 @@ public class MapRenderer {
         mapLines.add("§6╠═══════════════════════════════════════╣");
         mapLines.add("§6║ " + COLOR_PLAYER_LOCATION + "●§6  Your Location                    ║");
         mapLines.add("§6║ " + COLOR_WILDERNESS + "─§6  Wilderness (unclaimed)           ║");
-        mapLines.add("§6║ " + "§a" + "+§6  Your Town                        ║");
-        mapLines.add("§6║ " + "§e" + "+§6  Other Towns                      ║");
+        mapLines.add("§6║ " + "§a" + "+§6  Your Guild                        ║");
+        mapLines.add("§6║ " + "§e" + "+§6  Other Guilds                      ║");
         mapLines.add("§6╚═══════════════════════════════════════╝");
 
         return mapLines;
@@ -322,7 +322,7 @@ public class MapRenderer {
         }
 
         if (ownGuildBlocks > 0) {
-            summary.append("§a").append(ownGuildBlocks).append(" your town ");
+            summary.append("§a").append(ownGuildBlocks).append(" your guild ");
         }
 
         if (otherGuildBlocks > 0) {

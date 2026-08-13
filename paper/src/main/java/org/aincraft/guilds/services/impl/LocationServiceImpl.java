@@ -47,7 +47,7 @@ public class LocationServiceImpl implements LocationService {
             return guildService.getGuildById(guildId);
 
         } catch (Exception e) {
-            logger.warning("Error getting town at location (" + x + ", " + z + ") in world " + world + ": " + e.getMessage());
+            logger.warning("Error getting guild at location (" + x + ", " + z + ") in world " + world + ": " + e.getMessage());
             return Optional.empty();
         }
     }
@@ -62,7 +62,7 @@ public class LocationServiceImpl implements LocationService {
             return plotService.getGuildBlock(chunkX, chunkZ, world);
 
         } catch (Exception e) {
-            logger.warning("Error getting town block at location (" + x + ", " + z + ") in world " + world + ": " + e.getMessage());
+            logger.warning("Error getting guild block at location (" + x + ", " + z + ") in world " + world + ": " + e.getMessage());
             return Optional.empty();
         }
     }

@@ -39,7 +39,7 @@ public class Permission {
     @Deprecated
     public static class Context {
         public static final String GLOBAL = "global";
-        public static final String GUILD = "town";
+        public static final String GUILD = "guild";
         public static final String PLOT = "plot";
         public static final String RESIDENT = "resident";
         public static final String WORLD = "world";
@@ -53,7 +53,7 @@ public class Permission {
     @Deprecated
     public static class Target {
         public static final String RESIDENT = "resident";
-        public static final String GUILD = "town";
+        public static final String GUILD = "guild";
         public static final String ASSISTANT = "assistant";
         public static final String MAYOR = "mayor";
         public static final String ALL = "all";
@@ -307,7 +307,7 @@ public class Permission {
         if (hasFlag(GuildPermission.PLOT_SET.getLegacyBitwiseValue())) activeFlags.add("PLOT_SET");
         if (hasFlag(GuildPermission.PLOT_OWNER.getLegacyBitwiseValue())) activeFlags.add("PLOT_OWNER");
         if (hasFlag(GuildPermission.ADMIN.getLegacyBitwiseValue())) activeFlags.add("ADMIN");
-        if (hasFlag(GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue())) activeFlags.add("ADMIN_TOWN");
+        if (hasFlag(GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue())) activeFlags.add("ADMIN_GUILD");
         if (hasFlag(GuildPermission.ADMIN_PLOT.getLegacyBitwiseValue())) activeFlags.add("ADMIN_PLOT");
         if (hasFlag(GuildPermission.ADMIN_RESIDENT.getLegacyBitwiseValue())) activeFlags.add("ADMIN_RESIDENT");
         if (hasFlag(GuildPermission.BYPASS.getLegacyBitwiseValue())) activeFlags.add("BYPASS");

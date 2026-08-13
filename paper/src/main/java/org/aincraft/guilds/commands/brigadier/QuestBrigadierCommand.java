@@ -53,7 +53,7 @@ public class QuestBrigadierCommand {
         Optional<Resident> residentOpt = residentService.getResident(sender.getName());
 
         if (residentOpt.isEmpty() || residentOpt.get().getGuild() == null) {
-            sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
+            sender.sendMessage(Component.text("You must be a member of a guild to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
@@ -62,11 +62,11 @@ public class QuestBrigadierCommand {
         List<GuildQuest> activeQuests = questService.getActiveQuests(guildId);
 
         if (activeQuests.isEmpty()) {
-            sender.sendMessage(Component.text("No active quests for your town.").color(NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text("No active quests for your guild.").color(NamedTextColor.YELLOW));
             return Command.SINGLE_SUCCESS;
         }
 
-        sender.sendMessage(Component.text("Active Town Quests:").color(NamedTextColor.GREEN));
+        sender.sendMessage(Component.text("Active Guild Quests:").color(NamedTextColor.GREEN));
         for (GuildQuest quest : activeQuests) {
             sender.sendMessage(buildQuestProgressMessage(quest));
         }
@@ -79,7 +79,7 @@ public class QuestBrigadierCommand {
         Optional<Resident> residentOpt = residentService.getResident(sender.getName());
 
         if (residentOpt.isEmpty() || residentOpt.get().getGuild() == null) {
-            sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
+            sender.sendMessage(Component.text("You must be a member of a guild to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 
@@ -88,11 +88,11 @@ public class QuestBrigadierCommand {
         List<GuildQuest> activeQuests = questService.getActiveQuests(guildId);
 
         if (activeQuests.isEmpty()) {
-            sender.sendMessage(Component.text("No active quests for your town.").color(NamedTextColor.YELLOW));
+            sender.sendMessage(Component.text("No active quests for your guild.").color(NamedTextColor.YELLOW));
             return Command.SINGLE_SUCCESS;
         }
 
-        sender.sendMessage(Component.text("Town Quest Progress Details:").color(NamedTextColor.GREEN));
+        sender.sendMessage(Component.text("Guild Quest Progress Details:").color(NamedTextColor.GREEN));
         for (GuildQuest quest : activeQuests) {
             sender.sendMessage(buildDetailedQuestMessage(quest));
         }
@@ -105,7 +105,7 @@ public class QuestBrigadierCommand {
         Optional<Resident> residentOpt = residentService.getResident(sender.getName());
 
         if (residentOpt.isEmpty() || residentOpt.get().getGuild() == null) {
-            sender.sendMessage(Component.text("You must be a member of a town to use this command.").color(NamedTextColor.RED));
+            sender.sendMessage(Component.text("You must be a member of a guild to use this command.").color(NamedTextColor.RED));
             return Command.SINGLE_SUCCESS;
         }
 

@@ -196,7 +196,7 @@ public class TechTreeServiceImpl implements TechTreeService {
         saveGuildTechData(guild);
         guildService.updateGuild(guild);
 
-        plugin.getLogger().info("Town " + guild.getName() + " unlocked tech node: " + node.getName());
+        plugin.getLogger().info("Guild " + guild.getName() + " unlocked tech node: " + node.getName());
         return true;
     }
 
@@ -230,7 +230,7 @@ public class TechTreeServiceImpl implements TechTreeService {
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to load tech data for town " + guild.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.WARNING, "Failed to load tech data for guild " + guild.getName() + ": " + e.getMessage(), e);
         }
     }
 
@@ -267,7 +267,7 @@ public class TechTreeServiceImpl implements TechTreeService {
             conn.commit();
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to save tech data for town " + guild.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.WARNING, "Failed to save tech data for guild " + guild.getName() + ": " + e.getMessage(), e);
         }
     }
 

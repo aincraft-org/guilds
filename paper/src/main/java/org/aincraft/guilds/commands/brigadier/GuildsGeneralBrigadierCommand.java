@@ -94,10 +94,10 @@ public class GuildsGeneralBrigadierCommand {
         sender.sendMessage("§6║   §8» Show top statistics                     §6║");
         sender.sendMessage("§6║                                                §6║");
         sender.sendMessage("§6║ §f/guilds prices§7                              §6║");
-        sender.sendMessage("§6║   §8» Show town and plot costs                §6║");
+        sender.sendMessage("§6║   §8» Show guild and plot costs                §6║");
         sender.sendMessage("§6║                                                ║");
         sender.sendMessage("§6║ §f/guilds chat§7                                §6║");
-        sender.sendMessage("§6║   §8» Send message to town chat               §6║");
+        sender.sendMessage("§6║   §8» Send message to guild chat               §6║");
         sender.sendMessage("§6║                                                ║");
         sender.sendMessage("§6║ §f/guilds universe§7                            §6║");
         sender.sendMessage("§6║   §8» Show universe statistics                §6║");
@@ -130,7 +130,7 @@ public class GuildsGeneralBrigadierCommand {
     private int showTopHelp(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         sender.sendMessage("§e=== Top Commands ===");
-        sender.sendMessage("§f/guilds top residents§7 - Top residents by town count");
+        sender.sendMessage("§f/guilds top residents§7 - Top residents by guild count");
         sender.sendMessage("§f/guilds top guilds§7 - Top guilds by resident count");
         sender.sendMessage("§f/guilds top land§7 - Top guilds by land count");
         return Command.SINGLE_SUCCESS;
@@ -152,7 +152,7 @@ public class GuildsGeneralBrigadierCommand {
             return Command.SINGLE_SUCCESS;
         }
 
-        sender.sendMessage("§e=== Top Towns by Residents ===");
+        sender.sendMessage("§e=== Top Guilds by Residents ===");
 
         // Sort guilds by resident count
         guilds.sort((a, b) -> Integer.compare(b.getResidentCount(), a.getResidentCount()));
@@ -179,7 +179,7 @@ public class GuildsGeneralBrigadierCommand {
             return Command.SINGLE_SUCCESS;
         }
 
-        sender.sendMessage("§e=== Top Towns by Land ===");
+        sender.sendMessage("§e=== Top Guilds by Land ===");
 
         for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
             var guild = guilds.get(i);
@@ -197,8 +197,8 @@ public class GuildsGeneralBrigadierCommand {
     private int handlePrices(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         sender.sendMessage("§6=== Guilds Prices ===");
-        sender.sendMessage("§fTown Creation: §6$1000");
-        sender.sendMessage("§fTown Claim: §6$50 per chunk");
+        sender.sendMessage("§fGuild Creation: §6$1000");
+        sender.sendMessage("§fGuild Claim: §6$50 per chunk");
         sender.sendMessage("§fPlot Claim: §6$25 per plot");
         sender.sendMessage("§fPlot Purchase: §6Variable (set by owner)");
         sender.sendMessage("§7Note: These are default prices and may be modified by server administrators.");
@@ -207,10 +207,10 @@ public class GuildsGeneralBrigadierCommand {
 
     private int handleChatHelp(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        sender.sendMessage("§e=== Town Chat Commands ===");
-        sender.sendMessage("§f/guilds chat <message>§7 - Send message to town chat");
-        sender.sendMessage("§f/guilds chat tc <message>§7 - Alias for town chat");
-        sender.sendMessage("§7Town chat sends messages to all online residents of your town.");
+        sender.sendMessage("§e=== Guild Chat Commands ===");
+        sender.sendMessage("§f/guilds chat <message>§7 - Send message to guild chat");
+        sender.sendMessage("§f/guilds chat tc <message>§7 - Alias for guild chat");
+        sender.sendMessage("§7Guild chat sends messages to all online residents of your guild.");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -227,7 +227,7 @@ public class GuildsGeneralBrigadierCommand {
         // Check if player is in a guild
         var resident = residentService.getResident(playerUuid);
         if (resident.isEmpty() || !resident.get().hasGuild()) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
 
@@ -251,10 +251,10 @@ public class GuildsGeneralBrigadierCommand {
         }
 
         // Log to console
-        plugin.getLogger().info("[TownChat] " + playerName + " -> " + guildName + " (" + messageCount + " recipients): " + message);
+        plugin.getLogger().info("[GuildChat] " + playerName + " -> " + guildName + " (" + messageCount + " recipients): " + message);
 
         if (messageCount == 0) {
-            player.sendMessage("§7No other town members are currently online.");
+            player.sendMessage("§7No other guild members are currently online.");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -269,7 +269,7 @@ public class GuildsGeneralBrigadierCommand {
         int onlinePlayers = org.bukkit.Bukkit.getOnlinePlayers().size();
 
         sender.sendMessage("§6=== Universe Statistics ===");
-        sender.sendMessage("§fTotal Towns: §a" + totalGuilds);
+        sender.sendMessage("§fTotal Guilds: §a" + totalGuilds);
         sender.sendMessage("§fTotal Residents: §a" + totalResidents);
         sender.sendMessage("§fTotal Plots: §a" + totalPlots);
         sender.sendMessage("§fOnline Players: §a" + onlinePlayers);
@@ -277,8 +277,8 @@ public class GuildsGeneralBrigadierCommand {
         if (totalGuilds > 0) {
             double avgResidents = (double) totalResidents / totalGuilds;
             double avgPlots = (double) totalPlots / totalGuilds;
-            sender.sendMessage("§fAvg Residents/Town: §e" + String.format("%.1f", avgResidents));
-            sender.sendMessage("§fAvg Plots/Town: §e" + String.format("%.1f", avgPlots));
+            sender.sendMessage("§fAvg Residents/Guild: §e" + String.format("%.1f", avgResidents));
+            sender.sendMessage("§fAvg Plots/Guild: §e" + String.format("%.1f", avgPlots));
         }
 
         return Command.SINGLE_SUCCESS;

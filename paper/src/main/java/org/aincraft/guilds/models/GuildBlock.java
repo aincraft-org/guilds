@@ -481,7 +481,7 @@ public class GuildBlock {
                 ", x=" + x +
                 ", z=" + z +
                 ", world='" + world + '\'' +
-                ", townId='" + guildId + '\'' +
+                ", guildId='" + guildId + '\'' +
                 ", plotType='" + plotType + '\'' +
                 ", hasOwner=" + hasOwner() +
                 ", price=" + price +

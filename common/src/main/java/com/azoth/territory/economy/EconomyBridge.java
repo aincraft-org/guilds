@@ -11,7 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import com.azoth.territory.economy.AsyncTaxSettlement;
+import com.azoth.territory.economy.AsyncSettlementResult;
 import java.util.function.Consumer;
 /**
  * Public transaction API: other plugins report sales here; Azoth applies PASSED
@@ -36,6 +41,7 @@ public class EconomyBridge {
     private final PaymentRail rail;
     private final boolean simulationMode;
     private final ExpenseLedger expenses;
+    private volatile AsyncTaxSettlement asyncSettlement;
     private final List<UnresolvedTransaction> unresolved = new CopyOnWriteArrayList<>();
     private volatile Consumer<List<UnresolvedTransaction>> unresolvedSink = ignored -> {
     };
@@ -90,6 +96,10 @@ public class EconomyBridge {
         this.simulationMode = simulationMode;
         this.expenses = Objects.requireNonNull(expenses, "expenses");
         this.unresolvedSink = Objects.requireNonNull(unresolvedSink, "unresolvedSink");
+    }
+
+    public void setAsyncSettlement(AsyncTaxSettlement settlement) {
+        this.asyncSettlement = settlement;
     }
 
     public TaxReport reportSale(
@@ -154,6 +164,77 @@ public class EconomyBridge {
      * Reports a craft with an integration-supplied total gross value.
      * Quantity is validated as metadata and never used to infer a price.
      */
+    public CompletionStage<TaxReport> reportSaleAsync(
+            UUID payerId, String worldId, int blockX, int blockZ, String goodId,
+            double grossAmount, String eventKey, AsyncTaxSettlement settlement) {
+        Objects.requireNonNull(settlement, "settlement");
+        if (payerId == null) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.PAYER_UNAVAILABLE, null, null, 0.0, 0.0));
+        if (!Double.isFinite(grossAmount) || grossAmount <= 0) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.INVALID_AMOUNT, null, null, 0.0, 0.0));
+        if (worldId == null) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.NO_TERRITORY, null, null, 0.0, 0.0));
+        var good = goods.findById(goodId);
+        if (good.isEmpty()) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.UNKNOWN_GOOD, null, goodId, 0.0, 0.0));
+        LookupResult hit = territories.resolve(worldId, blockX, blockZ);
+        if (!hit.isContained() || hit.territoryId().isEmpty()) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.NO_TERRITORY, null, good.get().id(), 0.0, 0.0));
+        String territoryId = hit.territoryId().orElseThrow();
+        var body = governance.resolveForTerritory(territoryId);
+        if (!body.hasAssignedGovernment()) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.NO_GOVERNMENT, territoryId, good.get().id(), 0.0, 0.0));
+        var territory = territories.get(territoryId).orElse(null);
+        if (territory == null) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.NO_TERRITORY, null, good.get().id(), 0.0, 0.0));
+        Double rate = DecreeEffectsInterpreter.taxRatesFromPolicies(territory.policies()).get(good.get().id());
+        if (rate == null) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.NO_TAX, territoryId, good.get().id(), 0.0, 0.0));
+        double taxAmount = TaxCalculator.tax(grossAmount, rate);
+        String guildId = body.guildBody().map(com.azoth.territory.permission.GuildBody::id).orElse(null);
+        if (guildId == null || guildId.isBlank()) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.NO_GOVERNMENT, territoryId, good.get().id(), rate, 0.0));
+        String key = deterministicEventKey(eventKey, territoryId, payerId, good.get().id(), taxAmount);
+        try {
+            return settlement.settle(payerId, guildId, BigDecimal.valueOf(taxAmount), key)
+                    .thenApply(result -> mapAsyncSettlement(result, territoryId, good.get().id(), rate, taxAmount, payerId));
+        } catch (RuntimeException error) {
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    report(TaxOutcome.MINT_UNAVAILABLE, territoryId, good.get().id(), rate, 0.0));
+        }
+    }
+
+    public CompletionStage<TaxReport> reportCraftAsync(
+            UUID payerId, String worldId, int blockX, int blockZ, String outputGoodId,
+            int outputQuantity, double grossValue, String eventKey, AsyncTaxSettlement settlement) {
+        if (outputQuantity <= 0) return java.util.concurrent.CompletableFuture.completedFuture(
+                report(TaxOutcome.INVALID_QUANTITY, null, outputGoodId, 0.0, 0.0));
+        return reportSaleAsync(payerId, worldId, blockX, blockZ, outputGoodId, grossValue, eventKey, settlement);
+    }
+
+    private static String deterministicEventKey(String supplied, String territory, UUID payer, String good, double amount) {
+        String seed = (supplied == null ? "" : supplied.trim()) + "|" + territory + "|" + payer + "|" + good + "|"
+                + BigDecimal.valueOf(amount).setScale(8, RoundingMode.HALF_UP).toPlainString();
+        return "tax-" + java.util.UUID.nameUUIDFromBytes(seed.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private TaxReport mapAsyncSettlement(AsyncSettlementResult result, String territoryId, String goodId,
+                                         double rate, double amount, UUID payerId) {
+        if (result == null) return report(TaxOutcome.MINT_UNAVAILABLE, territoryId, goodId, rate, 0.0);
+        return switch (result.status()) {
+            case COMMITTED -> report(TaxOutcome.TAXED, territoryId, goodId, rate, amount);
+            case INSUFFICIENT_FUNDS -> report(TaxOutcome.INSUFFICIENT_FUNDS, territoryId, goodId, rate, 0.0);
+            case UNAVAILABLE -> report(TaxOutcome.MINT_UNAVAILABLE, territoryId, goodId, rate, 0.0);
+            case REJECTED -> report(TaxOutcome.MINT_REJECTED, territoryId, goodId, rate, 0.0);
+            case RECONCILIATION_REQUIRED -> {
+                unresolved.add(new UnresolvedTransaction(territoryId, payerId, amount, System.currentTimeMillis(),
+                        result.diagnosticCode().orElse("Mint reconciliation required")));
+                unresolvedSink.accept(List.copyOf(unresolved));
+                yield report(TaxOutcome.MINT_RECONCILIATION_REQUIRED, territoryId, goodId, rate, 0.0);
+            }
+        };
+    }
+
     public TaxReport reportCraft(
             UUID payerId,
             String worldId,

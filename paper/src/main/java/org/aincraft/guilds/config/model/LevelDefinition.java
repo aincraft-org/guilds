@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A guild level definition parsed from config.yml under {@code town_levels.levels}.
+ * A guild level definition parsed from config.yml under {@code guild_levels.levels}.
  *
- * <p>Definition levels go from 1 (starting level) to {@code town_levels.max_level}.
+ * <p>Definition levels go from 1 (starting level) to {@code guild_levels.max_level}.
  * Level 1 has no requirements; higher levels list material requirements and benefits.
  */
 public class LevelDefinition {

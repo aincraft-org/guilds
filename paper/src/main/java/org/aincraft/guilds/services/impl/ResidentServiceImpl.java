@@ -205,7 +205,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get residents in town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get residents in guild: " + guildName, e);
         }
 
         return residents;

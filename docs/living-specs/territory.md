@@ -34,7 +34,7 @@ violate spatial rules fail closed before persistence.
 
 ### Out of scope / non-goals
 
-- Town/plot claim systems as the primary land model (guild plots are **guilds**).
+- Guild/plot claim systems as the primary land model (guild plots are **guilds**).
 - War/siege combat.
 - Drawing UI (see **map** admin editor).
 - Influence races, standing, tax math (other domains).

@@ -123,7 +123,7 @@ public class PermissionArgumentType implements CustomArgumentType<String, String
             case "deposit": return GuildPermission.DEPOSIT.getLegacyBitwiseValue();
             case "plotperm": case "plot_perm": return GuildPermission.PLOT_PERM.getLegacyBitwiseValue();
             case "plotset": case "plot_set": return GuildPermission.PLOT_SET.getLegacyBitwiseValue();
-            case "plotowner": case "plot_owner": return GuildPermission.PLOT_OWNER.getLegacyBitwiseValue();
+            case "ploguilder": case "plot_owner": return GuildPermission.PLOT_OWNER.getLegacyBitwiseValue();
             case "admin": return GuildPermission.ADMIN.getLegacyBitwiseValue();
             case "bypass": return GuildPermission.BYPASS.getLegacyBitwiseValue();
             default: return -1;

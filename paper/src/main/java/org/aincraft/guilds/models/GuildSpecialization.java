@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum GuildSpecialization {
-    MINING("Mining", "Increases ore yield and mining speed for town members", 2, new HashMap<>()),
+    MINING("Mining", "Increases ore yield and mining speed for guild members", 2, new HashMap<>()),
     TRADE_HUB("Trade Hub", "Reduces market taxes and increases trading profits", 3, new HashMap<>()),
     MILITARY("Military", "Increases defense bonuses and combat effectiveness", 4, new HashMap<>()),
     ARCANE("Arcane", "Reduces XP costs for enchanting and magical activities", 5, new HashMap<>()),

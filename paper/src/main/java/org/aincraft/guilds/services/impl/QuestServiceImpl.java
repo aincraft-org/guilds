@@ -109,10 +109,10 @@ public class QuestServiceImpl implements QuestService {
 
     private String generateDescriptionForType(GuildQuestType type) {
         return switch (type) {
-            case RESOURCE_COLLECTION -> "Collect valuable resources for your town";
-            case BUILDING -> "Construct new buildings to expand your town";
+            case RESOURCE_COLLECTION -> "Collect valuable resources for your guild";
+            case BUILDING -> "Construct new buildings to expand your guild";
             case POPULATION -> "Recruit new residents to grow your community";
-            case ECONOMIC -> "Strengthen your town's economy";
+            case ECONOMIC -> "Strengthen your guild's economy";
             case SOCIAL -> "Build relationships with neighboring communities";
         };
     }

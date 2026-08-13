@@ -90,7 +90,7 @@ thin Paper listeners, optional standing multiplier hook, squaremap/API readout.
 ### Open on the current surface
 
 - [ ] Player-facing declare command discoverability / docs
-- [ ] Align any remaining town/nation vocabulary in user messages (rename workstream)
+- [ ] Align any remaining guild/nation vocabulary in user messages (rename workstream)
 - [ ] Ops runbook: failed load closed behavior and recovery
 
 ### Current notes

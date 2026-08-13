@@ -18,7 +18,7 @@ import org.bukkit.entity.Player;
  * Brigadier command for the guild chat system.
  * /tc <message> — send one-off guild chat message
  * /tc (with no args) — toggle guild chat as default channel
- * /townchat — alias for guild chat toggling
+ * /guildchat — alias for guild chat toggling
  */
 public class ChatBrigadierCommand {
 
@@ -38,7 +38,7 @@ public class ChatBrigadierCommand {
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
         return Commands.literal("tc")
-                .requires(source -> source.getSender().hasPermission("guilds.chat.town"))
+                .requires(source -> source.getSender().hasPermission("guilds.chat.guild"))
                 .executes(this::handleToggle)
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                         .executes(this::handleSendMessage))
@@ -56,9 +56,9 @@ public class ChatBrigadierCommand {
         chatService.setGuildChatEnabled(player.getUniqueId(), newState);
 
         if (newState) {
-            player.sendMessage("§aTown chat enabled! Your messages will now be sent to your town.");
+            player.sendMessage("§aGuild chat enabled! Your messages will now be sent to your guild.");
         } else {
-            player.sendMessage("§7Town chat disabled.");
+            player.sendMessage("§7Guild chat disabled.");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -73,7 +73,7 @@ public class ChatBrigadierCommand {
 
         Guild guild = getPlayerGuild(player);
         if (guild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
 

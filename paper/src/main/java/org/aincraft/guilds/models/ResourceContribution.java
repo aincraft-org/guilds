@@ -214,7 +214,7 @@ public class ResourceContribution {
     public String toString() {
         return "ResourceContribution{" +
                 "id='" + id + '\'' +
-                ", townId='" + guildId + '\'' +
+                ", guildId='" + guildId + '\'' +
                 ", contributorUuid=" + contributorUuid +
                 ", resourceType=" + (resourceType != null ? resourceType.name() : "null") +
                 ", amount=" + amount +

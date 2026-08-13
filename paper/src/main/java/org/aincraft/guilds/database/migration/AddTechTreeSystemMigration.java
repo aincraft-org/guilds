@@ -22,7 +22,7 @@ public class AddTechTreeSystemMigration implements DatabaseMigration {
 
     @Override
     public String getDescription() {
-        return "Add tech tree system with node definitions and town unlock tracking";
+        return "Add tech tree system with node definitions and guild unlock tracking";
     }
 
     @Override

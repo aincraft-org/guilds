@@ -23,8 +23,8 @@ public class GuildBroadcastBrigadierCommand {
 
     private int showHelp(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        sender.sendMessage("§e=== Town Broadcast Commands ===");
-        sender.sendMessage("§7Town broadcast subcommands are not yet implemented.");
+        sender.sendMessage("§e=== Guild Broadcast Commands ===");
+        sender.sendMessage("§7Guild broadcast subcommands are not yet implemented.");
         return Command.SINGLE_SUCCESS;
     }
 }

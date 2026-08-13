@@ -56,10 +56,10 @@ public class GuildToggleListener implements Listener {
             Entity victim = event.getEntity();
 
             if (damager instanceof Player) {
-                ((Player) damager).sendMessage("§cPvP is disabled in this town!");
+                ((Player) damager).sendMessage("§cPvP is disabled in this guild!");
             }
             if (victim instanceof Player) {
-                ((Player) victim).sendMessage("§cPvP is disabled in this town!");
+                ((Player) victim).sendMessage("§cPvP is disabled in this guild!");
             }
 
             plugin.getLogger().fine("PvP damage prevented - PvP disabled at location");
@@ -81,7 +81,7 @@ public class GuildToggleListener implements Listener {
                     shooter.getLocation().getBlockZ(),
                     shooter.getWorld().getName())) {
                     event.setCancelled(true);
-                    shooter.sendMessage("§cProjectile combat is disabled in this town!");
+                    shooter.sendMessage("§cProjectile combat is disabled in this guild!");
                     plugin.getLogger().fine("Projectile launch prevented - PvP disabled");
                 }
             }
@@ -319,7 +319,7 @@ public class GuildToggleListener implements Listener {
                     event.getClickedBlock().getWorld().getName())) {
                 if (event.getAction() == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
                     event.setCancelled(true);
-                    event.getPlayer().sendMessage("§cFire-related actions are disabled in this town!");
+                    event.getPlayer().sendMessage("§cFire-related actions are disabled in this guild!");
                     plugin.getLogger().fine("Flint and steel interaction prevented - Fire disabled");
                 }
             }

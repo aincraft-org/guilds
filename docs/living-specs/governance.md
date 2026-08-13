@@ -9,7 +9,7 @@
 Make **who rules land and what they may decree** player-comprehensible and
 fail-closed:
 
-> A **guild** government controls its town; an **alliance** government controls
+> A **guild** government controls its guild; an **alliance** government controls
 > what guilds do together.
 
 Territory records an optional guild binding; membership, roles, and forms live
@@ -77,7 +77,7 @@ become anarchy or wilderness; federal vs local scope is explicit.
 - Local scope owns membership admin, local policy, guild commons, plots.
 - Alliance scope owns alliance membership, alliance policy, influence declare
   gates, federal strategy — **not** automatic local block rights for alliance officers.
-- Sibling alliance members get local rights only via public town or explicit grants.
+- Sibling alliance members get local rights only via public guild or explicit grants.
 
 ### Testing
 
@@ -105,7 +105,7 @@ become anarchy or wilderness; federal vs local scope is explicit.
 - [x] `BlockProtection` layered land + environment gates
 - [x] Paper protection listeners wired on enable
 - [x] Guild toggles influence fire/explosions/mobs/pvp on governed land
-- [x] Public-town outsider place/interact (never break) behavior
+- [x] Public-guild outsider place/interact (never break) behavior
 
 ### Open on the current surface (known gaps / hardening)
 

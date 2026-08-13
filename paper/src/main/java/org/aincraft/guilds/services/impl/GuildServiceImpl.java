@@ -61,7 +61,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     public Guild createGuild(String name, UUID mayorUuid) {
         // Check if guild already exists
         if (guildExists(name)) {
-            throw new IllegalArgumentException("Town already exists: " + name);
+            throw new IllegalArgumentException("Guild already exists: " + name);
         }
 
         // Use transaction for guild creation
@@ -123,22 +123,22 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 guild.setId(guildId);
                 guild.setCreatedAt(LocalDateTime.parse(createdAt, DATE_FORMATTER));
 
-                logger.info("Created new town: " + name + " with mayor: " + mayorUuid);
+                logger.info("Created new guild: " + name + " with mayor: " + mayorUuid);
 
                 return guild;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to create town: " + name, e);
-                throw new RuntimeException("Failed to create town", e);
+                logger.log(Level.SEVERE, "Failed to create guild: " + name, e);
+                throw new RuntimeException("Failed to create guild", e);
             }
-        }).orElseThrow(() -> new RuntimeException("Failed to create town: transaction returned no result"));
+        }).orElseThrow(() -> new RuntimeException("Failed to create guild: transaction returned no result"));
     }
 
     @Override
     public Guild createGuild(String name, UUID mayorUuid, Location homeBlockLocation) {
         // Check if guild already exists
         if (guildExists(name)) {
-            throw new IllegalArgumentException("Town already exists: " + name);
+            throw new IllegalArgumentException("Guild already exists: " + name);
         }
 
         // Get block coordinates from location
@@ -232,15 +232,15 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 // Set spawn location
                 guild.setSpawnLocation(homeBlockLocation);
 
-                logger.info("Created new town: " + name + " with mayor: " + mayorUuid + " at chunk [" + chunkX + ", " + chunkZ + "] with spawn at " + homeBlockLocation.toDisplayString());
+                logger.info("Created new guild: " + name + " with mayor: " + mayorUuid + " at chunk [" + chunkX + ", " + chunkZ + "] with spawn at " + homeBlockLocation.toDisplayString());
 
                 return guild;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to create town: " + name, e);
-                throw new RuntimeException("Failed to create town", e);
+                logger.log(Level.SEVERE, "Failed to create guild: " + name, e);
+                throw new RuntimeException("Failed to create guild", e);
             }
-        }).orElseThrow(() -> new RuntimeException("Failed to create town: transaction returned no result"));
+        }).orElseThrow(() -> new RuntimeException("Failed to create guild: transaction returned no result"));
     }
 
     @Override
@@ -267,7 +267,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
         } catch (SQLException e) {
             if (e.getMessage().contains("no such column")) {
-                logger.info("Spawn columns not found in getTown(), using query without spawn columns for town: " + name);
+                logger.info("Spawn columns not found in getGuild(), using query without spawn columns for guild: " + name);
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
@@ -287,10 +287,10 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                         }
                     }
                 } catch (SQLException e2) {
-                    logger.log(Level.SEVERE, "Failed to get town with fallback query: " + name, e2);
+                    logger.log(Level.SEVERE, "Failed to get guild with fallback query: " + name, e2);
                 }
             } else {
-                logger.log(Level.SEVERE, "Failed to get town: " + name, e);
+                logger.log(Level.SEVERE, "Failed to get guild: " + name, e);
             }
         }
 
@@ -299,7 +299,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public Optional<Guild> getGuild(UUID uuid) {
-        logger.info("Looking for town with UUID: " + uuid.toString());
+        logger.info("Looking for guild with UUID: " + uuid.toString());
 
         // Try query with spawn columns first
         try {
@@ -317,16 +317,16 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                     if (resultSet.next()) {
                         Guild guild = mapResultSetToGuild(resultSet);
                         loadGuildResidents(connection, guild);
-                        logger.info("Found town: " + guild.getName() + " with ID: " + guild.getId());
+                        logger.info("Found guild: " + guild.getName() + " with ID: " + guild.getId());
                         return Optional.of(guild);
                     }
                 }
             }
 
-            logger.info("No town found with UUID: " + uuid.toString());
+            logger.info("No guild found with UUID: " + uuid.toString());
         } catch (SQLException e) {
             if (e.getMessage().contains("no such column")) {
-                logger.info("Spawn columns not found in getTown(UUID), using query without spawn columns");
+                logger.info("Spawn columns not found in getGuild(UUID), using query without spawn columns");
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
@@ -346,10 +346,10 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                         }
                     }
                 } catch (SQLException e2) {
-                    logger.log(Level.SEVERE, "Failed to get town with fallback query (UUID): " + uuid, e2);
+                    logger.log(Level.SEVERE, "Failed to get guild with fallback query (UUID): " + uuid, e2);
                 }
             } else {
-                logger.log(Level.SEVERE, "Failed to get town: " + uuid, e);
+                logger.log(Level.SEVERE, "Failed to get guild: " + uuid, e);
             }
         }
 
@@ -380,7 +380,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
         } catch (SQLException e) {
             if (e.getMessage().contains("no such column")) {
-                logger.info("Spawn columns not found in getTownById(), using query without spawn columns");
+                logger.info("Spawn columns not found in getGuildById(), using query without spawn columns");
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
@@ -400,10 +400,10 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                         }
                     }
                 } catch (SQLException e2) {
-                    logger.log(Level.SEVERE, "Failed to get town by ID with fallback query: " + guildId, e2);
+                    logger.log(Level.SEVERE, "Failed to get guild by ID with fallback query: " + guildId, e2);
                 }
             } else {
-                logger.log(Level.SEVERE, "Failed to get town by ID: " + guildId, e);
+                logger.log(Level.SEVERE, "Failed to get guild by ID: " + guildId, e);
             }
         }
 
@@ -468,14 +468,14 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Updated town: " + guild.getName());
+                logger.info("Updated guild: " + guild.getName());
             }
 
             return guild;
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to update town: " + guild.getName(), e);
-            throw new RuntimeException("Failed to update town", e);
+            logger.log(Level.SEVERE, "Failed to update guild: " + guild.getName(), e);
+            throw new RuntimeException("Failed to update guild", e);
         }
     }
 
@@ -506,7 +506,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 try (PreparedStatement statement = connection.prepareStatement(deleteGuildBlocksSql)) {
                     statement.setString(1, guildId);
                     int blocksDeleted = statement.executeUpdate();
-                    logger.info("Deleted " + blocksDeleted + " town blocks for town: " + name);
+                    logger.info("Deleted " + blocksDeleted + " guild blocks for guild: " + name);
                 }
 
                 // Delete guild residents associations
@@ -530,14 +530,14 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                     int rowsDeleted = statement.executeUpdate();
 
                     if (rowsDeleted > 0) {
-                        logger.info("Deleted town: " + name);
+                        logger.info("Deleted guild: " + name);
                         result[0] = true;
                     }
                 }
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to delete town: " + name, e);
-                throw new RuntimeException("Failed to delete town", e);
+                logger.log(Level.SEVERE, "Failed to delete guild: " + name, e);
+                throw new RuntimeException("Failed to delete guild", e);
             }
         });
 
@@ -658,7 +658,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check if town exists: " + name, e);
+            logger.log(Level.SEVERE, "Failed to check if guild exists: " + name, e);
         }
 
         return false;
@@ -676,7 +676,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
             }
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to read governance form for town " + guildId, e);
+            logger.log(Level.SEVERE, "Failed to read governance form for guild " + guildId, e);
         }
         return GovernmentForm.MONARCHY;
     }
@@ -736,12 +736,12 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                     statement.executeUpdate();
                 }
 
-                logger.info("Added resident " + residentUuid + " to town " + guildName);
+                logger.info("Added resident " + residentUuid + " to guild " + guildName);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to add resident to town: " + guildName, e);
-                throw new RuntimeException("Failed to add resident to town", e);
+                logger.log(Level.SEVERE, "Failed to add resident to guild: " + guildName, e);
+                throw new RuntimeException("Failed to add resident to guild", e);
             }
         });
 
@@ -787,12 +787,12 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                     statement.executeUpdate();
                 }
 
-                logger.info("Removed resident " + residentUuid + " from town " + guildName);
+                logger.info("Removed resident " + residentUuid + " from guild " + guildName);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to remove resident from town: " + guildName, e);
-                throw new RuntimeException("Failed to remove resident from town", e);
+                logger.log(Level.SEVERE, "Failed to remove resident from guild: " + guildName, e);
+                throw new RuntimeException("Failed to remove resident from guild", e);
             }
         });
 
@@ -828,12 +828,12 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                     statement.executeUpdate();
                 }
 
-                logger.info("Set mayor for town " + guildName + ": " + mayorUuid);
+                logger.info("Set mayor for guild " + guildName + ": " + mayorUuid);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to set mayor for town: " + guildName, e);
-                throw new RuntimeException("Failed to set mayor for town", e);
+                logger.log(Level.SEVERE, "Failed to set mayor for guild: " + guildName, e);
+                throw new RuntimeException("Failed to set mayor for guild", e);
             }
         });
 
@@ -853,12 +853,12 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Added assistant to town " + guildName + ": " + assistantUuid);
+                logger.info("Added assistant to guild " + guildName + ": " + assistantUuid);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to add assistant to town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to add assistant to guild: " + guildName, e);
         }
 
         return false;
@@ -877,12 +877,12 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Removed assistant from town " + guildName + ": " + assistantUuid);
+                logger.info("Removed assistant from guild " + guildName + ": " + assistantUuid);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to remove assistant from town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to remove assistant from guild: " + guildName, e);
         }
 
         return false;
@@ -904,7 +904,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get resident count for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get resident count for guild: " + guildName, e);
         }
 
         return 0;
@@ -923,13 +923,13 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     double newBalance = resultSet.getDouble(1);
-                    logger.info("Updated balance for town " + guildName + ": " + amount + " (new total: " + newBalance + ")");
+                    logger.info("Updated balance for guild " + guildName + ": " + amount + " (new total: " + newBalance + ")");
                     return newBalance;
                 }
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to update balance for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to update balance for guild: " + guildName, e);
         }
 
         return 0;
@@ -1026,7 +1026,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
         } catch (SQLException e) {
             // Home block columns might not exist, just skip
-            logger.fine("Could not load home block for town: " + name + " - " + e.getMessage());
+            logger.fine("Could not load home block for guild: " + name + " - " + e.getMessage());
         }
 
         // Handle spawn location - use wasNull() to check for NULL values
@@ -1056,7 +1056,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
         } catch (SQLException e) {
             // Spawn columns might not exist or have issues, just skip
-            logger.fine("Could not load spawn location for town: " + name + " - " + e.getMessage());
+            logger.fine("Could not load spawn location for guild: " + name + " - " + e.getMessage());
         }
 
         if (createdAtStr != null) {
@@ -1072,7 +1072,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             guild.setPublicEnabled(resultSet.getBoolean("public_enabled"));
         } catch (SQLException e) {
             // Toggle columns might not exist yet, use defaults
-            logger.fine("Could not load toggle fields for town: " + name + " - " + e.getMessage());
+            logger.fine("Could not load toggle fields for guild: " + name + " - " + e.getMessage());
             // Guild constructor already sets default values
         }
 
@@ -1111,7 +1111,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
         } catch (SQLException e) {
             // Home block columns might not exist, just skip
-            logger.fine("Could not load home block for town: " + name + " - " + e.getMessage());
+            logger.fine("Could not load home block for guild: " + name + " - " + e.getMessage());
         }
 
         // Note: spawn location will be null, getGuildSpawn() will use fallback logic
@@ -1129,7 +1129,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             guild.setPublicEnabled(resultSet.getBoolean("public_enabled"));
         } catch (SQLException e) {
             // Toggle columns might not exist yet, use defaults
-            logger.fine("Could not load toggle fields for town: " + name + " - " + e.getMessage());
+            logger.fine("Could not load toggle fields for guild: " + name + " - " + e.getMessage());
             // Guild constructor already sets default values
         }
 
@@ -1165,13 +1165,13 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         // First, validate that the spawn location is within the guild's home block chunk
         Optional<Guild> guildOpt = getGuild(guildName);
         if (guildOpt.isEmpty()) {
-            logger.warning("Cannot set spawn - town does not exist: " + guildName);
+            logger.warning("Cannot set spawn - guild does not exist: " + guildName);
             return false;
         }
 
         Guild guild = guildOpt.get();
         if (guild.getHomeBlock() == null) {
-            logger.warning("Cannot set spawn - town does not have a home block set: " + guildName);
+            logger.warning("Cannot set spawn - guild does not have a home block set: " + guildName);
             return false;
         }
 
@@ -1181,7 +1181,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
         // Validate spawn is in home block chunk
         if (spawnChunk[0] != homeBlockChunk[0] || spawnChunk[1] != homeBlockChunk[1]) {
-            logger.warning("Cannot set spawn - spawn must be in town's home block chunk. " +
+            logger.warning("Cannot set spawn - spawn must be in guild's home block chunk. " +
                     "Spawn chunk: [" + spawnChunk[0] + ", " + spawnChunk[1] + "], " +
                     "Home block chunk: [" + homeBlockChunk[0] + ", " + homeBlockChunk[1] + "]");
             return false;
@@ -1209,7 +1209,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Set spawn for town " + guildName + ": " + location.toDisplayString());
+                logger.info("Set spawn for guild " + guildName + ": " + location.toDisplayString());
                 return true;
             }
 
@@ -1219,7 +1219,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 // Fallback: update home_block instead
                 return setHomeBlockAsSpawnFallback(guildName, location);
             } else {
-                logger.log(Level.SEVERE, "Failed to set spawn for town: " + guildName, e);
+                logger.log(Level.SEVERE, "Failed to set spawn for guild: " + guildName, e);
             }
         }
 
@@ -1230,7 +1230,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
      * Fallback method to set home_block as spawn if spawn columns don't exist
      */
     private boolean setHomeBlockAsSpawnFallback(String guildName, Location location) {
-        logger.info("Setting home_block fallback spawn for town " + guildName + " at location: " + location.toDisplayString());
+        logger.info("Setting home_block fallback spawn for guild " + guildName + " at location: " + location.toDisplayString());
 
         // Try with home_block_y first
         String sqlWithY = "UPDATE guilds SET home_block_x = ?, home_block_z = ?, home_block_y = ?, home_block_world = ? WHERE name = ?";
@@ -1254,10 +1254,10 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("SUCCESS: Set home_block as fallback spawn for town " + guildName + ": " + blockX + ", " + blockY + ", " + blockZ);
+                logger.info("SUCCESS: Set home_block as fallback spawn for guild " + guildName + ": " + blockX + ", " + blockY + ", " + blockZ);
                 return true;
             } else {
-                logger.warning("FAILED: No rows updated for town " + guildName);
+                logger.warning("FAILED: No rows updated for guild " + guildName);
             }
 
         } catch (SQLException e) {
@@ -1266,7 +1266,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 logger.info("home_block_y column not found, using fallback without Y coordinate: " + e.getMessage());
                 return setHomeBlockAsSpawnFallbackWithoutY(guildName, location);
             } else {
-                logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town: " + guildName, e);
+                logger.log(Level.SEVERE, "SQL Error setting home_block fallback for guild: " + guildName, e);
             }
         }
 
@@ -1277,7 +1277,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
      * Fallback method to set home_block without Y coordinate
      */
     private boolean setHomeBlockAsSpawnFallbackWithoutY(String guildName, Location location) {
-        logger.info("Setting home_block fallback WITHOUT Y for town " + guildName + " at location: " + location.toDisplayString());
+        logger.info("Setting home_block fallback WITHOUT Y for guild " + guildName + " at location: " + location.toDisplayString());
 
         String sql = "UPDATE guilds SET home_block_x = ?, home_block_z = ?, home_block_world = ? WHERE name = ?";
 
@@ -1298,14 +1298,14 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("SUCCESS: Set home_block as fallback spawn for town " + guildName + ": " + blockX + ", " + blockZ + " (no Y saved)");
+                logger.info("SUCCESS: Set home_block as fallback spawn for guild " + guildName + ": " + blockX + ", " + blockZ + " (no Y saved)");
                 return true;
             } else {
-                logger.warning("FAILED: No rows updated for town " + guildName + " (no Y)");
+                logger.warning("FAILED: No rows updated for guild " + guildName + " (no Y)");
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "SQL Error setting home_block fallback for town (without Y): " + guildName, e);
+            logger.log(Level.SEVERE, "SQL Error setting home_block fallback for guild (without Y): " + guildName, e);
         }
 
         return false;
@@ -1313,7 +1313,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public Optional<Location> getGuildSpawn(String guildName) {
-        logger.info("Getting spawn for town: " + guildName);
+        logger.info("Getting spawn for guild: " + guildName);
 
         String sql = "SELECT spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world FROM guilds WHERE name = ?";
 
@@ -1324,7 +1324,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
-                    logger.info("Found spawn columns data for town: " + guildName);
+                    logger.info("Found spawn columns data for guild: " + guildName);
 
                     // Use wasNull() to properly check for NULL values
                     double spawnX = resultSet.getDouble("spawn_x");
@@ -1353,20 +1353,20 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                         logger.info("Returning spawn location: " + spawnLocation.toDisplayString());
                         return Optional.of(spawnLocation);
                     } else {
-                        logger.warning("Spawn columns exist but some are null for town: " + guildName);
+                        logger.warning("Spawn columns exist but some are null for guild: " + guildName);
                     }
                 } else {
-                    logger.info("No spawn data found for town: " + guildName);
+                    logger.info("No spawn data found for guild: " + guildName);
                 }
             }
 
         } catch (SQLException e) {
             // If spawn columns don't exist, try to use home_block as fallback
             if (e.getMessage().contains("no such column")) {
-                logger.info("Spawn columns not found, using home_block as fallback for town: " + guildName + " - " + e.getMessage());
+                logger.info("Spawn columns not found, using home_block as fallback for guild: " + guildName + " - " + e.getMessage());
                 return getHomeBlockAsSpawn(guildName);
             } else {
-                logger.log(Level.SEVERE, "Failed to get spawn for town: " + guildName, e);
+                logger.log(Level.SEVERE, "Failed to get spawn for guild: " + guildName, e);
             }
         }
 
@@ -1442,7 +1442,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 logger.info("home_block_y column not found, using fallback without Y coordinate");
                 return getHomeBlockAsSpawnWithoutY(guildName);
             } else {
-                logger.log(Level.SEVERE, "Failed to get home block for town: " + guildName, e);
+                logger.log(Level.SEVERE, "Failed to get home block for guild: " + guildName, e);
             }
         }
 
@@ -1482,7 +1482,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get home block without Y for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get home block without Y for guild: " + guildName, e);
         }
 
         return Optional.empty();
@@ -1637,7 +1637,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         try {
             Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
             if (guildOpt.isEmpty()) {
-                logger.warning("Cannot toggle permission - town does not exist: " + guildName);
+                logger.warning("Cannot toggle permission - guild does not exist: " + guildName);
                 return false;
             }
 
@@ -1645,7 +1645,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
             // Check if player has permission to toggle guild settings
             if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
-                logger.warning("Player " + playerUuid + " attempted to toggle town permission without admin rights: " + guildName);
+                logger.warning("Player " + playerUuid + " attempted to toggle guild permission without admin rights: " + guildName);
                 return false;
             }
 
@@ -1658,7 +1658,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             return updateGuild(guild) != null;
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to toggle town permission: " + permissionType + " for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to toggle guild permission: " + permissionType + " for guild: " + guildName, e);
             return false;
         }
     }
@@ -1674,7 +1674,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             return guildOpt.get().getAllToggles();
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to get town toggles for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get guild toggles for guild: " + guildName, e);
             return new HashMap<>();
         }
     }
@@ -1684,7 +1684,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         try {
             Optional<org.aincraft.guilds.models.Guild> guildOpt = getGuild(guildName);
             if (guildOpt.isEmpty()) {
-                logger.warning("Cannot set toggle - town does not exist: " + guildName);
+                logger.warning("Cannot set toggle - guild does not exist: " + guildName);
                 return false;
             }
 
@@ -1692,14 +1692,14 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
             // Check if player has permission to set guild settings
             if (!permissionService.hasGuildAdmin(playerUuid, guildName)) {
-                logger.warning("Player " + playerUuid + " attempted to set town toggle without admin rights: " + guildName);
+                logger.warning("Player " + playerUuid + " attempted to set guild toggle without admin rights: " + guildName);
                 return false;
             }
 
             // Set the toggle using the guild's method
             boolean success = guild.setToggle(permissionType, value);
             if (!success) {
-                logger.warning("Invalid toggle type: " + permissionType + " for town: " + guildName);
+                logger.warning("Invalid toggle type: " + permissionType + " for guild: " + guildName);
                 return false;
             }
 
@@ -1707,7 +1707,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             return updateGuild(guild) != null;
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to set town toggle: " + permissionType + " for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to set guild toggle: " + permissionType + " for guild: " + guildName, e);
             return false;
         }
     }
@@ -1723,7 +1723,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             return guildOpt.get().getToggle(permissionType);
 
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to get town toggle: " + permissionType + " for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get guild toggle: " + permissionType + " for guild: " + guildName, e);
             return false;
         }
     }

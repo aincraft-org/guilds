@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 public class GuildArgumentType implements CustomArgumentType<String, String> {
 
     private static final SimpleCommandExceptionType GUILD_NOT_FOUND =
-        new SimpleCommandExceptionType(() -> ChatColor.RED + "Town not found");
+        new SimpleCommandExceptionType(() -> ChatColor.RED + "Guild not found");
 
     private final GuildService guildService;
 
@@ -70,7 +70,7 @@ public class GuildArgumentType implements CustomArgumentType<String, String> {
 
     @Override
     public Collection<String> getExamples() {
-        return List.of("mytown", "spawnville", "capital");
+        return List.of("myguild", "spawnville", "capital");
     }
 
     /**

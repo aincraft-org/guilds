@@ -56,7 +56,7 @@ public class GuildPublicAccessListener implements Listener {
         // Check proper destroy permissions
         if (!permissionService.canDestroy(playerUuid, x, z, world)) {
             event.setCancelled(true);
-            player.sendMessage("§cYou cannot break blocks in this town!");
+            player.sendMessage("§cYou cannot break blocks in this guild!");
             plugin.getLogger().fine("Block break prevented - No destroy permission");
             return;
         }
@@ -76,7 +76,7 @@ public class GuildPublicAccessListener implements Listener {
         // Check proper build permissions
         if (!permissionService.canBuild(playerUuid, x, z, world)) {
             event.setCancelled(true);
-            player.sendMessage("§cYou cannot place blocks in this town!");
+            player.sendMessage("§cYou cannot place blocks in this guild!");
             plugin.getLogger().fine("Block place prevented - No build permission");
             return;
         }
@@ -170,7 +170,7 @@ public class GuildPublicAccessListener implements Listener {
             if (!permissionService.canSwitch(playerUuid, event.getClickedBlock().getX(),
                     event.getClickedBlock().getZ(), event.getClickedBlock().getWorld().getName())) {
                 event.setCancelled(true);
-                player.sendMessage("§cYou cannot interact with this block in this town!");
+                player.sendMessage("§cYou cannot interact with this block in this guild!");
                 plugin.getLogger().fine("Block interaction prevented - No interact permission: " + blockType);
             }
         }
@@ -191,7 +191,7 @@ public class GuildPublicAccessListener implements Listener {
             if (!permissionService.canSwitch(playerUuid, player.getLocation().getBlockX(),
                     player.getLocation().getBlockZ(), player.getLocation().getWorld().getName())) {
                 event.setCancelled(true);
-                player.sendMessage("§cYou cannot open containers in this town!");
+                player.sendMessage("§cYou cannot open containers in this guild!");
                 plugin.getLogger().fine("Inventory open prevented - No interact permission");
             }
         }

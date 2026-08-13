@@ -192,8 +192,8 @@ public class MapBrigadierCommand {
         player.sendMessage(ChatColor.GRAY + "Map Legend:");
         player.sendMessage(ChatColor.GREEN + "o" + ChatColor.GRAY + " - Your location");
         player.sendMessage(ChatColor.DARK_GREEN + "-" + ChatColor.GRAY + " - Wilderness (unclaimed)");
-        player.sendMessage(ChatColor.GREEN + "+" + ChatColor.GRAY + " - Your town's blocks");
-        player.sendMessage(ChatColor.YELLOW + "+" + ChatColor.GRAY + " - Other town blocks");
+        player.sendMessage(ChatColor.GREEN + "+" + ChatColor.GRAY + " - Your guild's blocks");
+        player.sendMessage(ChatColor.YELLOW + "+" + ChatColor.GRAY + " - Other guild blocks");
         player.sendMessage(ChatColor.AQUA + "+" + ChatColor.GRAY + " - Personally owned plot");
         player.sendMessage(ChatColor.GOLD + "+" + ChatColor.GRAY + " - Shop plot");
         player.sendMessage(ChatColor.RED + "+" + ChatColor.GRAY + " - Bank plot");

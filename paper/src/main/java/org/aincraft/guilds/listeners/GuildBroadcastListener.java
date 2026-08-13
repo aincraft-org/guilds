@@ -115,7 +115,7 @@ public class GuildBroadcastListener implements Listener {
         }
 
         // Send header
-        player.sendMessage(ChatColor.YELLOW + "=== Town Broadcasts ===");
+        player.sendMessage(ChatColor.YELLOW + "=== Guild Broadcasts ===");
 
         // Sort broadcasts by priority (highest first)
         broadcasts.sort((a, b) -> Integer.compare(b.getPriority(), a.getPriority()));
@@ -157,7 +157,7 @@ public class GuildBroadcastListener implements Listener {
             BroadcastMessage welcome = broadcastService.createWelcomeMessage(guildId, playerName);
             welcome.setTitle("Welcome " + playerName + "!");
             welcome.setContent("Please give a warm welcome to our newest resident! " +
-                             playerName + " has just joined our town. Feel free to help them get settled in.");
+                             playerName + " has just joined our guild. Feel free to help them get settled in.");
             welcome.setTargetAudience(BroadcastMessage.Audience.ALL);
             welcome.setExpirationInHours(24); // Welcome messages expire after 24 hours
 
@@ -165,7 +165,7 @@ public class GuildBroadcastListener implements Listener {
 
             // Send the welcome message to all online guild members
             int sentCount = broadcastService.sendBroadcastToOnlineMembers(welcome);
-            logger.info("Created welcome broadcast for " + playerName + " in town " + guildId +
+            logger.info("Created welcome broadcast for " + playerName + " in guild " + guildId +
                        " (sent to " + sentCount + " players)");
 
         } catch (Exception e) {
@@ -182,14 +182,14 @@ public class GuildBroadcastListener implements Listener {
         }
 
         try {
-            String title = "Town Level Up! 🎉";
+            String title = "Guild Level Up! 🎉";
             String content = String.format("Congratulations! %s has reached level %d! " +
                                           "New benefits and features have been unlocked.",
                                           guild.getName(), newLevel);
 
             BroadcastMessage alert = broadcastService.createAlertMessage(
                 guild.getId(), title, content,
-                guild.getMayorUuid(), "Town System",
+                guild.getMayorUuid(), "Guild System",
                 BroadcastMessage.Priority.HIGH
             );
 
@@ -199,10 +199,10 @@ public class GuildBroadcastListener implements Listener {
             broadcastService.updateBroadcast(alert);
             broadcastService.sendBroadcastToOnlineMembers(alert);
 
-            logger.info("Created level up alert for town " + guild.getName() + " level " + newLevel);
+            logger.info("Created level up alert for guild " + guild.getName() + " level " + newLevel);
 
         } catch (Exception e) {
-            logger.warning("Failed to create level up alert for town " + guild.getName() + ": " + e.getMessage());
+            logger.warning("Failed to create level up alert for guild " + guild.getName() + ": " + e.getMessage());
         }
     }
 
@@ -227,10 +227,10 @@ public class GuildBroadcastListener implements Listener {
             broadcastService.updateBroadcast(economicAlert);
             broadcastService.sendBroadcastToOnlineMembers(economicAlert);
 
-            logger.info("Created economic alert for town " + guild.getName() + ": " + title);
+            logger.info("Created economic alert for guild " + guild.getName() + ": " + title);
 
         } catch (Exception e) {
-            logger.warning("Failed to create economic alert for town " + guild.getName() + ": " + e.getMessage());
+            logger.warning("Failed to create economic alert for guild " + guild.getName() + ": " + e.getMessage());
         }
     }
 }

@@ -9,28 +9,49 @@ public final class EconomyConfig {
 
     public enum Mode {
         VAULT,
-        SIMULATION
+        SIMULATION,
+        MINT
     }
 
     private final Mode mode;
+    private final String mintCurrency;
+    private final String mintClientBinding;
+    private final int mintScale;
 
     public EconomyConfig(Mode mode) {
-        this.mode = mode == null ? Mode.VAULT : mode;
+        this(mode, "coins", "", 2);
     }
 
-    public Mode mode() {
-        return mode;
+    public EconomyConfig(Mode mode, String mintCurrency, String mintClientBinding, int mintScale) {
+        this.mode = mode == null ? Mode.VAULT : mode;
+        this.mintCurrency = mintCurrency == null ? "coins" : mintCurrency;
+        this.mintClientBinding = mintClientBinding == null ? "" : mintClientBinding;
+        this.mintScale = mintScale < 0 ? 2 : mintScale;
     }
+
+    public Mode mode() { return mode; }
+    public String mintCurrency() { return mintCurrency; }
+    public String mintClientBinding() { return mintClientBinding; }
+    public int mintScale() { return mintScale; }
 
     public static EconomyConfig fromBukkit(FileConfiguration cfg) {
         String raw = cfg == null ? null : cfg.getString("economy.mode", "VAULT");
-        if (raw == null) {
-            return new EconomyConfig(Mode.VAULT);
+        Mode mode = Mode.VAULT;
+        if (raw != null) {
+            try {
+                mode = Mode.valueOf(raw.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ignored) {
+                mode = Mode.VAULT;
+            }
         }
-        try {
-            return new EconomyConfig(Mode.valueOf(raw.trim().toUpperCase(Locale.ROOT)));
-        } catch (IllegalArgumentException e) {
-            return new EconomyConfig(Mode.VAULT);
+        if (cfg == null) {
+            return new EconomyConfig(mode);
         }
+        return new EconomyConfig(
+                mode,
+                cfg.getString("economy.mint.currency", "coins"),
+                cfg.getString("economy.mint.client-binding", ""),
+                cfg.getInt("economy.mint.scale", 2)
+        );
     }
 }

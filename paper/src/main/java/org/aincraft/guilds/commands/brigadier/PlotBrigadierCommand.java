@@ -154,7 +154,7 @@ public class PlotBrigadierCommand {
 
         // Check if plot exists and is owned by guild (not a resident)
         if (!plotService.canResidentClaimPlot(playerUuid, chunkX, chunkZ, world)) {
-            player.sendMessage("§cYou cannot claim this plot. The town must claim the territory first.");
+            player.sendMessage("§cYou cannot claim this plot. The guild must claim the territory first.");
             return 0;
         }
 
@@ -543,10 +543,10 @@ public class PlotBrigadierCommand {
                 player.sendMessage("§fOwner: §7" + plot.getOwnerId());
             }
         } else {
-            player.sendMessage("§fOwner: §7Town-owned");
+            player.sendMessage("§fOwner: §7Guild-owned");
         }
 
-        player.sendMessage("§fTown: §a" + plot.getGuildId());
+        player.sendMessage("§fGuild: §a" + plot.getGuildId());
 
         if (plot.isForSale()) {
             player.sendMessage("§fPrice: §6$" + String.format("%.2f", plot.getPrice()));

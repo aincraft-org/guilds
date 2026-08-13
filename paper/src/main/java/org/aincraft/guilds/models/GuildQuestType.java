@@ -1,10 +1,10 @@
 package org.aincraft.guilds.models;
 
 public enum GuildQuestType {
-    RESOURCE_COLLECTION("Resource Collection", "Collect specific resources for your town"),
-    BUILDING("Building", "Construct new buildings within your town"),
-    POPULATION("Population", "Grow your town's population"),
-    ECONOMIC("Economic", "Generate economic value for your town"),
+    RESOURCE_COLLECTION("Resource Collection", "Collect specific resources for your guild"),
+    BUILDING("Building", "Construct new buildings within your guild"),
+    POPULATION("Population", "Grow your guild's population"),
+    ECONOMIC("Economic", "Generate economic value for your guild"),
     SOCIAL("Social", "Engage with other players and communities");
 
     private final String displayName;

@@ -1,6 +1,6 @@
 # Azoth Territory
 
-Paper plugin for large map **territories** with nested **Wilderness** and **Claimable** zones — inspired by New World / LokaMC style regions (town claims / siege systems are out of scope).
+Paper plugin for large map **territories** with nested **Wilderness** and **Claimable** zones — inspired by New World / LokaMC style regions (guild claims / siege systems are out of scope).
 
 ## Features
 
@@ -126,16 +126,33 @@ docs/plans under `docs/archived-guilds/docs/` for reference.
 
 ### Guild progression
 
-Guild residents use `/townlevel deposit <resource> <amount>` to contribute
+Guild residents use `/guildlevel deposit <resource> <amount>` to contribute
 `DIAMOND`, `GOLD`, `IRON`, `EMERALD`, or `EXPERIENCE` resources. Material aliases
 such as `GOLD_INGOT` are accepted. Deposits remove items from the player's
 inventory and atomically persist the guild resource bank, contribution history,
 and upgrade progress; a failed database write refunds the inventory items.
 
-Only the guild mayor or a holder of `guilds.admin.town` may run
-`/townlevel upgrade`. The upgrade rechecks the locked database row, consumes the
+Only the guild mayor or a holder of `guilds.admin.guild` may run
+`/guildlevel upgrade`. The upgrade rechecks the locked database row, consumes the
 current progress exactly once, awards tech points, and records idempotent level
 benefits.
+
+## Mint cash guild banks
+
+Set `economy.mode: MINT` to route asynchronous taxes to native Mint accounts named
+`guild:<guildId>`. Player accounts use `AccountId.player(UUID)`. The Mint adapter
+ensures both accounts and submits one atomic signed transfer using the configured
+`economy.mint.currency`, `economy.mint.client-binding`, and decimal `economy.mint.scale`.
+
+The command surface is `/guild bank`, `/guild bank deposit <amount>`, and
+`/guild bank withdraw <amount>`. Commands require guild membership and the existing
+`DEPOSIT`/`WITHDRAW` permissions. Completion messages are scheduled back onto the
+Paper main thread; production callers must not block on Mint stages.
+
+Mint cash balances are independent of SQL `Guild.balance`, which remains authoritative
+for existing plot purchases, contracts, resources, and progression. Vault and simulation
+mode behavior remains unchanged. Mint mode fails closed when its trusted binding is
+not available.
 
 ## Spatial rules
 
@@ -163,7 +180,7 @@ Resolution (via `GovernanceRegistry` + `GovernanceSource`, implemented by
 - Holder → the first guild listing them as a resident.
 - World location → spatial `TerritoryRegistry.resolve` then territory resolution above.
 
-Each guild and alliance picks a **governance form** (`/town government
+Each guild and alliance picks a **governance form** (`/guild government
 <form>`, `/alliance government <form>`, mayor/king only). Seats are derived
 live from role holders — the governance form IS the permission structure:
 
@@ -191,7 +208,7 @@ roles) gates proposals, votes, and decrees:
 
 ```java
 // Guild picks MONARCHY → the mayor is the sovereign and may decree;
-// /territory govern everfall everfall-town binds the territory.
+// /territory govern everfall everfall-guild binds the territory.
 governance.proposePolicy("everfall", "tax", "Tax Reform", "…", "mayor-uuid", now);
 Policy passed = governance.decreePolicy("everfall", "tax", "mayor-uuid", true, now);
 ```
@@ -227,7 +244,7 @@ of truth: the guilds database.
     need explicit grants (`/perm set <player> build true`, guild-context, or
     `/plot perm`); in `DEMOCRACY` the citizens share the commons and the
     resident build default applies; switch/item-use defaults stay under every
-    form so towns remain usable. This is how a monarch builds their own
+    form so guilds remain usable. This is how a monarch builds their own
     permission system: the form sets the default, `/perm` grants customize it;
   - **alliance-governed land follows the alliance's form** — when the
     governing guild belongs to an alliance, the alliance's form decides
@@ -240,24 +257,24 @@ of truth: the guilds database.
     follow the same form policy (fallback through the territory registry);
   - members (residents of the governing guild; for alliances, any member-guild
     resident) are evaluated by their effective permissions — global `bypass`,
-    explicit town-context grants, then the form-gated role default;
-  - outsiders are denied unless the town is **public**, in which case they may
-    build/interact but never break (mirroring guilds town-owned plot defaults);
+    explicit guild-context grants, then the form-gated role default;
+  - outsiders are denied unless the guild is **public**, in which case they may
+    build/interact but never break (mirroring guilds guild-owned plot defaults);
   - territory-local government stays a pure seat lockdown.
 
-**Environmental flags follow the governing town's toggles** (`isFireProtected`,
+**Environmental flags follow the governing guild's toggles** (`isFireProtected`,
 `areExplosionsProtected`, `blocksMobSpawn`): governed land is protected when the
 toggle is off (fire/explosions) or on (mobs); territory-local stays protected
 regardless. `isEnvironmentallyProtected` (mechanical transfers, boundary
 crossings, entity grief) still gates on assigned government alone. PvP follows
-the town's `pvp` toggle, with authority holders always able to defend.
+the guild's `pvp` toggle, with authority holders always able to defend.
 
 ```java
 GovernanceSource source = guilds.getGovernanceSource(); // guilds + alliances
 GovernanceRegistry gov = new GovernanceRegistry(registry, source);
 BlockProtection blocks = new BlockProtection(gov);
-blocks.canBreak("world", x, z, "resident-uuid"); // true for town members
-blocks.canBreak("world", x, z, "outsider");      // false in a closed town
+blocks.canBreak("world", x, z, "resident-uuid"); // true for guild members
+blocks.canBreak("world", x, z, "outsider");      // false in a closed guild
 ```
 
 Paper listeners are wired on enable (`ProtectionListener` + `InteractionProtectionListener`):
@@ -267,15 +284,15 @@ Paper listeners are wired on enable (`ProtectionListener` + `InteractionProtecti
 | Block break/place | `canBreak` / `canPlace` | Actor = player UUID string |
 | Block interact (chests, doors, buttons, levers, beds, furnaces, hoppers) | `canInteract` | Includes container open (InventoryOpen). Right-click on blocks |
 | Entity interact (item frames, armor stands, paintings, vehicles, leash) | `canInteractWithEntity` | Place + break + rotate + equip |
-| Fire burn/spread/ignite | `isFireProtected` | Governed land with the town's fire toggle off (territory-local always) |
-| Explosions | `areExplosionsProtected` | Governed land with the town's explosions toggle off (territory-local always) |
+| Fire burn/spread/ignite | `isFireProtected` | Governed land with the guild's fire toggle off (territory-local always) |
+| Explosions | `areExplosionsProtected` | Governed land with the guild's explosions toggle off (territory-local always) |
 | Piston push / fluid flow into claims | `crossesBoundary` | Blocked crossing in/out of governed land |
 | Hopper / dropper steals, item pickup | `isEnvironmentallyProtected` | Mechanical actors have no authority → denied in governed land |
-| Natural/hostile mob spawn | `blocksMobSpawn` | Governed land with the town's mobs toggle on (territory-local always); eggs/spawners/commands unrestricted |
+| Natural/hostile mob spawn | `blocksMobSpawn` | Governed land with the guild's mobs toggle on (territory-local always); eggs/spawners/commands unrestricted |
 | Entity block change, crop trample | `blocksEntityGrief` | Enderman/wither/farmland |
-| Player PvP / friendly-fire | `allowsPvp` | Town's pvp toggle for members; authority holders always may; uncontained/anarchy unrestricted |
+| Player PvP / friendly-fire | `allowsPvp` | Guild's pvp toggle for members; authority holders always may; uncontained/anarchy unrestricted |
 | Animal kill / pet damage | `canInteract` on victim | Animals/tameables/villagers/armor stands only; hostile mobs stay killable |
-| Forced teleport / spawn / home-setting into claims | `canTeleportInto` | COMMAND/PLUGIN/portal/pearl causes; authority + members exempt; public towns admit outsiders; respawn-to-bed never fires this event |
+| Forced teleport / spawn / home-setting into claims | `canTeleportInto` | COMMAND/PLUGIN/portal/pearl causes; authority + members exempt; public guilds admit outsiders; respawn-to-bed never fires this event |
 
 Uncontained wilderness and anarchy-governed land stay unrestricted for environmental flags, block interaction, PvP, and teleport gates.
 
@@ -292,7 +309,7 @@ Company-level friendly fire and per-player home registration are **not expressib
       "name": "Everfall",
       "world": "world",
       "defaultZoneType": "WILDERNESS",
-      "governedByGuildId": "everfall-town",
+      "governedByGuildId": "everfall-guild",
       "boundary": {
         "polygon": [{"x": 0, "z": 0}, {"x": 1000, "z": 0}, {"x": 1000, "z": 1000}, {"x": 0, "z": 1000}],
         "chunks": []

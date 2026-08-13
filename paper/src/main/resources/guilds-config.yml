@@ -5,8 +5,8 @@
 language: en
 debug: false
 
-# Town Settings
-town:
+# Guild Settings
+guild:
   default_tax: 0.0
   max_name_length: 20
   min_name_length: 3
@@ -51,8 +51,8 @@ hearthstone:
   item: "ENDER_PEARL"
   cooldown-seconds: 30
 
-# Town Level System Configuration
-town_levels:
+# Guild Level System Configuration
+guild_levels:
   max_level: 150
 
   # Define requirements and benefits for each level

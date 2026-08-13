@@ -203,7 +203,7 @@ public class PlotTypeRegistryImpl implements PlotTypeRegistry {
         registerPlotType(PlotTypeDefinition.builder()
                 .typeName("resident")
                 .displayName("Resident")
-                .description("Standard residential plot for town members")
+                .description("Standard residential plot for guild members")
                 .pluginName(null)
                 .build());
 

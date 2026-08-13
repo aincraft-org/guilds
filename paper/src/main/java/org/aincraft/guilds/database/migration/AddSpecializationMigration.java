@@ -22,7 +22,7 @@ public class AddSpecializationMigration implements DatabaseMigration {
 
     @Override
     public String getDescription() {
-        return "Add town specialization system with specialization tracking";
+        return "Add guild specialization system with specialization tracking";
     }
 
     @Override

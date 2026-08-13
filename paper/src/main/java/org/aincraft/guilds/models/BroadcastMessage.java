@@ -226,7 +226,7 @@ public class BroadcastMessage {
     public String toString() {
         return "BroadcastMessage{" +
                 "id='" + id + '\'' +
-                ", townId='" + guildId + '\'' +
+                ", guildId='" + guildId + '\'' +
                 ", messageType='" + messageType + '\'' +
                 ", title='" + title + '\'' +
                 ", senderName='" + senderName + '\'' +

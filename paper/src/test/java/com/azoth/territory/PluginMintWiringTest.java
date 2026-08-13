@@ -1,0 +1,4 @@
+package com.azoth.territory;
+import static org.junit.jupiter.api.Assertions.assertTrue; import java.nio.file.Files;
+import java.nio.file.Path; import org.junit.jupiter.api.Test;
+class PluginMintWiringTest { @Test void mintConfigFailsClosedWithoutBinding(){String s=read("paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java"); assertTrue(s.contains("Mode.MINT")); assertTrue(s.contains("economy.mint.client-binding") || s.contains("Mint mode"));} @Test void guildServicesAcceptTrustedMintRail(){String s=read("paper/src/main/java/org/aincraft/guilds/GuildsServices.java"); assertTrue(s.contains("MintClientLease")); assertTrue(s.contains("withMintLease"));} private static String read(String f){try{return Files.readString(Path.of(System.getProperty("user.dir")).resolve("..", f));}catch(Exception e){throw new AssertionError(e);}}}

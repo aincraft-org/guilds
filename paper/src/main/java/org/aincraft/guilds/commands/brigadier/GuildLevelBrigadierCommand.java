@@ -54,7 +54,7 @@ public class GuildLevelBrigadierCommand {
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
-        return Commands.literal("townlevel")
+        return Commands.literal("guildlevel")
             .requires(source -> source.getSender().hasPermission("guilds.level"))
             .executes(this::showHelp)
             .then(Commands.literal("level")
@@ -102,20 +102,20 @@ public class GuildLevelBrigadierCommand {
             return 0;
         }
 
-        player.sendMessage("§e=== Town Level Commands ===");
+        player.sendMessage("§e=== Guild Level Commands ===");
 
-        player.sendMessage("§f/townlevel level§7 - Show your town level and progress");
-        player.sendMessage("§f/townlevel deposit <resource> <amount>§7 - Contribute resources to upgrade");
-        player.sendMessage("§f/townlevel bank§7 - View town resource bank");
-        player.sendMessage("§f/townlevel upgrade§7 - Upgrade town to next level");
-        player.sendMessage("§f/townlevel contributions§7 - View contribution statistics");
-        player.sendMessage("§f/townlevel top [type] [count]§7 - Show top guilds (level/residents/balance/techpoints)");
+        player.sendMessage("§f/guildlevel level§7 - Show your guild level and progress");
+        player.sendMessage("§f/guildlevel deposit <resource> <amount>§7 - Contribute resources to upgrade");
+        player.sendMessage("§f/guildlevel bank§7 - View guild resource bank");
+        player.sendMessage("§f/guildlevel upgrade§7 - Upgrade guild to next level");
+        player.sendMessage("§f/guildlevel contributions§7 - View contribution statistics");
+        player.sendMessage("§f/guildlevel top [type] [count]§7 - Show top guilds (level/residents/balance/techpoints)");
 
         player.sendMessage("§7");
         player.sendMessage("§7Supported Resources: "
                 + String.join(", ", resourceService.getSupportedResourceTypes()).toUpperCase(Locale.ROOT));
         player.sendMessage("§7Only configured guild upgrade resources can be deposited.");
-        player.sendMessage("§7Example: /townlevel deposit DIAMOND 10");
+        player.sendMessage("§7Example: /guildlevel deposit DIAMOND 10");
         player.sendMessage("§7Aliases: /tl deposit DIAMOND 10");
 
         return Command.SINGLE_SUCCESS;
@@ -130,21 +130,21 @@ public class GuildLevelBrigadierCommand {
 
         String playerGuild = getPlayerGuild(player);
         if (playerGuild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
 
         Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
         if (guildOpt.isEmpty()) {
-            player.sendMessage("§cTown not found!");
+            player.sendMessage("§cGuild not found!");
             return 0;
         }
 
         Guild guild = guildOpt.get();
 
-        player.sendMessage("§e=== Town Level Information ===");
+        player.sendMessage("§e=== Guild Level Information ===");
 
-        player.sendMessage("§eTown: §b" + guild.getName());
+        player.sendMessage("§eGuild: §b" + guild.getName());
         player.sendMessage("§eCurrent Level: §a" + guild.getGuildLevel());
         player.sendMessage("§eTech Points: §d" + guild.getTechPoints());
         player.sendMessage("§eClaim Limit: §a" + guild.getMaxClaimLimit() + " chunks");
@@ -153,9 +153,9 @@ public class GuildLevelBrigadierCommand {
 
         if (guild.getGuildLevel() < guildLevelService.getMaxLevel()) {
             player.sendMessage("§eNext Level: §a" + (guild.getGuildLevel() + 1));
-            player.sendMessage("§7  Progress: §eUse /town level deposit to contribute resources");
+            player.sendMessage("§7  Progress: §eUse /guild level deposit to contribute resources");
         } else {
-            player.sendMessage("§aYour town is at the maximum level!");
+            player.sendMessage("§aYour guild is at the maximum level!");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -217,12 +217,12 @@ public class GuildLevelBrigadierCommand {
 
         String playerGuild = getPlayerGuild(player);
         if (playerGuild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
         Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
         if (guildOpt.isEmpty()) {
-            player.sendMessage("§cTown not found!");
+            player.sendMessage("§cGuild not found!");
             return 0;
         }
 
@@ -231,7 +231,7 @@ public class GuildLevelBrigadierCommand {
                 resourceService.getGuildResources(guildOpt.get().getId());
         if (resources.isEmpty()) {
             player.sendMessage("§7No resources contributed yet.");
-            player.sendMessage("§eUse /townlevel deposit <resource> <amount> to contribute!");
+            player.sendMessage("§eUse /guildlevel deposit <resource> <amount> to contribute!");
             return Command.SINGLE_SUCCESS;
         }
         for (org.aincraft.guilds.models.GuildResource resource : resources) {
@@ -241,7 +241,7 @@ public class GuildLevelBrigadierCommand {
             }
         }
         player.sendMessage("§7");
-        player.sendMessage("§eUse '/townlevel level' to see upgrade requirements");
+        player.sendMessage("§eUse '/guildlevel level' to see upgrade requirements");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -254,26 +254,26 @@ public class GuildLevelBrigadierCommand {
 
         String playerGuild = getPlayerGuild(player);
         if (playerGuild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
 
         Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
         if (guildOpt.isEmpty()) {
-            player.sendMessage("§cTown not found!");
+            player.sendMessage("§cGuild not found!");
             return 0;
         }
 
         Guild guild = guildOpt.get();
         boolean authorized = guild.getMayorUuid() != null
                 && guild.getMayorUuid().equals(player.getUniqueId());
-        if (!authorized && !player.hasPermission("guilds.admin.town")) {
+        if (!authorized && !player.hasPermission("guilds.admin.guild")) {
             player.sendMessage("§cOnly the guild mayor or a guild administrator can upgrade this guild.");
             return 0;
         }
 
         if (guild.getGuildLevel() >= guildLevelService.getMaxLevel()) {
-            player.sendMessage("§aYour town is already at the maximum level!");
+            player.sendMessage("§aYour guild is already at the maximum level!");
             return Command.SINGLE_SUCCESS;
         }
 
@@ -281,8 +281,8 @@ public class GuildLevelBrigadierCommand {
 
         if (result.isSuccessful()) {
             player.sendMessage("");
-            player.sendMessage("§e=== 🎉 TOWN UPGRADE COMPLETE! 🎉 ===");
-            player.sendMessage("§aYour town has been upgraded to level §a" + result.getNewLevel() + "!");
+            player.sendMessage("§e=== 🎉 GUILD UPGRADE COMPLETE! 🎉 ===");
+            player.sendMessage("§aYour guild has been upgraded to level §a" + result.getNewLevel() + "!");
             player.sendMessage("§eYou earned §d" + result.getTechPointsEarned() + "§e tech points!");
 
             player.sendMessage("§eNew Benefits:");
@@ -291,7 +291,7 @@ public class GuildLevelBrigadierCommand {
             player.sendMessage("§7  Daily Income: §6§" + String.format("%.2f", guild.getDailyIncomeBonus()));
         } else {
             player.sendMessage("§c" + result.getMessage());
-            player.sendMessage("§eUse '/town level' to see requirements");
+            player.sendMessage("§eUse '/guild level' to see requirements");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -306,13 +306,13 @@ public class GuildLevelBrigadierCommand {
 
         String playerGuild = getPlayerGuild(player);
         if (playerGuild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
 
         Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
         if (guildOpt.isEmpty()) {
-            player.sendMessage("§cTown not found!");
+            player.sendMessage("§cGuild not found!");
             return 0;
         }
         Guild guild = guildOpt.get();
@@ -322,7 +322,7 @@ public class GuildLevelBrigadierCommand {
         Map<String, Integer> contributions = guildLevelService.calculateTotalContributions(guild);
         if (contributions.isEmpty()) {
             player.sendMessage("§7No resources contributed yet.");
-            player.sendMessage("§eUse /townlevel deposit <resource> <amount> to contribute!");
+            player.sendMessage("§eUse /guildlevel deposit <resource> <amount> to contribute!");
             return Command.SINGLE_SUCCESS;
         }
 
@@ -360,7 +360,7 @@ public class GuildLevelBrigadierCommand {
 
         List<Guild> topGuilds = guildService.getRankedGuilds(criteria, limit);
 
-        player.sendMessage("§e=== Top Towns by " + criteria.substring(0, 1).toUpperCase(Locale.ROOT) + criteria.substring(1) + " ===");
+        player.sendMessage("§e=== Top Guilds by " + criteria.substring(0, 1).toUpperCase(Locale.ROOT) + criteria.substring(1) + " ===");
 
         for (int i = 0; i < topGuilds.size(); i++) {
             Guild guild = topGuilds.get(i);

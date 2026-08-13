@@ -99,7 +99,7 @@ public class TechTreeBrigadierCommand {
 
         Guild guild = getPlayerGuild(player);
         if (guild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
 
@@ -173,7 +173,7 @@ public class TechTreeBrigadierCommand {
 
         Guild guild = getPlayerGuild(player);
         if (guild == null) {
-            player.sendMessage("§cYou are not in a town!");
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
 

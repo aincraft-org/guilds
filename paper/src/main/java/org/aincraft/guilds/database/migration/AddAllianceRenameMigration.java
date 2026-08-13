@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
  * Alliances are the alliance entities; the "nation" vocabulary was retired
  * (commands, permissions, services, and schema). The historical chain (v11
  * creates {@code nations}, v15 adds its governance form, v16 renames its
- * town-era columns) is left untouched for replayability; this migration
+ * guild-era columns) is left untouched for replayability; this migration
  * renames the tables, columns, and indexes in place, preserving all rows.
  * Permission rows written with {@code target_type = 'nation'} (the plot-role
  * vocabulary) are rewritten to {@code 'alliance'}.

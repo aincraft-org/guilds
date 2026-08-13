@@ -14,11 +14,11 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Loads guild level definitions from {@code town_levels} in config.yml.
+ * Loads guild level definitions from {@code guild_levels} in config.yml.
  *
  * <p>Expected layout:</p>
  * <pre>
- * town_levels:
+ * guild_levels:
  *   max_level: 150
  *   levels:
  *     2:
@@ -35,7 +35,7 @@ import java.util.logging.Logger;
 
 public class GuildLevelConfigLoader {
 
-    private static final String CONFIG_SECTION = "town_levels";
+    private static final String CONFIG_SECTION = "guild_levels";
     private static final String LEVELS_SECTION = CONFIG_SECTION + ".levels";
 
     private final FileConfiguration config;
@@ -77,11 +77,11 @@ public class GuildLevelConfigLoader {
                 LevelDefinition definition = parseLevel(level, levelSection);
                 levelDefinitions.put(level, definition);
             } catch (NumberFormatException e) {
-                logger.warning("Skipping town_levels entry with non-numeric level key: " + levelKey);
+                logger.warning("Skipping guild_levels entry with non-numeric level key: " + levelKey);
             }
         }
 
-        logger.info("Loaded " + levelDefinitions.size() + " town level definitions from config.");
+        logger.info("Loaded " + levelDefinitions.size() + " guild level definitions from config.");
     }
 
     private LevelDefinition parseLevel(int level, ConfigurationSection levelSection) {

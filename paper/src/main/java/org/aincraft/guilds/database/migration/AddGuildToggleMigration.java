@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class AddGuildToggleMigration implements DatabaseMigration {
 
     private static final int VERSION = 6;
-    private static final String DESCRIPTION = "Add town toggle system with dedicated boolean columns";
+    private static final String DESCRIPTION = "Add guild toggle system with dedicated boolean columns";
 
     /**
      * Get the migration version number

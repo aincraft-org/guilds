@@ -104,7 +104,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     public boolean hasPermission(UUID residentUuid, String permission, String context, String contextId) {
         // Handle specific permission checks based on context
         switch (context.toLowerCase()) {
-            case "town":
+            case "guild":
                 return hasGuildPermission(residentUuid, permission, contextId);
             case "plot":
                 return hasPlotPermission(residentUuid, permission, contextId);
@@ -356,12 +356,12 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                     insertStatement.executeBatch();
                 }
 
-                logger.info("Set permissions for town: " + guildName);
+                logger.info("Set permissions for guild: " + guildName);
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to set permissions for town: " + guildName, e);
-                throw new RuntimeException("Failed to set town permissions", e);
+                logger.log(Level.SEVERE, "Failed to set permissions for guild: " + guildName, e);
+                throw new RuntimeException("Failed to set guild permissions", e);
             }
         });
 
@@ -476,7 +476,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
             // Guild block exists - apply guild toggle checks first
             if (!checkGuildToggles(residentUuid, x, z, world, permissionFlag)) {
-                logger.fine(String.format("Permission denied by town toggle for %s at (%d,%d,%s)",
+                logger.fine(String.format("Permission denied by guild toggle for %s at (%d,%d,%s)",
                     residentUuid, x, z, world));
                 return false;
             }
@@ -519,12 +519,12 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             if (resident.isPresent() && !resident.get().hasGuild()) {
                 // Non-resident trying to access guild
                 if (!t.isPublicEnabled()) {
-                    logger.fine("Non-resident access denied - town is not public");
+                    logger.fine("Non-resident access denied - guild is not public");
                     return false;
                 }
             }
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Error checking resident town membership: " + e.getMessage());
+            logger.log(Level.WARNING, "Error checking resident guild membership: " + e.getMessage());
         }
 
         return true;
@@ -653,7 +653,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
      * Government semantics: only DEMOCRACY shares land-modifying defaults
      * (BUILD/DESTROY) with residents; MONARCHY/OLIGARCHY land is
      * government-controlled — residents need explicit grants. Switch/item-use
-     * defaults stay under every form so towns remain usable.
+     * defaults stay under every form so guilds remain usable.
      */
     private boolean memberDefaultAllows(UUID residentUuid, String guildName, int permissionFlag, GovernmentForm form) {
         if (isGuildMayor(residentUuid, guildName)) {
@@ -741,7 +741,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check if resident is town mayor: " + residentUuid + " in town " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to check if resident is guild mayor: " + residentUuid + " in guild " + guildName, e);
         }
 
         return false;
@@ -768,7 +768,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check if resident is town assistant: " + residentUuid + " in town " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to check if resident is guild assistant: " + residentUuid + " in guild " + guildName, e);
         }
 
         return false;
@@ -822,7 +822,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check town permission: " + permission + " for " + residentUuid + " in " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to check guild permission: " + permission + " for " + residentUuid + " in " + guildName, e);
         }
 
         // Fall back to role-based permissions if no explicit permissions found
@@ -902,7 +902,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             case "plot_set": return (flags & GuildPermission.PLOT_SET.getLegacyBitwiseValue()) != 0;
             case "plot_owner": return (flags & GuildPermission.PLOT_OWNER.getLegacyBitwiseValue()) != 0;
             case "admin": return (flags & GuildPermission.ADMIN.getLegacyBitwiseValue()) != 0;
-            case "admin_town": return (flags & GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue()) != 0;
+            case "admin_guild": return (flags & GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue()) != 0;
             case "admin_plot": return (flags & GuildPermission.ADMIN_PLOT.getLegacyBitwiseValue()) != 0;
             case "admin_resident": return (flags & GuildPermission.ADMIN_RESIDENT.getLegacyBitwiseValue()) != 0;
             case "bypass": return (flags & GuildPermission.BYPASS.getLegacyBitwiseValue()) != 0;
@@ -987,14 +987,14 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                                 updateStatement.executeUpdate();
                             }
 
-                            logger.info("Updated town permissions for " + targetType + " in " + guildName + ": added flags " + permissionFlags);
+                            logger.info("Updated guild permissions for " + targetType + " in " + guildName + ": added flags " + permissionFlags);
                         } else {
                             // Insert new permission
                             String insertSql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
                             try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
                                 insertStatement.setString(1, UUID.randomUUID().toString());
-                                insertStatement.setString(2, "town");
+                                insertStatement.setString(2, "guild");
                                 insertStatement.setString(3, guildName);
                                 insertStatement.setString(4, targetType);
                                 insertStatement.setString(5, targetId);
@@ -1005,7 +1005,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                                 insertStatement.executeUpdate();
                             }
 
-                            logger.info("Granted town permissions for " + targetType + " in " + guildName + ": flags " + permissionFlags);
+                            logger.info("Granted guild permissions for " + targetType + " in " + guildName + ": flags " + permissionFlags);
                         }
                     }
                 }
@@ -1013,7 +1013,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                 result[0] = true;
 
             } catch (SQLException e) {
-                logger.log(Level.SEVERE, "Failed to grant town permissions: " + permissionFlags + " to " + targetType + " in " + guildName, e);
+                logger.log(Level.SEVERE, "Failed to grant guild permissions: " + permissionFlags + " to " + targetType + " in " + guildName, e);
                 result[0] = false;
             }
         });
@@ -1030,7 +1030,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             "invite", "kick", "promote", "demote",
             "withdraw", "deposit",
             "plot_perm", "plot_set", "plot_owner",
-            "admin", "admin_town", "admin_plot", "admin_resident", "bypass"
+            "admin", "admin_guild", "admin_plot", "admin_resident", "bypass"
         );
     }
 
@@ -1086,7 +1086,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             case "plot_set": return GuildPermission.PLOT_SET.getLegacyBitwiseValue();
             case "plot_owner": return GuildPermission.PLOT_OWNER.getLegacyBitwiseValue();
             case "admin": return GuildPermission.ADMIN.getLegacyBitwiseValue();
-            case "admin_town": return GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue();
+            case "admin_guild": return GuildPermission.ADMIN_GUILD.getLegacyBitwiseValue();
             case "admin_plot": return GuildPermission.ADMIN_PLOT.getLegacyBitwiseValue();
             case "admin_resident": return GuildPermission.ADMIN_RESIDENT.getLegacyBitwiseValue();
             case "bypass": return GuildPermission.BYPASS.getLegacyBitwiseValue();
@@ -1123,7 +1123,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
     public boolean canClaimPlot(UUID residentUuid, int x, int z, String world) {
         // Check if resident is in a guild and has claim permission
         // This would integrate with GuildService to verify guild membership
-        return hasPermission(residentUuid, "claim", "town", null);
+        return hasPermission(residentUuid, "claim", "guild", null);
     }
 
     @Override
@@ -1203,22 +1203,22 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             if (isMemberOfGoverningScope(residentUuid, guildId)) {
                 // Check guild-specific permissions for this resident
                 if (hasGrant(residentUuid, Permission.Context.GUILD, guildName, permissionFlag)) {
-                    return new PermissionEvaluationResult(true, "town", "Town permission granted");
+                    return new PermissionEvaluationResult(true, "guild", "Guild permission granted");
                 }
                 // Alliance members are also covered by their own guild's grants.
                 String ownGuildName = getResidentGuild(residentUuid);
                 if (ownGuildName != null && !ownGuildName.equals(guildName)
                         && hasGrant(residentUuid, Permission.Context.GUILD, ownGuildName, permissionFlag)) {
-                    return new PermissionEvaluationResult(true, "town", "Alliance member guild permission granted");
+                    return new PermissionEvaluationResult(true, "guild", "Alliance member guild permission granted");
                 }
 
                 // Role defaults (form-gated): land-modifying defaults
                 // (BUILD/DESTROY) exist only under DEMOCRACY — in MONARCHY and
                 // OLIGARCHY the government controls the land and members need
                 // explicit grants. Switch/item-use defaults stay under every
-                // form so towns remain usable.
+                // form so guilds remain usable.
                 if (memberDefaultAllows(residentUuid, guildName, permissionFlag, form)) {
-                    return new PermissionEvaluationResult(true, "town", "Role default permission");
+                    return new PermissionEvaluationResult(true, "guild", "Role default permission");
                 }
             }
 
@@ -1227,7 +1227,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             // MONARCHY/OLIGARCHY guild-owned land needs explicit grants.
             if (block.getOwnerId() == null && form == GovernmentForm.DEMOCRACY) {
                 if ((PermissionSet.createDefaultPlot().toLegacyFlags() & permissionFlag) != 0) {
-                    return new PermissionEvaluationResult(true, "plot", "Default town plot permissions");
+                    return new PermissionEvaluationResult(true, "plot", "Default guild plot permissions");
                 }
             }
         }
@@ -1244,7 +1244,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             Optional<Guild> guild = guildService.getGuildById(guildId);
             return guild.map(Guild::getName).orElse(null);
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to get town name from ID: " + guildId, e);
+            logger.log(Level.WARNING, "Failed to get guild name from ID: " + guildId, e);
             return null;
         }
     }
@@ -1257,7 +1257,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             String residentGuild = getResidentGuild(residentUuid);
             return guildName.equals(residentGuild);
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to check town membership for resident: " + residentUuid, e);
+            logger.log(Level.WARNING, "Failed to check guild membership for resident: " + residentUuid, e);
             return false;
         }
     }
@@ -1280,7 +1280,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get resident town for " + residentUuid, e);
+            logger.log(Level.SEVERE, "Failed to get resident guild for " + residentUuid, e);
         }
 
         return null;

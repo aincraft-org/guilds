@@ -73,10 +73,10 @@ public class SchemaInitializer {
         migrations.add(new AddQuestMigration());
         migrations.add(new AddBlueprintMigration());
 
-        // Add governance forms for guild (town) and alliance (nation) entities
+        // Add governance forms for guild (guild) and alliance (nation) entities
         migrations.add(new AddGovernanceFormMigration());
 
-        // Rename legacy town* schema objects to guild* naming (idempotent for fresh installs)
+        // Rename legacy guild* schema objects to guild* naming (idempotent for fresh installs)
         migrations.add(new AddGuildRenameMigration());
 
         // Retire the removed blueprint feature (non-destructive: pins the
@@ -498,7 +498,7 @@ public class SchemaInitializer {
 
         @Override
         public String getDescription() {
-            return "Add town level system with resource contributions and tech tree points";
+            return "Add guild level system with resource contributions and tech tree points";
         }
 
         @Override
@@ -718,7 +718,7 @@ public class SchemaInitializer {
 
         @Override
         public String getDescription() {
-            return "Add town toggle system with dedicated boolean columns";
+            return "Add guild toggle system with dedicated boolean columns";
         }
 
         @Override

@@ -92,7 +92,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length < 3) {
             sender.sendMessage(Component.text(
-                    "Usage: /territory govern <territoryId> <townId|->", NamedTextColor.RED));
+                    "Usage: /territory govern <territoryId> <guildId|->", NamedTextColor.RED));
             return true;
         }
         String territoryId = args[1];
@@ -117,7 +117,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
             }
             boolean guildExists = guilds.getGovernanceSource().guild(guildId).isPresent();
             if (!guildExists) {
-                sender.sendMessage(Component.text("Unknown town (guild): " + guildId, NamedTextColor.RED));
+                sender.sendMessage(Component.text("Unknown guild (guild): " + guildId, NamedTextColor.RED));
                 return true;
             }
             next = existing.get().withGoverningGuild(guildId);

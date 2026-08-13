@@ -1,10 +1,12 @@
 # Guild Storage — Living Spec
 
-> Status: active (design-only; implementation not started)  
-> Last updated: 2026-08-08  
+> Status: active (design-only; item storage implementation not started)
+> Last updated: 2026-08-08
 > Related: `docs/superpowers/specs/2026-08-06-guild-storage-design.md`
 
 ## Intent
+
+The separate Mint cash guild bank is implemented under the economy domain. It is a namespaced account (`guild:<guildId>`) for coins only; it does not provide item storage and does not alter this item-bank design.
 
 One **shared, guild-owned item bank** accessed through a virtual UI at a
 registered `FacilityType.STORAGE` location inside the guild’s territory.

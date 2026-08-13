@@ -69,7 +69,7 @@ public class AllianceBrigadierCommand {
                         .then(Commands.argument("name", StringArgumentType.string())
                                 .executes(this::handleCreate)))
                 .then(Commands.literal("invite")
-                        .then(Commands.argument("town", StringArgumentType.string())
+                        .then(Commands.argument("guild", StringArgumentType.string())
                                 .executes(this::handleInvite)))
                 .then(Commands.literal("join")
                         .then(Commands.argument("alliance", StringArgumentType.string())
@@ -89,7 +89,7 @@ public class AllianceBrigadierCommand {
                         .then(Commands.argument("alliance", StringArgumentType.string())
                                 .executes(this::handleEnemy)))
                 .then(Commands.literal("kick")
-                        .then(Commands.argument("town", StringArgumentType.string())
+                        .then(Commands.argument("guild", StringArgumentType.string())
                                 .executes(this::handleKick)))
                 .then(Commands.literal("set")
                         .then(Commands.literal("king")
@@ -165,19 +165,19 @@ public class AllianceBrigadierCommand {
 
         Optional<Guild> guildOpt = getPlayerGuild(player);
         if (guildOpt.isEmpty()) {
-            player.sendMessage(Component.text("You must be in a town to create a alliance!", NamedTextColor.RED));
+            player.sendMessage(Component.text("You must be in a guild to create a alliance!", NamedTextColor.RED));
             return 0;
         }
 
         Guild guild = guildOpt.get();
         if (!guild.getMayorUuid().equals(player.getUniqueId())) {
-            player.sendMessage(Component.text("Only town mayors can create alliances!", NamedTextColor.RED));
+            player.sendMessage(Component.text("Only guild mayors can create alliances!", NamedTextColor.RED));
             return 0;
         }
 
         try {
             allianceService.createAlliance(name, guild, player.getUniqueId());
-            player.sendMessage(Component.text("Alliance " + name + " created! Your town is now the capital.", NamedTextColor.GREEN));
+            player.sendMessage(Component.text("Alliance " + name + " created! Your guild is now the capital.", NamedTextColor.GREEN));
         } catch (IllegalArgumentException e) {
             player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
         }
@@ -189,7 +189,7 @@ public class AllianceBrigadierCommand {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
-        String guildName = StringArgumentType.getString(ctx, "town");
+        String guildName = StringArgumentType.getString(ctx, "guild");
         Optional<Alliance> allianceOpt = getPlayerAlliance(player);
 
         if (allianceOpt.isEmpty()) {
@@ -204,7 +204,7 @@ public class AllianceBrigadierCommand {
 
         Optional<Guild> targetGuild = guildService.getGuild(guildName);
         if (targetGuild.isEmpty()) {
-            player.sendMessage(Component.text("Town not found: " + guildName, NamedTextColor.RED));
+            player.sendMessage(Component.text("Guild not found: " + guildName, NamedTextColor.RED));
             return 0;
         }
 
@@ -212,7 +212,7 @@ public class AllianceBrigadierCommand {
         boolean alreadyInAlliance = allianceService.getAllAlliances().stream()
                 .anyMatch(n -> n.hasGuild(targetGuild.get().getId()));
         if (alreadyInAlliance) {
-            player.sendMessage(Component.text("That town is already in a alliance!", NamedTextColor.RED));
+            player.sendMessage(Component.text("That guild is already in a alliance!", NamedTextColor.RED));
             return 0;
         }
 
@@ -234,12 +234,12 @@ public class AllianceBrigadierCommand {
 
         Optional<Guild> guildOpt = getPlayerGuild(player);
         if (guildOpt.isEmpty()) {
-            player.sendMessage(Component.text("You must be in a town to join a alliance!", NamedTextColor.RED));
+            player.sendMessage(Component.text("You must be in a guild to join a alliance!", NamedTextColor.RED));
             return 0;
         }
 
         if (!guildOpt.get().getMayorUuid().equals(player.getUniqueId())) {
-            player.sendMessage(Component.text("Only town mayors can join alliances!", NamedTextColor.RED));
+            player.sendMessage(Component.text("Only guild mayors can join alliances!", NamedTextColor.RED));
             return 0;
         }
 
@@ -249,7 +249,7 @@ public class AllianceBrigadierCommand {
         }
 
         allianceService.addGuild(allianceOpt.get(), guildOpt.get().getId());
-        player.sendMessage(Component.text("Your town has joined " + allianceName + "!", NamedTextColor.GREEN));
+        player.sendMessage(Component.text("Your guild has joined " + allianceName + "!", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -259,24 +259,24 @@ public class AllianceBrigadierCommand {
 
         Optional<Guild> guildOpt = getPlayerGuild(player);
         if (guildOpt.isEmpty()) {
-            player.sendMessage(Component.text("You are not in a town!", NamedTextColor.RED));
+            player.sendMessage(Component.text("You are not in a guild!", NamedTextColor.RED));
             return 0;
         }
 
         Optional<Alliance> allianceOpt = getPlayerAlliance(player);
         if (allianceOpt.isEmpty()) {
-            player.sendMessage(Component.text("Your town is not in a alliance!", NamedTextColor.RED));
+            player.sendMessage(Component.text("Your guild is not in a alliance!", NamedTextColor.RED));
             return 0;
         }
 
         Alliance alliance = allianceOpt.get();
         if (alliance.getCapitalGuildId().equals(guildOpt.get().getId())) {
-            player.sendMessage(Component.text("The capital town cannot leave the alliance! Transfer or disband first.", NamedTextColor.RED));
+            player.sendMessage(Component.text("The capital guild cannot leave the alliance! Transfer or disband first.", NamedTextColor.RED));
             return 0;
         }
 
         allianceService.removeGuild(alliance, guildOpt.get().getId());
-        player.sendMessage(Component.text("Your town has left " + alliance.getName() + ".", NamedTextColor.YELLOW));
+        player.sendMessage(Component.text("Your guild has left " + alliance.getName() + ".", NamedTextColor.YELLOW));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -331,7 +331,7 @@ public class AllianceBrigadierCommand {
                 .append(Component.text(alliance.getKingUuid().toString(), NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("Capital: ", NamedTextColor.GRAY)
                 .append(Component.text(alliance.getCapitalGuildId(), NamedTextColor.YELLOW)));
-        player.sendMessage(Component.text("Towns: ", NamedTextColor.GRAY)
+        player.sendMessage(Component.text("Guilds: ", NamedTextColor.GRAY)
                 .append(Component.text(String.valueOf(alliance.getGuildCount()), NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("Tax Rate: ", NamedTextColor.GRAY)
                 .append(Component.text(alliance.getTaxRate() + "%", NamedTextColor.YELLOW)));
@@ -403,7 +403,7 @@ public class AllianceBrigadierCommand {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
-        String guildName = StringArgumentType.getString(ctx, "town");
+        String guildName = StringArgumentType.getString(ctx, "guild");
         Optional<Alliance> allianceOpt = getPlayerAlliance(player);
 
         if (allianceOpt.isEmpty() || !hasAllianceAuthority(player, allianceOpt.get())) {
@@ -413,7 +413,7 @@ public class AllianceBrigadierCommand {
 
         Optional<Guild> targetGuild = guildService.getGuild(guildName);
         if (targetGuild.isEmpty()) {
-            player.sendMessage(Component.text("Town not found: " + guildName, NamedTextColor.RED));
+            player.sendMessage(Component.text("Guild not found: " + guildName, NamedTextColor.RED));
             return 0;
         }
 

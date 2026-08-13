@@ -75,7 +75,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                     if (rs.next()) {
                         guildId = rs.getString("id");
                     } else {
-                        throw new RuntimeException("Town not found: " + guildName);
+                        throw new RuntimeException("Guild not found: " + guildName);
                     }
                 }
             }
@@ -104,13 +104,13 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                 guildBlock.setId(plotId);
                 guildBlock.setClaimedAt(LocalDateTime.parse(claimedAt, DATE_FORMATTER));
 
-                logger.info("Created town block at " + x + "," + z + " in world " + world + " for town " + guildName + " (ID: " + guildId + ")");
+                logger.info("Created guild block at " + x + "," + z + " in world " + world + " for guild " + guildName + " (ID: " + guildId + ")");
                 return guildBlock;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to create town block at " + x + "," + z + " in world " + world, e);
-            throw new RuntimeException("Failed to create town block", e);
+            logger.log(Level.SEVERE, "Failed to create guild block at " + x + "," + z + " in world " + world, e);
+            throw new RuntimeException("Failed to create guild block", e);
         }
     }
 
@@ -129,16 +129,16 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             try (ResultSet resultSet = statement.executeQuery()) {
                 if (resultSet.next()) {
                     GuildBlock guildBlock = mapResultSetToGuildBlock(resultSet);
-                    logger.info("Found town block in database: x=" + x + ", z=" + z + ", world=" + world +
+                    logger.info("Found guild block in database: x=" + x + ", z=" + z + ", world=" + world +
                               ", guild_id=" + guildBlock.getGuildId() + ", owner_id=" + guildBlock.getOwnerId());
                     return Optional.of(guildBlock);
                 }
             }
 
-            logger.info("No town block found in database query for x=" + x + ", z=" + z + ", world=" + world);
+            logger.info("No guild block found in database query for x=" + x + ", z=" + z + ", world=" + world);
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town block at " + x + "," + z + " in world " + world, e);
+            logger.log(Level.SEVERE, "Failed to get guild block at " + x + "," + z + " in world " + world, e);
         }
 
         return Optional.empty();
@@ -161,7 +161,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town block: " + id, e);
+            logger.log(Level.SEVERE, "Failed to get guild block: " + id, e);
         }
 
         return Optional.empty();
@@ -195,14 +195,14 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Updated town block: " + guildBlock.getId());
+                logger.info("Updated guild block: " + guildBlock.getId());
             }
 
             return guildBlock;
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to update town block: " + guildBlock.getId(), e);
-            throw new RuntimeException("Failed to update town block", e);
+            logger.log(Level.SEVERE, "Failed to update guild block: " + guildBlock.getId(), e);
+            throw new RuntimeException("Failed to update guild block", e);
         }
     }
 
@@ -218,12 +218,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             int rowsDeleted = statement.executeUpdate();
 
             if (rowsDeleted > 0) {
-                logger.info("Deleted town block: " + id);
+                logger.info("Deleted guild block: " + id);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to delete town block: " + id, e);
+            logger.log(Level.SEVERE, "Failed to delete guild block: " + id, e);
         }
 
         return false;
@@ -244,7 +244,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get all town blocks", e);
+            logger.log(Level.SEVERE, "Failed to get all guild blocks", e);
         }
 
         return guildBlocks;
@@ -264,7 +264,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                     if (rs.next()) {
                         guildId = rs.getString("id");
                     } else {
-                        logger.warning("Town not found: " + guildName);
+                        logger.warning("Guild not found: " + guildName);
                         return new ArrayList<>();
                     }
                 }
@@ -288,7 +288,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             return guildBlocks;
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town blocks for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get guild blocks for guild: " + guildName, e);
             return new ArrayList<>();
         }
     }
@@ -311,7 +311,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town blocks in world: " + world, e);
+            logger.log(Level.SEVERE, "Failed to get guild blocks in world: " + world, e);
         }
 
         return guildBlocks;
@@ -335,7 +335,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town blocks owned by: " + residentUuid, e);
+            logger.log(Level.SEVERE, "Failed to get guild blocks owned by: " + residentUuid, e);
         }
 
         return guildBlocks;
@@ -359,7 +359,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to check if town block exists at " + x + "," + z + " in world " + world, e);
+            logger.log(Level.SEVERE, "Failed to check if guild block exists at " + x + "," + z + " in world " + world, e);
         }
 
         return false;
@@ -376,7 +376,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             createGuildBlock(x, z, world, guildName);
             return true;
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to claim town block at " + x + "," + z + " in world " + world, e);
+            logger.log(Level.SEVERE, "Failed to claim guild block at " + x + "," + z + " in world " + world, e);
             return false;
         }
     }
@@ -395,12 +395,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             int rowsDeleted = statement.executeUpdate();
 
             if (rowsDeleted > 0) {
-                logger.info("Unclaimed town block at " + x + "," + z + " in world " + world);
+                logger.info("Unclaimed guild block at " + x + "," + z + " in world " + world);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to unclaim town block at " + x + "," + z + " in world " + world, e);
+            logger.log(Level.SEVERE, "Failed to unclaim guild block at " + x + "," + z + " in world " + world, e);
         }
 
         return false;
@@ -424,12 +424,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Set owner for town block " + id + ": " + ownerUuid);
+                logger.info("Set owner for guild block " + id + ": " + ownerUuid);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to set owner for town block: " + id, e);
+            logger.log(Level.SEVERE, "Failed to set owner for guild block: " + id, e);
         }
 
         return false;
@@ -458,7 +458,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town blocks in radius around " + centerX + "," + centerZ + " in world " + world, e);
+            logger.log(Level.SEVERE, "Failed to get guild blocks in radius around " + centerX + "," + centerZ + " in world " + world, e);
         }
 
         return guildBlocks;
@@ -482,7 +482,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town blocks by type: " + plotType, e);
+            logger.log(Level.SEVERE, "Failed to get guild blocks by type: " + plotType, e);
         }
 
         return guildBlocks;
@@ -506,7 +506,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town-owned blocks for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get guild-owned blocks for guild: " + guildName, e);
         }
 
         return guildBlocks;
@@ -528,7 +528,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town block count for town: " + guildName, e);
+            logger.log(Level.SEVERE, "Failed to get guild block count for guild: " + guildName, e);
         }
 
         return 0;
@@ -547,12 +547,12 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             int rowsUpdated = statement.executeUpdate();
 
             if (rowsUpdated > 0) {
-                logger.info("Set plot type for town block " + id + ": " + plotType);
+                logger.info("Set plot type for guild block " + id + ": " + plotType);
                 return true;
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to set plot type for town block: " + id, e);
+            logger.log(Level.SEVERE, "Failed to set plot type for guild block: " + id, e);
         }
 
         return false;
@@ -584,7 +584,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get town blocks in chunk " + chunkX + "," + chunkZ + " in world " + world, e);
+            logger.log(Level.SEVERE, "Failed to get guild blocks in chunk " + chunkX + "," + chunkZ + " in world " + world, e);
         }
 
         return guildBlocks;
@@ -840,7 +840,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get plots for sale" + (guildName != null ? " in town " + guildName : ""), e);
+            logger.log(Level.SEVERE, "Failed to get plots for sale" + (guildName != null ? " in guild " + guildName : ""), e);
         }
 
         return plotsForSale;
@@ -1029,16 +1029,16 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             // Check if resident is in a guild
             String guildName = getResidentGuild(residentUuid);
             if (guildName == null) {
-                logger.info("Resident " + residentUuid + " is not in a town");
+                logger.info("Resident " + residentUuid + " is not in a guild");
                 return false;
             }
 
             // Check if plot exists and is owned by guild (not a resident)
-            logger.info("Checking for town block at x=" + x + ", z=" + z + ", world=" + world + " for resident " + residentName + " in town " + guildName);
+            logger.info("Checking for guild block at x=" + x + ", z=" + z + ", world=" + world + " for resident " + residentName + " in guild " + guildName);
             Optional<GuildBlock> existingPlot = getGuildBlock(x, z, world);
             if (existingPlot.isPresent()) {
                 GuildBlock plot = existingPlot.get();
-                logger.info("Found town block: guild_id=" + plot.getGuildId() + ", owner_id=" + plot.getOwnerId());
+                logger.info("Found guild block: guild_id=" + plot.getGuildId() + ", owner_id=" + plot.getOwnerId());
                 // If plot is owned by a resident, can't claim it
                 if (plot.getOwnerId() != null) {
                     logger.info("Plot already owned by resident " + plot.getOwnerId());
@@ -1048,16 +1048,16 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                 Optional<Guild> guild = guildService.getGuildById(plot.getGuildId());
                 if (guild.isPresent()) {
                     boolean canClaim = guild.get().getName().equals(guildName);
-                    logger.info("Town check: plot town=" + guild.get().getName() + ", resident town=" + guildName + ", can claim=" + canClaim);
+                    logger.info("Guild check: plot guild=" + guild.get().getName() + ", resident guild=" + guildName + ", can claim=" + canClaim);
                     return canClaim;
                 } else {
-                    logger.info("Town not found for guild_id=" + plot.getGuildId());
+                    logger.info("Guild not found for guild_id=" + plot.getGuildId());
                     return false;
                 }
             }
 
             // If no plot exists, resident can't claim it (guild must claim territory first)
-            logger.info("No town block found at x=" + x + ", z=" + z + ", world=" + world + " - town must claim territory first");
+            logger.info("No guild block found at x=" + x + ", z=" + z + ", world=" + world + " - guild must claim territory first");
             return false;
 
         } catch (Exception e) {
@@ -1125,7 +1125,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
         } catch (SQLException e) {
-            logger.log(Level.SEVERE, "Failed to get resident town for " + residentUuid, e);
+            logger.log(Level.SEVERE, "Failed to get resident guild for " + residentUuid, e);
         }
 
         return null;

@@ -225,7 +225,7 @@ public class GuildLevel {
 
     @Override
     public String toString() {
-        return "TownLevel{" +
+        return "GuildLevel{" +
                 "level=" + level +
                 ", resourceCosts=" + resourceCosts +
                 ", techPointsReward=" + techPointsReward +

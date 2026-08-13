@@ -266,9 +266,9 @@ public class GuildResource {
 
     @Override
     public String toString() {
-        return "TownResource{" +
+        return "GuildResource{" +
                 "id='" + id + '\'' +
-                ", townId='" + guildId + '\'' +
+                ", guildId='" + guildId + '\'' +
                 ", resourceType=" + (resourceType != null ? resourceType.name() : "null") +
                 ", amount=" + amount +
                 ", lastUpdated=" + lastUpdated +

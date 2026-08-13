@@ -8,6 +8,8 @@ description = "Azoth Territory Paper plugin — Bukkit glue, listeners, commands
 dependencies {
     implementation(project(":api"))
     implementation(project(":common"))
+    compileOnly("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
+    testCompileOnly("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
 
     compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
     // squaremap integration (renders territory polygons). squaremap 1.3.15 targets
@@ -20,7 +22,6 @@ dependencies {
     }
 
     implementation("org.slf4j:slf4j-simple:2.0.16")
-
     testImplementation("io.papermc.paper:paper-api:26.2.build.111-stable")
     testImplementation("xyz.jpenilla:squaremap-api:1.3.15")
     testImplementation(platform("org.junit:junit-bom:5.11.4"))

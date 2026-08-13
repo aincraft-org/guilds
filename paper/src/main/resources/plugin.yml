@@ -22,7 +22,7 @@ permissions:
   guilds.*:
     description: All Guilds permissions
     children:
-      guilds.town.*: true
+      guilds.guild.*: true
       guilds.resident.*: true
       guilds.plot.*: true
       guilds.general.*: true
@@ -32,22 +32,22 @@ permissions:
       guilds.chat.*: true
       guilds.techtree.*: true
 
-  guilds.town.*:
-    description: All town-related permissions
+  guilds.guild.*:
+    description: All guild-related permissions
     children:
-      guilds.town.create: true
-      guilds.town.delete: true
-      guilds.town.join: true
-      guilds.town.leave: true
-      guilds.town.claim: true
-      guilds.town.unclaim: true
-      guilds.town.spawn: true
-      guilds.town.set: true
-      guilds.town.kick: true
-      guilds.town.invite: true
-      guilds.town.mayor: true
-      guilds.town.assistant: true
-      guilds.town.specialize: true
+      guilds.guild.create: true
+      guilds.guild.delete: true
+      guilds.guild.join: true
+      guilds.guild.leave: true
+      guilds.guild.claim: true
+      guilds.guild.unclaim: true
+      guilds.guild.spawn: true
+      guilds.guild.set: true
+      guilds.guild.kick: true
+      guilds.guild.invite: true
+      guilds.guild.mayor: true
+      guilds.guild.assistant: true
+      guilds.guild.specialize: true
 
   guilds.resident.*:
     description: All resident-related permissions
@@ -55,7 +55,7 @@ permissions:
       guilds.resident.info: true
       guilds.resident.list: true
       guilds.resident.friend: true
-      guilds.resident.town: true
+      guilds.resident.guild: true
 
   guilds.plot.*:
     description: All plot-related permissions
@@ -68,7 +68,7 @@ permissions:
       guilds.plot.toggle: true
 
   guilds.broadcast:
-    description: Permission to use town broadcast commands
+    description: Permission to use guild broadcast commands
     default: true
 
   guilds.broadcast.*:
@@ -89,12 +89,12 @@ permissions:
       guilds.general.universe: true
       guilds.general.version: true
 
-  guilds.chat.town:
-    description: Permission to use town chat
+  guilds.chat.guild:
+    description: Permission to use guild chat
     default: true
 
   guilds.chat.spy:
-    description: Permission to spy on town chat
+    description: Permission to spy on guild chat
     default: op
 
   guilds.techtree.view:
@@ -126,7 +126,7 @@ permissions:
     default: true
 
   guilds.level:
-    description: Permission to use town level commands
+    description: Permission to use guild level commands
     default: true
 
   guilds.admin.perm:
@@ -139,7 +139,7 @@ permissions:
       guilds.admin.reload: true
       guilds.admin.backup: true
       guilds.admin.purge: true
-      guilds.admin.town: true
+      guilds.admin.guild: true
       guilds.admin.resident: true
       guilds.admin.plot: true
       guilds.admin.plottype: true

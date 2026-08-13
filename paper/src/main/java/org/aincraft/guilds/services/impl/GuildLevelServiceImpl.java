@@ -392,7 +392,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
                                 Map<String, Integer> progress = parseUpgradeProgressJson(upgradeProgressJson);
                                 guild.setUpgradeProgress(progress);
                             } catch (Exception e) {
-                                plugin.getLogger().warning("Failed to parse upgrade progress for town " + guild.getName() + ": " + e.getMessage());
+                                plugin.getLogger().warning("Failed to parse upgrade progress for guild " + guild.getName() + ": " + e.getMessage());
                             }
                         }
                     }
@@ -400,7 +400,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to sync town level data for " + guild.getName() + ": " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to sync guild level data for " + guild.getName() + ": " + e.getMessage(), e);
         }
     }
 
@@ -413,11 +413,11 @@ public class GuildLevelServiceImpl implements GuildLevelService {
                  PreparedStatement statement = connection.prepareStatement(sql)) {
 
                 int updatedRows = statement.executeUpdate();
-                plugin.getLogger().info("Reset town level data for " + updatedRows + " guilds");
+                plugin.getLogger().info("Reset guild level data for " + updatedRows + " guilds");
             }
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to reset town level data: " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to reset guild level data: " + e.getMessage(), e);
         }
     }
 
@@ -432,10 +432,10 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         try {
             loadGuildLevelsFromDatabase();
             cacheInitialized = true;
-            plugin.getLogger().info("Loaded " + levelCache.size() + " town levels into cache");
+            plugin.getLogger().info("Loaded " + levelCache.size() + " guild levels into cache");
 
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to load town levels: " + e.getMessage(), e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to load guild levels: " + e.getMessage(), e);
         }
     }
 
@@ -652,7 +652,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         configLoader.loadConfiguration();
         levelCache.clear();
         cacheInitialized = false;
-        plugin.getLogger().info("Reloaded town level definitions from config");
+        plugin.getLogger().info("Reloaded guild level definitions from config");
     }
 
     /**
@@ -706,7 +706,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
                 }
 
                 int[] results = statement.executeBatch();
-                plugin.getLogger().info("Synced " + results.length + " town level definitions to database");
+                plugin.getLogger().info("Synced " + results.length + " guild level definitions to database");
 
                 // Clear cache to force reload from database
                 levelCache.clear();

@@ -123,12 +123,12 @@ public class SpecializationServiceImpl implements SpecializationService {
                     GuildSpecialization specialization = GuildSpecialization.valueOf(specName);
                     cache.put(guildId, specialization);
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().log(Level.WARNING, "Invalid specialization stored for town " + guildId + ": " + specName);
+                    plugin.getLogger().log(Level.WARNING, "Invalid specialization stored for guild " + guildId + ": " + specName);
                 }
             }
-            plugin.getLogger().info("Loaded " + cache.size() + " town specializations from database");
+            plugin.getLogger().info("Loaded " + cache.size() + " guild specializations from database");
         } catch (SQLException e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to load town specializations", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to load guild specializations", e);
         }
     }
 

@@ -59,8 +59,8 @@ public class PermBrigadierCommand {
                         return builder.buildFuture();
                     })
                     .executes(this::testPlotPermission)))
-            .then(Commands.literal("town")
-                .then(Commands.argument("town", GuildArgumentType.guild(guildService))
+            .then(Commands.literal("guild")
+                .then(Commands.argument("guild", GuildArgumentType.guild(guildService))
                     .executes(this::testGuildPermission)))
             .then(Commands.literal("flags")
                 .executes(this::showPermissionFlags))
@@ -76,7 +76,7 @@ public class PermBrigadierCommand {
         sender.sendMessage("§a/perm build§f - Test build permission here");
         sender.sendMessage("§a/perm destroy§f - Test destroy permission here");
         sender.sendMessage("§a/perm plot [flag]§f - Test specific plot permission");
-        sender.sendMessage("§a/perm town [town]§f - Test town permissions");
+        sender.sendMessage("§a/perm guild [guild]§f - Test guild permissions");
         sender.sendMessage("§a/perm flags§f - Show available permission flags");
         sender.sendMessage("§a/perm here§f - Show current location info");
         return Command.SINGLE_SUCCESS;
@@ -187,10 +187,10 @@ public class PermBrigadierCommand {
             return 0;
         }
 
-        String guildName = GuildArgumentType.getGuildName(ctx, "town");
+        String guildName = GuildArgumentType.getGuildName(ctx, "guild");
         UUID playerUuid = player.getUniqueId();
 
-        player.sendMessage("§6Town Permission Test for " + guildName + ":");
+        player.sendMessage("§6Guild Permission Test for " + guildName + ":");
 
         boolean isMayor = permissionService.isGuildMayor(playerUuid, guildName);
         boolean isAssistant = permissionService.isGuildAssistant(playerUuid, guildName);
@@ -212,11 +212,11 @@ public class PermBrigadierCommand {
         sender.sendMessage("§f  SWITCH (4) - Can use doors/levers/buttons");
         sender.sendMessage("§f  ITEM_USE (8) - Can use items");
 
-        sender.sendMessage("§aTown Flags:");
+        sender.sendMessage("§aGuild Flags:");
         sender.sendMessage("§f  CLAIM (16) - Can claim land");
         sender.sendMessage("§f  UNCLAIM (32) - Can unclaim land");
-        sender.sendMessage("§f  SPAWN (64) - Can teleport to town");
-        sender.sendMessage("§f  SET_SPAWN (128) - Can set town spawn");
+        sender.sendMessage("§f  SPAWN (64) - Can teleport to guild");
+        sender.sendMessage("§f  SET_SPAWN (128) - Can set guild spawn");
 
         sender.sendMessage("§aManagement Flags:");
         sender.sendMessage("§f  INVITE (256) - Can invite players");
@@ -247,10 +247,10 @@ public class PermBrigadierCommand {
 
         // Check if in guild block
         plotService.getGuildBlock(chunkX, chunkZ, world).ifPresent(guildBlock -> {
-            player.sendMessage("§aIn Town Block!");
-            player.sendMessage("§fTown ID: " + guildBlock.getGuildId());
+            player.sendMessage("§aIn Guild Block!");
+            player.sendMessage("§fGuild ID: " + guildBlock.getGuildId());
             player.sendMessage("§fOwner ID: " +
-                (guildBlock.getOwnerId() != null ? guildBlock.getOwnerId().toString() : "None (Town-owned)"));
+                (guildBlock.getOwnerId() != null ? guildBlock.getOwnerId().toString() : "None (Guild-owned)"));
             player.sendMessage("§fPlot Type: " + guildBlock.getPlotType());
         });
 

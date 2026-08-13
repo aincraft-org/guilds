@@ -5,6 +5,7 @@ import com.azoth.territory.economy.BukkitEconomyBridge;
 import com.azoth.territory.economy.ExpenseLedger;
 import com.azoth.territory.economy.EconomyBridge;
 import com.azoth.territory.economy.EconomyConfig;
+
 import com.azoth.territory.economy.PaymentRail;
 import com.azoth.territory.economy.SettlementResult;
 import com.azoth.territory.economy.SimulationTreasury;
@@ -62,6 +63,11 @@ import java.util.Optional;
 import java.util.logging.Level;
 
 public final class AzothTerritoryPlugin extends JavaPlugin {
+    private static volatile Object trustedMintLease;
+
+    public static void bindTrustedMintLease(Object lease) {
+        trustedMintLease = java.util.Objects.requireNonNull(lease, "lease");
+    }
     private TerritoryRegistry registry;
     private FacilityRegistry facilities;
     private PostgresFacilityStore facilityStore;
@@ -73,6 +79,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private WebConfig webConfig;
     private EconomyBridge economyBridge;
     private BukkitEconomyBridge bukkitEconomyBridge;
+
     private PostgresReconciliationStore reconciliationStore;
     private PostgresExpenseStore expenseStore;
     private ExpenseLedger expenseLedger;
@@ -140,6 +147,14 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         try {
             EconomyConfig economyConfig = EconomyConfig.fromBukkit(getConfig());
             boolean simulation = economyConfig.mode() == EconomyConfig.Mode.SIMULATION;
+            if (economyConfig.mode() == EconomyConfig.Mode.MINT) {
+                String binding = economyConfig.mintClientBinding();
+                if (binding == null || binding.isBlank()) {
+                    throw new IllegalStateException("economy.mode=MINT requires economy.mint.client-binding");
+                }
+                getLogger().warning("Mint mode configured but no trusted Mint lease resolver is registered for binding '"
+                        + binding + "'; Mint economy remains unavailable");
+            }
             this.expenseStore = new PostgresExpenseStore(database);
             this.expenseLedger = new ExpenseLedger(entries -> {
                 try {
@@ -151,7 +166,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.expenseLedger.load(expenseStore.load());
             this.expenseLedgerLoaded = true;
             PaymentRail rail;
-            if (simulation) {
+            if (economyConfig.mode() == EconomyConfig.Mode.MINT) {
+                rail = new UnavailableRail();
+                getLogger().info("Economy wired to asynchronous Mint guild-bank accounts");
+            } else if (simulation) {
                 rail = new SimulationTreasury();
                 getLogger().info("Economy in SIMULATION mode — non-monetary ledger only, no player charges");
             } else if (getServer().getPluginManager().getPlugin("Vault") == null) {
@@ -519,6 +537,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
      */
     private void constructGuildsSubsystem() {
         try {
+            var economy = EconomyConfig.fromBukkit(getConfig());
             this.guilds = new GuildsServices(this, database);
         } catch (Exception e) {
             getLogger().log(Level.SEVERE,

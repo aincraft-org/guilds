@@ -7,12 +7,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Renames the legacy {@code town*} schema objects to {@code guild*} naming.
+ * Renames the legacy {@code guild*} schema objects to {@code guild*} naming.
  * <p>
  * Version 16 — after AddGovernanceFormMigration (v15).
  * <p>
- * The guilds subsystem models towns as guilds; schema objects kept the old
- * "town" vocabulary. Fresh installs now create {@code guild*} names directly
+ * The guilds subsystem models guilds as guilds; schema objects kept the old
+ * "guild" vocabulary. Fresh installs now create {@code guild*} names directly
  * (migrations v1–v15 use the new names), so this migration no-ops on them.
  * Existing databases (created before v16) get their tables, columns, and
  * indexes renamed in place, preserving all rows.
@@ -33,7 +33,7 @@ import java.sql.Statement;
 public class AddGuildRenameMigration implements DatabaseMigration {
 
     private static final int VERSION = 16;
-    private static final String DESCRIPTION = "Rename legacy town schema objects to guild naming";
+    private static final String DESCRIPTION = "Rename legacy guild schema objects to guild naming";
 
     @Override
     public int getVersion() {
@@ -50,54 +50,54 @@ public class AddGuildRenameMigration implements DatabaseMigration {
         boolean wasAutoCommit = connection.getAutoCommit();
         connection.setAutoCommit(false);
         try {
-            renameTable(connection, "towns", "guilds");
-            renameTable(connection, "town_residents", "guild_residents");
-            renameTable(connection, "town_blocks", "guild_blocks");
-            renameTable(connection, "town_levels", "guild_levels");
-            renameTable(connection, "town_resources", "guild_resources");
-            renameTable(connection, "town_level_benefits", "guild_level_benefits");
-            renameTable(connection, "town_specializations", "guild_specializations");
-            renameTable(connection, "town_quests", "guild_quests");
-            renameTable(connection, "town_unlocked_nodes", "guild_unlocked_nodes");
+            renameTable(connection, "guilds", "guilds");
+            renameTable(connection, "guild_residents", "guild_residents");
+            renameTable(connection, "guild_blocks", "guild_blocks");
+            renameTable(connection, "guild_levels", "guild_levels");
+            renameTable(connection, "guild_resources", "guild_resources");
+            renameTable(connection, "guild_level_benefits", "guild_level_benefits");
+            renameTable(connection, "guild_specializations", "guild_specializations");
+            renameTable(connection, "guild_quests", "guild_quests");
+            renameTable(connection, "guild_unlocked_nodes", "guild_unlocked_nodes");
 
             // Columns (tables already renamed where applicable)
-            renameColumn(connection, "residents", "town_name", "guild_name");
-            renameColumn(connection, "guilds", "town_level", "guild_level");
-            renameColumn(connection, "guild_residents", "town_id", "guild_id");
-            renameColumn(connection, "guild_blocks", "town_id", "guild_id");
-            renameColumn(connection, "guild_resources", "town_id", "guild_id");
-            renameColumn(connection, "resource_contributions", "town_id", "guild_id");
-            renameColumn(connection, "guild_level_benefits", "town_id", "guild_id");
-            renameColumn(connection, "guild_specializations", "town_id", "guild_id");
-            renameColumn(connection, "guild_quests", "town_id", "guild_id");
-            renameColumn(connection, "guild_unlocked_nodes", "town_id", "guild_id");
-            renameColumn(connection, "nations", "capital_town_id", "capital_guild_id");
-            renameColumn(connection, "nation_members", "town_id", "guild_id");
-            renameColumn(connection, "blueprints", "town_id", "guild_id");
-            renameColumn(connection, "broadcast_messages", "town_id", "guild_id");
-            renameColumn(connection, "economy_transactions", "town_id", "guild_id");
+            renameColumn(connection, "residents", "guild_name", "guild_name");
+            renameColumn(connection, "guilds", "guild_level", "guild_level");
+            renameColumn(connection, "guild_residents", "guild_id", "guild_id");
+            renameColumn(connection, "guild_blocks", "guild_id", "guild_id");
+            renameColumn(connection, "guild_resources", "guild_id", "guild_id");
+            renameColumn(connection, "resource_contributions", "guild_id", "guild_id");
+            renameColumn(connection, "guild_level_benefits", "guild_id", "guild_id");
+            renameColumn(connection, "guild_specializations", "guild_id", "guild_id");
+            renameColumn(connection, "guild_quests", "guild_id", "guild_id");
+            renameColumn(connection, "guild_unlocked_nodes", "guild_id", "guild_id");
+            renameColumn(connection, "nations", "capital_guild_id", "capital_guild_id");
+            renameColumn(connection, "nation_members", "guild_id", "guild_id");
+            renameColumn(connection, "blueprints", "guild_id", "guild_id");
+            renameColumn(connection, "broadcast_messages", "guild_id", "guild_id");
+            renameColumn(connection, "economy_transactions", "guild_id", "guild_id");
 
             // Renaming a table does not rename its existing indexes, so the old
             // names must be dropped explicitly and recreated under new names.
-            recreateIndex(connection, "idx_residents_town", "idx_residents_guild", "residents", "guild_name");
-            recreateIndex(connection, "idx_towns_name", "idx_guilds_name", "guilds", "name");
-            recreateIndex(connection, "idx_town_blocks_location", "idx_guild_blocks_location", "guild_blocks", "x, z, world");
-            recreateIndex(connection, "idx_town_blocks_town", "idx_guild_blocks_guild", "guild_blocks", "guild_id");
-            recreateIndex(connection, "idx_town_blocks_owner", "idx_guild_blocks_owner", "guild_blocks", "owner_uuid");
-            recreateIndex(connection, "idx_town_blocks_plot_type_def", "idx_guild_blocks_plot_type_def", "guild_blocks", "plot_type_definition");
-            recreateIndex(connection, "idx_town_resources_town", "idx_guild_resources_guild", "guild_resources", "guild_id");
-            recreateIndex(connection, "idx_town_resources_type", "idx_guild_resources_type", "guild_resources", "resource_type");
-            recreateIndex(connection, "idx_resource_contributions_town", "idx_resource_contributions_guild", "resource_contributions", "guild_id");
-            recreateIndex(connection, "idx_town_level_benefits_town", "idx_guild_level_benefits_guild", "guild_level_benefits", "guild_id");
-            recreateIndex(connection, "idx_town_level_benefits_level", "idx_guild_level_benefits_level", "guild_level_benefits", "level");
-            recreateIndex(connection, "idx_town_quests_town_id", "idx_guild_quests_guild_id", "guild_quests", "guild_id");
-            recreateIndex(connection, "idx_town_specialization", "idx_guild_specialization", "guild_specializations", "specialization");
-            recreateIndex(connection, "idx_town_unlocked_town", "idx_guild_unlocked_guild", "guild_unlocked_nodes", "guild_id");
-            recreateIndex(connection, "idx_town_unlocked_node", "idx_guild_unlocked_node", "guild_unlocked_nodes", "node_id");
-            recreateIndex(connection, "idx_broadcast_messages_town", "idx_broadcast_messages_guild", "broadcast_messages", "guild_id");
-            recreateIndex(connection, "idx_economy_tx_town", "idx_economy_tx_guild", "economy_transactions", "guild_id");
-            recreateIndex(connection, "idx_nation_members_town", "idx_nation_members_guild", "nation_members", "guild_id");
-            recreateIndex(connection, "idx_blueprints_town", "idx_blueprints_guild", "blueprints", "guild_id");
+            recreateIndex(connection, "idx_residents_guild", "idx_residents_guild", "residents", "guild_name");
+            recreateIndex(connection, "idx_guilds_name", "idx_guilds_name", "guilds", "name");
+            recreateIndex(connection, "idx_guild_blocks_location", "idx_guild_blocks_location", "guild_blocks", "x, z, world");
+            recreateIndex(connection, "idx_guild_blocks_guild", "idx_guild_blocks_guild", "guild_blocks", "guild_id");
+            recreateIndex(connection, "idx_guild_blocks_owner", "idx_guild_blocks_owner", "guild_blocks", "owner_uuid");
+            recreateIndex(connection, "idx_guild_blocks_plot_type_def", "idx_guild_blocks_plot_type_def", "guild_blocks", "plot_type_definition");
+            recreateIndex(connection, "idx_guild_resources_guild", "idx_guild_resources_guild", "guild_resources", "guild_id");
+            recreateIndex(connection, "idx_guild_resources_type", "idx_guild_resources_type", "guild_resources", "resource_type");
+            recreateIndex(connection, "idx_resource_contributions_guild", "idx_resource_contributions_guild", "resource_contributions", "guild_id");
+            recreateIndex(connection, "idx_guild_level_benefits_guild", "idx_guild_level_benefits_guild", "guild_level_benefits", "guild_id");
+            recreateIndex(connection, "idx_guild_level_benefits_level", "idx_guild_level_benefits_level", "guild_level_benefits", "level");
+            recreateIndex(connection, "idx_guild_quests_guild_id", "idx_guild_quests_guild_id", "guild_quests", "guild_id");
+            recreateIndex(connection, "idx_guild_specialization", "idx_guild_specialization", "guild_specializations", "specialization");
+            recreateIndex(connection, "idx_guild_unlocked_guild", "idx_guild_unlocked_guild", "guild_unlocked_nodes", "guild_id");
+            recreateIndex(connection, "idx_guild_unlocked_node", "idx_guild_unlocked_node", "guild_unlocked_nodes", "node_id");
+            recreateIndex(connection, "idx_broadcast_messages_guild", "idx_broadcast_messages_guild", "broadcast_messages", "guild_id");
+            recreateIndex(connection, "idx_economy_tx_guild", "idx_economy_tx_guild", "economy_transactions", "guild_id");
+            recreateIndex(connection, "idx_nation_members_guild", "idx_nation_members_guild", "nation_members", "guild_id");
+            recreateIndex(connection, "idx_blueprints_guild", "idx_blueprints_guild", "blueprints", "guild_id");
             // Same index name, but the column it covers was renamed
             recreateIndex(connection, "idx_nations_capital", "idx_nations_capital", "nations", "capital_guild_id");
 

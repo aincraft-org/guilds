@@ -98,7 +98,7 @@ public class PlayerMovementListener implements Listener {
                             plotInfo = ChatColor.GRAY + "Owned Plot";
                         }
                     } else {
-                        plotInfo = ChatColor.GREEN + "Town Plot";
+                        plotInfo = ChatColor.GREEN + "Guild Plot";
                     }
                 }
             } else {

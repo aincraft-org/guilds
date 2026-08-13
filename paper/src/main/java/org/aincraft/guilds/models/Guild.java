@@ -628,13 +628,13 @@ public class Guild {
 
     @Override
     public String toString() {
-        return "Town{" +
+        return "Guild{" +
                 "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 ", mayorUuid=" + mayorUuid +
                 ", residentCount=" + getResidentCount() +
                 ", balance=" + balance +
-                ", townLevel=" + getGuildLevel() +
+                ", guildLevel=" + getGuildLevel() +
                 ", techPoints=" + getTechPoints() +
                 ", isOpen=" + isOpen +
                 '}';

@@ -22,7 +22,7 @@ public class AddQuestMigration implements DatabaseMigration {
 
     @Override
     public String getDescription() {
-        return "Add town quests system with quest tracking and rewards";
+        return "Add guild quests system with quest tracking and rewards";
     }
 
     @Override

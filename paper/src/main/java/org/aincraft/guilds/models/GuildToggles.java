@@ -235,7 +235,7 @@ public class GuildToggles {
 
     @Override
     public String toString() {
-        return "TownToggles{" +
+        return "GuildToggles{" +
                 "pvp=" + pvpEnabled +
                 ", fire=" + fireEnabled +
                 ", explosions=" + explosionsEnabled +

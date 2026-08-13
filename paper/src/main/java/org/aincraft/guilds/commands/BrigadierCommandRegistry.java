@@ -122,7 +122,7 @@ public class BrigadierCommandRegistry {
 
             // Register broadcast command with aliases
             commands.register(guildBroadcastCommand.buildCommand());
-            commands.register(Commands.literal("townbroadcast")
+            commands.register(Commands.literal("guildbroadcast")
                 .redirect(guildBroadcastCommand.buildCommand())
                 .build());
             commands.register(Commands.literal("tb")
@@ -140,7 +140,7 @@ public class BrigadierCommandRegistry {
 
         // Register chat command with aliases
         commands.register(chatCommand.buildCommand());
-        commands.register(Commands.literal("townchat")
+        commands.register(Commands.literal("guildchat")
             .redirect(chatCommand.buildCommand())
             .build());
 
@@ -151,7 +151,7 @@ public class BrigadierCommandRegistry {
                 .build());
 
         // Register specialization command with alias
-        commands.register(Commands.literal("town")
+        commands.register(Commands.literal("guild")
             .then(specializationCommand.buildCommand())
             .build());
 

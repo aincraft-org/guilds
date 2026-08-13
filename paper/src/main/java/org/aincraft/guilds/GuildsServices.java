@@ -65,6 +65,7 @@ import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+import com.azoth.territory.economy.MintEconomyRail;
 
 import java.io.File;
 import java.io.IOException;
@@ -91,6 +92,7 @@ public class GuildsServices {
     public static final String GUILDS_CONFIG = "guilds-config.yml";
 
     private final JavaPlugin plugin;
+    private final MintEconomyRail mintEconomyRail;
     private FileConfiguration config;
     private boolean enabled;
 
@@ -146,7 +148,12 @@ public class GuildsServices {
     private org.aincraft.guilds.listeners.GuildHearthstoneListener hearthstoneListener;
 
     public GuildsServices(JavaPlugin plugin, PostgresDatabase database) {
+        this(plugin, database, null);
+    }
+
+    public GuildsServices(JavaPlugin plugin, PostgresDatabase database, MintEconomyRail mintEconomyRail) {
         this.plugin = plugin;
+        this.mintEconomyRail = mintEconomyRail;
 
         // Guilds config file (namespaced away from the territory config.yml)
         saveDefaultConfig();
@@ -248,6 +255,15 @@ public class GuildsServices {
                 techTreeCommand, chatCommand, allianceCommand, specializationCommand, questCommand);
     }
 
+    /** Creates guild services with a lease already supplied by the trusted Mint integration. */
+    public static GuildsServices withMintLease(JavaPlugin plugin, PostgresDatabase database,
+                                               dev.mintychochip.mint.api.service.MintClientLease lease,
+                                               dev.mintychochip.mint.api.id.CurrencyId currency, int scale) {
+        if (lease == null) throw new IllegalArgumentException("Mint lease is required");
+        return new GuildsServices(plugin, database,
+                new MintEconomyRail(lease, currency, scale, plugin.getLogger()));
+    }
+
     /**
      * Starts the guilds subsystem on the host plugin (config sync, commands, listeners).
      */
@@ -306,10 +322,10 @@ public class GuildsServices {
     private void initializeServices() {
         try {
             guildLevelConfigLoader.loadConfiguration();
-            plugin.getLogger().info("Town level configuration loaded successfully.");
+            plugin.getLogger().info("Guild level configuration loaded successfully.");
 
             guildLevelService.syncConfigToDatabase();
-            plugin.getLogger().info("Town level data synchronized to database.");
+            plugin.getLogger().info("Guild level data synchronized to database.");
 
             techTreeConfigLoader.loadConfiguration();
             plugin.getLogger().info("Tech tree configuration loaded successfully.");
@@ -368,6 +384,10 @@ public class GuildsServices {
                 plugin, guildService, blockProtection, cooldown);
         hearthstoneListener = new org.aincraft.guilds.listeners.GuildHearthstoneListener(
                 hearthstoneService, material);
+    }
+
+    public MintEconomyRail getMintEconomyRail() {
+        return mintEconomyRail;
     }
 
     public GuildsConfig getGuildsConfig() {

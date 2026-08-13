@@ -37,7 +37,7 @@ import java.util.WeakHashMap;
 
 public class TechTreeGUI implements Listener, InventoryHolder {
 
-    private static final String TITLE = ChatColor.DARK_GREEN + "" + ChatColor.BOLD + "Town Tech Tree";
+    private static final String TITLE = ChatColor.DARK_GREEN + "" + ChatColor.BOLD + "Guild Tech Tree";
     private static final int ROWS = 6;
 
     private final JavaPlugin plugin;
@@ -196,7 +196,7 @@ public class TechTreeGUI implements Listener, InventoryHolder {
 
         Optional<Guild> guildOpt = guildService.getGuild(guildId);
         if (guildOpt.isEmpty()) {
-            player.sendMessage(ChatColor.RED + "Town not found.");
+            player.sendMessage(ChatColor.RED + "Guild not found.");
             player.closeInventory();
             return;
         }

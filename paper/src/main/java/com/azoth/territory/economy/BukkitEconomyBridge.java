@@ -6,6 +6,8 @@ import org.bukkit.OfflinePlayer;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletionStage;
+import com.azoth.territory.economy.AsyncTaxSettlement;
 
 /** Bukkit-friendly facade delegating OfflinePlayer transactions to UUID domain APIs. */
 public final class BukkitEconomyBridge {
@@ -37,6 +39,19 @@ public final class BukkitEconomyBridge {
                 blockZ,
                 goodId,
                 grossAmount);
+    }
+    public CompletionStage<TaxReport> reportSaleAsync(OfflinePlayer payer, String worldId, int blockX, int blockZ,
+                                                        String goodId, double grossAmount, String eventKey,
+                                                        AsyncTaxSettlement settlement) {
+        return delegate.reportSaleAsync(payer == null ? null : payer.getUniqueId(), worldId, blockX, blockZ,
+                goodId, grossAmount, eventKey, settlement);
+    }
+
+    public CompletionStage<TaxReport> reportCraftAsync(OfflinePlayer payer, String worldId, int blockX, int blockZ,
+                                                        String outputGoodId, int outputQuantity, double grossValue,
+                                                        String eventKey, AsyncTaxSettlement settlement) {
+        return delegate.reportCraftAsync(payer == null ? null : payer.getUniqueId(), worldId, blockX, blockZ,
+                outputGoodId, outputQuantity, grossValue, eventKey, settlement);
     }
     public TaxReport reportCraft(
             OfflinePlayer payer,

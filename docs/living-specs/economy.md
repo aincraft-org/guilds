@@ -1,9 +1,9 @@
 # Economy — Living Spec
 
-> Status: active  
-> Last updated: 2026-08-08  
-> Owners: azoth-territory  
-> Index: [README.md](./README.md)  
+> Status: active
+> Last updated: 2026-08-12
+> Owners: azoth-territory
+> Index: [README.md](./README.md)
 >
 > Related one-shot designs (historical; this catalog is authoritative for intent going forward):
 > - `docs/superpowers/specs/2026-08-05-economy-hooks-design.md`
@@ -31,7 +31,7 @@ Success looks like:
 
 - Public transaction reporting: `reportSale`, `reportCraft` (explicit gross value).
 - Tax math from PASSED policies + `GoodsCatalog` good ids.
-- Settlement treasury: Vault bank-per-territory or `SimulationTreasury`.
+- Settlement treasury: Vault bank-per-territory, `SimulationTreasury`, or asynchronous Mint guild accounts (`guild:<guildId>`).
 - Expense charging: `chargeExpense` with journaled idempotency (`ExpenseLedger` + Postgres).
 - Settlement facility **directory** only: `SettlementFacility` / `FacilityRegistry` (`TRADING_POST`, `STORAGE`) as location metadata for integrations.
 - Recurring **upkeep** state machine (`UpkeepEngine`) that schedules amounts and calls `chargeExpense` — not a second money path.
@@ -43,6 +43,7 @@ Success looks like:
 - Native shops, listings, stock, market matching, or shop commands/UI.
 - Automatic price discovery or inferring craft value from `GoodsCatalog`.
 - Guild-owned item banks / virtual storage inventories (see future guild-storage domain; facilities remain location hooks only).
+- Mint cash guild banks are separate from the SQL `Guild.balance` wallet and do not replace legacy plot, contract, or progression flows.
 - Combat fortification levels or siege mechanics (expense *kind* may be `FORTIFICATION`; the combat model is not economy’s).
 - Cross-server shared treasuries or multi-shard order books.
 - Replacing Vault as the real-money ledger when mode is `VAULT`.
@@ -129,6 +130,11 @@ UpkeepEngine.tick (or external scheduler)
 Active capability surface (shipped or wired) and any open work still on that surface.
 
 ### Capability (shipped)
+
+- [x] Mint API dependency wiring and pure asynchronous settlement contract
+- [x] Mint account rail primitives: guild/player accounts, atomic signed transfers, balance lookup
+- [x] Async tax bridge entry points route taxes to the governing guild id
+- [x] `/guild bank` balance/deposit/withdraw command surface (when a trusted Mint rail is available)
 
 - [x] `EconomyBridge.reportSale` — location resolve, government gate, PASSED tax rates, `PaymentRail.settle`
 - [x] `TaxCalculator` + `TaxReport` / `TaxOutcome` mapping from settlement status

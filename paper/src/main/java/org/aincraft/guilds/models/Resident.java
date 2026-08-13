@@ -204,7 +204,7 @@ public class  Resident {
         return "Resident{" +
                 "uuid=" + uuid +
                 ", name='" + name + '\'' +
-                ", town='" + guild + '\'' +
+                ", guild='" + guild + '\'' +
                 ", isOnline=" + isOnline +
                 '}';
     }

@@ -7,14 +7,14 @@
 
 ## Intent
 
-Provide the **player organization layer**: guilds (towns) and alliances, with
+Provide the **player organization layer**: guilds (guilds) and alliances, with
 plots, residents, roles/permissions, chat, progression (levels, resources, tech
 tree, specializations, quests), and service APIs that feed **governance**.
 
 Ships **in the same Paper plugin JAR** as Azoth Territory — one main class,
 shared PostgreSQL, composition root `GuildsServices` / `GuildsGovernanceSource`.
 
-Success looks like: players run towns through Brigadier commands; territory
+Success looks like: players run guilds through Brigadier commands; territory
 protection and influence see consistent membership DTOs; progression and
 contracts are durable and transactional where money/items move.
 
@@ -28,7 +28,7 @@ contracts are durable and transactional where money/items move.
 - Chat, broadcasts, hearthstone, public-access listeners.
 - Levels / resource bank / tech tree / specializations / quests.
 - Guild contracts service API (escrow materials for level costs).
-- Brigadier command surface (`/town*`, `/alliance*`, plot/perm/map, …).
+- Brigadier command surface (`/guild*`, `/alliance*`, plot/perm/map, …).
 - Config: `guilds-config.yml`, `techtree.yml`, level definitions.
 - SQL schema + migrations under guilds database package (Postgres).
 
@@ -78,7 +78,7 @@ contracts are durable and transactional where money/items move.
 
 - Split guilds into a second plugin JAR without an explicit product decision.
 - Reintroduce SQLite `guilds.db` beside Postgres.
-- Let `/townlevel deposit` skip persisting `upgrade_progress` (known historical footgun — contracts path fixed via direct SQL).
+- Let `/guildlevel deposit` skip persisting `upgrade_progress` (known historical footgun — contracts path fixed via direct SQL).
 
 ## Current
 
@@ -97,14 +97,14 @@ contracts are durable and transactional where money/items move.
 ### Open on the current surface
 
 - [ ] Contracts: player commands / events / inventory sourcing (API-only today)
-- [ ] Vocabulary cleanup: remaining “town”/“nation” user-facing strings → guild/alliance
+- [ ] Vocabulary cleanup: remaining “guild”/“nation” user-facing strings → guild/alliance
 - [ ] Permission dual-engine agreement tests with territory listeners (**governance**)
 - [ ] Archive vs revive strategy for MockBukkit suite documentation
 
 ### Current notes
 
 Nation vocabulary is retired in territory docs; command names may still say
-`/town*` for player familiarity — product choice to document.
+`/guild*` for player familiarity — product choice to document.
 
 ## Next
 
@@ -129,6 +129,6 @@ Nation vocabulary is retired in territory docs; command names may still say
 
 ## Open questions
 
-- [ ] Keep `/town*` command roots permanently for UX, or alias-migrate to `/guild*`?
+- [ ] Keep `/guild*` command roots permanently for UX, or alias-migrate to `/guild*`?
 - [ ] Should guild `balance` integrate with Vault / territory treasury?
 - [ ] When is **guild-storage** promoted from design to Next?

@@ -48,7 +48,7 @@ public class ChatServiceImpl implements ChatService {
         String guildName = guild.getName();
         String playerName = sender.getName();
 
-        Component guildChatComponent = Component.text("[TownChat] ")
+        Component guildChatComponent = Component.text("[GuildChat] ")
                 .color(NamedTextColor.GOLD)
                 .append(Component.text("[" + guildName + "] ")
                         .color(NamedTextColor.GREEN))
@@ -77,7 +77,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         if (plugin.isEnabled()) {
-            plugin.getLogger().info("Sent town chat from " + playerName + " to " + sentCount + " recipients in town " + guildName);
+            plugin.getLogger().info("Sent guild chat from " + playerName + " to " + sentCount + " recipients in guild " + guildName);
         }
     }
 

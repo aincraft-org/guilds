@@ -49,9 +49,13 @@ database:
   jdbc-url: ""
 
 
-# Settlement economy: VAULT (real money via Vault banks) or SIMULATION (dev/test ledger-only).
+# Settlement economy: VAULT, SIMULATION, or MINT (async Mint guild accounts).
 economy:
   mode: VAULT
+  mint:
+    currency: coins
+    client-binding: ""
+    scale: 2
 
 # Recurring treasury upkeep for governed territories.
 upkeep:

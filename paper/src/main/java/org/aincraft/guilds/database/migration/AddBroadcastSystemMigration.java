@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class AddBroadcastSystemMigration implements DatabaseMigration {
 
     private static final int VERSION = 8;
-    private static final String DESCRIPTION = "Add town broadcasting system with message types, priorities, and audience targeting";
+    private static final String DESCRIPTION = "Add guild broadcasting system with message types, priorities, and audience targeting";
 
     /**
      * Get the migration version number

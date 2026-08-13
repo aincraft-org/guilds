@@ -125,7 +125,7 @@ public class TechTreeConfigLoader {
               # ── INFRASTRUCTURE (row 1) ──
               better_storage:
                 name: "Better Storage"
-                description: "Increases town bank capacity by 50%"
+                description: "Increases guild bank capacity by 50%"
                 branch: INFRASTRUCTURE
                 cost: 2
                 prerequisites: []
@@ -136,7 +136,7 @@ public class TechTreeConfigLoader {
 
               fast_travel:
                 name: "Fast Travel"
-                description: "Reduces teleport cooldown to town spawn by 50%"
+                description: "Reduces teleport cooldown to guild spawn by 50%"
                 branch: INFRASTRUCTURE
                 cost: 3
                 prerequisites: [better_storage]
@@ -147,7 +147,7 @@ public class TechTreeConfigLoader {
 
               advanced_farming:
                 name: "Advanced Farming"
-                description: "Farm plots within town produce 25% more crops"
+                description: "Farm plots within guild produce 25% more crops"
                 branch: INFRASTRUCTURE
                 cost: 3
                 prerequisites: [better_storage]
@@ -158,7 +158,7 @@ public class TechTreeConfigLoader {
 
               auto_sorter:
                 name: "Auto Sorter"
-                description: "Unlocks automatic chest sorting in town plots"
+                description: "Unlocks automatic chest sorting in guild plots"
                 branch: INFRASTRUCTURE
                 cost: 5
                 prerequisites: [fast_travel, advanced_farming]
@@ -170,7 +170,7 @@ public class TechTreeConfigLoader {
               # ── DEFENSE (row 2) ──
               reinforced_walls:
                 name: "Reinforced Walls"
-                description: "Enemy TNT damage reduced by 25% in town"
+                description: "Enemy TNT damage reduced by 25% in guild"
                 branch: DEFENSE
                 cost: 2
                 prerequisites: []
@@ -181,7 +181,7 @@ public class TechTreeConfigLoader {
 
               guard_posts:
                 name: "Guard Posts"
-                description: "Town border alerts for non-residents"
+                description: "Guild border alerts for non-residents"
                 branch: DEFENSE
                 cost: 3
                 prerequisites: [reinforced_walls]
@@ -192,7 +192,7 @@ public class TechTreeConfigLoader {
 
               siege_shields:
                 name: "Siege Shields"
-                description: "Town is immune to siege for 1 hour after being attacked"
+                description: "Guild is immune to siege for 1 hour after being attacked"
                 branch: DEFENSE
                 cost: 4
                 prerequisites: [guard_posts]
@@ -226,7 +226,7 @@ public class TechTreeConfigLoader {
 
               trade_routes:
                 name: "Trade Routes"
-                description: "Daily town income increased by 15%"
+                description: "Daily guild income increased by 15%"
                 branch: COMMERCE
                 cost: 3
                 prerequisites: [marketplace]
@@ -237,7 +237,7 @@ public class TechTreeConfigLoader {
 
               tax_optimization:
                 name: "Tax Optimization"
-                description: "Town collects 10% more from resident taxes"
+                description: "Guild collects 10% more from resident taxes"
                 branch: COMMERCE
                 cost: 4
                 prerequisites: [trade_routes]
@@ -259,9 +259,9 @@ public class TechTreeConfigLoader {
                 position-y: 2
 
               # ── CULTURE (row 4) ──
-              town_banner:
-                name: "Town Banner"
-                description: "Customizable town banner displayed at spawn"
+              guild_banner:
+                name: "Guild Banner"
+                description: "Customizable guild banner displayed at spawn"
                 branch: CULTURE
                 cost: 1
                 prerequisites: []
@@ -272,23 +272,23 @@ public class TechTreeConfigLoader {
 
               broadcast_tower:
                 name: "Broadcast Tower"
-                description: "Town-wide announcements reach all residents instantly"
+                description: "Guild-wide announcements reach all residents instantly"
                 branch: CULTURE
                 cost: 3
-                prerequisites: [town_banner]
+                prerequisites: [guild_banner]
                 effects:
                   broadcast_range: "global"
                 position-x: 7
                 position-y: 1
 
-              town_hall:
-                name: "Town Hall"
-                description: "Unlocks town hall plot type with meeting room features"
+              guild_hall:
+                name: "Guild Hall"
+                description: "Unlocks guild hall plot type with meeting room features"
                 branch: CULTURE
                 cost: 4
                 prerequisites: [broadcast_tower]
                 effects:
-                  town_hall: true
+                  guild_hall: true
                 position-x: 7
                 position-y: 2
 
@@ -297,7 +297,7 @@ public class TechTreeConfigLoader {
                 description: "Grants +2 claim limit and boosts resident morale"
                 branch: CULTURE
                 cost: 6
-                prerequisites: [town_hall]
+                prerequisites: [guild_hall]
                 effects:
                   extra_claims: 2
                   morale_bonus: true

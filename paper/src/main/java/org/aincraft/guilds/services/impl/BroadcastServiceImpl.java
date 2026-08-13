@@ -81,7 +81,7 @@ public class BroadcastServiceImpl implements BroadcastService {
 
             statement.executeUpdate();
 
-            logger.info("Created new broadcast message: " + broadcast.getTitle() + " for town: " + guildId);
+            logger.info("Created new broadcast message: " + broadcast.getTitle() + " for guild: " + guildId);
             return broadcast;
 
         } catch (SQLException e) {
@@ -316,7 +316,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     @Override
     public BroadcastMessage createWelcomeMessage(String guildId, String newResidentName) {
         String title = "Welcome to " + getGuildName(guildId) + "!";
-        String content = "Welcome " + newResidentName + " to our town! We're excited to have you as part of our community.";
+        String content = "Welcome " + newResidentName + " to our guild! We're excited to have you as part of our community.";
 
         return createBroadcast(guildId, BroadcastMessage.Type.WELCOME, title, content,
                               UUID.randomUUID(), "System");
@@ -364,7 +364,7 @@ public class BroadcastServiceImpl implements BroadcastService {
             cleanedCount = statement.executeUpdate();
             if (cleanedCount > 0) {
                 logger.info("Cleaned up " + cleanedCount + " expired broadcast messages" +
-                           (guildId != null ? " for town: " + guildId : ""));
+                           (guildId != null ? " for guild: " + guildId : ""));
             }
 
         } catch (SQLException e) {
