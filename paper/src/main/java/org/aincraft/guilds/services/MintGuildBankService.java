@@ -118,15 +118,15 @@ public final class MintGuildBankService implements AutoCloseable {
     private <T> CompletionStage<T> call(Supplier<CompletionStage<T>> operation) {
         try {
             CompletionStage<T> source = operation.get();
-            CompletableFuture<T> result = new CompletableFuture<>();
-            source.whenComplete((value, error) -> {
-                if (error != null) result.completeExceptionally(error);
-                else result.complete(value);
-            });
-            timer.schedule(() -> result.completeExceptionally(
+            CompletableFuture<T> caller = new CompletableFuture<>();
+            timer.schedule(() -> caller.completeExceptionally(
                     new java.util.concurrent.TimeoutException("Mint operation timed out")),
                     timeoutMillis, TimeUnit.MILLISECONDS);
-            return result;
+            source.whenComplete((value, error) -> {
+                if (error != null) caller.completeExceptionally(error);
+                else caller.complete(value);
+            });
+            return caller;
         } catch (Throwable t) {
             return CompletableFuture.failedFuture(t);
         }
