@@ -21,7 +21,8 @@ public final class PostgresDatabase implements AutoCloseable {
             "CREATE TABLE IF NOT EXISTS reconciliation_entries (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)",
             "CREATE TABLE IF NOT EXISTS facilities (id TEXT PRIMARY KEY, doc JSONB NOT NULL)",
             "CREATE TABLE IF NOT EXISTS expenses (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS upkeep_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS upkeep_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS invasion_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)"
     };
 
     static {
