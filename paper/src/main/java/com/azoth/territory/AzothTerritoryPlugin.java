@@ -115,6 +115,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private StandingEngine standingEngine;
     private BukkitTask influenceStatusTask;
     private com.azoth.territory.invasion.InvasionRuntime invasionRuntime;
+    private BukkitTask invasionBossBarTask;
 
     @Override
     public void onEnable() {
@@ -343,6 +344,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             } catch (IOException e) {
                 getLogger().log(Level.SEVERE, "Failed to flush influence state on disable", e);
             }
+        }
+        if (invasionBossBarTask != null) {
+            invasionBossBarTask.cancel();
+            invasionBossBarTask = null;
         }
         if (invasionRuntime != null) {
             invasionRuntime.disable(System.currentTimeMillis());
@@ -600,11 +605,16 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(invasionListener, this);
             getServer().getPluginManager().registerEvents(
                     new ProtectionListener(blockProtection, invasionListener::bypassesProtection), this);
-            getServer().getScheduler().runTaskTimer(this, invasionRuntime::reconcileBossBars, 20L, 20L);
+            this.invasionBossBarTask = getServer().getScheduler().runTaskTimer(
+                    this, invasionRuntime::reconcileBossBars, 20L, 20L);
             getLogger().info("Guild invasion lifecycle enabled");
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Failed to wire invasion lifecycle — disabled", e);
             invasionRuntime = null;
+            if (invasionBossBarTask != null) {
+                invasionBossBarTask.cancel();
+                invasionBossBarTask = null;
+            }
         }
     }
 
