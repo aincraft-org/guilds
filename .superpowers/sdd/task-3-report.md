@@ -4,11 +4,13 @@ Implemented Task 3 Paper invasion configuration loading and guild target resolut
 
 ## Evidence
 
-- RED: initial focused suite had only the original four tests; the added resolver/config paths were not covered.
-- GREEN: `./gradlew :paper:test --rerun-tasks --tests '*InvasionConfigLoaderTest' --tests '*GuildInvasionTargetResolverTest'`
-- Result: `BUILD SUCCESSFUL`; focused loader/resolver suites passed after a clean rerun.
-- Coverage: case-insensitive ambiguity rejection; no claims; no online resident; unavailable world; valid in-claim configured spawn; out-of-claim spawn home fallback; missing/invalid home rejection; exact guild ownership; safe highest-block Y; bundled list-wave schema; and `enabled:false` retaining defaults.
+- RED: added `malformedWaveCountsAreRejectedBeforeConversion` with valid three-wave structures containing fractional, string, NaN, infinite, and overflowing counts; the focused loader test failed before validation.
+- GREEN: `./gradlew :paper:test --rerun-tasks --tests '*InvasionConfigLoaderTest'`
+- Result: `BUILD SUCCESSFUL`; all five loader tests passed.
+- Validation now requires a `Number` with finite, integral, in-range numeric value before conversion; non-positive values retain the existing positive-count rejection.
+- Scope: `InvasionConfigLoader`, `InvasionConfigLoaderTest`, and this report only.
 
-## Scope
+## Concerns
 
+- YAML parser support for special floating-point tokens is covered by the `.nan` and `.inf` fixtures; both are rejected through the same controlled `IllegalArgumentException` path.
 No plugin lifecycle wiring was changed.

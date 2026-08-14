@@ -57,7 +57,7 @@ public final class InvasionConfigLoader {
                 for (int j = 0; j < entities.size(); j++) {
                     String entity = String.valueOf(entities.get(j)).toUpperCase(Locale.ROOT);
                     if (EntityType.fromName(entity) == null) throw new IllegalArgumentException("invalid entity type: " + entity);
-                    int count = ((Number) counts.get(j)).intValue();
+                    int count = waveCount(counts.get(j));
                     if (count <= 0) throw new IllegalArgumentException("wave counts must be positive");
                     mobs.add(new MobEntry(entity, count));
                 }
@@ -65,6 +65,18 @@ public final class InvasionConfigLoader {
             }
         }
         return new LoadedConfig(enabled, new InvasionConfig(budget, waves), materials, spawnRadius, spawnAttempts, nearbyRadius, delay);
+    }
+
+    private static int waveCount(Object value) {
+        if (!(value instanceof Number number)) {
+            throw new IllegalArgumentException("wave counts must be finite exact positive integers");
+        }
+        double numeric = number.doubleValue();
+        if (!Double.isFinite(numeric) || numeric != Math.rint(numeric)
+                || numeric < Integer.MIN_VALUE || numeric > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("wave counts must be finite exact positive integers");
+        }
+        return number.intValue();
     }
 
     private static List<?> asList(Object value) {

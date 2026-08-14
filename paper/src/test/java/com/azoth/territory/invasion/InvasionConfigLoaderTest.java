@@ -37,6 +37,29 @@ class InvasionConfigLoaderTest {
     }
 
     @Test
+    void malformedWaveCountsAreRejectedBeforeConversion() {
+        assertThrows(IllegalArgumentException.class, () -> load(wavesYaml("1.5")));
+        assertThrows(IllegalArgumentException.class, () -> load(wavesYaml("foo")));
+        assertThrows(IllegalArgumentException.class, () -> load(wavesYaml(".nan")));
+        assertThrows(IllegalArgumentException.class, () -> load(wavesYaml(".inf")));
+        assertThrows(IllegalArgumentException.class, () -> load(wavesYaml("2147483648")));
+        assertThrows(IllegalArgumentException.class, () -> load(wavesYaml("-2147483649")));
+    }
+
+    private static String wavesYaml(String count) {
+        return """
+                invasions:
+                  waves:
+                    - entities: [ZOMBIE]
+                      counts: [%s]
+                    - entities: [ZOMBIE]
+                      counts: [1]
+                    - entities: [ZOMBIE]
+                      counts: [1]
+                """.formatted(count);
+    }
+
+    @Test
     void invalidValuesAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> load("invasions:\n  damage:\n    block-budget: 0\n"));
         assertThrows(IllegalArgumentException.class, () -> load("invasions:\n  waves: []\n"));
