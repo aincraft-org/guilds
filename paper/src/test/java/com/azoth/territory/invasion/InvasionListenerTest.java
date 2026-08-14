@@ -1,0 +1,80 @@
+package com.azoth.territory.invasion;
+
+import org.aincraft.guilds.models.GuildBlock;
+import org.aincraft.guilds.services.PlotService;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class InvasionListenerTest {
+    @Test void untaggedExplosionPreservesBlocks() {
+        InvasionListener listener = listener(mock(InvasionRuntime.class), mock(InvasionEngine.class), mock(PlotService.class));
+        Entity mob = mock(Entity.class); Block block = mock(Block.class); World world = mock(World.class);
+        when(mob.getPersistentDataContainer()).thenReturn(mock(org.bukkit.persistence.PersistentDataContainer.class));
+        when(block.getType()).thenReturn(Material.DIRT); when(block.getWorld()).thenReturn(world);
+        EntityExplodeEvent event = mock(EntityExplodeEvent.class); when(event.getEntity()).thenReturn(mob); when(event.blockList()).thenReturn(new java.util.ArrayList<>(List.of(block)));
+        listener.onExplode(event);
+        verify(event, never()).setYield(0);
+    }
+
+    @Test void allowlistedOwnedActiveBlockIsKeptAndYieldSuppressed() {
+        UUID invasion = UUID.randomUUID(); Entity mob = mock(Entity.class); Block block = mock(Block.class); World world = mock(World.class);
+        when(mob.getPersistentDataContainer()).thenReturn(mock(org.bukkit.persistence.PersistentDataContainer.class));
+        when(block.getType()).thenReturn(Material.DIRT); when(block.getWorld()).thenReturn(world); when(world.getName()).thenReturn("world");
+        when(block.getChunk()).thenReturn(mock(org.bukkit.Chunk.class)); when(block.getChunk().getX()).thenReturn(0); when(block.getChunk().getZ()).thenReturn(0);
+        PlotService plots = mock(PlotService.class); when(plots.getGuildBlock(0,0,"world")).thenReturn(Optional.of(new GuildBlock(0,0,"world","guild")));
+        InvasionRuntime runtime = mock(InvasionRuntime.class); InvasionEngine engine = mock(InvasionEngine.class);
+        when(runtime.status("guild")).thenReturn(Optional.of(new InvasionState(invasion,"guild","Guild","world",0,64,0,InvasionStatus.ACTIVE,0,List.of(),new GuildDamage(0,0),0)));
+        when(pdc(mob).get(any(), eq(org.bukkit.persistence.PersistentDataType.STRING))).thenReturn(invasion.toString(), "guild");
+        when(engine.recordDestroyedBlock(eq(invasion), anyLong())).thenReturn(InvasionTransition.DAMAGE_RECORDED);
+        InvasionListener listener = new InvasionListener(runtime, engine, plots, Set.of(Material.DIRT));
+        EntityExplodeEvent event = mock(EntityExplodeEvent.class); when(event.getEntity()).thenReturn(mob); var blocks = new java.util.ArrayList<>(List.of(block)); when(event.blockList()).thenReturn(blocks);
+        listener.onExplode(event); verify(event).setYield(0); assertEquals(List.of(block), blocks);
+    }
+
+    @Test void persistenceRollbackPreservesBlockAndCancelsInvasion() {
+        UUID invasion = UUID.randomUUID(); Entity mob = mock(Entity.class); Block block = mock(Block.class); World world = mock(World.class);
+        when(mob.getPersistentDataContainer()).thenReturn(mock(org.bukkit.persistence.PersistentDataContainer.class));
+        when(block.getType()).thenReturn(Material.DIRT); when(block.getWorld()).thenReturn(world); when(world.getName()).thenReturn("world");
+        when(block.getChunk()).thenReturn(mock(org.bukkit.Chunk.class)); when(block.getChunk().getX()).thenReturn(0); when(block.getChunk().getZ()).thenReturn(0);
+        PlotService plots = mock(PlotService.class); when(plots.getGuildBlock(0,0,"world")).thenReturn(Optional.of(new GuildBlock(0,0,"world","guild")));
+        InvasionRuntime runtime = mock(InvasionRuntime.class); InvasionEngine engine = mock(InvasionEngine.class);
+        when(runtime.status("guild")).thenReturn(Optional.of(new InvasionState(invasion,"guild","Guild","world",0,64,0,InvasionStatus.ACTIVE,0,List.of(),new GuildDamage(0,0),0)));
+        when(pdc(mob).get(any(), eq(org.bukkit.persistence.PersistentDataType.STRING))).thenReturn(invasion.toString(), "guild");
+        when(engine.recordDestroyedBlock(eq(invasion), anyLong())).thenReturn(InvasionTransition.NO_CHANGE);
+        InvasionListener listener = new InvasionListener(runtime, engine, plots, Set.of(Material.DIRT));
+        EntityExplodeEvent event = mock(EntityExplodeEvent.class); when(event.getEntity()).thenReturn(mob); var blocks = new java.util.ArrayList<>(List.of(block)); when(event.blockList()).thenReturn(blocks);
+        listener.onExplode(event); verify(runtime).cancel(eq("guild"), anyLong()); assertTrue(blocks.isEmpty());
+    }
+
+    @Test void terminalAndWrongClaimArePreserved() {
+        UUID invasion = UUID.randomUUID(); Entity mob = mock(Entity.class); Block block = mock(Block.class); World world = mock(World.class);
+        when(mob.getPersistentDataContainer()).thenReturn(mock(org.bukkit.persistence.PersistentDataContainer.class)); when(block.getType()).thenReturn(Material.DIRT); when(block.getWorld()).thenReturn(world); when(world.getName()).thenReturn("world"); when(block.getChunk()).thenReturn(mock(org.bukkit.Chunk.class)); when(block.getChunk().getX()).thenReturn(0); when(block.getChunk().getZ()).thenReturn(0);
+        when(pdc(mob).get(any(), eq(org.bukkit.persistence.PersistentDataType.STRING))).thenReturn(invasion.toString(), "guild");
+        InvasionRuntime runtime = mock(InvasionRuntime.class); when(runtime.status("guild")).thenReturn(Optional.of(new InvasionState(invasion,"guild","Guild","world",0,64,0,InvasionStatus.DEVASTATED,0,List.of(),new GuildDamage(1,100),0)));
+        InvasionListener listener = new InvasionListener(runtime,mock(InvasionEngine.class),mock(PlotService.class),Set.of(Material.DIRT)); EntityExplodeEvent event=mock(EntityExplodeEvent.class); when(event.getEntity()).thenReturn(mob); var blocks=new java.util.ArrayList<>(List.of(block)); when(event.blockList()).thenReturn(blocks); listener.onExplode(event); assertTrue(blocks.isEmpty());
+    }
+
+    @Test void changeBlockUnauthorizedIsCancelled() {
+        Entity mob = mock(Entity.class); Block block = mock(Block.class);
+        when(mob.getPersistentDataContainer()).thenReturn(mock(org.bukkit.persistence.PersistentDataContainer.class));
+        when(pdc(mob).get(any(), eq(org.bukkit.persistence.PersistentDataType.STRING))).thenReturn(null);
+        EntityChangeBlockEvent event=mock(EntityChangeBlockEvent.class); when(event.getEntity()).thenReturn(mob); when(event.getBlock()).thenReturn(block);
+        listener(mock(InvasionRuntime.class),mock(InvasionEngine.class),mock(PlotService.class)).onChange(event); verify(event).setCancelled(true);
+    }
+
+    private static org.bukkit.persistence.PersistentDataContainer pdc(Entity entity) { return entity.getPersistentDataContainer(); }
+    private static InvasionListener listener(InvasionRuntime runtime, InvasionEngine engine, PlotService plots) { return new InvasionListener(runtime,engine,plots,Set.of(Material.DIRT)); }
+}
