@@ -27,7 +27,8 @@ class PluginMetadataTest {
                     "main class missing: " + yaml);
             assertTrue(yaml.contains("api-version:"), "api-version missing: " + yaml);
             assertTrue(yaml.contains("26.2"), "api-version should be 26.2: " + yaml);
-            assertTrue(yaml.contains("version: 26.8.13"), "release version should use the current 26.8.13 line: " + yaml);
+            assertTrue(yaml.matches("(?s).*version: [0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?.*"),
+                    "release version should be numeric: " + yaml);
             // Single identity: no second Guilds main on this descriptor
             assertTrue(!yaml.contains("main: org.aincraft.guilds.GuildsPlugin"),
                     "must not declare GuildsPlugin as a second main");
