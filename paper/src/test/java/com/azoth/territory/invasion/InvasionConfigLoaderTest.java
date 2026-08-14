@@ -1,0 +1,36 @@
+package com.azoth.territory.invasion;
+
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.junit.jupiter.api.Test;
+
+import java.io.StringReader;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class InvasionConfigLoaderTest {
+    @Test
+    void defaultsAreLoaded() {
+        var cfg = InvasionConfigLoader.fromBukkit(YamlConfiguration.loadConfiguration(new StringReader("")));
+        assertEquals(true, cfg.enabled());
+        assertEquals(500, cfg.config().blockBudget());
+        assertEquals(24, cfg.spawnRadius());
+        assertEquals(24, cfg.spawnAttempts());
+        assertEquals(96, cfg.nearbyRadius());
+        assertEquals(100, cfg.waveDelayTicks());
+        assertEquals(3, cfg.config().waves().size());
+    }
+
+    @Test
+    void invalidValuesAreRejected() {
+        assertThrows(IllegalArgumentException.class, () -> load("invasions:\n  damage:\n    block-budget: 0\n"));
+        assertThrows(IllegalArgumentException.class, () -> load("invasions:\n  waves: []\n"));
+        assertThrows(IllegalArgumentException.class, () -> load("invasions:\n  spawn-radius: -1\n"));
+        assertThrows(IllegalArgumentException.class, () -> load("invasions:\n  spawn-attempts: 0\n"));
+        assertThrows(IllegalArgumentException.class, () -> load("invasions:\n  wave-delay-ticks: -1\n"));
+    }
+
+    private static InvasionConfigLoader.LoadedConfig load(String yaml) {
+        return InvasionConfigLoader.fromBukkit(YamlConfiguration.loadConfiguration(new StringReader(yaml)));
+    }
+}
