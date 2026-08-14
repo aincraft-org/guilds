@@ -53,4 +53,17 @@ class InvasionBossBarsTest {
         assertFalse(bars.shouldShow(far, record, Set.of(residentId)));
         assertFalse(bars.shouldShow(other, record, Set.of(residentId)));
     }
+
+    @Test
+    void openResetsDenominatorWhilePreservingBarIdentity() {
+        var bars = new InvasionBossBars(96);
+        UUID id = UUID.randomUUID();
+        var first = new InvasionRecord(id, "g", "G", "world", 0, 64, 0, InvasionStatus.ACTIVE, 0,
+                List.of(UUID.randomUUID(), UUID.randomUUID()), new GuildDamage(0, 0), 0);
+        BossBar bar = bars.open(first, 2, 10);
+        var later = new InvasionRecord(id, "g", "G", "world", 0, 64, 0, InvasionStatus.ACTIVE, 1,
+                List.of(UUID.randomUUID()), new GuildDamage(0, 0), 0);
+        assertSame(bar, bars.open(later, 2, 4));
+        assertEquals(.25f, bar.progress());
+    }
 }

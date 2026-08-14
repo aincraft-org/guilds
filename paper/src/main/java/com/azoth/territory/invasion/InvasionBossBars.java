@@ -31,6 +31,8 @@ public final class InvasionBossBars {
         if (entry == null) {
             entry = new Entry(BossBar.bossBar(Component.empty(), 1f, BossBar.Color.RED, BossBar.Overlay.PROGRESS), Math.max(spawnedTotal, record.currentWaveEntities().size()));
             entries.put(record.invasionId(), entry);
+        } else {
+            entry.spawnedTotal = Math.max(spawnedTotal, record.currentWaveEntities().size());
         }
         update(entry, record, waveCount);
         return entry.bar;
@@ -70,10 +72,9 @@ public final class InvasionBossBars {
         entry.bar.progress(living == 0 ? 1f : entry.spawnedTotal == 0 ? 1f : clamp((float) living / entry.spawnedTotal));
         entry.bar.color(record.damage().percent() >= 75 ? BossBar.Color.PURPLE : BossBar.Color.RED);
     }
-
     private static float clamp(float value) { return Math.max(0f, Math.min(1f, value)); }
     private static final class Entry {
-        private final BossBar bar; private final int spawnedTotal; private final Set<UUID> viewers = new HashSet<>();
-        private Entry(BossBar bar, int spawnedTotal) { this.bar = bar; this.spawnedTotal = Math.max(0, spawnedTotal); }
+        private final BossBar bar; private int spawnedTotal; private final Set<UUID> viewers = new HashSet<>();
+        private Entry(BossBar bar, int spawnedTotal) { this.spawnedTotal = Math.max(0, spawnedTotal); this.bar = bar; }
     }
 }

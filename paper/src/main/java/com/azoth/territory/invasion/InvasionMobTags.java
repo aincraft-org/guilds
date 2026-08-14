@@ -45,5 +45,10 @@ public final class InvasionMobTags {
     public Optional<UUID> invasionId(Entity entity) { return invasionId(entity.getPersistentDataContainer()); }
     public Optional<String> guildId(Entity entity) { return guildId(entity.getPersistentDataContainer()); }
     public boolean belongsTo(Entity entity, UUID invasionId, String guildId) { return belongsTo(entity.getPersistentDataContainer(), invasionId, guildId); }
-    private static Optional<UUID> parseUuid(String value) { try { return value == null ? Optional.empty() : Optional.of(UUID.fromString(value)); } catch (IllegalArgumentException e) { return Optional.empty(); } }
+    private static Optional<UUID> parseUuid(String value) {
+        if (value == null || !value.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")) {
+            return Optional.empty();
+        }
+        try { return Optional.of(UUID.fromString(value)); } catch (IllegalArgumentException e) { return Optional.empty(); }
+    }
 }

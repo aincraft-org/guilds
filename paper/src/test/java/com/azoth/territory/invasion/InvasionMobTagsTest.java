@@ -15,21 +15,36 @@ class InvasionMobTagsTest {
     void tagsRoundTripAndMalformedValuesAreEmpty() {
         PersistentDataContainer pdc = mock(PersistentDataContainer.class);
         UUID invasion = UUID.randomUUID();
-        when(pdc.get(any(NamespacedKey.class), eq(PersistentDataType.STRING)))
-                .thenReturn(invasion.toString(), "guild-7");
+        NamespacedKey invasionKey = new NamespacedKey("azothterritory", "invasion_id");
+        NamespacedKey guildKey = new NamespacedKey("azothterritory", "invasion_guild_id");
+        when(pdc.get(eq(invasionKey), eq(PersistentDataType.STRING))).thenReturn(invasion.toString());
+        when(pdc.get(eq(guildKey), eq(PersistentDataType.STRING))).thenReturn("guild-7");
         assertEquals(invasion, InvasionMobTags.invasionId(pdc).orElseThrow());
         assertEquals("guild-7", InvasionMobTags.guildId(pdc).orElseThrow());
 
-        when(pdc.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenReturn("bad");
+        when(pdc.get(eq(invasionKey), eq(PersistentDataType.STRING))).thenReturn("bad");
         assertTrue(InvasionMobTags.invasionId(pdc).isEmpty());
-        when(pdc.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenReturn(null);
+        when(pdc.get(eq(guildKey), eq(PersistentDataType.STRING))).thenReturn(null);
         assertTrue(InvasionMobTags.guildId(pdc).isEmpty());
+    }
+
+    @Test
+    void ignoresDecoyNamespaceAndRejectsNonCanonicalUuid() {
+        PersistentDataContainer pdc = mock(PersistentDataContainer.class);
+        NamespacedKey canonical = new NamespacedKey("azothterritory", "invasion_id");
+        NamespacedKey decoy = new NamespacedKey("other", "invasion_id");
+        when(pdc.get(eq(canonical), eq(PersistentDataType.STRING))).thenReturn("550e8400-e29b-41d4-a716-446655440000");
+        when(pdc.get(eq(decoy), eq(PersistentDataType.STRING))).thenReturn("550E8400-E29B-41D4-A716-446655440000");
+        assertEquals(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"), InvasionMobTags.invasionId(pdc).orElseThrow());
+        when(pdc.get(eq(canonical), eq(PersistentDataType.STRING))).thenReturn("550E8400-E29B-41D4-A716-446655440000");
+        assertTrue(InvasionMobTags.invasionId(pdc).isEmpty());
     }
 
     @Test
     void guildTagWithoutInvasionTagDoesNotAuthorizeMob() {
         PersistentDataContainer pdc = mock(PersistentDataContainer.class);
-        when(pdc.get(any(NamespacedKey.class), eq(PersistentDataType.STRING))).thenReturn("guild-7");
+        NamespacedKey guildKey = new NamespacedKey("azothterritory", "invasion_guild_id");
+        when(pdc.get(eq(guildKey), eq(PersistentDataType.STRING))).thenReturn("guild-7");
         assertFalse(InvasionMobTags.belongsTo(pdc, UUID.randomUUID(), "guild-7"));
     }
 }
