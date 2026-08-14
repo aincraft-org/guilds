@@ -10,7 +10,7 @@ softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap]
 commands:
   territory:
     description: Inspect territory and zone at a location
-    usage: /territory [lookup|list|reload]
+    usage: /territory [lookup|list|reload|invasion]
     permission: azoth.territory.admin
     aliases: [azterritory, at]
 # Guilds commands are registered dynamically via Paper Brigadier lifecycle
@@ -18,6 +18,10 @@ permissions:
   azoth.territory.admin:
     description: Administer and inspect territories
     default: op
+  territory.admin.invasion:
+    description: Start, stop, and inspect guild mob invasions
+    default: op
+
 
   guilds.*:
     description: All Guilds permissions

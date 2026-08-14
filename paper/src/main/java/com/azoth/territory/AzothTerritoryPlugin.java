@@ -229,8 +229,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
         this.blockProtection = new BlockProtection(governance);
         getServer().getPluginManager().registerEvents(
-                new ProtectionListener(blockProtection), this);
-        getServer().getPluginManager().registerEvents(
                 new InteractionProtectionListener(blockProtection), this);
         if (this.guilds != null) {
             this.guilds.registerHearthstone(blockProtection);
@@ -330,7 +328,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             mintClientReceiver = null;
         }
         stopInfluenceStatus();
-        disableGuildsSubsystem();
         stopWeb();
         stopSquaremap();
         if (standingEngine != null) {
@@ -347,11 +344,11 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                 getLogger().log(Level.SEVERE, "Failed to flush influence state on disable", e);
             }
         }
-        stopUpkeep();
         if (invasionRuntime != null) {
             invasionRuntime.disable(System.currentTimeMillis());
             invasionRuntime = null;
         }
+        disableGuildsSubsystem();
         if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
             try {
                 expenseStore.save(expenseLedger.entries());
@@ -594,16 +591,25 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
                     loaded.spawnRadius(), loaded.spawnAttempts(), loaded.waveDelayTicks(),
                     (location, guildId) -> guilds.getPlotService().getGuildBlock(location.getChunk().getX(), location.getChunk().getZ(), location.getWorld().getName())
                             .map(block -> block.getGuildId().equals(guildId))
-                            .orElse(false));
+                            .orElse(false),
+                    guildId -> guilds.getGuildService().getGuildById(guildId)
+                            .map(guild -> java.util.Set.copyOf(guild.getResidents())).orElse(java.util.Set.of()));
             invasionRuntime.recover(System.currentTimeMillis());
+            var invasionListener = new com.azoth.territory.invasion.InvasionListener(
+                    invasionRuntime, engine, guilds.getPlotService(), loaded.materials());
+            getServer().getPluginManager().registerEvents(invasionListener, this);
             getServer().getPluginManager().registerEvents(
-                    new com.azoth.territory.invasion.InvasionListener(
-                            invasionRuntime, engine, guilds.getPlotService(), loaded.materials()), this);
+                    new ProtectionListener(blockProtection, invasionListener::bypassesProtection), this);
+            getServer().getScheduler().runTaskTimer(this, invasionRuntime::reconcileBossBars, 20L, 20L);
             getLogger().info("Guild invasion lifecycle enabled");
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Failed to wire invasion lifecycle — disabled", e);
             invasionRuntime = null;
         }
+    }
+
+    public com.azoth.territory.invasion.InvasionRuntime getInvasionRuntime() {
+        return invasionRuntime;
     }
     /**
      * Guilds subsystem hosted by this plugin (null if enable failed).
