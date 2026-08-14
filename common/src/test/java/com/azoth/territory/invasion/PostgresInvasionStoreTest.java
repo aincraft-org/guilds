@@ -57,13 +57,42 @@ class PostgresInvasionStoreTest {
         assertEquals("unsupported invasion state version: 99", cause.getMessage());
     }
     @Test
-    void rejectsUnsupportedVersionWithWrappedIOException() throws Exception {
-        insertDocument("{\"version\":99,\"guildDamage\":{},\"invasions\":[]}");
+    void rejectsFractionalAndOverflowIntegralFields() throws Exception {
+        String base = """
+                {"version":1,"guildDamage":{"g":{"destroyedBlocks":1,"percent":1}},"invasions":[{
+                "invasionId":"00000000-0000-0000-0000-000000000001","guildId":"g","guildName":"G","worldId":"w",
+                "x":0,"y":0,"z":0,"status":"ACTIVE","wave":0,
+                "currentWaveEntities":[],"damage":{"destroyedBlocks":1,"percent":1},"updatedAt":1}]}""";
+        for (String malformed : List.of(
+                base.replace("\"version\":1", "\"version\":1.5"),
+                base.replace("\"destroyedBlocks\":1", "\"destroyedBlocks\":1.5"),
+                base.replace("\"percent\":1", "\"percent\":1.5"),
+                base.replace("\"wave\":0", "\"wave\":2147483648"),
+                base.replace("\"updatedAt\":1", "\"updatedAt\":9223372036854775808"),
+                base.replace("\"updatedAt\":1", "\"updatedAt\":1e3"),
+                base.replace("\"updatedAt\":1", "\"updatedAt\":1e-1"))) {
+            insertDocument(malformed);
+            IllegalStateException failure = assertThrows(IllegalStateException.class,
+                    () -> new PostgresInvasionStore(database).load());
+            assertInstanceOf(IOException.class, failure.getCause());
+        }
+    }
 
+    @Test
+    void rejectsNonIntegralExponentInCounters() throws Exception {
+        insertDocument("""
+                {"version":1,"guildDamage":{"g":{"destroyedBlocks":1e-1,"percent":1}},"invasions":[]}""");
         IllegalStateException failure = assertThrows(IllegalStateException.class,
                 () -> new PostgresInvasionStore(database).load());
-        IOException cause = assertInstanceOf(IOException.class, failure.getCause());
-        assertEquals("unsupported invasion state version: 99", cause.getMessage());
+        assertEquals("invasion long is invalid: destroyedBlocks", failure.getCause().getMessage());
+    }
+
+    @Test
+    void rejectsNonIntegralExponentInVersion() throws Exception {
+        insertDocument("{\"version\":1e-1,\"guildDamage\":{},\"invasions\":[]}");
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> new PostgresInvasionStore(database).load());
+        assertEquals("invasion state version is invalid", failure.getCause().getMessage());
     }
 
     @Test

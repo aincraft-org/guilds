@@ -50,3 +50,9 @@ fb50aac fix: validate invasion persistence state
 ## Concerns
 
 The Task 1 `InvasionStore` API exposes unchecked `load`/`save` methods, so checked `IOException` cannot be declared directly without changing the approved interface. SQL/parser failures retain the required invasion-specific `IOException` as the cause of the interface-compatible runtime exception.
+
+## Strict integral JSON parsing follow-up
+
+- Added malformed JSON coverage for version `1.5`, fractional counters/waves/timestamps, non-integral exponents, and integer/long overflow.
+- Replaced Gson lossy `getAsInt()`/`getAsLong()` conversion with exact `BigDecimal.toBigIntegerExact()` parsing plus field-specific range checks.
+- Focused command: `./gradlew :common:test --tests '*PostgresInvasionStoreTest'` — BUILD SUCCESSFUL (PostgreSQL integration tests are environment-assumption based when `AZOTH_TEST_JDBC_URL` is unavailable).

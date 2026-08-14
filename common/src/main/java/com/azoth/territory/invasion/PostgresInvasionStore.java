@@ -9,6 +9,8 @@ import com.google.gson.JsonParseException;
 import com.google.gson.Gson;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -118,15 +120,7 @@ public final class PostgresInvasionStore implements InvasionStore {
     private static List<InvasionRecord> fromJson(JsonElement parsed) throws IOException {
         if (parsed == null || !parsed.isJsonObject()) throw new IOException("invasion state root must be an object");
         JsonObject root = parsed.getAsJsonObject();
-        JsonElement version = root.get("version");
-        if (version == null || !version.isJsonPrimitive() || !version.getAsJsonPrimitive().isNumber())
-            throw new IOException("invasion state version is invalid");
-        int versionNumber;
-        try {
-            versionNumber = version.getAsInt();
-        } catch (RuntimeException e) {
-            throw new IOException("invasion state version is invalid", e);
-        }
+        int versionNumber = integer(root.get("version"), "invasion state version");
         if (versionNumber != VERSION)
             throw new IOException("unsupported invasion state version: " + versionNumber);
         JsonElement rawDamage = root.get("guildDamage");
@@ -204,18 +198,34 @@ public final class PostgresInvasionStore implements InvasionStore {
     private static double number(JsonObject object, String name) throws IOException {
         JsonElement value = object.get(name);
         if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new IOException("invasion number is invalid: " + name);
-        return value.getAsDouble();
+        try { return Double.parseDouble(value.getAsString()); }
+        catch (NumberFormatException e) { throw new IOException("invasion number is invalid: " + name, e); }
     }
 
     private static int integer(JsonObject object, String name) throws IOException {
-        JsonElement value = object.get(name);
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new IOException("invasion integer is invalid: " + name);
-        return value.getAsInt();
+        return integer(object == null ? null : object.get(name), name);
+    }
+
+    private static int integer(JsonElement value, String name) throws IOException {
+        BigInteger exact = integral(value, name, "integer");
+        if (exact.compareTo(BigInteger.valueOf(Integer.MIN_VALUE)) < 0 || exact.compareTo(BigInteger.valueOf(Integer.MAX_VALUE)) > 0)
+            throw new IOException("invasion integer is invalid: " + name);
+        return exact.intValue();
     }
 
     private static long longValue(JsonObject object, String name) throws IOException {
-        JsonElement value = object.get(name);
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new IOException("invasion long is invalid: " + name);
-        return value.getAsLong();
+        BigInteger exact = integral(object.get(name), name, "long");
+        if (exact.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0 || exact.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0)
+            throw new IOException("invasion long is invalid: " + name);
+        return exact.longValue();
+    }
+
+    private static BigInteger integral(JsonElement value, String name, String type) throws IOException {
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber())
+            throw new IOException("invasion " + type + " is invalid: " + name);
+        try { return new BigDecimal(value.getAsString()).toBigIntegerExact(); }
+        catch (NumberFormatException | ArithmeticException e) {
+            throw new IOException("invasion " + type + " is invalid: " + name, e);
+        }
     }
 }
