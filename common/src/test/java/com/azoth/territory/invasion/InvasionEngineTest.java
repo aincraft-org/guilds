@@ -85,6 +85,59 @@ class InvasionEngineTest {
         assertTrue(engine.status("guild-a").isEmpty());
     }
 
+    @Test
+    void cancelFailureRestoresActiveGuildIndex() {
+        ToggleStore store = new ToggleStore();
+        InvasionEngine engine = engine(store);
+        UUID invasion = engine.start("guild-a", "Guild A", "world", 1, 2, 3, NOW).invasionId();
+        store.fail = true;
+
+        assertEquals(InvasionTransition.NO_CHANGE, engine.cancel("guild-a", NOW + 1));
+        assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
+        assertEquals(1, engine.activeInvasions().size());
+        assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
+    }
+
+    @Test
+    void finalRemovalFailureRestoresActiveGuildIndex() {
+        ToggleStore store = new ToggleStore();
+        InvasionEngine engine = engine(store);
+        UUID invasion = engine.start("guild-a", "Guild A", "world", 1, 2, 3, NOW).invasionId();
+        UUID mob = UUID.randomUUID();
+        engine.mobSpawned(invasion, mob);
+        store.fail = true;
+
+        assertEquals(InvasionTransition.WAVE_CLEARED, engine.mobRemoved(invasion, mob, NOW + 1));
+        assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
+        assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
+    }
+
+    @Test
+    void recoverFailureRestoresActiveRecordsAndIndexes() {
+        ToggleStore store = new ToggleStore();
+        UUID invasion = UUID.randomUUID();
+        store.records = List.of(new InvasionRecord(invasion, "guild-a", "Guild A", "world", 1, 2, 3,
+                InvasionStatus.ACTIVE, 0, List.of(), new GuildDamage(0, 0), NOW));
+        InvasionEngine engine = engine(store);
+        store.fail = true;
+
+        engine.recover(NOW + 1);
+
+        assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
+        assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
+    }
+
+    @Test
+    void reportsWaveClearedBeforeNextWave() {
+        InvasionEngine engine = engine(new MemoryStore());
+        UUID invasion = engine.start("guild-a", "Guild A", "world", 1, 2, 3, NOW).invasionId();
+        UUID mob = UUID.randomUUID();
+        engine.mobSpawned(invasion, mob);
+
+        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE),
+                engine.mobRemovedSequence(invasion, mob, NOW + 1));
+    }
+
     private static InvasionEngine engine(InvasionStore store) {
         return new InvasionEngine(CONFIG, store);
     }
@@ -98,5 +151,15 @@ class InvasionEngineTest {
     private static final class FailingStore implements InvasionStore {
         public Collection<InvasionRecord> load() { return List.of(); }
         public void save(Collection<InvasionRecord> records) { throw new IllegalStateException("fail"); }
+    }
+
+    private static final class ToggleStore implements InvasionStore {
+        private Collection<InvasionRecord> records = List.of();
+        private boolean fail;
+        public Collection<InvasionRecord> load() { return records; }
+        public void save(Collection<InvasionRecord> records) {
+            if (fail) throw new IllegalStateException("fail");
+            this.records = List.copyOf(records);
+        }
     }
 }

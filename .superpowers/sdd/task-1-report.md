@@ -16,14 +16,15 @@
 - `common/src/test/java/com/azoth/territory/invasion/InvasionEngineTest.java`
 
 ## Tests and commands
-- RED: `./gradlew :common:test --tests '*InvasionEngineTest'` — expected compilation failure because invasion types were absent.
-- GREEN/final: `./gradlew :common:test --tests '*InvasionEngineTest'` — `BUILD SUCCESSFUL`, 5 tests completed.
+- RED: `./gradlew :common:test --tests '*InvasionEngineTest'` — initial regression compile failed because `mobRemovedSequence` was not yet implemented.
+- GREEN/final: `./gradlew :common:test --tests '*InvasionEngineTest'` — `BUILD SUCCESSFUL`, 9 tests completed, all passed.
+- Added regression coverage for cancel rollback/index restoration, final mob removal rollback/index restoration, recover rollback/index restoration, and explicit `[WAVE_CLEARED, NEXT_WAVE]` sequence.
 
 ## Self-review
-The implementation is Paper-independent and uses immutable records/list snapshots. Lifecycle tests cover guild start idempotency, entity tracking, wave progression, defense, damage saturation and accumulation, cancellation, recovery, and failed persistence rollback. Unknown and duplicate removals are no-ops. Changed scope is limited to the invasion domain package and its focused test.
+Persistence failures now restore the record and active guild index for cancel and final removal; recover snapshots and restores all records/indexes on save failure. The transition API keeps legacy `mobRemoved` while adding `mobRemovedSequence`, explicitly exposing wave-cleared followed by next-wave/defended. Changes are limited to the Task 1 invasion engine and focused test. Existing lifecycle tests pass.
 
 ## Commit
-`5a3b69d` — `feat: add guild invasion lifecycle engine`
+Fix commit is created after verification in this worktree.
 
 ## Concerns
-The store boundary is synchronous and runtime persistence failures are handled fail-closed by restoring in-memory mutations. No concerns identified for the requested scope.
+The store boundary remains synchronous; persistence failures are fail-closed and preserve coherent in-memory state. No concerns for Task 1 scope.
