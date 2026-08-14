@@ -10,6 +10,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
 
 import java.util.Set;
 import java.util.UUID;
@@ -27,6 +28,10 @@ public final class InvasionListener implements Listener {
 
     @EventHandler public void onDeath(EntityDeathEvent event) { runtime.onEntityDeath(event.getEntity(), System.currentTimeMillis()); }
 
+    @EventHandler public void onEntitiesLoad(EntitiesLoadEvent event) {
+        event.getEntities().forEach(runtime::removeIfStale);
+    }
+
     @EventHandler public void onExplode(EntityExplodeEvent event) {
         Entity entity = event.getEntity();
         UUID id = InvasionMobTags.invasionId(entity.getPersistentDataContainer()).orElse(null);
@@ -41,7 +46,20 @@ public final class InvasionListener implements Listener {
         Entity entity = event.getEntity();
         UUID id = InvasionMobTags.invasionId(entity.getPersistentDataContainer()).orElse(null);
         String guild = InvasionMobTags.guildId(entity.getPersistentDataContainer()).orElse(null);
-        if (id == null || guild == null || !destroy(id, guild, event.getBlock())) event.setCancelled(true);
+        if (id == null || guild == null) return;
+        if (!destroy(id, guild, event.getBlock())) event.setCancelled(true);
+    }
+
+    public boolean bypassesProtection(Entity entity, Block block) {
+        UUID id = InvasionMobTags.invasionId(entity.getPersistentDataContainer()).orElse(null);
+        String guild = InvasionMobTags.guildId(entity.getPersistentDataContainer()).orElse(null);
+        if (id == null || guild == null || !runtime.canDestroy(id, guild)
+                || !allowlist.contains(block.getType())) {
+            return false;
+        }
+        GuildBlock claim = plots.getGuildBlock(
+                block.getChunk().getX(), block.getChunk().getZ(), block.getWorld().getName()).orElse(null);
+        return claim != null && guild.equals(claim.getGuildId());
     }
 
     private boolean destroy(UUID id, String guild, Block block) {

@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
+import java.util.function.Function;
 import java.util.logging.Level;
 
 /** Paper orchestration boundary for the persistence-backed invasion engine. */
@@ -27,6 +28,7 @@ public final class InvasionRuntime {
     private final int attempts;
     private final long waveDelayTicks;
     private final java.util.function.BiPredicate<Location, String> claim;
+    private final Function<String, Set<UUID>> residents;
     private final Map<UUID, Set<UUID>> entities = new HashMap<>();
     private final Map<UUID, BukkitTask> schedules = new HashMap<>();
     private final Map<UUID, InvasionRecord> records = new HashMap<>();
@@ -35,10 +37,20 @@ public final class InvasionRuntime {
 
     public InvasionRuntime(Plugin plugin, InvasionEngine engine, GuildInvasionTargetResolver resolver,
                            InvasionMobSpawner spawner, InvasionBossBars bossBars, InvasionConfig config,
-                           int radius, int attempts, long waveDelayTicks, java.util.function.BiPredicate<Location, String> claim) {
+                           int radius, int attempts, long waveDelayTicks,
+                           java.util.function.BiPredicate<Location, String> claim) {
+        this(plugin, engine, resolver, spawner, bossBars, config, radius, attempts, waveDelayTicks,
+                claim, ignored -> Set.of());
+    }
+
+    public InvasionRuntime(Plugin plugin, InvasionEngine engine, GuildInvasionTargetResolver resolver,
+                           InvasionMobSpawner spawner, InvasionBossBars bossBars, InvasionConfig config,
+                           int radius, int attempts, long waveDelayTicks,
+                           java.util.function.BiPredicate<Location, String> claim,
+                           Function<String, Set<UUID>> residents) {
         this.plugin = plugin; this.engine = engine; this.resolver = resolver; this.spawner = spawner;
         this.bossBars = bossBars; this.config = config; this.radius = radius; this.attempts = attempts;
-        this.waveDelayTicks = waveDelayTicks; this.claim = claim;
+        this.waveDelayTicks = waveDelayTicks; this.claim = claim; this.residents = residents;
     }
 
     public synchronized InvasionStartResult start(String guildName, long now) {
@@ -60,17 +72,26 @@ public final class InvasionRuntime {
     }
 
     public synchronized void recover(long now) {
-        engine.recover(now);
-        for (InvasionState state : engine.activeInvasions()) {
-            records.put(state.invasionId(), record(state));
+        List<InvasionState> activeBeforeRecovery = engine.activeInvasions();
+        InvasionMutationResult result = engine.recover(now);
+        if (result == InvasionMutationResult.PERSISTENCE_FAILED) {
+            for (InvasionState state : activeBeforeRecovery) {
+                failedInvasions.add(state.invasionId());
+            }
+            plugin.getLogger().severe("Failed to cancel active invasions during startup recovery; destruction remains disabled");
         }
         for (Entity entity : Bukkit.getWorlds().stream().flatMap(world -> world.getEntities().stream()).toList()) {
-            OptionalTag tag = tag(entity);
-            if (tag.id != null && (engine.status(tag.guild).isEmpty()
-                    || engine.status(tag.guild).map(s -> !s.invasionId().equals(tag.id) || s.status() != InvasionStatus.ACTIVE).orElse(true))) {
-                entity.remove();
-            }
+            removeIfStale(entity);
         }
+    }
+
+    public synchronized void removeIfStale(Entity entity) {
+        OptionalTag tag = tag(entity);
+        if (tag.id == null || tag.guild == null) return;
+        boolean active = !failedInvasions.contains(tag.id)
+                && engine.status(tag.guild).map(s -> s.invasionId().equals(tag.id)
+                && s.status() == InvasionStatus.ACTIVE).orElse(false);
+        if (!active) entity.remove();
     }
 
 
@@ -81,26 +102,40 @@ public final class InvasionRuntime {
         if (tag.id == null || tag.guild == null) return;
         Set<UUID> known = entities.get(tag.id);
         if (known == null || !known.remove(entity.getUniqueId())) return;
-        InvasionMutationResult result = engine.mobRemovedResult(tag.id, entity.getUniqueId(), now);
-        if (result == InvasionMutationResult.PERSISTENCE_FAILED) {
-            failedInvasions.add(tag.id);
+        InvasionRemovalResult result = engine.mobRemoved(tag.id, entity.getUniqueId(), now);
+        if (result.mutation() == InvasionMutationResult.PERSISTENCE_FAILED) {
             failClosed(tag.id, now, "failed to persist invasion mob removal");
             return;
         }
-        handleTransitions(tag.id, transitionsFor(result), now);
+        handleTransitions(tag.id, result.transitions(), now);
         engine.status(tag.guild).ifPresent(state -> bossBars.update(record(state), config.waves().size()));
+    }
+
+    public synchronized java.util.Optional<String> resolveGuildId(String guildName) {
+        GuildInvasionTargetResolver.Resolution resolution = resolver.resolve(guildName);
+        return resolution.target().map(GuildInvasionTargetResolver.ResolvedInvasionTarget::guildId);
     }
 
     public synchronized void disable(long now) {
         disabled = true;
         for (BukkitTask task : schedules.values()) task.cancel();
         schedules.clear();
-        for (InvasionState state : engine.activeInvasions()) cancel(state.guildId(), now);
+        for (InvasionState state : List.copyOf(engine.activeInvasions())) cancel(state.guildId(), now);
+    }
+    public synchronized void reconcileBossBars() {
+        for (InvasionState state : engine.activeInvasions()) {
+            InvasionRecord record = record(state);
+            bossBars.reconcile(record, config.waves().size(), residents.apply(state.guildId()));
+        }
     }
 
-    public synchronized void cancel(String guildId, long now) {
-        engine.cancel(guildId, now);
-        engine.status(guildId).ifPresent(state -> cleanup(state.invasionId(), state));
+    public synchronized boolean cancel(String guildId, long now) {
+        InvasionState before = engine.status(guildId).orElse(null);
+        if (before == null || before.status() != InvasionStatus.ACTIVE) return false;
+        failedInvasions.add(before.invasionId());
+        boolean cancelled = engine.cancel(guildId, now) == InvasionTransition.CANCELLED;
+        cleanup(before.invasionId(), before);
+        return cancelled;
     }
     public synchronized void finish(String guildId, UUID invasionId) {
         InvasionState state = engine.status(guildId).orElse(null);
@@ -135,14 +170,11 @@ public final class InvasionRuntime {
                 return false;
             }
         }
-        engine.status(record.guildId()).ifPresent(next -> { bossBars.open(record(next), config.waves().size(), spawned.size()); bossBars.reconcile(record(next), config.waves().size(), Set.of()); });
+        engine.status(record.guildId()).ifPresent(next -> {
+            bossBars.open(record(next), config.waves().size(), spawned.size());
+            bossBars.reconcile(record(next), config.waves().size(), residents.apply(next.guildId()));
+        });
         return true;
-    }
-    private static List<InvasionTransition> transitionsFor(InvasionMutationResult result) {
-        return switch (result) {
-            case PERSISTED -> List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE);
-            default -> List.of(InvasionTransition.NO_CHANGE);
-        };
     }
 
     private void handleTransitions(UUID id, List<InvasionTransition> transitions, long now) {

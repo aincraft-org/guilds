@@ -13,10 +13,17 @@ import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class InvasionMobSpawnerTest {
     private static final UUID INVASION_ID = UUID.randomUUID();
@@ -124,6 +131,24 @@ class InvasionMobSpawnerTest {
         InvasionMobSpawner spawner = new InvasionMobSpawner(plugin, fixedRandom(), block -> false);
         assertTrue(spawner.spawn(record(), wave(), 1, 1, location -> true).isEmpty());
         verify(world, never()).spawnEntity(any(Location.class), any(EntityType.class));
+    }
+
+    @Test
+    void rollsBackAlreadySpawnedEntitiesWhenLaterSpawnFails() {
+        Plugin plugin = mockPlugin();
+        World world = readyWorld(plugin);
+        Entity first = mock(Entity.class);
+        UUID firstId = UUID.randomUUID();
+        when(first.getUniqueId()).thenReturn(firstId);
+        when(first.getPersistentDataContainer()).thenReturn(mock(org.bukkit.persistence.PersistentDataContainer.class));
+        when(world.spawnEntity(any(Location.class), eq(EntityType.ZOMBIE)))
+                .thenReturn(first)
+                .thenThrow(new IllegalStateException("spawn failed"));
+
+        assertThrows(IllegalStateException.class, () -> new InvasionMobSpawner(plugin, fixedRandom()).spawn(
+                record(), new Wave(List.of(new MobEntry("ZOMBIE", 2))), 1, 1, location -> true));
+
+        verify(first).remove();
     }
 
     private static InvasionRecord record() {

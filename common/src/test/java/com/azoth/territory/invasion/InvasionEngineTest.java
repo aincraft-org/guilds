@@ -38,17 +38,24 @@ class InvasionEngineTest {
         UUID invasion = engine.start("guild-a", "Guild A", "world", 1, 2, 3, NOW).invasionId();
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
-        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, UUID.randomUUID(), NOW));
+        assertEquals(InvasionRemovalResult.noChange(), engine.mobRemoved(invasion, UUID.randomUUID(), NOW));
         engine.mobSpawned(invasion, first);
         engine.mobSpawned(invasion, second);
-        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, first, NOW));
-        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE), engine.mobRemoved(invasion, second, NOW));
+        assertEquals(new InvasionRemovalResult(InvasionMutationResult.PERSISTED, List.of(InvasionTransition.NO_CHANGE)),
+                engine.mobRemoved(invasion, first, NOW));
+        assertEquals(new InvasionRemovalResult(InvasionMutationResult.PERSISTED,
+                        List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE)),
+                engine.mobRemoved(invasion, second, NOW));
         UUID third = UUID.randomUUID();
         engine.mobSpawned(invasion, third);
-        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE), engine.mobRemoved(invasion, third, NOW));
+        assertEquals(new InvasionRemovalResult(InvasionMutationResult.PERSISTED,
+                        List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE)),
+                engine.mobRemoved(invasion, third, NOW));
         UUID fourth = UUID.randomUUID();
         engine.mobSpawned(invasion, fourth);
-        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.DEFENDED), engine.mobRemoved(invasion, fourth, NOW));
+        assertEquals(new InvasionRemovalResult(InvasionMutationResult.PERSISTED,
+                        List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.DEFENDED)),
+                engine.mobRemoved(invasion, fourth, NOW));
         assertEquals(InvasionStatus.DEFENDED, engine.status("guild-a").orElseThrow().status());
     }
 
@@ -74,7 +81,7 @@ class InvasionEngineTest {
         store.records = List.of(new InvasionRecord(invasion, "guild-b", "Guild B", "world", 1, 2, 3,
                 InvasionStatus.ACTIVE, 0, List.of(), new GuildDamage(0, 0), NOW));
         InvasionEngine recovered = engine(store);
-        recovered.recover(NOW + 2);
+        assertEquals(InvasionMutationResult.PERSISTED, recovered.recover(NOW + 2));
         assertEquals(InvasionStatus.CANCELLED, recovered.status("guild-b").orElseThrow().status());
     }
 
@@ -109,7 +116,7 @@ class InvasionEngineTest {
         engine.mobSpawned(invasion, mob);
         store.fail = true;
 
-        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, mob, NOW + 1));
+        assertEquals(InvasionRemovalResult.failed(), engine.mobRemoved(invasion, mob, NOW + 1));
         assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
         assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
     }
@@ -122,7 +129,7 @@ class InvasionEngineTest {
         engine.mobSpawned(invasion, mob);
         store.fail = true;
 
-        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, mob, NOW + 1));
+        assertEquals(InvasionRemovalResult.failed(), engine.mobRemoved(invasion, mob, NOW + 1));
         assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
         assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
     }
@@ -157,7 +164,6 @@ class InvasionEngineTest {
         assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
         assertEquals(new GuildDamage(2, 50), engine.status("guild-a").orElseThrow().damage());
     }
-
     @Test
     void invasionStateSnapshotsEntityListAndRejectsNull() {
         List<UUID> entities = new ArrayList<>();
@@ -183,7 +189,7 @@ class InvasionEngineTest {
         InvasionEngine engine = engine(store);
         store.fail = true;
 
-        engine.recover(NOW + 1);
+        assertEquals(InvasionMutationResult.PERSISTENCE_FAILED, engine.recover(NOW + 1));
 
         assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
         assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
@@ -196,7 +202,8 @@ class InvasionEngineTest {
         UUID mob = UUID.randomUUID();
         engine.mobSpawned(invasion, mob);
 
-        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE),
+        assertEquals(new InvasionRemovalResult(InvasionMutationResult.PERSISTED,
+                        List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE)),
                 engine.mobRemoved(invasion, mob, NOW + 1));
     }
 
