@@ -45,8 +45,9 @@ public final class InvasionListener implements Listener {
 
     private boolean destroy(UUID id, String guild, Block block) {
         try {
-            if (!runtime.status(guild).map(s -> s.invasionId().equals(id) && s.status() == InvasionStatus.ACTIVE).orElse(false)) return false;
-            if (!allowlist.contains(block.getType())) return false;
+            boolean active = runtime.canDestroy(id, guild)
+                    || runtime.status(guild).map(s -> s.invasionId().equals(id) && s.status() == InvasionStatus.ACTIVE).orElse(false);
+            if (!active || !allowlist.contains(block.getType())) return false;
             GuildBlock claim = plots.getGuildBlock(block.getChunk().getX(), block.getChunk().getZ(), block.getWorld().getName()).orElse(null);
             if (claim == null || !guild.equals(claim.getGuildId())) return false;
             InvasionTransition transition = engine.recordDestroyedBlock(id, System.currentTimeMillis());
@@ -61,4 +62,5 @@ public final class InvasionListener implements Listener {
             return false;
         }
     }
+
 }

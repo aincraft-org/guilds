@@ -30,6 +30,7 @@ public final class InvasionRuntime {
     private final Map<UUID, Set<UUID>> entities = new HashMap<>();
     private final Map<UUID, BukkitTask> schedules = new HashMap<>();
     private final Map<UUID, InvasionRecord> records = new HashMap<>();
+    private final Set<UUID> failedInvasions = new HashSet<>();
     private boolean disabled;
 
     public InvasionRuntime(Plugin plugin, InvasionEngine engine, GuildInvasionTargetResolver resolver,
@@ -58,6 +59,21 @@ public final class InvasionRuntime {
         return result;
     }
 
+    public synchronized void recover(long now) {
+        engine.recover(now);
+        for (InvasionState state : engine.activeInvasions()) {
+            records.put(state.invasionId(), record(state));
+        }
+        for (Entity entity : Bukkit.getWorlds().stream().flatMap(world -> world.getEntities().stream()).toList()) {
+            OptionalTag tag = tag(entity);
+            if (tag.id != null && (engine.status(tag.guild).isEmpty()
+                    || engine.status(tag.guild).map(s -> !s.invasionId().equals(tag.id) || s.status() != InvasionStatus.ACTIVE).orElse(true))) {
+                entity.remove();
+            }
+        }
+    }
+
+
     public synchronized void onEntityDeath(Entity entity, long now) { onEntityRemoved(entity, now); }
     public synchronized void onEntityRemoved(Entity entity, long now) {
         if (entity == null) return;
@@ -65,8 +81,15 @@ public final class InvasionRuntime {
         if (tag.id == null || tag.guild == null) return;
         Set<UUID> known = entities.get(tag.id);
         if (known == null || !known.remove(entity.getUniqueId())) return;
+        InvasionMutationResult result = engine.mobRemovedResult(tag.id, entity.getUniqueId(), now);
+        if (result == InvasionMutationResult.PERSISTENCE_FAILED) {
+            failedInvasions.add(tag.id);
+            failClosed(tag.id, now, "failed to persist invasion mob removal");
+            return;
+        }
         List<InvasionTransition> transitions = engine.mobRemoved(tag.id, entity.getUniqueId(), now);
         handleTransitions(tag.id, transitions, now);
+        engine.status(tag.guild).ifPresent(state -> bossBars.update(record(state), config.waves().size()));
     }
 
     public synchronized void disable(long now) {
@@ -90,19 +113,30 @@ public final class InvasionRuntime {
         return entities.getOrDefault(invasionId, Set.of()).contains(entityId)
                 && engine.status(guildId).map(s -> s.invasionId().equals(invasionId) && s.status() == InvasionStatus.ACTIVE).orElse(false);
     }
-
-    private boolean spawnWave(UUID id, int wave, long now) {
-        InvasionState state = engine.status(records.get(id).guildId()).orElse(null);
-        if (state == null || state.status() != InvasionStatus.ACTIVE) return false;
-        InvasionRecord record = records.get(id);
-        List<UUID> spawned = spawner.spawn(record, config.waves().get(wave), radius, attempts, claim);
-        if (spawned.isEmpty()) return false;
-        Set<UUID> known = entities.computeIfAbsent(id, ignored -> new HashSet<>());
-        for (UUID entity : spawned) { known.add(entity); engine.mobSpawned(id, entity); }
-        engine.status(record.guildId()).ifPresent(next -> bossBars.open(record(next), 3, spawned.size()));
-        return true;
+    public synchronized boolean canDestroy(UUID invasionId, String guildId) {
+        return !failedInvasions.contains(invasionId)
+                && engine.status(guildId).map(s -> s.invasionId().equals(invasionId) && s.status() == InvasionStatus.ACTIVE).orElse(false);
     }
 
+    private boolean spawnWave(UUID id, int wave, long now) {
+        InvasionRecord record = records.get(id);
+        if (record == null) return false;
+        InvasionState state = engine.status(record.guildId()).orElse(null);
+        if (state == null || state.status() != InvasionStatus.ACTIVE) return false;
+        List<UUID> spawned = spawner.spawn(record(state), config.waves().get(wave), radius, attempts, claim);
+        if (spawned.isEmpty()) return false;
+        Set<UUID> known = entities.computeIfAbsent(id, ignored -> new HashSet<>());
+        for (UUID entity : spawned) {
+            InvasionMutationResult result = engine.mobSpawned(id, entity);
+            if (result == InvasionMutationResult.PERSISTENCE_FAILED) {
+                failedInvasions.add(id);
+                return false;
+            }
+            known.add(entity);
+        }
+        engine.status(record.guildId()).ifPresent(next -> bossBars.open(record(next), config.waves().size(), spawned.size()));
+        return true;
+    }
     private void handleTransitions(UUID id, List<InvasionTransition> transitions, long now) {
         if (transitions.contains(InvasionTransition.NEXT_WAVE)) {
             BukkitTask old = schedules.remove(id); if (old != null) old.cancel();
@@ -121,10 +155,11 @@ public final class InvasionRuntime {
     }
 
     private void failClosed(UUID id, long now, String message) {
+        failedInvasions.add(id);
         plugin.getLogger().log(Level.SEVERE, message + " for invasion " + id);
-        records.get(id);
-        InvasionState state = engine.status(records.get(id).guildId()).orElse(null);
-        if (state != null) engine.cancel(state.guildId(), now);
+        InvasionRecord record = records.get(id);
+        InvasionState state = record == null ? null : engine.status(record.guildId()).orElse(null);
+        if (record != null) engine.cancel(record.guildId(), now);
         cleanup(id, state);
     }
 

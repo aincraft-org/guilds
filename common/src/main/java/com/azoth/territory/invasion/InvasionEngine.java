@@ -35,11 +35,43 @@ public final class InvasionEngine {
         if (!persist()) { byId.remove(id); activeByGuild.remove(guildId); return new InvasionStartResult(InvasionStartStatus.PERSISTENCE_FAILED); }
         return new InvasionStartResult(InvasionStartStatus.STARTED, id);
     }
-    public synchronized void mobSpawned(UUID invasionId, UUID entityId) {
+    public synchronized InvasionMutationResult mobSpawned(UUID invasionId, UUID entityId) {
         InvasionRecord record = byId.get(invasionId);
-        if (record == null || record.status() != InvasionStatus.ACTIVE || record.currentWaveEntities().contains(entityId)) return;
-        mutate(record, copy(record, record.status(), record.wave(), add(record.currentWaveEntities(), entityId), record.damage(), record.updatedAt()));
+        if (record == null || record.status() != InvasionStatus.ACTIVE || record.currentWaveEntities().contains(entityId)) {
+            return InvasionMutationResult.NO_CHANGE;
+        }
+        return mutate(record, copy(record, record.status(), record.wave(), add(record.currentWaveEntities(), entityId),
+                record.damage(), record.updatedAt()))
+                ? InvasionMutationResult.PERSISTED
+                : InvasionMutationResult.PERSISTENCE_FAILED;
     }
+
+    public synchronized InvasionMutationResult mobRemovedResult(UUID invasionId, UUID entityId, long now) {
+        InvasionRecord record = byId.get(invasionId);
+        if (record == null || record.status() != InvasionStatus.ACTIVE || !record.currentWaveEntities().contains(entityId)) {
+            return InvasionMutationResult.NO_CHANGE;
+        }
+        List<UUID> remaining = new ArrayList<>(record.currentWaveEntities());
+        remaining.remove(entityId);
+        InvasionRecord next = copy(record, record.status(), record.wave(), remaining, record.damage(), now);
+        if (!remaining.isEmpty()) {
+            return mutate(record, next) ? InvasionMutationResult.PERSISTED : InvasionMutationResult.PERSISTENCE_FAILED;
+        }
+        if (record.wave() < 2) {
+            next = copy(record, record.status(), record.wave() + 1, List.of(), record.damage(), now);
+            return mutate(record, next) ? InvasionMutationResult.PERSISTED : InvasionMutationResult.PERSISTENCE_FAILED;
+        }
+        next = copy(record, InvasionStatus.DEFENDED, record.wave(), List.of(), record.damage(), now);
+        byId.put(invasionId, next);
+        activeByGuild.remove(record.guildId());
+        if (!persist()) {
+            byId.put(invasionId, record);
+            activeByGuild.put(record.guildId(), invasionId);
+            return InvasionMutationResult.PERSISTENCE_FAILED;
+        }
+        return InvasionMutationResult.PERSISTED;
+    }
+
     public synchronized List<InvasionTransition> mobRemoved(UUID invasionId, UUID entityId, long now) {
         InvasionRecord record = byId.get(invasionId);
         if (record == null || record.status() != InvasionStatus.ACTIVE || !record.currentWaveEntities().contains(entityId)) return List.of(InvasionTransition.NO_CHANGE);
