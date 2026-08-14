@@ -36,17 +36,17 @@ class InvasionEngineTest {
         UUID invasion = engine.start("guild-a", "Guild A", "world", 1, 2, 3, NOW).invasionId();
         UUID first = UUID.randomUUID();
         UUID second = UUID.randomUUID();
-        assertEquals(InvasionTransition.NO_CHANGE, engine.mobRemoved(invasion, UUID.randomUUID(), NOW));
+        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, UUID.randomUUID(), NOW));
         engine.mobSpawned(invasion, first);
         engine.mobSpawned(invasion, second);
-        assertEquals(InvasionTransition.NO_CHANGE, engine.mobRemoved(invasion, first, NOW));
-        assertEquals(InvasionTransition.NEXT_WAVE, engine.mobRemoved(invasion, second, NOW));
+        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, first, NOW));
+        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE), engine.mobRemoved(invasion, second, NOW));
         UUID third = UUID.randomUUID();
         engine.mobSpawned(invasion, third);
-        assertEquals(InvasionTransition.NEXT_WAVE, engine.mobRemoved(invasion, third, NOW));
+        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE), engine.mobRemoved(invasion, third, NOW));
         UUID fourth = UUID.randomUUID();
         engine.mobSpawned(invasion, fourth);
-        assertEquals(InvasionTransition.DEFENDED, engine.mobRemoved(invasion, fourth, NOW));
+        assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.DEFENDED), engine.mobRemoved(invasion, fourth, NOW));
         assertEquals(InvasionStatus.DEFENDED, engine.status("guild-a").orElseThrow().status());
     }
 
@@ -107,7 +107,7 @@ class InvasionEngineTest {
         engine.mobSpawned(invasion, mob);
         store.fail = true;
 
-        assertEquals(InvasionTransition.NO_CHANGE, engine.mobRemoved(invasion, mob, NOW + 1));
+        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, mob, NOW + 1));
         assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
         assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
     }
@@ -120,7 +120,7 @@ class InvasionEngineTest {
         engine.mobSpawned(invasion, mob);
         store.fail = true;
 
-        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemovedSequence(invasion, mob, NOW + 1));
+        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemoved(invasion, mob, NOW + 1));
         assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
         assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
     }
@@ -163,7 +163,7 @@ class InvasionEngineTest {
         engine.mobSpawned(invasion, mob);
 
         assertEquals(List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE),
-                engine.mobRemovedSequence(invasion, mob, NOW + 1));
+                engine.mobRemoved(invasion, mob, NOW + 1));
     }
 
     private static InvasionEngine engine(InvasionStore store) {

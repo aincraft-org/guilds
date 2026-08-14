@@ -40,14 +40,9 @@ public final class InvasionEngine {
         if (record == null || record.status() != InvasionStatus.ACTIVE || record.currentWaveEntities().contains(entityId)) return;
         mutate(record, copy(record, record.status(), record.wave(), add(record.currentWaveEntities(), entityId), record.damage(), record.updatedAt()));
     }
-    public synchronized InvasionTransition mobRemoved(UUID invasionId, UUID entityId, long now) {
-        List<InvasionTransition> sequence = mobRemovedSequence(invasionId, entityId, now);
-        return sequence.isEmpty() ? InvasionTransition.NO_CHANGE : sequence.getLast();
-    }
-
-    public synchronized List<InvasionTransition> mobRemovedSequence(UUID invasionId, UUID entityId, long now) {
+    public synchronized List<InvasionTransition> mobRemoved(UUID invasionId, UUID entityId, long now) {
         InvasionRecord record = byId.get(invasionId);
-        if (record == null || record.status() != InvasionStatus.ACTIVE || !record.currentWaveEntities().contains(entityId)) return List.of();
+        if (record == null || record.status() != InvasionStatus.ACTIVE || !record.currentWaveEntities().contains(entityId)) return List.of(InvasionTransition.NO_CHANGE);
         List<UUID> remaining = new ArrayList<>(record.currentWaveEntities()); remaining.remove(entityId);
         if (!remaining.isEmpty()) { mutate(record, copy(record, record.status(), record.wave(), remaining, record.damage(), now)); return List.of(InvasionTransition.NO_CHANGE); }
         if (record.wave() < 2) {
