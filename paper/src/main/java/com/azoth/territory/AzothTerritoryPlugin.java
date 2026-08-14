@@ -230,7 +230,6 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         this.blockProtection = new BlockProtection(governance);
         getServer().getPluginManager().registerEvents(
                 new ProtectionListener(blockProtection), this);
-        wireInvasions();
         getServer().getPluginManager().registerEvents(
                 new InteractionProtectionListener(blockProtection), this);
         if (this.guilds != null) {
@@ -322,6 +321,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
         startWebIfEnabled();
         enableGuildsSubsystem();
+        wireInvasions();
     }
     @Override
     public void onDisable() {
@@ -348,11 +348,11 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             }
         }
         stopUpkeep();
-        if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
         if (invasionRuntime != null) {
             invasionRuntime.disable(System.currentTimeMillis());
             invasionRuntime = null;
         }
+        if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
             try {
                 expenseStore.save(expenseLedger.entries());
             } catch (IOException e) {
@@ -592,7 +592,9 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.invasionRuntime = new com.azoth.territory.invasion.InvasionRuntime(
                     this, engine, resolver, spawner, bars, invasionConfig,
                     loaded.spawnRadius(), loaded.spawnAttempts(), loaded.waveDelayTicks(),
-                    location -> true);
+                    (location, guildId) -> guilds.getPlotService().getGuildBlock(location.getChunk().getX(), location.getChunk().getZ(), location.getWorld().getName())
+                            .map(block -> block.getGuildId().equals(guildId))
+                            .orElse(false));
             invasionRuntime.recover(System.currentTimeMillis());
             getServer().getPluginManager().registerEvents(
                     new com.azoth.territory.invasion.InvasionListener(

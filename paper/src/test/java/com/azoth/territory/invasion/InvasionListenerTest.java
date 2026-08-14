@@ -36,7 +36,7 @@ class InvasionListenerTest {
         when(block.getChunk()).thenReturn(mock(org.bukkit.Chunk.class)); when(block.getChunk().getX()).thenReturn(0); when(block.getChunk().getZ()).thenReturn(0);
         PlotService plots = mock(PlotService.class); when(plots.getGuildBlock(0,0,"world")).thenReturn(Optional.of(new GuildBlock(0,0,"world","guild")));
         InvasionRuntime runtime = mock(InvasionRuntime.class); InvasionEngine engine = mock(InvasionEngine.class);
-        when(runtime.status("guild")).thenReturn(Optional.of(new InvasionState(invasion,"guild","Guild","world",0,64,0,InvasionStatus.ACTIVE,0,List.of(),new GuildDamage(0,0),0)));
+        when(runtime.canDestroy(eq(invasion), eq("guild"))).thenReturn(true);
         when(pdc(mob).get(any(), eq(org.bukkit.persistence.PersistentDataType.STRING))).thenReturn(invasion.toString(), "guild");
         when(engine.recordDestroyedBlock(eq(invasion), anyLong())).thenReturn(InvasionTransition.DAMAGE_RECORDED);
         InvasionListener listener = new InvasionListener(runtime, engine, plots, Set.of(Material.DIRT));
@@ -51,7 +51,7 @@ class InvasionListenerTest {
         when(block.getChunk()).thenReturn(mock(org.bukkit.Chunk.class)); when(block.getChunk().getX()).thenReturn(0); when(block.getChunk().getZ()).thenReturn(0);
         PlotService plots = mock(PlotService.class); when(plots.getGuildBlock(0,0,"world")).thenReturn(Optional.of(new GuildBlock(0,0,"world","guild")));
         InvasionRuntime runtime = mock(InvasionRuntime.class); InvasionEngine engine = mock(InvasionEngine.class);
-        when(runtime.status("guild")).thenReturn(Optional.of(new InvasionState(invasion,"guild","Guild","world",0,64,0,InvasionStatus.ACTIVE,0,List.of(),new GuildDamage(0,0),0)));
+        when(runtime.canDestroy(eq(invasion), eq("guild"))).thenReturn(true);
         when(pdc(mob).get(any(), eq(org.bukkit.persistence.PersistentDataType.STRING))).thenReturn(invasion.toString(), "guild");
         when(engine.recordDestroyedBlock(eq(invasion), anyLong())).thenReturn(InvasionTransition.NO_CHANGE);
         InvasionListener listener = new InvasionListener(runtime, engine, plots, Set.of(Material.DIRT));

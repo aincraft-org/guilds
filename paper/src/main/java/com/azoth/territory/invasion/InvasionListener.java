@@ -34,6 +34,7 @@ public final class InvasionListener implements Listener {
         if (id == null || guild == null) return;
         event.blockList().removeIf(block -> !destroy(id, guild, block));
         event.setYield(0);
+        event.setCancelled(false);
     }
 
     @EventHandler public void onChange(EntityChangeBlockEvent event) {
@@ -45,8 +46,7 @@ public final class InvasionListener implements Listener {
 
     private boolean destroy(UUID id, String guild, Block block) {
         try {
-            boolean active = runtime.canDestroy(id, guild)
-                    || runtime.status(guild).map(s -> s.invasionId().equals(id) && s.status() == InvasionStatus.ACTIVE).orElse(false);
+            boolean active = runtime.canDestroy(id, guild);
             if (!active || !allowlist.contains(block.getType())) return false;
             GuildBlock claim = plots.getGuildBlock(block.getChunk().getX(), block.getChunk().getZ(), block.getWorld().getName()).orElse(null);
             if (claim == null || !guild.equals(claim.getGuildId())) return false;
