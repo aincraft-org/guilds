@@ -364,7 +364,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         }
         if (facilityStore != null && facilities != null) {
             try {
-                facilityStore.save(facilities);
+                facilityStore.save(facilities.list());
             } catch (IOException e) {
                 getLogger().log(Level.SEVERE, "Failed to flush facility state on disable", e);
             }
