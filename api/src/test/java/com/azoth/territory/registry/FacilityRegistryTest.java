@@ -23,6 +23,12 @@ class FacilityRegistryTest {
                 new BlockPos(100, 100), new BlockPos(0, 100))));
     }
 
+    private static Territory territoryAt(String id, int offset) {
+        return new Territory(id, id, "world", Boundary.ofPolygon(List.of(
+                new BlockPos(offset, 0), new BlockPos(offset + 100, 0),
+                new BlockPos(offset + 100, 100), new BlockPos(offset, 100))));
+    }
+
     private static SettlementFacility facility(String id, FacilityType type, int x, int z) {
         return new SettlementFacility(id, id, "t1", type, "world", x, 64, z);
     }
@@ -91,5 +97,33 @@ class FacilityRegistryTest {
         facilities.replaceAll(List.of(market, warehouse));
 
         assertEquals(2, facilities.list().size());
+    }
+
+    @Test
+    void filtersFacilitiesByTerritoryAndTypeInRegistrationOrder() {
+        FacilityRegistry facilities = new FacilityRegistry(
+                new TerritoryRegistry(List.of(territory("t1"), territoryAt("t2", 200))));
+        SettlementFacility first = facility("first", FacilityType.WAYSTONE, 5, 5);
+        SettlementFacility market = facility("market", FacilityType.TRADING_POST, 6, 6);
+        SettlementFacility second = facility("second", FacilityType.WAYSTONE, 7, 7);
+        facilities.replaceAll(List.of(first, market, second));
+
+        assertEquals(List.of(first, second), facilities.list("t1", FacilityType.WAYSTONE));
+        assertTrue(facilities.list("t2", FacilityType.WAYSTONE).isEmpty());
+    }
+
+    @Test
+    void copyCanMutateWithoutChangingLiveRegistry() {
+        FacilityRegistry live = new FacilityRegistry(
+                new TerritoryRegistry(List.of(territory("t1"))));
+        live.register(facility("market", FacilityType.TRADING_POST, 5, 5));
+
+        FacilityRegistry candidate = live.copy();
+        candidate.register(facility("stone", FacilityType.WAYSTONE, 6, 6));
+
+        assertEquals(List.of("market"),
+                live.list().stream().map(SettlementFacility::id).toList());
+        assertEquals(List.of("market", "stone"),
+                candidate.list().stream().map(SettlementFacility::id).toList());
     }
 }

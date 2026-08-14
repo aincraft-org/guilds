@@ -1,5 +1,6 @@
 package com.azoth.territory.registry;
 
+import com.azoth.territory.model.FacilityType;
 import com.azoth.territory.model.SettlementFacility;
 import com.azoth.territory.model.Territory;
 
@@ -50,6 +51,24 @@ public final class FacilityRegistry {
 
     public List<SettlementFacility> list() {
         return List.copyOf(byId.values());
+    }
+
+    public List<SettlementFacility> list(String territoryId, FacilityType type) {
+        Objects.requireNonNull(type, "type");
+        if (territoryId == null || territoryId.isBlank()) {
+            return List.of();
+        }
+        String normalized = territoryId.trim();
+        return byId.values().stream()
+                .filter(facility -> facility.territoryId().equals(normalized)
+                        && facility.type() == type)
+                .toList();
+    }
+
+    public FacilityRegistry copy() {
+        FacilityRegistry copy = new FacilityRegistry(territories);
+        copy.replaceAll(byId.values());
+        return copy;
     }
 
     public Optional<SettlementFacility> resolve(String worldId, int x, int y, int z) {

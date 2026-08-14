@@ -14,10 +14,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /** PostgreSQL persistence for settlement facility metadata. */
-public final class PostgresFacilityStore {
+public final class PostgresFacilityStore implements FacilityStore {
     private final Database database;
     private final Gson gson = new Gson();
 
@@ -25,7 +26,9 @@ public final class PostgresFacilityStore {
         this.database = database;
     }
 
-    public void save(FacilityRegistry registry) throws IOException {
+    @Override
+    public void save(Collection<SettlementFacility> facilities) throws IOException {
+        List<SettlementFacility> snapshot = List.copyOf(facilities);
         try (Connection c = database.connection()) {
             c.setAutoCommit(false);
             try {
@@ -34,7 +37,7 @@ public final class PostgresFacilityStore {
                 }
                 try (PreparedStatement insert = c.prepareStatement(
                         database.dialect().documentUpsertSql("facilities", "id"))) {
-                    for (SettlementFacility facility : registry.list()) {
+                    for (SettlementFacility facility : snapshot) {
                         insert.setString(1, facility.id());
                         insert.setString(2, gson.toJson(toJson(facility)));
                         insert.addBatch();
