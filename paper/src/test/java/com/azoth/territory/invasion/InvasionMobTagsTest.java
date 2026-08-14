@@ -29,6 +29,16 @@ class InvasionMobTagsTest {
     }
 
     @Test
+    void writesOnlyCanonicalInvasionAndGuildPdcEntries() {
+        PersistentDataContainer pdc = mock(PersistentDataContainer.class);
+        UUID invasion = UUID.randomUUID();
+        new InvasionMobTags(mock(org.bukkit.plugin.Plugin.class)).tag(pdc, invasion, "guild-7");
+        verify(pdc).set(new NamespacedKey("azothterritory", "invasion_id"), PersistentDataType.STRING, invasion.toString());
+        verify(pdc).set(new NamespacedKey("azothterritory", "invasion_guild_id"), PersistentDataType.STRING, "guild-7");
+        verifyNoMoreInteractions(pdc);
+    }
+
+    @Test
     void ignoresDecoyNamespaceAndRejectsNonCanonicalUuid() {
         PersistentDataContainer pdc = mock(PersistentDataContainer.class);
         NamespacedKey canonical = new NamespacedKey("azothterritory", "invasion_id");

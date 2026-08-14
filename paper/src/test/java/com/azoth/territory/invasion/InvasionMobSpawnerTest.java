@@ -104,6 +104,28 @@ class InvasionMobSpawnerTest {
         verify(world, never()).spawnEntity(any(Location.class), any(EntityType.class));
     }
 
+    @Test
+    void rejectsUnloadedCandidateBeforeQueryingHeight() {
+        Plugin plugin = mockPlugin();
+        World world = readyWorld(plugin);
+        when(world.isChunkLoaded(anyInt(), anyInt())).thenReturn(false);
+        InvasionMobSpawner spawner = new InvasionMobSpawner(plugin, fixedRandom());
+        assertTrue(spawner.spawn(record(), wave(), 1, 1, location -> true).isEmpty());
+        verify(world, never()).getHighestBlockYAt(anyInt(), anyInt());
+    }
+
+    @Test
+    void rejectsNonSolidFloorEvenWhenNotPassable() {
+        Plugin plugin = mockPlugin();
+        World world = readyWorld(plugin);
+        org.bukkit.block.Block floor = mock(org.bukkit.block.Block.class);
+        when(floor.isPassable()).thenReturn(false);
+        doReturn(floor).when(world).getBlockAt(anyInt(), eq(64), anyInt());
+        InvasionMobSpawner spawner = new InvasionMobSpawner(plugin, fixedRandom(), block -> false);
+        assertTrue(spawner.spawn(record(), wave(), 1, 1, location -> true).isEmpty());
+        verify(world, never()).spawnEntity(any(Location.class), any(EntityType.class));
+    }
+
     private static InvasionRecord record() {
         return new InvasionRecord(INVASION_ID, "guild-7", "Guild Seven", "world", 10, 64, 20,
                 InvasionStatus.ACTIVE, 0, List.of(), new GuildDamage(0, 0), 0);

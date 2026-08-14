@@ -48,10 +48,24 @@ public final class InvasionBossBars {
         update(entry, record, waveCount);
         Set<UUID> desired = new HashSet<>();
         for (Player player : Bukkit.getOnlinePlayers()) {
-            if (shouldShow(player, record, residents)) { desired.add(player.getUniqueId()); if (!entry.viewers.contains(player.getUniqueId())) player.showBossBar(entry.bar); }
-            else if (entry.viewers.contains(player.getUniqueId())) player.hideBossBar(entry.bar);
+            if (shouldShow(player, record, residents)) {
+                desired.add(player.getUniqueId());
+                player.showBossBar(entry.bar);
+            } else if (entry.viewers.contains(player.getUniqueId())) player.hideBossBar(entry.bar);
         }
         entry.viewers.clear(); entry.viewers.addAll(desired);
+    }
+
+    public void playerConnected(Player player, InvasionRecord record, int waveCount, Set<UUID> residents) {
+        if (record.status() != InvasionStatus.ACTIVE) return;
+        Entry entry = entries.get(record.invasionId());
+        if (entry == null) entry = new Entry(BossBar.bossBar(Component.empty(), 1f, BossBar.Color.RED, BossBar.Overlay.PROGRESS), record.currentWaveEntities().size());
+        entries.put(record.invasionId(), entry);
+        update(entry, record, waveCount);
+        if (shouldShow(player, record, residents)) {
+            player.showBossBar(entry.bar);
+            entry.viewers.add(player.getUniqueId());
+        }
     }
 
     public void remove(InvasionRecord record) {

@@ -55,6 +55,28 @@ class InvasionBossBarsTest {
     }
 
     @Test
+    void reconnectingPlayerWithSameUuidIsShownAgainImmediately() {
+        InvasionBossBars bars = new InvasionBossBars(96);
+        World world = mock(World.class);
+        when(world.getName()).thenReturn("world");
+        UUID id = UUID.randomUUID();
+        Player first = mock(Player.class), reconnect = mock(Player.class);
+        when(first.getUniqueId()).thenReturn(id);
+        when(reconnect.getUniqueId()).thenReturn(id);
+        when(first.getWorld()).thenReturn(world);
+        when(reconnect.getWorld()).thenReturn(world);
+        when(first.getLocation()).thenReturn(new org.bukkit.Location(world, 1, 64, 1));
+        when(reconnect.getLocation()).thenReturn(new org.bukkit.Location(world, 1, 64, 1));
+        InvasionRecord record = new InvasionRecord(UUID.randomUUID(), "g", "G", "world", 0, 64, 0,
+                InvasionStatus.ACTIVE, 0, List.of(UUID.randomUUID()), new GuildDamage(0, 0), 0);
+        BossBar bar = bars.bar(record, 1);
+        bars.playerConnected(first, record, 1, Set.of());
+        bars.playerConnected(reconnect, record, 1, Set.of());
+        verify(first).showBossBar(bar);
+        verify(reconnect).showBossBar(bar);
+    }
+
+    @Test
     void openResetsDenominatorWhilePreservingBarIdentity() {
         var bars = new InvasionBossBars(96);
         UUID id = UUID.randomUUID();
