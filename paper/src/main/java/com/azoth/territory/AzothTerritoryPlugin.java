@@ -93,6 +93,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private FacilityRegistry facilities;
     private PostgresFacilityStore facilityStore;
     private com.azoth.territory.building.BuildingCommand buildingCommand;
+    private com.azoth.territory.building.FacilityMutationService facilityMutations;
+    private com.azoth.territory.building.WaystoneTravelService waystoneTravelService;
     private PostgresTerritoryStore store;
     private Database database;
     private GovernanceRegistry governance;
@@ -239,6 +241,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         getLogger().info(
                 "Registered territory protection listeners "
                         + "(break/place/fire/explosions/mob-spawn/entity-grief/interaction/pvp/teleport)");
+        startBuildings();
 
         // squaremap integration: render territory/zone/influence boundaries as map layers.
         // Self-degrading when squaremap is absent; must start after registry load.
@@ -333,6 +336,10 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         stopInfluenceStatus();
         stopWeb();
         stopSquaremap();
+        if (waystoneTravelService != null) {
+            waystoneTravelService.stop();
+            waystoneTravelService = null;
+        }
         if (standingEngine != null) {
             try {
                 standingEngine.flush();
@@ -677,6 +684,14 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         return buildingCommand;
     }
 
+    public com.azoth.territory.building.FacilityMutationService getFacilityMutations() {
+        return facilityMutations;
+    }
+
+    public com.azoth.territory.building.WaystoneTravelService getWaystoneTravelService() {
+        return waystoneTravelService;
+    }
+
     public PostgresTerritoryStore getStore() {
         return store;
     }
@@ -696,6 +711,49 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     public WebConfig getWebConfig() {
         return webConfig;
     }
+    private void startBuildings() {
+        if (guilds == null) {
+            getLogger().warning("Territory buildings unavailable because guilds failed to start");
+            return;
+        }
+        try {
+            var config = com.azoth.territory.building.BuildingConfigLoader.from(getConfig());
+            this.facilityMutations = new com.azoth.territory.building.FacilityMutationService(
+                    facilities, facilityStore);
+            var authorization = new com.azoth.territory.building.BuildingAuthorization(
+                    guilds.getGuildService(), guilds.getPermissionService());
+            var anchors = new com.azoth.territory.building.FacilityAnchorValidator(
+                    getServer(), registry, facilities, config);
+            var sessions = new com.azoth.territory.building.BuildingPlacementSessions(
+                    config.placementTimeoutMillis());
+            var selections = new com.azoth.territory.building.WaystoneSelections(
+                    config.placementTimeoutMillis());
+            var access = new com.azoth.territory.building.WaystoneAccess(
+                    facilities, registry, anchors, authorization);
+            this.waystoneTravelService = new com.azoth.territory.building.WaystoneTravelService(
+                    this, facilities, anchors, access,
+                    new com.azoth.territory.building.SafeLandingResolver(getServer()),
+                    blockProtection, config);
+            this.buildingCommand = new com.azoth.territory.building.BuildingCommand(
+                    sessions, facilities, registry, anchors, authorization,
+                    facilityMutations, config, selections, waystoneTravelService);
+            getServer().getPluginManager().registerEvents(
+                    new com.azoth.territory.building.BuildingListener(
+                            sessions, config, registry, facilities, authorization,
+                            facilityMutations, anchors, access, selections,
+                            getServer().getPluginManager()), this);
+            getServer().getPluginManager().registerEvents(
+                    new com.azoth.territory.building.WaystoneTravelListener(waystoneTravelService),
+                    this);
+            getLogger().info("Territory anchor buildings enabled");
+        } catch (RuntimeException e) {
+            this.buildingCommand = null;
+            this.facilityMutations = null;
+            this.waystoneTravelService = null;
+            getLogger().log(Level.SEVERE, "Failed to start territory buildings — disabled", e);
+        }
+    }
+
 
     public EconomyBridge getEconomyBridge() {
         return economyBridge;
