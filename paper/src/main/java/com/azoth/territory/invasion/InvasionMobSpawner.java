@@ -29,7 +29,7 @@ public final class InvasionMobSpawner {
             for (int i = 0; i < attempts; i++) {
                 int x = (int) Math.floor(record.x()) + random.nextInt(radius * 2 + 1) - radius;
                 int z = (int) Math.floor(record.z()) + random.nextInt(radius * 2 + 1) - radius;
-                int y = world.getHighestBlockYAt(x, z);
+                int y = world.getHighestBlockYAt(x, z) + 1;
                 Location location = new Location(world, x + .5, y, z + .5);
                 if (!world.isChunkLoaded(x >> 4, z >> 4) || !claim.test(location)) continue;
                 if (!world.getBlockAt(x, y - 1, z).getType().isSolid()

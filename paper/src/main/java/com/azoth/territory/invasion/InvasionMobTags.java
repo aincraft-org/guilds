@@ -31,23 +31,16 @@ public final class InvasionMobTags {
         pdc.set(invasionKey, PersistentDataType.STRING, invasionId.toString());
         pdc.set(guildKey, PersistentDataType.STRING, guildId);
     }
-    public static Optional<UUID> invasionId(PersistentDataContainer pdc) { return parseUuid(find(pdc, "invasion_id")); }
+    public static Optional<UUID> invasionId(PersistentDataContainer pdc) {
+        return parseUuid(pdc.get(new NamespacedKey("azothterritory", "invasion_id"), PersistentDataType.STRING));
+    }
     public static Optional<String> guildId(PersistentDataContainer pdc) {
-        String value = find(pdc, "invasion_guild_id");
+        String value = pdc.get(new NamespacedKey("azothterritory", "invasion_guild_id"), PersistentDataType.STRING);
         return value == null || value.isBlank() ? Optional.empty() : Optional.of(value);
     }
     public static boolean belongsTo(PersistentDataContainer pdc, UUID invasionId, String guildId) {
         return invasionId != null && guildId != null && invasionId(pdc).filter(invasionId::equals).isPresent()
                 && guildId(pdc).filter(guildId::equals).isPresent();
-    }
-    private static String find(PersistentDataContainer pdc, String key) {
-        for (var namespaced : new String[]{"invasion_id", "invasion_guild_id"}) {
-            for (var namespace : new String[]{"azothterritory", "territory"}) {
-                String value = pdc.get(new NamespacedKey(namespace, key), PersistentDataType.STRING);
-                if (value != null) return value;
-            }
-        }
-        return null;
     }
     public Optional<UUID> invasionId(Entity entity) { return invasionId(entity.getPersistentDataContainer()); }
     public Optional<String> guildId(Entity entity) { return guildId(entity.getPersistentDataContainer()); }
