@@ -34,7 +34,7 @@ public final class InvasionMobSpawner {
                 int y = world.getHighestBlockYAt(x, z) + 1;
                 Location location = new Location(world, x + .5, y, z + .5);
                 if (!world.isChunkLoaded(x >> 4, z >> 4) || !claim.test(location)) continue;
-                if (!world.getBlockAt(x, y - 1, z).getType().isSolid()
+                if (world.getBlockAt(x, y - 1, z).isPassable()
                         || !world.getBlockAt(x, y, z).isPassable() || !world.getBlockAt(x, y + 1, z).isPassable()) continue;
                 Entity entity = world.spawnEntity(location, type);
                 tags.tag(entity, record.invasionId(), record.guildId());

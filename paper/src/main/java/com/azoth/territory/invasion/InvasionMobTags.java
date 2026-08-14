@@ -14,8 +14,8 @@ public final class InvasionMobTags {
     private final NamespacedKey guildKey;
 
     public InvasionMobTags(Plugin plugin) {
-        this.invasionKey = new NamespacedKey(plugin, "invasion_id");
-        this.guildKey = new NamespacedKey(plugin, "invasion_guild_id");
+        this.invasionKey = new NamespacedKey("azothterritory", "invasion_id");
+        this.guildKey = new NamespacedKey("azothterritory", "invasion_guild_id");
     }
 
     public static void tag(Entity entity, UUID invasionId, String guildId, Plugin plugin) {
