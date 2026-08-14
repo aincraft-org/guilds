@@ -1,6 +1,9 @@
 package org.aincraft.guilds.listeners;
 
 
+import com.azoth.territory.listener.TerritoryTransitionTitleFormatter;
+import com.azoth.territory.model.LookupResult;
+import com.azoth.territory.registry.TerritoryRegistry;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -24,7 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Listener for player movement events to handle guild boundary notifications
+ * Listener for player movement events to handle guild boundary notifications.
  */
 public class PlayerMovementListener implements Listener {
 
@@ -34,32 +37,26 @@ public class PlayerMovementListener implements Listener {
     private final ResidentService residentService;
     private final PlotTypeHandlerManager plotTypeHandlerManager;
     private final PlotTypeRegistry plotTypeRegistry;
+    private final TerritoryRegistry territoryRegistry;
 
-    // Track last known guild for each player to detect boundary crossings
     private final Map<UUID, String> lastGuildByPlayer = new ConcurrentHashMap<>();
-
-    // Track last known plot type for each player to detect plot type changes
     private final Map<UUID, String> lastPlotTypeByPlayer = new ConcurrentHashMap<>();
-
+    private final Map<UUID, TerritoryLocation> lastTerritoryByPlayer = new ConcurrentHashMap<>();
 
     public PlayerMovementListener(JavaPlugin plugin, PlotService plotService, GuildService guildService,
                                   ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager,
-                                  PlotTypeRegistry plotTypeRegistry) {
+                                  PlotTypeRegistry plotTypeRegistry, TerritoryRegistry territoryRegistry) {
         this.plugin = plugin;
         this.plotService = plotService;
         this.guildService = guildService;
         this.residentService = residentService;
         this.plotTypeHandlerManager = plotTypeHandlerManager;
         this.plotTypeRegistry = plotTypeRegistry;
+        this.territoryRegistry = territoryRegistry;
     }
 
     @EventHandler
     public void onPlayerMove(PlayerMoveEvent event) {
-        // Only check if player moved between chunks (not just within the same chunk)
-        if (event.getFrom().getChunk() == event.getTo().getChunk()) {
-            return;
-        }
-
         Player player = event.getPlayer();
         if (player == null) {
             return;
@@ -71,6 +68,12 @@ public class PlayerMovementListener implements Listener {
         }
 
         try {
+            updateTerritoryTitle(player, event);
+            // Guild/plot processing remains chunk-based.
+            if (event.getFrom().getChunk() == event.getTo().getChunk()) {
+                return;
+            }
+
             // Get current location's guild block
             int chunkX = event.getTo().getChunk().getX();
             int chunkZ = event.getTo().getChunk().getZ();
@@ -185,6 +188,51 @@ public class PlayerMovementListener implements Listener {
                 player.sendActionBar(message);
             }
         }.runTask(plugin);
+    }
+    private void updateTerritoryTitle(Player player, PlayerMoveEvent event) {
+        String toWorld = event.getTo().getWorld().getName();
+        TerritoryLocation previous = lastTerritoryByPlayer.get(player.getUniqueId());
+        TerritoryLocation current = resolveTerritory(toWorld, event.getTo().getBlockX(), event.getTo().getBlockZ());
+        if (previous == null) {
+            lastTerritoryByPlayer.put(player.getUniqueId(), current);
+            return;
+        }
+        if (current.equals(previous)) {
+            return;
+        }
+        lastTerritoryByPlayer.put(player.getUniqueId(), current);
+        TerritoryTransitionTitleFormatter.Title title = current.contained()
+                ? TerritoryTransitionTitleFormatter.enter(Optional.of(current.territoryName()), current.zoneType())
+                : TerritoryTransitionTitleFormatter.leave();
+        sendTitle(player, title);
+    }
+
+    private TerritoryLocation resolveTerritory(String world, int blockX, int blockZ) {
+        LookupResult result = territoryRegistry.resolve(world, blockX, blockZ);
+        return result.isContained()
+                ? new TerritoryLocation(
+                        result.territoryId().orElseThrow(),
+                        result.territory().orElseThrow().name(),
+                        result.zoneType().orElse(null))
+                : TerritoryLocation.OUTSIDE;
+    }
+
+    private void sendTitle(Player player, TerritoryTransitionTitleFormatter.Title title) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                player.sendTitle(title.title(), title.subtitle(), 10, 60, 10);
+            }
+        }.runTask(plugin);
+    }
+
+    private record TerritoryLocation(String territoryId, String territoryName,
+                                     com.azoth.territory.model.ZoneType zoneType) {
+        private static final TerritoryLocation OUTSIDE = new TerritoryLocation(null, null, null);
+
+        private boolean contained() {
+            return territoryId != null;
+        }
     }
 
     private String getPlotTypeDisplayName(String plotType) {

@@ -226,7 +226,8 @@ public class GuildsServices {
         // Commands are built after all core services exist.
         // Listeners
         playerMovementListener = new PlayerMovementListener(plugin, plotService, guildService,
-                residentService, plotTypeHandlerManager, plotTypeRegistry);
+                residentService, plotTypeHandlerManager, plotTypeRegistry,
+                ((com.azoth.territory.AzothTerritoryPlugin) plugin).getRegistry());
         guildToggleListener = new GuildToggleListener(plugin, permissionService);
         guildPublicAccessListener = new GuildPublicAccessListener(plugin, permissionService, residentService);
         guildBroadcastListener = new GuildBroadcastListener(plugin, broadcastService, residentService,
