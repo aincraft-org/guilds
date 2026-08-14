@@ -1,6 +1,6 @@
 # Azoth Territory
 
-Paper plugin for large map **territories** with nested **Wilderness** and **Claimable** zones — inspired by New World / LokaMC style regions (guild claims / siege systems are out of scope).
+Paper plugin for large map **territories** with nested **Wilderness** and **Claimable** zones — inspired by New World / LokaMC style regions. It also supports administrator-triggered guild mob invasions scoped to guild claims; invasions are not scheduled automatically.
 
 ## Features
 

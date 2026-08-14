@@ -35,7 +35,7 @@ violate spatial rules fail closed before persistence.
 ### Out of scope / non-goals
 
 - Guild/plot claim systems as the primary land model (guild plots are **guilds**).
-- War/siege combat.
+- Administrator-triggered guild mob invasions scoped to guild plots; automatic scheduling, repair/reset, and reconstruction are not part of the current scope.
 - Drawing UI (see **map** admin editor).
 - Influence races, standing, tax math (other domains).
 
