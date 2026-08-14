@@ -56,3 +56,4 @@ The Task 1 `InvasionStore` API exposes unchecked `load`/`save` methods, so check
 - Added malformed JSON coverage for version `1.5`, fractional counters/waves/timestamps, non-integral exponents, and integer/long overflow.
 - Replaced Gson lossy `getAsInt()`/`getAsLong()` conversion with exact `BigDecimal.toBigIntegerExact()` parsing plus field-specific range checks.
 - Focused command: `./gradlew :common:test --tests '*PostgresInvasionStoreTest'` — BUILD SUCCESSFUL (PostgreSQL integration tests are environment-assumption based when `AZOTH_TEST_JDBC_URL` is unavailable).
+- Enforced the stricter integral JSON number grammar (`-?[0-9]+`) before exact `BigInteger` conversion, rejecting exponent and decimal lexemes even when mathematically integral.

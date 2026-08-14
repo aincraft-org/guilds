@@ -223,8 +223,11 @@ public final class PostgresInvasionStore implements InvasionStore {
     private static BigInteger integral(JsonElement value, String name, String type) throws IOException {
         if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber())
             throw new IOException("invasion " + type + " is invalid: " + name);
-        try { return new BigDecimal(value.getAsString()).toBigIntegerExact(); }
-        catch (NumberFormatException | ArithmeticException e) {
+        String lexeme = value.getAsString();
+        if (!lexeme.matches("-?[0-9]+"))
+            throw new IOException("invasion " + type + " is invalid: " + name);
+        try { return new BigInteger(lexeme); }
+        catch (NumberFormatException e) {
             throw new IOException("invasion " + type + " is invalid: " + name, e);
         }
     }
