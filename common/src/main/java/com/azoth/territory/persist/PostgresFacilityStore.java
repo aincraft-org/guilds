@@ -18,10 +18,10 @@ import java.util.List;
 
 /** PostgreSQL persistence for settlement facility metadata. */
 public final class PostgresFacilityStore {
-    private final PostgresDatabase database;
+    private final Database database;
     private final Gson gson = new Gson();
 
-    public PostgresFacilityStore(PostgresDatabase database) {
+    public PostgresFacilityStore(Database database) {
         this.database = database;
     }
 
@@ -33,7 +33,7 @@ public final class PostgresFacilityStore {
                     clear.executeUpdate();
                 }
                 try (PreparedStatement insert = c.prepareStatement(
-                        "INSERT INTO facilities (id, doc) VALUES (?, ?::jsonb)")) {
+                        database.dialect().documentUpsertSql("facilities", "id"))) {
                     for (SettlementFacility facility : registry.list()) {
                         insert.setString(1, facility.id());
                         insert.setString(2, gson.toJson(toJson(facility)));

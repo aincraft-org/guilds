@@ -24,10 +24,10 @@ import java.util.Map;
 /** PostgreSQL JSONB snapshot store for recurring upkeep state. */
 public final class PostgresUpkeepStore implements UpkeepStore {
     private static final int VERSION = 1;
-    private final PostgresDatabase database;
+    private final Database database;
     private final Gson gson = new Gson();
 
-    public PostgresUpkeepStore(PostgresDatabase database) {
+    public PostgresUpkeepStore(Database database) {
         this.database = database;
     }
 
@@ -48,11 +48,9 @@ public final class PostgresUpkeepStore implements UpkeepStore {
         root.add("territories", territories);
 
         try (Connection connection = database.connection();
-             PreparedStatement statement = connection.prepareStatement("""
-                     INSERT INTO upkeep_state (id, doc) VALUES (1, ?::jsonb)
-                     ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc
-                     """)) {
-            statement.setString(1, gson.toJson(root));
+             PreparedStatement statement = connection.prepareStatement(database.dialect().singletonUpsertSql("upkeep_state", "id"))) {
+            statement.setInt(1, 1);
+            statement.setString(2, gson.toJson(root));
             statement.executeUpdate();
         } catch (SQLException | RuntimeException e) {
             throw new IOException("Failed to save upkeep state to PostgreSQL", e);

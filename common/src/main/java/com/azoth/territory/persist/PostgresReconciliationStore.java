@@ -20,10 +20,10 @@ import java.util.UUID;
 /** PostgreSQL persistence for settlement reconciliation entries. */
 public final class PostgresReconciliationStore {
     private static final String KEY = "state";
-    private final PostgresDatabase database;
+    private final Database database;
     private final Gson gson = new Gson();
 
-    public PostgresReconciliationStore(PostgresDatabase database) {
+    public PostgresReconciliationStore(Database database) {
         this.database = database;
     }
 
@@ -38,10 +38,7 @@ public final class PostgresReconciliationStore {
         }
         root.add("transactions", transactions);
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("""
-                     INSERT INTO reconciliation_entries (idempotency_key, doc) VALUES (?, ?::jsonb)
-                     ON CONFLICT (idempotency_key) DO UPDATE SET doc = EXCLUDED.doc
-                     """)) {
+             PreparedStatement ps = c.prepareStatement(database.dialect().documentUpsertSql("reconciliation_entries", "idempotency_key"))) {
             ps.setString(1, KEY);
             ps.setString(2, gson.toJson(root));
             ps.executeUpdate();

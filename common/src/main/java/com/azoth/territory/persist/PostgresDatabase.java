@@ -10,26 +10,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Objects;
 
-/**
- * Owns the single PostgreSQL connection pool used by every durable store.
- */
-public final class PostgresDatabase implements AutoCloseable {
-    private static final String[] COMMON_SCHEMA = {
-            "CREATE TABLE IF NOT EXISTS territories (id TEXT PRIMARY KEY, doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS influence_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS standing_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS reconciliation_entries (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS facilities (id TEXT PRIMARY KEY, doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS expenses (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS upkeep_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS invasion_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)"
-    };
+/** Compatibility wrapper for the PostgreSQL backend. */
+public final class PostgresDatabase implements Database {
+    private final HikariDataSource dataSource;
+    private final PostgresDialect dialect = new PostgresDialect();
 
     static {
-        // The JDBC driver is shaded into the plugin jar. Paper loads plugins
-        // through their own classloaders, so DriverManager (system classloader)
-        // never sees the driver from the service file. Register it explicitly —
-        // this is the standard fix for shaded JDBC drivers on Bukkit/Paper.
         try {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException e) {
@@ -37,14 +23,11 @@ public final class PostgresDatabase implements AutoCloseable {
         }
     }
 
-    private final HikariDataSource dataSource;
-
     public PostgresDatabase(DatabaseSettings settings) throws IOException {
         Objects.requireNonNull(settings, "settings");
         if (!settings.jdbcUrl().startsWith("jdbc:postgresql:")) {
             throw new IOException("PostgreSQL JDBC URL required: " + settings.jdbcUrl());
         }
-
         HikariConfig config = new HikariConfig();
         config.setPoolName("azoth-postgres");
         config.setJdbcUrl(settings.jdbcUrl());
@@ -58,37 +41,22 @@ public final class PostgresDatabase implements AutoCloseable {
         config.setConnectionTestQuery("SELECT 1");
         try {
             this.dataSource = new HikariDataSource(config);
-            try (Connection ignored = dataSource.getConnection()) {
-                // Force a connection now so startup fails before services are wired.
-            }
+            try (Connection ignored = dataSource.getConnection()) { }
         } catch (Exception e) {
-            throw new IOException("PostgreSQL unavailable at " + settings.jdbcUrl()
-                    + " — " + e.getMessage(), e);
+            throw new IOException("PostgreSQL unavailable at " + settings.jdbcUrl() + " — " + e.getMessage(), e);
         }
     }
 
-    public DataSource dataSource() {
-        return dataSource;
-    }
-
-    public Connection connection() throws SQLException {
-        return dataSource.getConnection();
-    }
-
-    public void initializeSchema() throws IOException {
-        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
-            for (String sql : COMMON_SCHEMA) {
-                statement.execute(sql);
-            }
+    @Override public DataSource dataSource() { return dataSource; }
+    @Override public Connection connection() throws SQLException { return dataSource.getConnection(); }
+    @Override public DatabaseType type() { return DatabaseType.POSTGRESQL; }
+    @Override public DatabaseDialect dialect() { return dialect; }
+    @Override public void initializeSchema() throws IOException {
+        try (Connection c = connection(); Statement s = c.createStatement()) {
+            for (String sql : dialect.schemaStatements()) s.execute(sql);
         } catch (SQLException e) {
             throw new IOException("Failed to initialize shared PostgreSQL schema", e);
         }
     }
-
-    @Override
-    public void close() {
-        if (!dataSource.isClosed()) {
-            dataSource.close();
-        }
-    }
+    @Override public void close() { if (!dataSource.isClosed()) dataSource.close(); }
 }

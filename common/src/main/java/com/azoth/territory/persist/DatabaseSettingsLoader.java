@@ -12,15 +12,17 @@ public final class DatabaseSettingsLoader {
     }
 
     public static DatabaseSettings fromValues(Map<String, Object> cfg) {
+        DatabaseType type = DatabaseType.parse(str(cfg, "database.type", "postgresql"));
+        int defaultPort = type == DatabaseType.MYSQL ? 3306 : 5432;
         String host = str(cfg, "database.host", "127.0.0.1");
-        int port = intOf(cfg, "database.port", 5432);
+        int port = intOf(cfg, "database.port", defaultPort);
         String name = str(cfg, "database.name", "azoth_territory");
         String user = str(cfg, "database.user", "azoth");
         String password = str(cfg, "database.password", "");
         boolean ssl = bool(cfg, "database.ssl", false);
         int poolSize = intOf(cfg, "database.pool-size", 10);
         String jdbcUrl = str(cfg, "database.jdbc-url", "");
-        return new DatabaseSettings(host, port, name, user, password, ssl, poolSize, jdbcUrl);
+        return new DatabaseSettings(type, host, port, name, user, password, ssl, poolSize, jdbcUrl);
     }
 
     private static boolean bool(Map<String, Object> cfg, String key, boolean def) {

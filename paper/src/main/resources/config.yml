@@ -32,10 +32,10 @@ web:
     password: changeit
     key-password: changeit
 
-# All persistent state uses the shared PostgreSQL database.
-# The database must exist and the configured role must be able to create
-# tables. If PostgreSQL is unreachable at startup the plugin disables itself.
+# All persistent state uses the shared SQL database. PostgreSQL is the default;
+# set `type: mysql` for PebbleHost or other MySQL 8.x-compatible hosting.
 database:
+  type: postgresql
   host: 127.0.0.1
   port: 5432
   name: azoth_territory
@@ -43,9 +43,8 @@ database:
   password: ""
   ssl: false
   pool-size: 10
-  # Optional full JDBC URL — wins over host/port/name/ssl. Use for cloud
-  # PostgreSQL with extra parameters, e.g.
-  # jdbc-url: "jdbc:postgresql://db.example.com:5432/azoth?sslmode=verify-full"
+  # Optional full JDBC URL — wins over host/port/name/ssl.
+  # jdbc-url: "jdbc:mysql://db.example.com:3306/azoth_territory?useSSL=true&serverTimezone=UTC"
   jdbc-url: ""
 
 

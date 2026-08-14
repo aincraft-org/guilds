@@ -1,6 +1,6 @@
 package org.aincraft.guilds.config;
 
-import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.Database;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.sql.DataSource;
@@ -13,9 +13,9 @@ import java.util.Objects;
  */
 public final class DatabaseConfig {
     private final JavaPlugin plugin;
-    private final PostgresDatabase database;
+    private final Database database;
 
-    public DatabaseConfig(JavaPlugin plugin, PostgresDatabase database) {
+    public DatabaseConfig(JavaPlugin plugin, Database database) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.database = Objects.requireNonNull(database, "database");
     }

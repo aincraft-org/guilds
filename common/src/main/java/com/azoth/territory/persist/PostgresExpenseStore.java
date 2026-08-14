@@ -20,10 +20,10 @@ import java.util.List;
 
 /** PostgreSQL persistence for treasury expense idempotency records. */
 public final class PostgresExpenseStore {
-    private final PostgresDatabase database;
+    private final Database database;
     private final Gson gson = new Gson();
 
-    public PostgresExpenseStore(PostgresDatabase database) {
+    public PostgresExpenseStore(Database database) {
         this.database = database;
     }
 
@@ -35,7 +35,7 @@ public final class PostgresExpenseStore {
                     clear.executeUpdate();
                 }
                 try (PreparedStatement insert = c.prepareStatement(
-                        "INSERT INTO expenses (idempotency_key, doc) VALUES (?, ?::jsonb)")) {
+                        database.dialect().documentUpsertSql("expenses", "idempotency_key"))) {
                     for (ExpenseEntry entry : entries) {
                         insert.setString(1, entry.idempotencyKey());
                         insert.setString(2, gson.toJson(toJson(entry)));

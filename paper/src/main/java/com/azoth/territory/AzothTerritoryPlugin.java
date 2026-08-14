@@ -26,14 +26,15 @@ import com.azoth.territory.permission.GovernanceSource;
 import com.azoth.territory.permission.GuildBody;
 import com.azoth.territory.persist.DatabaseSettings;
 import com.azoth.territory.persist.DatabaseSettingsLoader;
-import com.azoth.territory.persist.PostgresDatabase;
-import com.azoth.territory.persist.PostgresFacilityStore;
+import com.azoth.territory.persist.DatabaseFactory;
+import com.azoth.territory.persist.Database;
 import com.azoth.territory.persist.PostgresExpenseStore;
 import com.azoth.territory.persist.PostgresReconciliationStore;
 import com.azoth.territory.persist.PostgresTerritoryStore;
-import com.azoth.territory.registry.FacilityRegistry;
+import com.azoth.territory.persist.PostgresFacilityStore;
 import com.azoth.territory.persist.TerritoryJson;
 import com.azoth.territory.registry.TerritoryRegistry;
+import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.standing.PostgresStandingStore;
 import com.azoth.territory.standing.StandingConfig;
 import com.azoth.territory.standing.StandingConfigLoader;
@@ -91,8 +92,8 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private TerritoryRegistry registry;
     private FacilityRegistry facilities;
     private PostgresFacilityStore facilityStore;
-    private PostgresDatabase database;
     private PostgresTerritoryStore store;
+    private Database database;
     private GovernanceRegistry governance;
     private BlockProtection blockProtection;
     private TerritoryWebServer webServer;
@@ -138,7 +139,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
         this.registry = new TerritoryRegistry();
         try {
             DatabaseSettings settings = DatabaseSettingsLoader.fromValues(getConfig().getValues(true));
-            this.database = new PostgresDatabase(settings);
+            this.database = DatabaseFactory.open(settings);
             this.database.initializeSchema();
             this.store = new PostgresTerritoryStore(database);
             this.reconciliationStore = new PostgresReconciliationStore(database);
@@ -146,7 +147,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
             this.facilities = new FacilityRegistry(registry);
             this.facilityStore = new PostgresFacilityStore(database);
             this.facilityStore.loadInto(facilities);
-            getLogger().info("Loaded " + registry.size() + " territor(y/ies) from PostgreSQL");
+            getLogger().info("Loaded " + registry.size() + " territor(y/ies) from " + settings.type());
         } catch (IOException e) {
             getLogger().log(Level.SEVERE,
                     "PostgreSQL persistence is mandatory; plugin startup aborted", e);

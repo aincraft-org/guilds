@@ -20,7 +20,7 @@ import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.GuildsConfig;
 import org.aincraft.guilds.database.DatabaseManager;
-import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.Database;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
 import org.aincraft.guilds.gui.TechTreeGUI;
 import org.aincraft.guilds.listeners.AllianceListener;
@@ -157,11 +157,11 @@ public class GuildsServices {
     private org.aincraft.guilds.services.GuildHearthstoneService hearthstoneService;
     private org.aincraft.guilds.listeners.GuildHearthstoneListener hearthstoneListener;
 
-    public GuildsServices(JavaPlugin plugin, PostgresDatabase database) {
+    public GuildsServices(JavaPlugin plugin, Database database) {
         this(plugin, database, null);
     }
 
-    public GuildsServices(JavaPlugin plugin, PostgresDatabase database, MintEconomyRail mintEconomyRail) {
+    public GuildsServices(JavaPlugin plugin, Database database, MintEconomyRail mintEconomyRail) {
         this.plugin = plugin;
         this.mintEconomyRail = mintEconomyRail;
         // Guilds config file (namespaced away from the territory config.yml)
@@ -270,7 +270,7 @@ public class GuildsServices {
     }
 
     /** Creates guild services with a lease already supplied by the trusted Mint integration. */
-    public static GuildsServices withMintLease(JavaPlugin plugin, PostgresDatabase database,
+    public static GuildsServices withMintLease(JavaPlugin plugin, Database database,
                                                dev.mintychochip.mint.api.service.MintClientLease lease,
                                                dev.mintychochip.mint.api.id.CurrencyId currency, int scale) {
         if (lease == null) throw new IllegalArgumentException("Mint lease is required");

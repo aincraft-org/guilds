@@ -7,10 +7,11 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 - **Territories** with id, name, world, and large outer boundaries
 - Boundaries as **polygons** (block XZ vertices), **chunk sets**, or both (union)
 - **Zones** nested under a territory: `WILDERNESS` and `CLAIMABLE`
-- Spatial **resolve(world, x, z)** → territory + zone type (or uncontained)
-- **Persistence**: all durable state uses one shared remote PostgreSQL
-  database; territory, influence, reconciliation, facilities, expenses, and
-  Guilds tables share the same connection pool.
+- **Persistence**: all durable state uses one shared remote SQL database.
+  PostgreSQL remains the default; MySQL is selectable with
+  `database.type: mysql` for MySQL 8.x-compatible providers such as PebbleHost.
+  Territory, influence, reconciliation, facilities, expenses, and Guilds
+  tables share the same connection pool.
 - Admin command: `/territory [lookup|list|reload|save|web|upkeep]`
 - **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
   - REST API under `/api/*`
@@ -47,6 +48,23 @@ Produces the single Paper plugin JAR:
 ```
 
 ### Local test server (`runServer`) with squaremap
+
+To load the Mint server plugin for Mint economy mode, provide its published
+GitHub release coordinates explicitly. The Mint API dependency alone does not
+install the server plugin:
+
+```bash
+./gradlew :paper:runServer \
+  -PmintPluginOwner=OWNER \
+  -PmintPluginRepository=REPOSITORY \
+  -PmintPluginTag=TAG \
+  -PmintPluginAsset=PLUGIN_JAR
+```
+
+All four properties are required together. The repository, tag, and asset are
+intentionally not guessed because Mint release metadata may be private or
+project-specific. Omitting all four keeps the normal Paper/squaremap server
+path unchanged.
 
 ```bash
 ./gradlew :paper:runServer

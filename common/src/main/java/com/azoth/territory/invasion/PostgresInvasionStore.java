@@ -1,6 +1,6 @@
 package com.azoth.territory.invasion;
 
-import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.Database;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -24,10 +24,10 @@ import java.util.UUID;
 /** PostgreSQL JSONB snapshot store for the singleton invasion state. */
 public final class PostgresInvasionStore implements InvasionStore {
     private static final int VERSION = 1;
-    private final PostgresDatabase database;
+    private final Database database;
     private final Gson gson = new Gson();
 
-    public PostgresInvasionStore(PostgresDatabase database) {
+    public PostgresInvasionStore(Database database) {
         this.database = database;
     }
 
@@ -57,11 +57,9 @@ public final class PostgresInvasionStore implements InvasionStore {
         root.add("guildDamage", guildDamage);
         root.add("invasions", invasions);
         try (Connection connection = database.connection();
-             PreparedStatement statement = connection.prepareStatement("""
-                     INSERT INTO invasion_state (id, doc) VALUES (1, ?::jsonb)
-                     ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc
-                     """)) {
-            statement.setString(1, gson.toJson(root));
+             PreparedStatement statement = connection.prepareStatement(database.dialect().singletonUpsertSql("invasion_state", "id"))) {
+            statement.setInt(1, 1);
+            statement.setString(2, gson.toJson(root));
             statement.executeUpdate();
         } catch (SQLException | RuntimeException e) {
             throw new IOException("Failed to save invasion state to PostgreSQL", e);

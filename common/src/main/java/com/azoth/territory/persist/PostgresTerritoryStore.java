@@ -16,14 +16,14 @@ import java.util.List;
 /**
  * Concrete PostgreSQL store for the territory registry.
  *
- * <p>The connection pool is owned by {@link PostgresDatabase} and shared with
+ * <p>The connection pool is owned by {@link Database} and shared with
  * every other durable store.</p>
  */
 public class PostgresTerritoryStore implements AutoCloseable {
-    private final PostgresDatabase database;
+    private final Database database;
     private final TerritoryJson json = new TerritoryJson();
 
-    public PostgresTerritoryStore(PostgresDatabase database) {
+    public PostgresTerritoryStore(Database database) {
         this.database = java.util.Objects.requireNonNull(database, "database");
     }
 
@@ -50,7 +50,7 @@ public class PostgresTerritoryStore implements AutoCloseable {
                     clear.execute("DELETE FROM territories");
                 }
                 try (PreparedStatement ps = c.prepareStatement(
-                        "INSERT INTO territories (id, doc) VALUES (?, ?::jsonb)")) {
+                        database.dialect().documentUpsertSql("territories", "id"))) {
                     for (Territory t : registry.list()) {
                         ps.setString(1, t.id());
                         ps.setString(2, json.toJson(t).toString());
@@ -70,6 +70,6 @@ public class PostgresTerritoryStore implements AutoCloseable {
 
     @Override
     public void close() {
-        // The shared PostgresDatabase owns the pool lifecycle.
+        // The shared Database owns the pool lifecycle.
     }
 }

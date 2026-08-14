@@ -8,7 +8,8 @@ description = "Azoth Territory Paper plugin — Bukkit glue, listeners, commands
 dependencies {
     implementation(project(":api"))
     implementation(project(":common"))
-    compileOnly("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
+    implementation("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
     testImplementation("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
 
     compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
@@ -76,10 +77,33 @@ tasks.assemble {
 // Boots Paper 26.2 with the azoth-territory shadow jar plus the squaremap
 // 1.3.15 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
 // serves its live web map on http://localhost:8080 by default.
+val mintPluginOwner = providers.gradleProperty("mintPluginOwner").orNull
+val mintPluginRepository = providers.gradleProperty("mintPluginRepository").orNull
+val mintPluginTag = providers.gradleProperty("mintPluginTag").orNull
+val mintPluginAsset = providers.gradleProperty("mintPluginAsset").orNull
+val mintPluginCoordinates = listOf(
+    mintPluginOwner,
+    mintPluginRepository,
+    mintPluginTag,
+    mintPluginAsset,
+)
+require(mintPluginCoordinates.all { it == null } || mintPluginCoordinates.all { !it.isNullOrBlank() }) {
+    "Mint plugin coordinates must be provided together: " +
+        "mintPluginOwner, mintPluginRepository, mintPluginTag, mintPluginAsset"
+}
+
 tasks.runServer {
     minecraftVersion("26.2")
     runDirectory.set(layout.projectDirectory.dir("run"))
     downloadPlugins {
         github("jpenilla", "squaremap", "v1.3.15", "squaremap-paper-mc26.2-1.3.15.jar")
+        if (mintPluginOwner != null) {
+            github(
+                mintPluginOwner,
+                mintPluginRepository!!,
+                mintPluginTag!!,
+                mintPluginAsset!!,
+            )
+        }
     }
 }

@@ -1,6 +1,6 @@
 package com.azoth.territory.influence;
 
-import com.azoth.territory.persist.PostgresDatabase;
+import com.azoth.territory.persist.Database;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -15,9 +15,9 @@ import java.util.Map;
 
 /** PostgreSQL persistence for influence race state. */
 public final class PostgresInfluenceStore {
-    private final PostgresDatabase database;
+    private final Database database;
 
-    public PostgresInfluenceStore(PostgresDatabase database) {
+    public PostgresInfluenceStore(Database database) {
         this.database = database;
     }
 
@@ -30,11 +30,9 @@ public final class PostgresInfluenceStore {
         }
         root.add("territories", territories);
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("""
-                     INSERT INTO influence_state (id, doc) VALUES (1, ?::jsonb)
-                     ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc
-                     """)) {
-            ps.setString(1, new GsonBuilder().create().toJson(root));
+             PreparedStatement ps = c.prepareStatement(database.dialect().singletonUpsertSql("influence_state", "id"))) {
+            ps.setInt(1, 1);
+            ps.setString(2, new GsonBuilder().create().toJson(root));
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new IOException("Failed to save influence state to PostgreSQL", e);
