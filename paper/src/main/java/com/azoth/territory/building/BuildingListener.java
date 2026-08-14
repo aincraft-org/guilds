@@ -15,6 +15,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.plugin.PluginManager;
 import org.bukkit.inventory.EquipmentSlot;
 
 import java.io.IOException;
@@ -30,12 +31,13 @@ public final class BuildingListener implements Listener {
     private final FacilityAnchorValidator anchors;
     private final WaystoneAccess waystones;
     private final WaystoneSelections selections;
+    private final PluginManager pluginManager;
 
     public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
                             TerritoryRegistry territories, FacilityRegistry facilities,
                             BuildingAuthorization authorization, FacilityMutationService mutations,
                             FacilityAnchorValidator anchors, WaystoneAccess waystones,
-                            WaystoneSelections selections) {
+                            WaystoneSelections selections, PluginManager pluginManager) {
         this.sessions = sessions;
         this.config = config;
         this.territories = territories;
@@ -45,6 +47,7 @@ public final class BuildingListener implements Listener {
         this.anchors = anchors;
         this.waystones = waystones;
         this.selections = selections;
+        this.pluginManager = pluginManager;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -95,7 +98,23 @@ public final class BuildingListener implements Listener {
     private void interactWithActiveAnchor(PlayerInteractEvent event, Player player, Block block) {
         SettlementFacility facility = anchors.activeAt(
                 block.getWorld().getName(), block.getX(), block.getY(), block.getZ()).orElse(null);
-        if (facility == null || facility.type() != com.azoth.territory.model.FacilityType.WAYSTONE) {
+        if (facility == null) {
+            return;
+        }
+        if (facility.type() == com.azoth.territory.model.FacilityType.TRADING_POST) {
+            Territory territory = territories.get(facility.territoryId()).orElse(null);
+            if (territory == null) return;
+            TradingPostInteractEvent tradingPostEvent =
+                    new TradingPostInteractEvent(player, facility, territory);
+            pluginManager.callEvent(tradingPostEvent);
+            event.setCancelled(true);
+            player.sendMessage(Component.text(tradingPostEvent.isCancelled()
+                            ? "Trading post interaction is unavailable."
+                            : facility.name() + " — " + territory.name(),
+                    tradingPostEvent.isCancelled() ? NamedTextColor.RED : NamedTextColor.GOLD));
+            return;
+        }
+        if (facility.type() != com.azoth.territory.model.FacilityType.WAYSTONE) {
             return;
         }
         var reachable = waystones.reachable(player.getUniqueId(), facility);

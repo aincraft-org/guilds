@@ -68,7 +68,7 @@ class BuildingListenerTest {
         listener = new BuildingListener(sessions, config, territories, facilities,
                 authorization, new FacilityMutationService(facilities, store),
                 mock(FacilityAnchorValidator.class), mock(WaystoneAccess.class),
-                new WaystoneSelections(60_000L));
+                new WaystoneSelections(60_000L), mock(org.bukkit.plugin.PluginManager.class));
     }
 
     @Test
