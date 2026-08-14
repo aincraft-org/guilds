@@ -1,0 +1,109 @@
+package com.azoth.territory.building;
+
+import com.azoth.territory.model.SettlementFacility;
+import com.azoth.territory.model.Territory;
+import com.azoth.territory.registry.FacilityRegistry;
+import com.azoth.territory.registry.TerritoryRegistry;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
+
+import java.io.IOException;
+
+/** Registers and protects exact facility anchors; neighboring blocks are ignored. */
+public final class BuildingListener implements Listener {
+    private final BuildingPlacementSessions sessions;
+    private final BuildingConfig config;
+    private final TerritoryRegistry territories;
+    private final FacilityRegistry facilities;
+    private final BuildingAuthorization authorization;
+    private final FacilityMutationService mutations;
+
+    public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
+                            TerritoryRegistry territories, FacilityRegistry facilities,
+                            BuildingAuthorization authorization, FacilityMutationService mutations) {
+        this.sessions = sessions;
+        this.config = config;
+        this.territories = territories;
+        this.facilities = facilities;
+        this.authorization = authorization;
+        this.mutations = mutations;
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK
+                || event.getClickedBlock() == null) {
+            return;
+        }
+        Player player = event.getPlayer();
+        BuildingPlacement placement = sessions.current(player.getUniqueId(), System.currentTimeMillis())
+                .orElse(null);
+        if (placement == null) {
+            return;
+        }
+        Block block = event.getClickedBlock();
+        if (!config.anchorMaterials(placement.type()).contains(block.getType())) {
+            player.sendMessage(Component.text("That block cannot anchor a " + placement.type() + ".",
+                    NamedTextColor.RED));
+            return;
+        }
+        Territory territory = territories.resolve(block.getWorld().getName(), block.getX(), block.getZ())
+                .territory().orElse(null);
+        if (territory == null) {
+            player.sendMessage(Component.text("The anchor must be inside a territory.", NamedTextColor.RED));
+            return;
+        }
+        if (!authorization.canManage(player, territory)) {
+            sessions.complete(player.getUniqueId());
+            player.sendMessage(Component.text("You cannot manage buildings in this territory.",
+                    NamedTextColor.RED));
+            return;
+        }
+        SettlementFacility facility = new SettlementFacility(
+                placement.id(), placement.name(), territory.id(), placement.type(),
+                block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        try {
+            mutations.register(facility);
+            sessions.complete(player.getUniqueId());
+            event.setCancelled(true);
+            player.sendMessage(Component.text("Registered " + facility.name() + ".", NamedTextColor.GREEN));
+        } catch (IOException | IllegalArgumentException e) {
+            player.sendMessage(Component.text("Building registration failed: " + e.getMessage(),
+                    NamedTextColor.RED));
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onBreak(BlockBreakEvent event) {
+        Block block = event.getBlock();
+        SettlementFacility facility = facilities.resolve(
+                block.getWorld().getName(), block.getX(), block.getY(), block.getZ()).orElse(null);
+        if (facility == null) {
+            return;
+        }
+        Territory territory = territories.get(facility.territoryId()).orElse(null);
+        if (territory == null || !authorization.canManage(event.getPlayer(), territory)) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(Component.text("You cannot break this facility anchor.",
+                    NamedTextColor.RED));
+            return;
+        }
+        event.setCancelled(true);
+        try {
+            mutations.remove(facility.id());
+            event.setCancelled(false);
+        } catch (IOException e) {
+            event.getPlayer().sendMessage(Component.text("Could not remove the facility: " + e.getMessage(),
+                    NamedTextColor.RED));
+        }
+    }
+}
