@@ -22,6 +22,13 @@ class DatabaseSettingsTest {
         assertEquals(3306, s.port());
         assertTrue(s.jdbcUrl().startsWith("jdbc:mysql://127.0.0.1:3306/azoth_territory"));
     }
+    @Test
+    void explicitMySqlPortIsUsed() {
+        DatabaseSettings s = DatabaseSettingsLoader.fromValues(Map.of(
+                "database.type", "mysql", "database.port", 3306));
+        assertEquals(3306, s.port());
+        assertTrue(s.jdbcUrl().contains(":3306/"));
+    }
 
     @Test
     void explicitUrlWins() {

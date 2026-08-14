@@ -10,8 +10,9 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 - **Persistence**: all durable state uses one shared remote SQL database.
   PostgreSQL remains the default; MySQL is selectable with
   `database.type: mysql` for MySQL 8.x-compatible providers such as PebbleHost.
-  Territory, influence, reconciliation, facilities, expenses, and Guilds
-  tables share the same connection pool.
+  Set `database.port: 3306` for MySQL (the shipped PostgreSQL example uses
+  `5432`). Territory, influence, reconciliation, facilities, expenses, and
+  Guilds tables share the same connection pool.
 - Admin command: `/territory [lookup|list|reload|save|web|upkeep]`
 - **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
   - REST API under `/api/*`

@@ -32,8 +32,8 @@ web:
     password: changeit
     key-password: changeit
 
-# All persistent state uses the shared SQL database. PostgreSQL is the default;
-# set `type: mysql` for PebbleHost or other MySQL 8.x-compatible hosting.
+# All persistent state uses the shared SQL database. PostgreSQL is the default.
+# For MySQL/PebbleHost, change `type` to `mysql` and change `port` to 3306.
 database:
   type: postgresql
   host: 127.0.0.1
@@ -44,6 +44,9 @@ database:
   ssl: false
   pool-size: 10
   # Optional full JDBC URL — wins over host/port/name/ssl.
+  # MySQL example:
+  # type: mysql
+  # port: 3306
   # jdbc-url: "jdbc:mysql://db.example.com:3306/azoth_territory?useSSL=true&serverTimezone=UTC"
   jdbc-url: ""
 
