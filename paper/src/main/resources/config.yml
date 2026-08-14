@@ -88,3 +88,25 @@ influence:
   post-flip-cooldown-days: 7
   # Seconds between batched PostgreSQL flushes (bar changes only).
   flush-seconds: 60
+# Mob invasions against guild claims.
+invasions:
+  enabled: true
+  damage:
+    block-budget: 500
+    allowlist:
+      - STONE
+      - COBBLESTONE
+      - OAK_PLANKS
+      - SPRUCE_PLANKS
+  spawn-radius: 24
+  spawn-attempts: 24
+  bossbar:
+    nearby-radius: 96
+  wave-delay-ticks: 100
+  waves:
+    - entities: [ZOMBIE]
+      counts: [5]
+    - entities: [ZOMBIE, SKELETON]
+      counts: [8, 2]
+    - entities: [ZOMBIE, SKELETON, RAVAGER]
+      counts: [10, 5, 1]

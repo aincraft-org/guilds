@@ -28,6 +28,8 @@ import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 /**
  * Paper edge: maps block break/place, interaction, fire, explosions, pistons/fluids,
@@ -57,9 +59,16 @@ public final class ProtectionListener implements Listener {
             );
 
     private final BlockProtection protection;
+    private final BiPredicate<org.bukkit.entity.Entity, Block> entityGriefBypass;
 
     public ProtectionListener(BlockProtection protection) {
+        this(protection, (entity, block) -> false);
+    }
+
+    public ProtectionListener(BlockProtection protection,
+                              BiPredicate<org.bukkit.entity.Entity, Block> entityGriefBypass) {
         this.protection = Objects.requireNonNull(protection, "protection");
+        this.entityGriefBypass = Objects.requireNonNull(entityGriefBypass, "entityGriefBypass");
     }
 
     public BlockProtection protection() {
@@ -161,7 +170,7 @@ public final class ProtectionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
-        filterProtectedBlocks(event.blockList());
+        filterProtectedBlocks(event.blockList(), block -> entityGriefBypass.test(event.getEntity(), block));
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -184,8 +193,9 @@ public final class ProtectionListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityChangeBlock(EntityChangeBlockEvent event) {
         Block block = event.getBlock();
-        if (protection.blocksEntityGrief(
-                block.getWorld().getName(), block.getX(), block.getZ())) {
+        if (!entityGriefBypass.test(event.getEntity(), block)
+                && protection.blocksEntityGrief(
+                        block.getWorld().getName(), block.getX(), block.getZ())) {
             event.setCancelled(true);
         }
     }
@@ -211,10 +221,14 @@ public final class ProtectionListener implements Listener {
     }
 
     private void filterProtectedBlocks(java.util.List<Block> blocks) {
+        filterProtectedBlocks(blocks, ignored -> false);
+    }
+
+    private void filterProtectedBlocks(java.util.List<Block> blocks, Predicate<Block> bypass) {
         Iterator<Block> it = blocks.iterator();
         while (it.hasNext()) {
             Block block = it.next();
-            if (protection.areExplosionsProtected(
+            if (!bypass.test(block) && protection.areExplosionsProtected(
                     block.getWorld().getName(), block.getX(), block.getZ())) {
                 it.remove();
             }

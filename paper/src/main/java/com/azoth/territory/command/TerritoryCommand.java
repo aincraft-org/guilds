@@ -1,6 +1,9 @@
 package com.azoth.territory.command;
 
 import com.azoth.territory.AzothTerritoryPlugin;
+import com.azoth.territory.invasion.InvasionRuntime;
+import com.azoth.territory.invasion.InvasionStartResult;
+import com.azoth.territory.invasion.InvasionState;
 import com.azoth.territory.influence.DeclareResult;
 import com.azoth.territory.influence.InfluenceBar;
 import com.azoth.territory.influence.InfluenceEngine;
@@ -65,10 +68,11 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
                     || "reset".equalsIgnoreCase(args[1]))
                     ? standingAdmin(sender, args)
                     : standing(sender, args);
+            case "invasion" -> invasion(sender, args);
             default -> {
                 sender.sendMessage(Component.text(
                         "Usage: /" + label
-                                + " [lookup|list|reload|save|web|govern|influence|declare|standing|upkeep]",
+                                + " [lookup|list|reload|save|web|govern|influence|declare|standing|upkeep|invasion]",
                         NamedTextColor.RED));
                 yield true;
             }
@@ -500,14 +504,77 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private boolean invasion(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("territory.admin.invasion") && !sender.isOp()) {
+            sender.sendMessage(Component.text("You need 'territory.admin.invasion'.", NamedTextColor.RED));
+            return true;
+        }
+        InvasionRuntime runtime = plugin.getInvasionRuntime();
+        if (runtime == null) {
+            sender.sendMessage(Component.text("Invasion subsystem unavailable.", NamedTextColor.RED));
+            return true;
+        }
+        if (args.length < 3) {
+            sender.sendMessage(Component.text(
+                    "Usage: /territory invasion <start|stop|status> <guild>", NamedTextColor.RED));
+            return true;
+        }
+        String guild = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "start" -> {
+                InvasionStartResult result = runtime.start(guild, System.currentTimeMillis());
+                sender.sendMessage(Component.text(
+                        result.status() == com.azoth.territory.invasion.InvasionStartStatus.STARTED
+                                ? "Started invasion " + result.invasionId() + " for " + guild + "."
+                                : "Could not start invasion: " + result.status() + ".",
+                        result.status() == com.azoth.territory.invasion.InvasionStartStatus.STARTED
+                                ? NamedTextColor.GREEN : NamedTextColor.RED));
+            }
+            case "stop", "status" -> {
+                Optional<String> guildId = runtime.resolveGuildId(guild);
+                if (guildId.isEmpty()) {
+                    sender.sendMessage(Component.text("Unknown or ineligible guild: " + guild + ".",
+                            NamedTextColor.RED));
+                    break;
+                }
+                if ("stop".equalsIgnoreCase(args[1])) {
+                    sender.sendMessage(Component.text(
+                            runtime.cancel(guildId.get(), System.currentTimeMillis())
+                                    ? "Stopped invasion for " + guild + "."
+                                    : "No active invasion for " + guild + ".",
+                            NamedTextColor.YELLOW));
+                    break;
+                }
+                Optional<InvasionState> state = runtime.status(guildId.get());
+                sender.sendMessage(state.<Component>map(value -> Component.text(
+                                value.guildName() + ": " + value.status() + ", wave "
+                                        + (value.wave() + 1) + ", living "
+                                        + value.currentWaveEntities().size() + ", damage "
+                                        + value.damage().percent() + "% at " + value.worldId() + " "
+                                        + value.x() + ", " + value.y() + ", " + value.z(),
+                                NamedTextColor.GOLD))
+                        .orElseGet(() -> Component.text("No invasion record for " + guild + ".",
+                                NamedTextColor.YELLOW)));
+            }
+            default -> sender.sendMessage(Component.text(
+                    "Usage: /territory invasion <start|stop|status> <guild>", NamedTextColor.RED));
+        }
+        return true;
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             String p = args[0].toLowerCase(Locale.ROOT);
             return Arrays.asList("lookup", "list", "reload", "save", "web", "govern",
-                            "influence", "declare", "standing", "upkeep").stream()
+                            "influence", "declare", "standing", "upkeep", "invasion").stream()
                     .filter(s -> s.startsWith(p))
                     .collect(Collectors.toCollection(ArrayList::new));
+        }
+        if (args.length == 2 && "invasion".equalsIgnoreCase(args[0])) {
+            String p = args[1].toLowerCase(Locale.ROOT);
+            return Arrays.asList("start", "stop", "status").stream()
+                    .filter(s -> s.startsWith(p)).toList();
         }
         return List.of();
     }
