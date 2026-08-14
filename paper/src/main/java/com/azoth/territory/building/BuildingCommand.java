@@ -24,11 +24,14 @@ public final class BuildingCommand {
     private final BuildingAuthorization authorization;
     private final FacilityMutationService mutations;
     private final BuildingConfig config;
+    private final WaystoneSelections selections;
+    private final WaystoneTravelService travel;
 
     public BuildingCommand(BuildingPlacementSessions sessions, FacilityRegistry facilities,
                            TerritoryRegistry territories, FacilityAnchorValidator anchors,
                            BuildingAuthorization authorization, FacilityMutationService mutations,
-                           BuildingConfig config) {
+                           BuildingConfig config, WaystoneSelections selections,
+                           WaystoneTravelService travel) {
         this.sessions = sessions;
         this.facilities = facilities;
         this.territories = territories;
@@ -36,6 +39,8 @@ public final class BuildingCommand {
         this.authorization = authorization;
         this.mutations = mutations;
         this.config = config;
+        this.selections = selections;
+        this.travel = travel;
     }
 
     public boolean execute(CommandSender sender, String label, String[] args) {
@@ -54,6 +59,7 @@ public final class BuildingCommand {
             case "list" -> list(sender, args);
             case "info" -> info(sender, label, args);
             case "remove" -> remove(sender, label, args);
+            case "travel" -> travel(sender, label, args);
             default -> { usage(sender, label); yield true; }
         };
     }
@@ -61,7 +67,7 @@ public final class BuildingCommand {
     public List<String> complete(CommandSender sender, String[] args) {
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            return List.of("create", "cancel", "list", "info", "remove").stream()
+            return List.of("create", "cancel", "list", "info", "remove", "travel").stream()
                     .filter(value -> value.startsWith(prefix)).toList();
         }
         if (args.length == 2 && "create".equalsIgnoreCase(args[0])) {
@@ -105,6 +111,26 @@ public final class BuildingCommand {
             message(sender, sessions.cancel(player.getUniqueId())
                     ? "Building placement cancelled." : "No pending building placement.", NamedTextColor.YELLOW);
         }
+        return true;
+    }
+
+    private boolean travel(CommandSender sender, String label, String[] args) {
+        if (!(sender instanceof Player player) || args.length < 2) {
+            message(sender, "Usage: /" + label + " building travel <destinationId>",
+                    NamedTextColor.RED);
+            return true;
+        }
+        SettlementFacility origin = selections.origin(player.getUniqueId(), System.currentTimeMillis())
+                .flatMap(facilities::get).orElse(null);
+        WaystoneTravelService.StartResult result = travel.start(
+                player, origin, args[1], System.currentTimeMillis());
+        if (result == WaystoneTravelService.StartResult.STARTED) {
+            selections.clear(player.getUniqueId());
+        }
+        message(sender, result == WaystoneTravelService.StartResult.STARTED
+                        ? "Waystone travel warming up." : "Waystone travel failed: " + result,
+                result == WaystoneTravelService.StartResult.STARTED
+                        ? NamedTextColor.GREEN : NamedTextColor.RED);
         return true;
     }
 

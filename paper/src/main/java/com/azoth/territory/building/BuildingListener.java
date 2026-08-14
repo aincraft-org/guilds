@@ -6,6 +6,7 @@ import com.azoth.territory.registry.FacilityRegistry;
 import com.azoth.territory.registry.TerritoryRegistry;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -26,16 +27,24 @@ public final class BuildingListener implements Listener {
     private final FacilityRegistry facilities;
     private final BuildingAuthorization authorization;
     private final FacilityMutationService mutations;
+    private final FacilityAnchorValidator anchors;
+    private final WaystoneAccess waystones;
+    private final WaystoneSelections selections;
 
     public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
                             TerritoryRegistry territories, FacilityRegistry facilities,
-                            BuildingAuthorization authorization, FacilityMutationService mutations) {
+                            BuildingAuthorization authorization, FacilityMutationService mutations,
+                            FacilityAnchorValidator anchors, WaystoneAccess waystones,
+                            WaystoneSelections selections) {
         this.sessions = sessions;
         this.config = config;
         this.territories = territories;
         this.facilities = facilities;
         this.authorization = authorization;
         this.mutations = mutations;
+        this.anchors = anchors;
+        this.waystones = waystones;
+        this.selections = selections;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -48,6 +57,7 @@ public final class BuildingListener implements Listener {
         BuildingPlacement placement = sessions.current(player.getUniqueId(), System.currentTimeMillis())
                 .orElse(null);
         if (placement == null) {
+            interactWithActiveAnchor(event, player, event.getClickedBlock());
             return;
         }
         Block block = event.getClickedBlock();
@@ -79,6 +89,23 @@ public final class BuildingListener implements Listener {
         } catch (IOException | IllegalArgumentException e) {
             player.sendMessage(Component.text("Building registration failed: " + e.getMessage(),
                     NamedTextColor.RED));
+        }
+    }
+
+    private void interactWithActiveAnchor(PlayerInteractEvent event, Player player, Block block) {
+        SettlementFacility facility = anchors.activeAt(
+                block.getWorld().getName(), block.getX(), block.getY(), block.getZ()).orElse(null);
+        if (facility == null || facility.type() != com.azoth.territory.model.FacilityType.WAYSTONE) {
+            return;
+        }
+        var reachable = waystones.reachable(player.getUniqueId(), facility);
+        selections.select(player.getUniqueId(), facility.id(), System.currentTimeMillis());
+        event.setCancelled(true);
+        player.sendMessage(Component.text("Reachable waystones:", NamedTextColor.GOLD));
+        for (SettlementFacility destination : reachable) {
+            player.sendMessage(Component.text(" • " + destination.name(), NamedTextColor.YELLOW)
+                    .clickEvent(ClickEvent.runCommand(
+                            "/territory building travel " + destination.id())));
         }
     }
 

@@ -66,7 +66,9 @@ class BuildingListenerTest {
         authorization = mock(BuildingAuthorization.class);
         store = new MemoryStore();
         listener = new BuildingListener(sessions, config, territories, facilities,
-                authorization, new FacilityMutationService(facilities, store));
+                authorization, new FacilityMutationService(facilities, store),
+                mock(FacilityAnchorValidator.class), mock(WaystoneAccess.class),
+                new WaystoneSelections(60_000L));
     }
 
     @Test
