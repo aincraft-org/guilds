@@ -7,9 +7,9 @@ import org.bukkit.entity.EntityType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
-
 public final class InvasionConfigLoader {
     private InvasionConfigLoader() {}
 
@@ -19,18 +19,19 @@ public final class InvasionConfigLoader {
     public static LoadedConfig fromBukkit(FileConfiguration cfg) {
         ConfigurationSection root = cfg == null ? null : cfg.getConfigurationSection("invasions");
         boolean enabled = root == null || root.getBoolean("enabled", true);
-        long budget = root == null ? 500 : root.getLong("damage.block-budget", 500);
-        int spawnRadius = root == null ? 24 : root.getInt("spawn-radius", 24);
-        int spawnAttempts = root == null ? 24 : root.getInt("spawn-attempts", 24);
-        int nearbyRadius = root == null ? 96 : root.getInt("bossbar.nearby-radius", 96);
-        long delay = root == null ? 100 : root.getLong("wave-delay-ticks", 100);
+        long budget = getLong(root, "damage.block-budget", 500);
+        int spawnRadius = getInt(root, "spawn-radius", 24);
+        int spawnAttempts = getInt(root, "spawn-attempts", 24);
+        int nearbyRadius = getInt(root, "bossbar.nearby-radius", 96);
+        long delay = getLong(root, "wave-delay-ticks", 100);
         if (budget <= 0) throw new IllegalArgumentException("invasions.damage.block-budget must be positive");
         if (spawnRadius < 0) throw new IllegalArgumentException("invasions.spawn-radius must be non-negative");
         if (spawnAttempts <= 0) throw new IllegalArgumentException("invasions.spawn-attempts must be positive");
         if (nearbyRadius < 0) throw new IllegalArgumentException("invasions.bossbar.nearby-radius must be non-negative");
         if (delay < 0) throw new IllegalArgumentException("invasions.wave-delay-ticks must be non-negative");
 
-        List<String> materialNames = root == null ? List.of("STONE", "COBBLESTONE", "OAK_PLANKS", "SPRUCE_PLANKS")
+        List<String> materialNames = root == null || !root.contains("damage.allowlist")
+                ? List.of("STONE", "COBBLESTONE", "OAK_PLANKS", "SPRUCE_PLANKS")
                 : root.getStringList("damage.allowlist");
         if (materialNames.isEmpty()) throw new IllegalArgumentException("invasions.damage.allowlist must not be empty");
         Set<Material> materials = materialNames.stream().map(name -> {
@@ -38,30 +39,43 @@ public final class InvasionConfigLoader {
             if (material == null) throw new IllegalArgumentException("invalid material: " + name);
             return material;
         }).collect(java.util.stream.Collectors.toUnmodifiableSet());
-
-        List<?> waveValues = root == null ? null : root.getList("waves");
+        List<Map<?, ?>> waveValues = root == null || !root.contains("waves") ? null : root.getMapList("waves");
         List<Wave> waves = new ArrayList<>();
         if (waveValues == null) {
             waves.add(new Wave(List.of(new MobEntry("ZOMBIE", 5))));
             waves.add(new Wave(List.of(new MobEntry("ZOMBIE", 8), new MobEntry("SKELETON", 2))));
             waves.add(new Wave(List.of(new MobEntry("ZOMBIE", 10), new MobEntry("SKELETON", 5), new MobEntry("RAVAGER", 1))));
+        } else if (waveValues.isEmpty()) {
+            throw new IllegalArgumentException("invasions.waves must contain exactly three waves");
         } else {
             if (waveValues.size() != 3) throw new IllegalArgumentException("invasions.waves must contain exactly three waves");
-            for (int i = 0; i < 3; i++) {
-                ConfigurationSection wave = root.getConfigurationSection("waves." + i);
-                if (wave == null) throw new IllegalArgumentException("invalid wave " + i);
-                List<String> entities = wave.getStringList("entities");
-                List<Integer> counts = wave.getIntegerList("counts");
-                if (entities.isEmpty() || entities.size() != counts.size()) throw new IllegalArgumentException("invalid wave " + i);
+            for (Map<?, ?> wave : waveValues) {
+                List<?> entities = asList(wave.get("entities"));
+                List<?> counts = asList(wave.get("counts"));
+                if (entities.isEmpty() || entities.size() != counts.size()) throw new IllegalArgumentException("invalid wave");
                 List<MobEntry> mobs = new ArrayList<>();
                 for (int j = 0; j < entities.size(); j++) {
-                    String entity = entities.get(j).toUpperCase(Locale.ROOT);
+                    String entity = String.valueOf(entities.get(j)).toUpperCase(Locale.ROOT);
                     if (EntityType.fromName(entity) == null) throw new IllegalArgumentException("invalid entity type: " + entity);
-                    mobs.add(new MobEntry(entity, counts.get(j)));
+                    int count = ((Number) counts.get(j)).intValue();
+                    if (count <= 0) throw new IllegalArgumentException("wave counts must be positive");
+                    mobs.add(new MobEntry(entity, count));
                 }
                 waves.add(new Wave(mobs));
             }
         }
         return new LoadedConfig(enabled, new InvasionConfig(budget, waves), materials, spawnRadius, spawnAttempts, nearbyRadius, delay);
+    }
+
+    private static List<?> asList(Object value) {
+        return value instanceof List<?> list ? list : List.of();
+    }
+
+    private static long getLong(ConfigurationSection root, String path, long fallback) {
+        return root == null ? fallback : root.getLong(path, fallback);
+    }
+
+    private static int getInt(ConfigurationSection root, String path, int fallback) {
+        return root == null ? fallback : root.getInt(path, fallback);
     }
 }

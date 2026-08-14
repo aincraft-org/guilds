@@ -20,6 +20,21 @@ class InvasionConfigLoaderTest {
         assertEquals(100, cfg.waveDelayTicks());
         assertEquals(3, cfg.config().waves().size());
     }
+    @Test
+    void enabledOnlyRetainsAllDefaults() {
+        var cfg = load("invasions:\n  enabled: false\n");
+        assertEquals(false, cfg.enabled());
+        assertEquals(500, cfg.config().blockBudget());
+        assertEquals(4, cfg.materials().size());
+        assertEquals(3, cfg.config().waves().size());
+        assertEquals(24, cfg.spawnAttempts());
+    }
+    @Test
+    void bundledYamlUsesListWaveSchema() {
+        var cfg = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                new java.io.File("src/main/resources/config.yml"));
+        assertEquals(3, InvasionConfigLoader.fromBukkit(cfg).config().waves().size());
+    }
 
     @Test
     void invalidValuesAreRejected() {
