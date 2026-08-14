@@ -112,3 +112,13 @@ invasions:
       counts: [8, 2]
     - entities: [ZOMBIE, SKELETON, RAVAGER]
       counts: [10, 5, 1]
+
+# Physical facilities use one functional anchor. Surrounding RP construction is unrestricted.
+buildings:
+  placement-timeout-seconds: 60
+  waystone:
+    anchor-materials: [LODESTONE]
+    warmup-seconds: 5
+    cooldown-seconds: 60
+  trading-post:
+    anchor-materials: [BELL, LECTERN]
