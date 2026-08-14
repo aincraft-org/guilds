@@ -69,10 +69,14 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
                     ? standingAdmin(sender, args)
                     : standing(sender, args);
             case "invasion" -> invasion(sender, args);
+            case "building" -> plugin.getBuildingCommand() != null
+                    ? plugin.getBuildingCommand().execute(
+                            sender, label, Arrays.copyOfRange(args, 1, args.length))
+                    : buildingUnavailable(sender);
             default -> {
                 sender.sendMessage(Component.text(
                         "Usage: /" + label
-                                + " [lookup|list|reload|save|web|govern|influence|declare|standing|upkeep|invasion]",
+                                + " [lookup|list|reload|save|web|govern|influence|declare|standing|upkeep|invasion|building]",
                         NamedTextColor.RED));
                 yield true;
             }
@@ -182,6 +186,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean reload(CommandSender sender) {
+        if (!admin(sender)) return true;
         try {
             plugin.reloadTerritories();
             sender.sendMessage(Component.text(
@@ -195,6 +200,7 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean save(CommandSender sender) {
+        if (!admin(sender)) return true;
         try {
             plugin.saveTerritories();
             sender.sendMessage(Component.text(
@@ -562,12 +568,25 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean buildingUnavailable(CommandSender sender) {
+        sender.sendMessage(Component.text("Territory buildings are unavailable.", NamedTextColor.RED));
+        return true;
+    }
+
+    private boolean admin(CommandSender sender) {
+        if (sender.hasPermission("azoth.territory.admin") || sender.isOp()) {
+            return true;
+        }
+        sender.sendMessage(Component.text("You need 'azoth.territory.admin'.", NamedTextColor.RED));
+        return false;
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             String p = args[0].toLowerCase(Locale.ROOT);
             return Arrays.asList("lookup", "list", "reload", "save", "web", "govern",
-                            "influence", "declare", "standing", "upkeep", "invasion").stream()
+                            "influence", "declare", "standing", "upkeep", "invasion", "building").stream()
                     .filter(s -> s.startsWith(p))
                     .collect(Collectors.toCollection(ArrayList::new));
         }
@@ -575,6 +594,11 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
             String p = args[1].toLowerCase(Locale.ROOT);
             return Arrays.asList("start", "stop", "status").stream()
                     .filter(s -> s.startsWith(p)).toList();
+        }
+        if (args.length >= 2 && "building".equalsIgnoreCase(args[0])
+                && plugin.getBuildingCommand() != null) {
+            return plugin.getBuildingCommand().complete(
+                    sender, Arrays.copyOfRange(args, 1, args.length));
         }
         return List.of();
     }

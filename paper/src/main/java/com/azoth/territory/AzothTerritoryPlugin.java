@@ -92,6 +92,7 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
     private TerritoryRegistry registry;
     private FacilityRegistry facilities;
     private PostgresFacilityStore facilityStore;
+    private com.azoth.territory.building.BuildingCommand buildingCommand;
     private PostgresTerritoryStore store;
     private Database database;
     private GovernanceRegistry governance;
@@ -666,6 +667,14 @@ public final class AzothTerritoryPlugin extends JavaPlugin {
 
     public TerritoryRegistry getRegistry() {
         return registry;
+    }
+
+    public FacilityRegistry getFacilities() {
+        return facilities;
+    }
+
+    public com.azoth.territory.building.BuildingCommand getBuildingCommand() {
+        return buildingCommand;
     }
 
     public PostgresTerritoryStore getStore() {
