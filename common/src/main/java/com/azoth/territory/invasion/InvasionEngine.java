@@ -58,7 +58,8 @@ public final class InvasionEngine {
     public synchronized InvasionTransition recordDestroyedBlock(UUID invasionId, long now) {
         InvasionRecord record = byId.get(invasionId);
         if (record == null || record.status() != InvasionStatus.ACTIVE) return InvasionTransition.NO_CHANGE;
-        GuildDamage damage = guildDamage.getOrDefault(record.guildId(), record.damage());
+        GuildDamage previousGuildDamage = guildDamage.get(record.guildId());
+        GuildDamage damage = previousGuildDamage == null ? record.damage() : previousGuildDamage;
         long blocks = damage.destroyedBlocks() + 1;
         GuildDamage nextDamage = new GuildDamage(blocks, (int) Math.min(100, blocks * 100 / config.blockBudget()));
         InvasionStatus status = nextDamage.percent() >= 100 ? InvasionStatus.DEVASTATED : InvasionStatus.ACTIVE;
@@ -67,7 +68,8 @@ public final class InvasionEngine {
         if (status != InvasionStatus.ACTIVE) activeByGuild.remove(record.guildId());
         if (!persist()) {
             byId.put(invasionId, record);
-            guildDamage.put(record.guildId(), damage);
+            if (previousGuildDamage == null) guildDamage.remove(record.guildId());
+            else guildDamage.put(record.guildId(), previousGuildDamage);
             if (status == InvasionStatus.DEVASTATED) activeByGuild.put(record.guildId(), invasionId);
             return InvasionTransition.NO_CHANGE;
         }

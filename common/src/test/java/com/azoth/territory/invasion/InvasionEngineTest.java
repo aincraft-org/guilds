@@ -2,12 +2,14 @@ package com.azoth.territory.invasion;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InvasionEngineTest {
@@ -138,6 +140,38 @@ class InvasionEngineTest {
         assertEquals(InvasionStatus.ACTIVE, state.status());
         assertEquals(75, state.damage().percent());
         assertEquals(1, engine.activeInvasions().size());
+    }
+
+    @Test
+    void devastationFailureRestoresHistoricalGuildMaximum() {
+        ToggleStore store = new ToggleStore();
+        UUID invasion = UUID.randomUUID();
+        store.records = List.of(
+                new InvasionRecord(UUID.randomUUID(), "guild-a", "Guild A", "world", 1, 2, 3,
+                        InvasionStatus.DEFENDED, 2, List.of(), new GuildDamage(5, 100), NOW - 2),
+                new InvasionRecord(invasion, "guild-a", "Guild A", "world", 1, 2, 3,
+                        InvasionStatus.ACTIVE, 0, List.of(), new GuildDamage(2, 50), NOW));
+        InvasionEngine engine = engine(store);
+        store.fail = true;
+
+        assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
+        assertEquals(new GuildDamage(2, 50), engine.status("guild-a").orElseThrow().damage());
+    }
+
+    @Test
+    void invasionStateSnapshotsEntityListAndRejectsNull() {
+        List<UUID> entities = new ArrayList<>();
+        UUID entity = UUID.randomUUID();
+        entities.add(entity);
+        InvasionState state = new InvasionState(UUID.randomUUID(), "guild-a", "Guild A", "world",
+                1, 2, 3, InvasionStatus.ACTIVE, 0, entities, new GuildDamage(0, 0), NOW);
+
+        entities.clear();
+
+        assertEquals(List.of(entity), state.currentWaveEntities());
+        assertThrows(NullPointerException.class, () -> new InvasionState(
+                UUID.randomUUID(), "guild-a", "Guild A", "world", 1, 2, 3,
+                InvasionStatus.ACTIVE, 0, null, new GuildDamage(0, 0), NOW));
     }
 
     @Test
