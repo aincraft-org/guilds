@@ -107,9 +107,37 @@ class InvasionEngineTest {
         engine.mobSpawned(invasion, mob);
         store.fail = true;
 
-        assertEquals(InvasionTransition.WAVE_CLEARED, engine.mobRemoved(invasion, mob, NOW + 1));
+        assertEquals(InvasionTransition.NO_CHANGE, engine.mobRemoved(invasion, mob, NOW + 1));
         assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
         assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
+    }
+    @Test
+    void finalRemovalPersistenceFailureReturnsNoChangeAndPreservesActiveState() {
+        ToggleStore store = new ToggleStore();
+        InvasionEngine engine = engine(store);
+        UUID invasion = engine.start("guild-a", "Guild A", "world", 1, 2, 3, NOW).invasionId();
+        UUID mob = UUID.randomUUID();
+        engine.mobSpawned(invasion, mob);
+        store.fail = true;
+
+        assertEquals(List.of(InvasionTransition.NO_CHANGE), engine.mobRemovedSequence(invasion, mob, NOW + 1));
+        assertEquals(InvasionStatus.ACTIVE, engine.status("guild-a").orElseThrow().status());
+        assertEquals(invasion, engine.activeInvasions().getFirst().invasionId());
+    }
+
+    @Test
+    void devastatedPersistenceFailureReturnsNoChangeAndRollsBackDamage() {
+        ToggleStore store = new ToggleStore();
+        InvasionEngine engine = engine(store);
+        UUID invasion = engine.start("guild-a", "Guild A", "world", 1, 2, 3, NOW).invasionId();
+        for (int i = 0; i < 3; i++) engine.recordDestroyedBlock(invasion, NOW + i);
+        store.fail = true;
+
+        assertEquals(InvasionTransition.NO_CHANGE, engine.recordDestroyedBlock(invasion, NOW + 3));
+        InvasionState state = engine.status("guild-a").orElseThrow();
+        assertEquals(InvasionStatus.ACTIVE, state.status());
+        assertEquals(75, state.damage().percent());
+        assertEquals(1, engine.activeInvasions().size());
     }
 
     @Test

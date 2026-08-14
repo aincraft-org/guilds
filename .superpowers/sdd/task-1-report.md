@@ -15,13 +15,11 @@
 - `common/src/main/java/com/azoth/territory/invasion/InvasionEngine.java`
 - `common/src/test/java/com/azoth/territory/invasion/InvasionEngineTest.java`
 
-## Tests and commands
-- RED: `./gradlew :common:test --tests '*InvasionEngineTest'` — initial regression compile failed because `mobRemovedSequence` was not yet implemented.
-- GREEN/final: `./gradlew :common:test --tests '*InvasionEngineTest'` — `BUILD SUCCESSFUL`, 9 tests completed, all passed.
-- Added regression coverage for cancel rollback/index restoration, final mob removal rollback/index restoration, recover rollback/index restoration, and explicit `[WAVE_CLEARED, NEXT_WAVE]` sequence.
+- RED: `./gradlew :common:test --tests '*InvasionEngineTest'` — 11 tests completed, 2 failed (new final-removal and devastation signal/state regressions).
+- GREEN/final: `./gradlew :common:test --tests '*InvasionEngineTest'` — `BUILD SUCCESSFUL`, 13 tests completed, all passed.
+- Added regression coverage proving final removal persistence failure returns only `NO_CHANGE` while ACTIVE record/index remain, and devastation persistence failure returns `NO_CHANGE` with damage/status rolled back.
 
-## Self-review
-Persistence failures now restore the record and active guild index for cancel and final removal; recover snapshots and restores all records/indexes on save failure. The transition API keeps legacy `mobRemoved` while adding `mobRemovedSequence`, explicitly exposing wave-cleared followed by next-wave/defended. Changes are limited to the Task 1 invasion engine and focused test. Existing lifecycle tests pass.
+Persistence failure transitions now derive from committed mutation outcomes: failed final removal and devastation persistence return `NO_CHANGE`, with record/index and damage/status restored. Successful wave progression retains explicit `[WAVE_CLEARED, NEXT_WAVE]`.
 
 ## Commit
 Fix commit is created after verification in this worktree.

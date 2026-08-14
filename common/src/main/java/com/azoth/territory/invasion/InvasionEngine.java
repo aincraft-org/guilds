@@ -52,13 +52,12 @@ public final class InvasionEngine {
         if (!remaining.isEmpty()) { mutate(record, copy(record, record.status(), record.wave(), remaining, record.damage(), now)); return List.of(InvasionTransition.NO_CHANGE); }
         if (record.wave() < 2) {
             InvasionRecord next = copy(record, record.status(), record.wave() + 1, List.of(), record.damage(), now);
-            byId.put(invasionId, next);
-            if (!persist()) { byId.put(invasionId, record); return List.of(InvasionTransition.WAVE_CLEARED); }
+            if (!mutate(record, next)) return List.of(InvasionTransition.NO_CHANGE);
             return List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.NEXT_WAVE);
         }
         InvasionRecord next = copy(record, InvasionStatus.DEFENDED, record.wave(), List.of(), record.damage(), now);
         byId.put(invasionId, next); activeByGuild.remove(record.guildId());
-        if (!persist()) { byId.put(invasionId, record); activeByGuild.put(record.guildId(), invasionId); return List.of(InvasionTransition.WAVE_CLEARED); }
+        if (!persist()) { byId.put(invasionId, record); activeByGuild.put(record.guildId(), invasionId); return List.of(InvasionTransition.NO_CHANGE); }
         return List.of(InvasionTransition.WAVE_CLEARED, InvasionTransition.DEFENDED);
     }
     public synchronized InvasionTransition recordDestroyedBlock(UUID invasionId, long now) {
@@ -71,7 +70,12 @@ public final class InvasionEngine {
         InvasionRecord next = copy(record, status, record.wave(), record.currentWaveEntities(), nextDamage, now);
         byId.put(invasionId, next); guildDamage.put(record.guildId(), nextDamage);
         if (status != InvasionStatus.ACTIVE) activeByGuild.remove(record.guildId());
-        if (!persist()) { byId.put(invasionId, record); guildDamage.put(record.guildId(), damage); if (status == InvasionStatus.DEVASTATED) activeByGuild.put(record.guildId(), invasionId); }
+        if (!persist()) {
+            byId.put(invasionId, record);
+            guildDamage.put(record.guildId(), damage);
+            if (status == InvasionStatus.DEVASTATED) activeByGuild.put(record.guildId(), invasionId);
+            return InvasionTransition.NO_CHANGE;
+        }
         return status == InvasionStatus.DEVASTATED ? InvasionTransition.DEVASTATED : InvasionTransition.NO_CHANGE;
     }
 
