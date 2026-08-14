@@ -88,6 +88,11 @@ violate spatial rules fail closed before persistence.
 - [x] Postgres-backed load/save of territory documents
 - [x] `/territory` lookup, list, reload, save (spatial ops)
 - [x] Optional `governedByGuildId` on territory documents
+- [ ] Free-form physical facilities implemented through one exact anchor block; Paper runtime smoke pending
+- [ ] `/territory building` create/cancel/list/info/remove implemented; Paper runtime smoke pending
+- [ ] Active/inactive anchor lifecycle implemented; Paper restoration smoke pending
+- [ ] Same-guild waystone travel implemented; live teleport/protection smoke pending
+- [ ] Trading-post `TradingPostInteractEvent` implemented; live event observation pending
 
 ### Open on the current surface
 
@@ -98,6 +103,9 @@ violate spatial rules fail closed before persistence.
 
 Admin interactive draw is **not** territory-domain work; it is **map** + **web-api**.
 Spatial rules must not change for the editor — editor is a client of registry validation.
+Building validity never inspects neighboring blocks. Players may build arbitrary
+markets, banks, towers, shrines, roads, NPC scenes, or other RP structures around
+the registered functional anchor.
 
 ## Next
 

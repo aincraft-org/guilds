@@ -78,7 +78,8 @@ class BuildingListenerTest {
         when(anchor.getType()).thenReturn(Material.LODESTONE);
         when(authorization.canManage(player, territory)).thenReturn(true);
         PlayerInteractEvent event = new PlayerInteractEvent(
-                player, Action.RIGHT_CLICK_BLOCK, null, anchor, null, EquipmentSlot.HAND);
+                player, Action.RIGHT_CLICK_BLOCK, null, anchor,
+                org.bukkit.block.BlockFace.UP, EquipmentSlot.HAND);
 
         listener.onInteract(event);
 
@@ -94,7 +95,8 @@ class BuildingListenerTest {
                 "north", "North", System.currentTimeMillis());
         when(anchor.getType()).thenReturn(Material.STONE);
         PlayerInteractEvent event = new PlayerInteractEvent(
-                player, Action.RIGHT_CLICK_BLOCK, null, anchor, null, EquipmentSlot.HAND);
+                player, Action.RIGHT_CLICK_BLOCK, null, anchor,
+                org.bukkit.block.BlockFace.UP, EquipmentSlot.HAND);
 
         listener.onInteract(event);
 

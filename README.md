@@ -14,6 +14,15 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
   `5432`). Territory, influence, reconciliation, facilities, expenses, and
   Guilds tables share the same connection pool.
 - Admin command: `/territory [lookup|list|reload|save|web|upkeep]`
+- **Free-form physical buildings**: `/territory building create <waystone|trading_post> <id> [name]`
+  starts a command-then-click registration. The clicked anchor is functional;
+  every surrounding block is unrestricted RP construction.
+- **Waystones**: right-click an active lodestone to select another active
+  waystone governed by the same guild. Travel has a warm-up, movement/damage
+  cancellation, safe landing checks, territory protection, and cooldown.
+- **Trading posts**: right-click an active bell or lectern to emit
+  `TradingPostInteractEvent`. The plugin supplies validated territory/guild
+  context but does not own listings, stock, NPCs, or shop UI.
 - **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
   - REST API under `/api/*`
   - **Admin map editor** at `/editor/` (draw territories/zones; chunk-medium tools)

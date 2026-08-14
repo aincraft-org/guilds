@@ -148,6 +148,7 @@ Active capability surface (shipped or wired) and any open work still on that sur
 - [x] Durable tax reconciliation queue + Postgres reconciliation store
 - [x] `reportCraft` with explicit `grossValue` and positive quantity validation
 - [x] `SettlementFacility` + `FacilityRegistry` + Postgres facility store
+- [ ] Active `TRADING_POST` anchors emit `TradingPostInteractEvent`; Paper runtime observation pending
 - [x] `chargeExpense` + `ExpenseLedger` (PENDING → DEBITED / failure cleanup) + Postgres expense store
 - [x] `UpkeepEngine` recurring assessment via `chargeExpense` + Postgres upkeep store + plugin scheduled tick
 - [x] `/territory upkeep` admin/status surface (command integration)
@@ -163,6 +164,7 @@ Active capability surface (shipped or wired) and any open work still on that sur
 - Design intent originated in economy-hooks + extension specs; upkeep completed as part of new-world-completeness rather than as a separate economy product.
 - Facility JSON / expense JSON designs were superseded by **unified Postgres** — do not reintroduce file stores for these.
 - Guild storage design depends on `FacilityType.STORAGE` locations but is **not** this domain’s inventory work.
+- `TradingPostInteractEvent` is an integration seam, not a marketplace: listings, stock, prices, NPCs, and shop UI remain external.
 
 ## Next
 
