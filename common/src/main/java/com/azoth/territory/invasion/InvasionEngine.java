@@ -73,7 +73,7 @@ public final class InvasionEngine {
             if (status == InvasionStatus.DEVASTATED) activeByGuild.put(record.guildId(), invasionId);
             return InvasionTransition.NO_CHANGE;
         }
-        return status == InvasionStatus.DEVASTATED ? InvasionTransition.DEVASTATED : InvasionTransition.NO_CHANGE;
+        return status == InvasionStatus.DEVASTATED ? InvasionTransition.DEVASTATED : InvasionTransition.DAMAGE_RECORDED;
     }
 
     public synchronized InvasionTransition cancel(String guildId, long now) {
