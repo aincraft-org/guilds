@@ -13,8 +13,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
+import static org.junit.jupiter.api.Assertions.assertTrue;
 class PostgresInvasionStoreTest {
     private PostgresDatabase database;
 
@@ -48,14 +49,54 @@ class PostgresInvasionStoreTest {
 
     @Test
     void rejectsUnsupportedVersion() throws Exception {
+        insertDocument("{\"version\":99,\"guildDamage\":{},\"invasions\":[]}");
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> new PostgresInvasionStore(database).load());
+        IOException cause = assertInstanceOf(IOException.class, failure.getCause());
+        assertEquals("unsupported invasion state version: 99", cause.getMessage());
+    }
+    @Test
+    void rejectsUnsupportedVersionWithWrappedIOException() throws Exception {
+        insertDocument("{\"version\":99,\"guildDamage\":{},\"invasions\":[]}");
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> new PostgresInvasionStore(database).load());
+        IOException cause = assertInstanceOf(IOException.class, failure.getCause());
+        assertEquals("unsupported invasion state version: 99", cause.getMessage());
+    }
+
+    @Test
+    void rejectsNonStringIdentifiers() throws Exception {
+        insertDocument("""
+                {"version":1,"guildDamage":{},"invasions":[{
+                "invasionId":true,"guildId":"g","guildName":"G","worldId":"w",
+                "x":0,"y":0,"z":0,"status":"ACTIVE","wave":0,
+                "currentWaveEntities":[],"damage":{"destroyedBlocks":0,"percent":0},"updatedAt":1}]}""");
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> new PostgresInvasionStore(database).load());
+        assertInstanceOf(IOException.class, failure.getCause());
+    }
+
+    @Test
+    void rejectsMalformedGuildDamage() throws Exception {
+        for (String document : List.of(
+                "{\"version\":1,\"guildDamage\":{\"g\":null},\"invasions\":[]}",
+                "{\"version\":1,\"guildDamage\":{\"g\":{\"destroyedBlocks\":-1,\"percent\":0}},\"invasions\":[]}",
+                "{\"version\":1,\"guildDamage\":{\"g\":{\"destroyedBlocks\":1,\"percent\":-1}},\"invasions\":[]}",
+                "{\"version\":1,\"guildDamage\":{\"g\":{\"destroyedBlocks\":1.5,\"percent\":1}},\"invasions\":[]}")) {
+            insertDocument(document);
+            assertThrows(IllegalStateException.class, () -> new PostgresInvasionStore(database).load());
+        }
+    }
+
+    private void insertDocument(String document) throws Exception {
         try (Connection connection = database.connection();
              PreparedStatement statement = connection.prepareStatement(
                      "INSERT INTO invasion_state (id, doc) VALUES (1, ?::jsonb) ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc")) {
-            statement.setString(1, "{\"version\":99,\"guildDamage\":{},\"invasions\":[]}");
+            statement.setString(1, document);
             statement.executeUpdate();
         }
-
-        IOException failure = assertThrows(IOException.class, () -> new PostgresInvasionStore(database).load());
-        assertEquals("unsupported invasion state version", failure.getMessage());
     }
 }

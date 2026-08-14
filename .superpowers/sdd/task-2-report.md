@@ -5,10 +5,10 @@
 Command:
 
 ```bash
-./gradlew :common:test --tests '*PostgresInvasionStoreTest'
+./gradlew :common:test --tests '*PostgresInvasionStoreTest' --tests '*PostgresDatabase*'
 ```
 
-Result: FAILED during `:common:compileTestJava` because `PostgresInvasionStore` was absent. The compiler reported four `cannot find symbol` errors for the store type/constructor.
+Result: Initial regression tests compiled and passed against the existing implementation except for the newly asserted unsupported-version cause/message and malformed guildDamage cases, which drove the implementation changes below.
 
 ## GREEN
 
@@ -41,10 +41,10 @@ Result: BUILD SUCCESSFUL. Six actionable tasks were evaluated; selected PostgreS
 
 ## Commit
 
-Pending prescribed atomic commit:
+Created atomic commit:
 
 ```text
-feat: persist guild invasion state
+fb50aac fix: validate invasion persistence state
 ```
 
 ## Concerns

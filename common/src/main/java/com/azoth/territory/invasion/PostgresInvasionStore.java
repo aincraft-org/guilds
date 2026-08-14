@@ -118,12 +118,31 @@ public final class PostgresInvasionStore implements InvasionStore {
     private static List<InvasionRecord> fromJson(JsonElement parsed) throws IOException {
         if (parsed == null || !parsed.isJsonObject()) throw new IOException("invasion state root must be an object");
         JsonObject root = parsed.getAsJsonObject();
-        if (!root.has("version") || !root.get("version").isJsonPrimitive() || root.get("version").getAsInt() != VERSION)
-            throw new IOException("unsupported invasion state version");
+        JsonElement version = root.get("version");
+        if (version == null || !version.isJsonPrimitive() || !version.getAsJsonPrimitive().isNumber())
+            throw new IOException("invasion state version is invalid");
+        int versionNumber;
+        try {
+            versionNumber = version.getAsInt();
+        } catch (RuntimeException e) {
+            throw new IOException("invasion state version is invalid", e);
+        }
+        if (versionNumber != VERSION)
+            throw new IOException("unsupported invasion state version: " + versionNumber);
         JsonElement rawDamage = root.get("guildDamage");
         JsonElement rawInvasions = root.get("invasions");
         if (rawDamage == null || !rawDamage.isJsonObject()) throw new IOException("invasion guildDamage must be an object");
         if (rawInvasions == null || !rawInvasions.isJsonArray()) throw new IOException("invasion invasions must be an array");
+        for (Map.Entry<String, JsonElement> entry : rawDamage.getAsJsonObject().entrySet()) {
+            if (entry.getKey().isBlank()) throw new IOException("invasion guildDamage key is invalid");
+            JsonElement value = entry.getValue();
+            if (value == null || !value.isJsonObject()) throw new IOException("invasion guildDamage value is invalid");
+            JsonObject damage = value.getAsJsonObject();
+            long destroyedBlocks = longValue(damage, "destroyedBlocks");
+            int percent = integer(damage, "percent");
+            if (destroyedBlocks < 0 || percent < 0 || percent > 100)
+                throw new IOException("invasion guildDamage counters are invalid");
+        }
         List<InvasionRecord> result = new ArrayList<>();
         for (JsonElement raw : rawInvasions.getAsJsonArray()) {
             if (!raw.isJsonObject()) throw new IOException("invasion record must be an object");
@@ -169,9 +188,11 @@ public final class PostgresInvasionStore implements InvasionStore {
         }
     }
 
+
     private static String text(JsonObject object, String name) throws IOException {
         JsonElement value = object.get(name);
-        if (value == null || !value.isJsonPrimitive() || value.getAsString().isBlank()) throw new IOException("invasion field is invalid: " + name);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString() || value.getAsString().isBlank())
+            throw new IOException("invasion field is invalid: " + name);
         return value.getAsString();
     }
 
@@ -182,19 +203,19 @@ public final class PostgresInvasionStore implements InvasionStore {
 
     private static double number(JsonObject object, String name) throws IOException {
         JsonElement value = object.get(name);
-        if (value == null || !value.isJsonPrimitive()) throw new IOException("invasion number is invalid: " + name);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new IOException("invasion number is invalid: " + name);
         return value.getAsDouble();
     }
 
     private static int integer(JsonObject object, String name) throws IOException {
         JsonElement value = object.get(name);
-        if (value == null || !value.isJsonPrimitive()) throw new IOException("invasion integer is invalid: " + name);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new IOException("invasion integer is invalid: " + name);
         return value.getAsInt();
     }
 
     private static long longValue(JsonObject object, String name) throws IOException {
         JsonElement value = object.get(name);
-        if (value == null || !value.isJsonPrimitive()) throw new IOException("invasion long is invalid: " + name);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) throw new IOException("invasion long is invalid: " + name);
         return value.getAsLong();
     }
 }
