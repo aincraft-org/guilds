@@ -12,6 +12,19 @@ run/
 bin/
 *.class
 
+# Secrets and credentials
+.env*
+.envrc
+*.pem
+*.key
+*.p12
+*.jks
+*.pkcs12
+*.keystore
+local.properties
+gradle-user.properties
+secrets*.yml
+
 # Local git worktrees
 .worktrees/
 .superpowers/
