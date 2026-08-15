@@ -12,15 +12,19 @@ public final class WebConfigLoader {
     }
 
     public static WebConfig fromValues(Map<String, Object> cfg, Path dataFolder) {
-        boolean enabled = bool(cfg, "web.enabled", true);
-        String host = str(cfg, "web.bind", "0.0.0.0");
+        boolean enabled = bool(cfg, "web.enabled", false);
+        String host = str(cfg, "web.bind", "127.0.0.1");
         int port = intOf(cfg, "web.port", 8765);
         String publicBase = str(cfg, "web.public-base-url", "");
-        boolean trustProxy = bool(cfg, "web.trust-proxy", true);
+        boolean trustProxy = bool(cfg, "web.trust-proxy", false);
         String token = str(cfg, "web.api-token", "");
-        boolean cors = bool(cfg, "web.cors", true);
+        boolean cors = bool(cfg, "web.cors", false);
         String tileBase = str(cfg, "web.squaremap-tile-base-url", "");
         long sessionTtl = longOf(cfg, "web.session-ttl-seconds", WebConfig.DEFAULT_SESSION_TTL_SECONDS);
+
+        if (enabled && token.isBlank()) {
+            throw new IllegalArgumentException("web.api-token is required when web.enabled is true");
+        }
 
         boolean tlsEnabled = bool(cfg, "web.tls.enabled", false);
         WebConfig.TlsSettings tls;
