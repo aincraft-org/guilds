@@ -1,3 +1,9 @@
+import java.io.FileOutputStream
+import java.math.BigInteger
+import java.net.HttpURLConnection
+import java.net.URI
+import java.security.MessageDigest
+
 plugins {
     id("io.github.goooler.shadow") version "8.1.8"
     id("xyz.jpenilla.run-paper") version "3.0.2"
@@ -30,8 +36,8 @@ dependencies {
 
 tasks.processResources {
     val props = mapOf(
-        "version" to version,
-        "description" to (project.description ?: ""),
+            "version" to version,
+            "description" to (project.description ?: ""),
     )
     inputs.properties(props)
     filesMatching("plugin.yml") {
@@ -50,8 +56,8 @@ tasks.jar {
     archiveClassifier.set("thin")
     manifest {
         attributes(
-            "Implementation-Title" to project.name,
-            "Implementation-Version" to project.version,
+                "Implementation-Title" to project.name,
+                "Implementation-Version" to project.version,
         )
     }
 }
@@ -82,27 +88,93 @@ val mintPluginRepository = providers.gradleProperty("mintPluginRepository").orNu
 val mintPluginTag = providers.gradleProperty("mintPluginTag").orNull
 val mintPluginAsset = providers.gradleProperty("mintPluginAsset").orNull
 val mintPluginCoordinates = listOf(
-    mintPluginOwner,
-    mintPluginRepository,
-    mintPluginTag,
-    mintPluginAsset,
+        mintPluginOwner,
+        mintPluginRepository,
+        mintPluginTag,
+        mintPluginAsset,
 )
 require(mintPluginCoordinates.all { it == null } || mintPluginCoordinates.all { !it.isNullOrBlank() }) {
     "Mint plugin coordinates must be provided together: " +
-        "mintPluginOwner, mintPluginRepository, mintPluginTag, mintPluginAsset"
+            "mintPluginOwner, mintPluginRepository, mintPluginTag, mintPluginAsset"
+}
+
+// Verified runServer plugin downloads — the squaremap Paper jar is downloaded from
+// the pinned GitHub release, its SHA-512 checked against gradle.properties, and then
+// added as a local plugin jar for the test server.
+val squaremapUrl = "https://github.com/jpenilla/squaremap/releases/download/v1.3.15/squaremap-paper-mc26.2-1.3.15.jar"
+val squaremapFile = layout.buildDirectory.file("run-paper-plugins/squaremap-paper-mc26.2-1.3.15.jar")
+val squaremapSha512 = providers.gradleProperty("squaremapPaperMc26JarSha512").orNull
+        ?.takeIf { it.isNotBlank() }
+        ?: throw GradleException("squaremapPaperMc26JarSha512 must be set in gradle.properties")
+
+fun sha512(file: java.io.File): String {
+    val digest = MessageDigest.getInstance("SHA-512")
+    file.inputStream().buffered().use { input ->
+        val buf = ByteArray(8192)
+        var n: Int
+        while (input.read(buf).also { n = it } > 0) {
+            digest.update(buf, 0, n)
+        }
+    }
+    return BigInteger(1, digest.digest()).toString(16).padStart(128, '0')
+}
+
+tasks.register("verifySquaremapPlugin") {
+    group = "verification"
+    description = "Downloads and SHA-512 verifies the squaremap Paper plugin"
+    inputs.property("sha512", squaremapSha512)
+    outputs.file(squaremapFile)
+    outputs.upToDateWhen { false }
+    doLast {
+        val dest = squaremapFile.get().asFile
+        dest.parentFile.mkdirs()
+
+        if (dest.exists() && sha512(dest) == squaremapSha512) {
+            logger.lifecycle("squaremap plugin already present and SHA-512 verified")
+            return@doLast
+        }
+
+        val conn = URI.create(squaremapUrl).toURL().openConnection() as HttpURLConnection
+        conn.setRequestProperty("Accept", "application/octet-stream")
+        conn.connectTimeout = 30000
+        conn.readTimeout = 60000
+        conn.instanceFollowRedirects = true
+        conn.connect()
+        if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+            throw GradleException("squaremap download failed: HTTP ${conn.responseCode} from $squaremapUrl")
+        }
+        val contentLength = conn.contentLengthLong
+        if (contentLength <= 0) {
+            throw GradleException("squaremap download returned empty or unknown Content-Length")
+        }
+
+        conn.inputStream.use { input ->
+            FileOutputStream(dest).use { output ->
+                input.copyTo(output, bufferSize = 8192)
+            }
+        }
+        conn.disconnect()
+
+        val hash = sha512(dest)
+        if (hash != squaremapSha512) {
+            dest.delete()
+            throw GradleException("squaremap SHA-512 mismatch: expected $squaremapSha512, got $hash")
+        }
+    }
 }
 
 tasks.runServer {
+    dependsOn(tasks.named("verifySquaremapPlugin"))
     minecraftVersion("26.2")
     runDirectory.set(layout.projectDirectory.dir("run"))
+    pluginJars(squaremapFile.get().asFile)
     downloadPlugins {
-        github("jpenilla", "squaremap", "v1.3.15", "squaremap-paper-mc26.2-1.3.15.jar")
         if (mintPluginOwner != null) {
             github(
-                mintPluginOwner,
-                mintPluginRepository!!,
-                mintPluginTag!!,
-                mintPluginAsset!!,
+                    mintPluginOwner,
+                    mintPluginRepository!!,
+                    mintPluginTag!!,
+                    mintPluginAsset!!,
             )
         }
     }
