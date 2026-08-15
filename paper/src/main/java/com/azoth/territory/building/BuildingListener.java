@@ -19,9 +19,13 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.inventory.EquipmentSlot;
 
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** Registers and protects exact facility anchors; neighboring blocks are ignored. */
 public final class BuildingListener implements Listener {
+    private static final Logger LOGGER = Logger.getLogger(BuildingListener.class.getName());
+
     private final BuildingPlacementSessions sessions;
     private final BuildingConfig config;
     private final TerritoryRegistry territories;
@@ -90,8 +94,8 @@ public final class BuildingListener implements Listener {
             event.setCancelled(true);
             player.sendMessage(Component.text("Registered " + facility.name() + ".", NamedTextColor.GREEN));
         } catch (IOException | IllegalArgumentException e) {
-            player.sendMessage(Component.text("Building registration failed: " + e.getMessage(),
-                    NamedTextColor.RED));
+            LOGGER.log(Level.WARNING, "Building registration failed for " + player.getName(), e);
+            player.sendMessage(Component.text("Building registration failed.", NamedTextColor.RED));
         }
     }
 
@@ -148,8 +152,8 @@ public final class BuildingListener implements Listener {
             mutations.remove(facility.id());
             event.setCancelled(false);
         } catch (IOException e) {
-            event.getPlayer().sendMessage(Component.text("Could not remove the facility: " + e.getMessage(),
-                    NamedTextColor.RED));
+            LOGGER.log(Level.WARNING, "Facility removal failed for " + event.getPlayer().getName(), e);
+            event.getPlayer().sendMessage(Component.text("Could not remove the facility.", NamedTextColor.RED));
         }
     }
 }

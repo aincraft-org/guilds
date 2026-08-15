@@ -15,8 +15,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class BuildingCommand {
+    private static final Logger LOGGER = Logger.getLogger(BuildingCommand.class.getName());
+
     private final BuildingPlacementSessions sessions;
     private final FacilityRegistry facilities;
     private final TerritoryRegistry territories;
@@ -99,7 +103,8 @@ public final class BuildingCommand {
             sessions.begin(player.getUniqueId(), type, args[2], name, System.currentTimeMillis());
             message(sender, "Right-click the anchor block for " + args[2] + ".", NamedTextColor.GREEN);
         } catch (IllegalArgumentException e) {
-            message(sender, e.getMessage(), NamedTextColor.RED);
+            LOGGER.log(Level.WARNING, "Building placement failed for " + player.getName(), e);
+            message(sender, "Building placement failed.", NamedTextColor.RED);
         }
         return true;
     }
@@ -140,6 +145,15 @@ public final class BuildingCommand {
             message(sender, "Usage: /territory building list <territoryId>", NamedTextColor.RED);
             return true;
         }
+        Territory territory = territories.get(territoryId).orElse(null);
+        if (territory == null) {
+            message(sender, "Unknown territory: " + territoryId, NamedTextColor.RED);
+            return true;
+        }
+        if (!(sender instanceof Player player) || !authorization.canManage(player, territory)) {
+            message(sender, "You cannot list buildings in that territory.", NamedTextColor.RED);
+            return true;
+        }
         List<SettlementFacility> matches = facilities.list().stream()
                 .filter(facility -> facility.territoryId().equals(territoryId)).toList();
         message(sender, "Buildings in " + territoryId + " (" + matches.size() + "):", NamedTextColor.GOLD);
@@ -156,6 +170,15 @@ public final class BuildingCommand {
         SettlementFacility facility = facilities.get(args[1]).orElse(null);
         if (facility == null) {
             message(sender, "Unknown building: " + args[1], NamedTextColor.RED);
+            return true;
+        }
+        Territory territory = territories.get(facility.territoryId()).orElse(null);
+        if (territory == null) {
+            message(sender, "Unknown territory for building.", NamedTextColor.RED);
+            return true;
+        }
+        if (!(sender instanceof Player player) || !authorization.canManage(player, territory)) {
+            message(sender, "You cannot view that building.", NamedTextColor.RED);
             return true;
         }
         message(sender, facility.name() + " (" + facility.id() + ") " + facility.type()
@@ -184,7 +207,8 @@ public final class BuildingCommand {
             mutations.remove(facility.id());
             message(sender, "Removed building " + facility.id() + ".", NamedTextColor.GREEN);
         } catch (IOException e) {
-            message(sender, "Building removal failed: " + e.getMessage(), NamedTextColor.RED);
+            LOGGER.log(Level.WARNING, "Building removal failed for " + sender.getName(), e);
+            message(sender, "Building removal failed.", NamedTextColor.RED);
         }
         return true;
     }

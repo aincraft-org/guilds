@@ -37,7 +37,7 @@ class TerritoryCommandInvasionTest {
         new TerritoryCommand(plugin).onCommand(sender, mock(Command.class), "territory",
                 new String[]{"invasion", "start", "Guild A"});
 
-        verify(sender).hasPermission("territory.admin.invasion");
+        verify(sender).hasPermission("azoth.territory.invasion");
         verify(runtime, never()).start(any(), anyLong());
     }
 
@@ -47,7 +47,7 @@ class TerritoryCommandInvasionTest {
         InvasionRuntime runtime = mock(InvasionRuntime.class);
         when(plugin.getInvasionRuntime()).thenReturn(runtime);
         CommandSender sender = mock(CommandSender.class);
-        when(sender.hasPermission("territory.admin.invasion")).thenReturn(true);
+        when(sender.hasPermission("azoth.territory.invasion")).thenReturn(true);
         UUID id = UUID.randomUUID();
         when(runtime.start(eq("Guild A"), anyLong()))
                 .thenReturn(new InvasionStartResult(InvasionStartStatus.STARTED, id));

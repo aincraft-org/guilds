@@ -511,8 +511,8 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
     }
 
     private boolean invasion(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("territory.admin.invasion") && !sender.isOp()) {
-            sender.sendMessage(Component.text("You need 'territory.admin.invasion'.", NamedTextColor.RED));
+        if (!sender.hasPermission("azoth.territory.invasion") && !sender.isOp()) {
+            sender.sendMessage(Component.text("You need 'azoth.territory.invasion'.", NamedTextColor.RED));
             return true;
         }
         InvasionRuntime runtime = plugin.getInvasionRuntime();
