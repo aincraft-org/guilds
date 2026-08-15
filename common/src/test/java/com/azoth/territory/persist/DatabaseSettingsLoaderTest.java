@@ -7,6 +7,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DatabaseSettingsLoaderTest {
@@ -40,11 +41,68 @@ class DatabaseSettingsLoaderTest {
     }
 
     @Test
+    void rejectsPlaintextRemoteDatabase() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("database.host", "db.example.com");
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class, () -> DatabaseSettingsLoader.fromValues(cfg));
+        assertEquals("database.ssl must be true for non-loopback database hosts", ex.getMessage());
+    }
+
+    @Test
     void jdbcUrlOverrideWins() {
         Map<String, Object> cfg = new HashMap<>();
         cfg.put("database.jdbc-url",
                 "jdbc:postgresql://cloud.example.com:6543/azoth?sslmode=verify-full");
         DatabaseSettings s = DatabaseSettingsLoader.fromValues(cfg);
         assertEquals("jdbc:postgresql://cloud.example.com:6543/azoth?sslmode=verify-full", s.jdbcUrl());
+    }
+
+    @Test
+    void rejectsPlaintextRemoteJdbcOverride() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("database.jdbc-url",
+                "jdbc:postgresql://db.example.com:5432/azoth?sslmode=disable");
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class, () -> DatabaseSettingsLoader.fromValues(cfg));
+        assertEquals("database.ssl must be true for non-loopback database hosts", ex.getMessage());
+    }
+
+    @Test
+    void rejectsPlaintextRemoteMySqlOverride() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("database.type", "mysql");
+        cfg.put("database.jdbc-url",
+                "jdbc:mysql://db.example.com:3306/azoth?useSSL=false");
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class, () -> DatabaseSettingsLoader.fromValues(cfg));
+        assertEquals("database.ssl must be true for non-loopback database hosts", ex.getMessage());
+    }
+
+    @Test
+    void rejectsInsecureOverrideEvenWhenSslFlagIsTrue() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("database.ssl", true);
+        cfg.put("database.jdbc-url",
+                "jdbc:postgresql://db.example.com:5432/azoth?sslmode=disable");
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class, () -> DatabaseSettingsLoader.fromValues(cfg));
+        assertEquals("database.ssl must be true for non-loopback database hosts", ex.getMessage());
+    }
+
+    @Test
+    void acceptsVerifiedMySqlOverride() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("database.type", "mysql");
+        cfg.put("database.jdbc-url",
+                "jdbc:mysql://db.example.com:3306/azoth?sslMode=VERIFY_IDENTITY");
+
+        DatabaseSettings settings = DatabaseSettingsLoader.fromValues(cfg);
+        assertEquals("jdbc:mysql://db.example.com:3306/azoth?sslMode=VERIFY_IDENTITY",
+                settings.jdbcUrl());
     }
 }

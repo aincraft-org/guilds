@@ -31,10 +31,11 @@ class DatabaseSettingsTest {
     }
 
     @Test
-    void explicitUrlWins() {
+    void explicitSecureUrlWins() {
         DatabaseSettings s = DatabaseSettingsLoader.fromValues(Map.of(
-                "database.type", "mysql", "database.jdbc-url", "jdbc:mysql://example/db"));
-        assertEquals("jdbc:mysql://example/db", s.jdbcUrl());
+                "database.type", "mysql",
+                "database.jdbc-url", "jdbc:mysql://example/db?sslMode=VERIFY_IDENTITY"));
+        assertEquals("jdbc:mysql://example/db?sslMode=VERIFY_IDENTITY", s.jdbcUrl());
     }
 
     @Test
