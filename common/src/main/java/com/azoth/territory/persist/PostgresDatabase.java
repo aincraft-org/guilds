@@ -39,6 +39,7 @@ public final class PostgresDatabase implements Database {
         config.setMaxLifetime(600_000);
         config.setConnectionTimeout(30_000);
         config.setConnectionTestQuery("SELECT 1");
+        settings.dataSourceProperties().forEach((k, v) -> config.addDataSourceProperty((String) k, v));
         try {
             this.dataSource = new HikariDataSource(config);
             try (Connection ignored = dataSource.getConnection()) { }
