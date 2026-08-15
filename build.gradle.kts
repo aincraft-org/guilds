@@ -75,13 +75,17 @@ subprojects {
     }
 
     repositories {
-        maven("/tmp/aincraft-mint/build/maven-repo")
+        if (providers.gradleProperty("useLocalMintRepo").orNull == "true") {
+            maven("/tmp/aincraft-mint/build/maven-repo")
+        }
+        val actor = System.getenv("MINT_PACKAGES_ACTOR") ?: System.getenv("GITHUB_ACTOR")
+        val token = System.getenv("MINT_PACKAGES_TOKEN") ?: System.getenv("GITHUB_TOKEN")
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/aincraft-org/mint")
             credentials {
-                username = System.getenv("GITHUB_ACTOR") ?: providers.gradleProperty("gpr.user").orNull ?: ""
-                password = System.getenv("GITHUB_TOKEN") ?: providers.gradleProperty("gpr.key").orNull ?: ""
+                username = actor?.takeIf { it.isNotBlank() } ?: ""
+                password = token?.takeIf { it.isNotBlank() } ?: ""
             }
         }
         mavenCentral()
