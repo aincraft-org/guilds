@@ -1,5 +1,7 @@
 package com.azoth.territory.web;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
@@ -7,7 +9,6 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * In-memory admin sessions for the map editor.
  * <p>
@@ -43,9 +44,12 @@ public final class SessionStore {
      * @return new session id, or empty if the token is wrong or auth is not configured
      */
     public Optional<String> create(String presentedToken) {
-        if (expectedToken.isBlank()
-                || presentedToken == null
-                || !expectedToken.equals(presentedToken)) {
+        if (expectedToken.isBlank() || presentedToken == null) {
+            return Optional.empty();
+        }
+        if (!MessageDigest.isEqual(
+                expectedToken.getBytes(StandardCharsets.UTF_8),
+                presentedToken.getBytes(StandardCharsets.UTF_8))) {
             return Optional.empty();
         }
         byte[] bytes = new byte[24];

@@ -39,7 +39,7 @@ class HttpResponsesCookieTest {
         String c = set.get(0);
         assertTrue(c.startsWith("AZOTH_SESSION=sid"));
         assertTrue(c.contains("HttpOnly"));
-        assertTrue(c.contains("SameSite=Lax"));
+        assertTrue(c.contains("SameSite=Strict"));
         assertTrue(c.contains("Max-Age=3600"));
         assertTrue(c.contains("Secure"));
         assertTrue(c.contains("Path=/"));

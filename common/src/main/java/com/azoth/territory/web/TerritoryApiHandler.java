@@ -17,8 +17,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -187,6 +188,7 @@ public final class TerritoryApiHandler implements HttpHandler {
 
             HttpResponses.notFound(exchange, config);
         } catch (IllegalArgumentException e) {
+            log.log(Level.WARNING, "API bad request", e);
             HttpResponses.badRequest(exchange, e.getMessage(), config);
         } catch (Exception e) {
             log.log(Level.WARNING, "API error", e);
@@ -206,25 +208,29 @@ public final class TerritoryApiHandler implements HttpHandler {
         // When a token is configured, require it for all API calls except health/meta
         return true;
     }
-
     private boolean authorized(HttpExchange exchange) {
         String expected = config.apiToken();
+        byte[] expectedBytes = expected.getBytes(StandardCharsets.UTF_8);
         String header = exchange.getRequestHeaders().getFirst("X-Api-Token");
-        if (header != null && header.equals(expected)) {
+        if (header != null && constantTimeEquals(header, expectedBytes)) {
             return true;
         }
         String auth = exchange.getRequestHeaders().getFirst("Authorization");
         if (auth != null) {
             String a = auth.trim();
             if (a.regionMatches(true, 0, "Bearer ", 0, 7)) {
-                return a.substring(7).trim().equals(expected);
+                return constantTimeEquals(a.substring(7).trim(), expectedBytes);
             }
-            if (a.equals(expected)) {
+            if (constantTimeEquals(a, expectedBytes)) {
                 return true;
             }
         }
         Optional<String> sessionId = HttpResponses.cookie(exchange, SessionStore.COOKIE_NAME);
         return sessionId.isPresent() && sessions.isValid(sessionId.get());
+    }
+
+    private static boolean constantTimeEquals(String presented, byte[] expected) {
+        return MessageDigest.isEqual(presented.getBytes(StandardCharsets.UTF_8), expected);
     }
 
     private void createSession(HttpExchange exchange) throws IOException {

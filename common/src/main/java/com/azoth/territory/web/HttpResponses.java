@@ -14,6 +14,8 @@ final class HttpResponses {
     private HttpResponses() {
     }
 
+    private static final int MAX_BODY_BYTES = 1_048_576;
+
     static void applyCors(HttpExchange exchange, WebConfig config) {
         if (!config.corsEnabled()) {
             return;
@@ -60,7 +62,7 @@ final class HttpResponses {
     ) {
         StringBuilder sb = new StringBuilder();
         sb.append(name).append('=').append(value == null ? "" : value);
-        sb.append("; Path=/; HttpOnly; SameSite=Lax");
+        sb.append("; Path=/; HttpOnly; SameSite=Strict");
         if (maxAgeSeconds >= 0) {
             sb.append("; Max-Age=").append(maxAgeSeconds);
         }
@@ -116,8 +118,7 @@ final class HttpResponses {
     }
 
     static void badRequest(HttpExchange exchange, String message, WebConfig config) throws IOException {
-        String esc = message == null ? "" : message.replace("\\", "\\\\").replace("\"", "\\\"");
-        json(exchange, 400, "{\"error\":\"bad_request\",\"message\":\"" + esc + "\"}", config);
+        json(exchange, 400, "{\"error\":\"bad_request\"}", config);
     }
 
     static void unauthorized(HttpExchange exchange, WebConfig config) throws IOException {
@@ -129,13 +130,15 @@ final class HttpResponses {
     }
 
     static void serverError(HttpExchange exchange, String message, WebConfig config) throws IOException {
-        String esc = message == null ? "internal" : message.replace("\\", "\\\\").replace("\"", "\\\"");
-        json(exchange, 500, "{\"error\":\"internal\",\"message\":\"" + esc + "\"}", config);
+        json(exchange, 500, "{\"error\":\"internal\"}", config);
     }
-
     static String readBody(HttpExchange exchange) throws IOException {
         try (InputStream in = exchange.getRequestBody()) {
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            byte[] bytes = in.readNBytes(MAX_BODY_BYTES + 1);
+            if (bytes.length > MAX_BODY_BYTES) {
+                throw new IllegalArgumentException("Request body exceeds maximum allowed size");
+            }
+            return new String(bytes, StandardCharsets.UTF_8);
         }
     }
 
