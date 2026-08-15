@@ -16,11 +16,14 @@ env:
   API_ROOT: https://api.github.com
 
 jobs:
-  nightly:
+  build:
     permissions:
-      contents: write
+      contents: read
       packages: read
+      actions: write
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -38,6 +41,7 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4.4.4
+
       - name: Calculate and validate release version
         id: version
         shell: bash
@@ -49,13 +53,13 @@ jobs:
             exit 1
           fi
           echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build and verify
         env:
-          GITHUB_ACTOR: mintychochip
-          GITHUB_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN }}
+          MINT_PACKAGES_ACTOR: ${{ secrets.MINT_PACKAGES_ACTOR || 'mintychochip' }}
+          MINT_PACKAGES_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN }}
         run: ./gradlew --no-daemon -PreleaseVersion="$RELEASE_VERSION" clean test build
-
 
       - name: Verify release artifacts
         shell: bash
@@ -64,12 +68,46 @@ jobs:
           test -f "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar"
           test -f "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar"
 
+      - name: Compute artifact checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          for artifact in \
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar" \
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar"; do
+            sha256sum "$artifact" > "$artifact.sha256"
+          done
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nightly-${{ env.RELEASE_VERSION }}
+          path: |
+            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}.jar
+            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}-sources.jar
+            paper/build/libs/*.sha256
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    needs: build
+    permissions:
+      contents: write
+      actions: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4.1.7
+        with:
+          name: nightly-${{ needs.build.outputs.version }}
+          path: paper/build/libs
       - name: Create or update rolling nightly release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           COMMIT_SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
@@ -130,19 +168,21 @@ jobs:
           test -n "$upload_url"
           for artifact in \
             "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar" \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar"; do
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar" \
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar.sha256" \
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar.sha256"; do
             curl --fail-with-body --silent --show-error -X POST "${auth[@]}" \
               -H 'Content-Type: application/java-archive' \
-              "${upload_url}?name=$(basename "$artifact")" --data-binary "@${artifact}" > /dev/null
+              "${upload_url}?name=$(basename "$artifact")" --data-binary "@$artifact" > /dev/null
           done
           tag_state="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$tag_ref")"
           test "$(jq -r '.object.sha' <<<"$tag_state")" = "$COMMIT_SHA"
-
 
       - name: Verify nightly release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
@@ -153,3 +193,5 @@ jobs:
           test "$(jq -r '.prerelease' <<<"$nightly")" = true
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar")) != null' <<<"$nightly" > /dev/null
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar.sha256")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar.sha256")) != null' <<<"$nightly" > /dev/null

@@ -6,9 +6,14 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   build:
+    permissions:
+      contents: read
+      packages: read
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -23,6 +28,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4.4.4
       - name: Build and verify
+        env:
+          MINT_PACKAGES_ACTOR: ${{ secrets.MINT_PACKAGES_ACTOR || github.actor }}
+          MINT_PACKAGES_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
         run: ./gradlew --no-daemon build
       - name: Upload analysis reports on failure
         if: ${{ failure() }}
