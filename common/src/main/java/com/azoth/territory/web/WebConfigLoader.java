@@ -41,7 +41,11 @@ public final class WebConfigLoader {
             if (pass.isBlank()) {
                 throw new IllegalArgumentException("web.tls.password is required when web.tls.enabled is true");
             }
-            String keyPass = str(cfg, "web.tls.key-password", pass);
+            String keyPass = str(cfg, "web.tls.key-password", "");
+            if (keyPass.isBlank()) {
+                throw new IllegalArgumentException(
+                        "web.tls.key-password is required when web.tls.enabled is true");
+            }
             String type = str(cfg, "web.tls.keystore-type", "PKCS12");
             tls = new WebConfig.TlsSettings(true, ksPath, pass, keyPass, type);
         } else {

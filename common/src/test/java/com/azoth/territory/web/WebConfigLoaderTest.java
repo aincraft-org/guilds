@@ -74,6 +74,19 @@ class WebConfigLoaderTest {
     }
 
     @Test
+    void enabledTlsRequiresKeyPassword() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("web.enabled", true);
+        cfg.put("web.api-token", "tok");
+        cfg.put("web.tls.enabled", true);
+        cfg.put("web.tls.password", "keystore-secret");
+
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> WebConfigLoader.fromValues(cfg, dataFolder));
+        assertEquals("web.tls.key-password is required when web.tls.enabled is true", ex.getMessage());
+    }
+
+    @Test
     void corsRequiresPublicBaseUrl() {
         Map<String, Object> cfg = new HashMap<>();
         cfg.put("web.enabled", true);
