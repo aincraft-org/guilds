@@ -88,6 +88,14 @@ jobs:
             paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}.jar
             paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}-sources.jar
 
+      - name: Normalize provenance bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="${{ steps.attest.outputs.bundle-path }}"
+          test -s "$bundle"
+          cp "$bundle" "paper/build/libs/azoth-territory-${RELEASE_VERSION}.provenance.jsonl"
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -96,7 +104,7 @@ jobs:
             paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}.jar
             paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}-sources.jar
             paper/build/libs/*.sha256
-            ${{ steps.attest.outputs.bundle-path }}
+            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}.provenance.jsonl
           retention-days: 1
           if-no-files-found: error
 
@@ -181,9 +189,16 @@ jobs:
             "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar" \
             "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar" \
             "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar.sha256" \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar.sha256"; do
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar.sha256" \
+            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.provenance.jsonl"; do
+            content_type="application/octet-stream"
+            case "$artifact" in
+              *.jar) content_type="application/java-archive" ;;
+              *.sha256) content_type="text/plain" ;;
+              *.jsonl) content_type="application/json" ;;
+            esac
             curl --fail-with-body --silent --show-error -X POST "${auth[@]}" \
-              -H 'Content-Type: application/java-archive' \
+              -H "Content-Type: ${content_type}" \
               "${upload_url}?name=$(basename "$artifact")" --data-binary "@$artifact" > /dev/null
           done
           tag_state="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$tag_ref")"
@@ -206,3 +221,4 @@ jobs:
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar")) != null' <<<"$nightly" > /dev/null
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar.sha256")) != null' <<<"$nightly" > /dev/null
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar.sha256")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".provenance.jsonl")) != null' <<<"$nightly" > /dev/null
