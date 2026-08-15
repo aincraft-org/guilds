@@ -29,12 +29,22 @@ database:
   user: azoth
   password: ""
   ssl: false
+  # With ssl=true, loopback hosts default to PostgreSQL `require` / MySQL `REQUIRED`.
+  # Non-loopback hosts default to PostgreSQL `verify-full` / MySQL `VERIFY_IDENTITY`.
+  # Override only with a driver-supported mode; remote fallback modes are rejected.
+  # ssl-mode: verify-full
+  # PostgreSQL only: PEM root CA used as the `sslrootcert` driver property.
+  # ssl-ca-cert: /etc/azoth/postgres-ca.crt
+  # MySQL only: JKS or PKCS12 trust store; do not provide a PEM file here.
+  # ssl-trust-store: /etc/azoth/mysql-truststore.p12
+  # ssl-trust-store-password: ""
+  # ssl-trust-store-type: PKCS12
   pool-size: 10
-  # Optional full JDBC URL — wins over host/port/name/ssl.
-  # MySQL example:
+  # Optional full JDBC URL — wins over host/port/name and TLS settings above.
+  # MySQL example (secure mode and trust store can also be supplied as driver properties):
   # type: mysql
   # port: 3306
-  # jdbc-url: "jdbc:mysql://db.example.com:3306/azoth_territory?useSSL=true&serverTimezone=UTC"
+  # jdbc-url: "jdbc:mysql://db.example.com:3306/azoth_territory?sslMode=VERIFY_IDENTITY"
   jdbc-url: ""
 
 
