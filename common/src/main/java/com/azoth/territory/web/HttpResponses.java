@@ -20,8 +20,26 @@ final class HttpResponses {
         if (!config.corsEnabled()) {
             return;
         }
+        String publicBase = config.publicBaseUrl();
+        if (publicBase.isBlank()) {
+            return;
+        }
+        String configuredOrigin;
+        try {
+            java.net.URI uri = new java.net.URI(publicBase);
+            configuredOrigin = uri.getScheme() + "://" + uri.getAuthority();
+        } catch (java.net.URISyntaxException e) {
+            return;
+        }
+
+        String requestOrigin = exchange.getRequestHeaders().getFirst("Origin");
+        if (requestOrigin == null || !requestOrigin.equalsIgnoreCase(configuredOrigin)) {
+            return;
+        }
+
         var h = exchange.getResponseHeaders();
-        h.set("Access-Control-Allow-Origin", "*");
+        h.set("Access-Control-Allow-Origin", requestOrigin);
+        h.set("Vary", "Origin");
         h.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         h.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Token");
         h.set("Access-Control-Max-Age", "86400");

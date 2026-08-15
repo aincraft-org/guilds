@@ -67,13 +67,13 @@ public final class WebConfig {
 
     public static WebConfig defaults() {
         return new WebConfig(
-                true,
-                "0.0.0.0",
+                false,
+                "127.0.0.1",
                 8765,
                 "",
-                true,
+                false,
                 "",
-                true,
+                false,
                 TlsSettings.disabled(),
                 "",
                 DEFAULT_SESSION_TTL_SECONDS

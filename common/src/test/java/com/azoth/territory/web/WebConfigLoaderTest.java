@@ -72,4 +72,16 @@ class WebConfigLoaderTest {
                 IllegalArgumentException.class, () -> WebConfigLoader.fromValues(cfg, dataFolder));
         assertEquals("web.tls.password is required when web.tls.enabled is true", ex.getMessage());
     }
+
+    @Test
+    void corsRequiresPublicBaseUrl() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("web.enabled", true);
+        cfg.put("web.api-token", "tok");
+        cfg.put("web.cors", true);
+
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> WebConfigLoader.fromValues(cfg, dataFolder));
+        assertEquals("web.public-base-url is required when web.cors is true", ex.getMessage());
+    }
 }

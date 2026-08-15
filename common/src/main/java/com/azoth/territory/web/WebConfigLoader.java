@@ -25,6 +25,9 @@ public final class WebConfigLoader {
         if (enabled && token.isBlank()) {
             throw new IllegalArgumentException("web.api-token is required when web.enabled is true");
         }
+        if (cors && publicBase.isBlank()) {
+            throw new IllegalArgumentException("web.public-base-url is required when web.cors is true");
+        }
 
         boolean tlsEnabled = bool(cfg, "web.tls.enabled", false);
         WebConfig.TlsSettings tls;
