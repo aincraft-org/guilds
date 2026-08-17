@@ -9,7 +9,8 @@ public final class PostgresDialect implements DatabaseDialect {
             "CREATE TABLE IF NOT EXISTS facilities (id TEXT PRIMARY KEY, doc JSONB NOT NULL)",
             "CREATE TABLE IF NOT EXISTS expenses (idempotency_key TEXT PRIMARY KEY, doc JSONB NOT NULL)",
             "CREATE TABLE IF NOT EXISTS upkeep_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS invasion_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS invasion_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
+            "CREATE TABLE IF NOT EXISTS guild_storage_banks (guild_id TEXT PRIMARY KEY, doc JSONB NOT NULL)"
     };
     @Override public DatabaseType type() { return DatabaseType.POSTGRESQL; }
     @Override public String driverClassName() { return "org.postgresql.Driver"; }

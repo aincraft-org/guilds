@@ -8,7 +8,9 @@ class DatabaseDialectTest {
     @Test
     void mysqlUsesJsonAndDuplicateKeyUpsert() {
         DatabaseDialect dialect = new MySqlDialect();
-        assertTrue(String.join(" ", dialect.schemaStatements()).contains("JSON NOT NULL"));
+        String schema = String.join(" ", dialect.schemaStatements());
+        assertTrue(schema.contains("JSON NOT NULL"));
+        assertTrue(schema.contains("guild_storage_banks"));
         assertTrue(dialect.documentUpsertSql("territories", "id").contains("ON DUPLICATE KEY UPDATE"));
         assertTrue(dialect.singletonUpsertSql("invasion_state", "id").contains("VALUES (1, ?)"));
     }
@@ -16,7 +18,9 @@ class DatabaseDialectTest {
     @Test
     void postgresKeepsJsonbAndConflictUpsert() {
         DatabaseDialect dialect = new PostgresDialect();
-        assertTrue(String.join(" ", dialect.schemaStatements()).contains("JSONB NOT NULL"));
+        String schema = String.join(" ", dialect.schemaStatements());
+        assertTrue(schema.contains("JSONB NOT NULL"));
+        assertTrue(schema.contains("guild_storage_banks"));
         assertTrue(dialect.documentUpsertSql("territories", "id").contains("ON CONFLICT"));
     }
 }
