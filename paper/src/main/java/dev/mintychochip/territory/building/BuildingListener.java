@@ -166,7 +166,7 @@ public final class BuildingListener implements Listener {
         for (SettlementFacility destination : reachable) {
             player.sendMessage(Component.text(" • " + destination.name(), NamedTextColor.YELLOW)
                     .clickEvent(ClickEvent.runCommand(
-                            "/territory building travel " + destination.id())));
+                            "/guilds building travel " + destination.id())));
         }
     }
 

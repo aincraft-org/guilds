@@ -1,23 +1,23 @@
-name: AzothTerritory
+name: Guilds
 version: ${version}
-main: dev.mintychochip.territory.AzothTerritoryPlugin
+main: dev.mintychochip.guilds.GuildsPlugin
 api-version: '26.2'
 description: ${description}
-author: Azoth
-website: https://github.com/azoth/azoth-territory
+author: Guilds
+website: https://github.com/guilds/guilds
 load: POSTWORLD
-softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap]
+softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap, MapGUI]
 commands:
   territory:
     description: Inspect territory and zone at a location
-    usage: /territory [lookup|list|building|reload|invasion]
-    aliases: [azterritory, at]
+    usage: /territory [lookup|here|list|reload|save|web|govern|influence|declare|standing|upkeep|invasion]
+    aliases: [guildsterritory, at]
 # Guilds commands are registered dynamically via Paper Brigadier lifecycle
 permissions:
-  azoth.territory.admin:
+  guilds.territory.admin:
     description: Administer and inspect territories
     default: op
-  azoth.territory.building.manage:
+  guilds.territory.building.manage:
     description: Register and remove facilities in governed territory
     default: true
   territory.admin.invasion:

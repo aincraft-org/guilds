@@ -88,7 +88,7 @@ public final class BuildingCommand {
             return true;
         }
         if (args.length < 3) {
-            message(sender, "Usage: /" + label + " building create <waystone|trading_post|storage> <id> [name]",
+            message(sender, "Usage: /guilds building create <waystone|trading_post|storage> <id> [name]",
                     NamedTextColor.RED);
             return true;
         }
@@ -142,7 +142,7 @@ public final class BuildingCommand {
     private boolean list(CommandSender sender, String[] args) {
         String territoryId = args.length > 1 ? args[1] : territoryAt(sender).orElse(null);
         if (territoryId == null) {
-            message(sender, "Usage: /territory building list <territoryId>", NamedTextColor.RED);
+            message(sender, "Usage: /guilds building list <territoryId>", NamedTextColor.RED);
             return true;
         }
         Territory territory = territories.get(territoryId).orElse(null);
