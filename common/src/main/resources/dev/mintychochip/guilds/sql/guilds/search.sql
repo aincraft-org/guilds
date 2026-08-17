@@ -1,0 +1,4 @@
+SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world,
+       spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world,
+       is_open, created_at, permissions_flags, tax_rates,
+       guild_level, tech_points, active_project_id FROM guilds WHERE name LIKE :name_pattern ORDER BY name
