@@ -154,16 +154,15 @@ docs/plans under `docs/archived-guilds/docs/` for reference.
 
 ### Guild progression
 
-Guild residents use `/guildlevel deposit <resource> <amount>` to contribute
-`DIAMOND`, `GOLD`, `IRON`, `EMERALD`, or `EXPERIENCE` resources. Material aliases
-such as `GOLD_INGOT` are accepted. Deposits remove items from the player's
-inventory and atomically persist the guild resource bank, contribution history,
-and upgrade progress; a failed database write refunds the inventory items.
+Guild residents use `/guildlevel deposit EXPERIENCE <amount>` to contribute XP
+toward the next guild level. Materials are not a level-up requirement. A failed
+database write refunds the inventory items.
 
 Only the guild mayor or a holder of `guilds.admin.guild` may run
-`/guildlevel upgrade`. The upgrade rechecks the locked database row, consumes the
-current progress exactly once, awards tech points, and records idempotent level
-benefits.
+`/guildlevel upgrade`. The upgrade rechecks the locked database row, consumes XP
+progress once, and grants project skill points equal to the new guild level
+(level 2 is two points). Spend those points on one tech-tree project at a time
+with `/techtree start <node>`; `/techtree clear` frees the active slot.
 
 ## Mint cash guild banks
 

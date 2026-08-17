@@ -1,7 +1,7 @@
 # Guilds — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-08  
+> Last updated: 2026-08-16  
 > Related: archived docs under `docs/archived-guilds/docs/`;  
 > `docs/superpowers/specs/2026-08-07-guild-contracts-design.md`
 
@@ -26,7 +26,7 @@ contracts are durable and transactional where money/items move.
 - Plot claim/ownership/types and plot permissions.
 - Permission evaluation for guild context (feeds land with **governance**).
 - Chat, broadcasts, hearthstone, public-access listeners.
-- Levels / resource bank / tech tree / specializations / quests.
+- Levels (XP-only) / project skill points / tech-tree projects / resource bank / specializations / quests.
 - Guild contracts service API (escrow materials for level costs).
 - Brigadier command surface (`/guild*`, `/alliance*`, plot/perm/map, …).
 - Config: `guilds-config.yml`, `techtree.yml`, level definitions.
@@ -46,7 +46,7 @@ contracts are durable and transactional where money/items move.
 3. **Governance DTOs** (`GuildBody` / `AllianceBody`) must not grant permissions
    to non-members (stale map keys denied) — coordinate with **governance** hardening.
 4. Progression deposits that remove inventory must **refund on failed DB write**.
-5. Level upgrade rechecks locked row; consumes progress once; idempotent benefits.
+5. Level upgrade rechecks locked row; consumes XP progress once; skill points equal current level.
 6. Contract escrow: debit on post; release on fulfill; refund on cancel; no post
    without affordability.
 7. No Bukkit types in pure territory `api`/`common`; guilds code lives under
@@ -89,8 +89,8 @@ contracts are durable and transactional where money/items move.
 - [x] Plot type system and handlers
 - [x] Permission service + public access / toggle listeners
 - [x] `GuildsGovernanceSource` for territory governance
-- [x] Level deposit / upgrade progression
-- [x] Tech tree / specialization / quest services
+- [x] Level deposit / upgrade progression (XP-only; skill points = guild level)
+- [x] Tech tree projects (one active at a time) / specialization / quest services
 - [x] Guild contracts service + migration (`GuildContractService`)
 - [x] Integrated enable path from `AzothTerritoryPlugin`
 
