@@ -76,7 +76,7 @@ public final class BuildingCommand {
         }
         if (args.length == 2 && "create".equalsIgnoreCase(args[0])) {
             String prefix = args[1].toLowerCase(Locale.ROOT);
-            return List.of("waystone", "trading_post").stream()
+            return List.of("waystone", "trading_post", "storage").stream()
                     .filter(value -> value.startsWith(prefix)).toList();
         }
         return List.of();
@@ -88,7 +88,7 @@ public final class BuildingCommand {
             return true;
         }
         if (args.length < 3) {
-            message(sender, "Usage: /" + label + " building create <waystone|trading_post> <id> [name]",
+            message(sender, "Usage: /" + label + " building create <waystone|trading_post|storage> <id> [name]",
                     NamedTextColor.RED);
             return true;
         }
@@ -225,6 +225,7 @@ public final class BuildingCommand {
         return switch (input.toLowerCase(Locale.ROOT)) {
             case "waystone" -> FacilityType.WAYSTONE;
             case "trading_post", "trading-post" -> FacilityType.TRADING_POST;
+            case "storage" -> FacilityType.STORAGE;
             default -> null;
         };
     }

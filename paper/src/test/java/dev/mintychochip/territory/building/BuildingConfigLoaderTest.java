@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class BuildingConfigLoaderTest {
@@ -20,7 +19,8 @@ class BuildingConfigLoaderTest {
         assertEquals(Set.of(Material.LODESTONE), config.anchorMaterials(FacilityType.WAYSTONE));
         assertEquals(Set.of(Material.BELL, Material.LECTERN),
                 config.anchorMaterials(FacilityType.TRADING_POST));
-        assertFalse(config.supports(FacilityType.STORAGE));
+        assertEquals(Set.of(Material.CHEST, Material.BARREL, Material.TRAPPED_CHEST),
+                config.anchorMaterials(FacilityType.STORAGE));
         assertEquals(60_000L, config.placementTimeoutMillis());
         assertEquals(100L, config.waystoneWarmupTicks());
         assertEquals(60_000L, config.waystoneCooldownMillis());

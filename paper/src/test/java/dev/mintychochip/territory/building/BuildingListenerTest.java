@@ -40,8 +40,10 @@ class BuildingListenerTest {
     private FacilityRegistry facilities;
     private BuildingPlacementSessions sessions;
     private BuildingAuthorization authorization;
+    private FacilityAnchorValidator anchors;
     private MemoryStore store;
     private BuildingListener listener;
+    private java.util.concurrent.atomic.AtomicReference<String> openedStorage;
 
     @BeforeEach
     void setUp() {
@@ -64,11 +66,14 @@ class BuildingListenerTest {
                 Map.of(FacilityType.WAYSTONE, Set.of(Material.LODESTONE)), 100L, 60_000L);
         sessions = new BuildingPlacementSessions(60_000L);
         authorization = mock(BuildingAuthorization.class);
+        anchors = mock(FacilityAnchorValidator.class);
         store = new MemoryStore();
+        openedStorage = new java.util.concurrent.atomic.AtomicReference<>();
         listener = new BuildingListener(sessions, config, territories, facilities,
                 authorization, new FacilityMutationService(facilities, store),
-                mock(FacilityAnchorValidator.class), mock(WaystoneAccess.class),
-                new WaystoneSelections(60_000L), mock(org.bukkit.plugin.PluginManager.class));
+                anchors, mock(WaystoneAccess.class),
+                new WaystoneSelections(60_000L), mock(org.bukkit.plugin.PluginManager.class),
+                (viewer, worldId, x, y, z) -> openedStorage.set(worldId + ":" + x));
     }
 
     @Test
@@ -131,6 +136,21 @@ class BuildingListenerTest {
 
         assertTrue(event.isCancelled());
         assertEquals(java.util.Optional.of(facility), facilities.get("north"));
+    }
+
+    @Test
+    void storageAnchorOpensItemBankAndCancelsVanillaChest() {
+        SettlementFacility vault = new SettlementFacility(
+                "vault", "Vault", "t1", FacilityType.STORAGE, "world", 5, 64, 5);
+        when(anchors.activeAt("world", 5, 64, 5)).thenReturn(java.util.Optional.of(vault));
+        PlayerInteractEvent event = new PlayerInteractEvent(
+                player, Action.RIGHT_CLICK_BLOCK, null, anchor,
+                org.bukkit.block.BlockFace.UP, EquipmentSlot.HAND);
+
+        listener.onInteract(event);
+
+        assertTrue(event.isCancelled());
+        assertEquals("world:5", openedStorage.get());
     }
 
     private static final class MemoryStore implements FacilityStore {

@@ -1,7 +1,9 @@
 package dev.mintychochip.territory.building;
 
+import dev.mintychochip.territory.model.FacilityType;
 import dev.mintychochip.territory.model.SettlementFacility;
 import dev.mintychochip.territory.model.Territory;
+import dev.mintychochip.territory.storage.GuildStorageAnchorHandler;
 import dev.mintychochip.territory.registry.FacilityRegistry;
 import dev.mintychochip.territory.registry.TerritoryRegistry;
 import net.kyori.adventure.text.Component;
@@ -36,12 +38,38 @@ public final class BuildingListener implements Listener {
     private final WaystoneAccess waystones;
     private final WaystoneSelections selections;
     private final PluginManager pluginManager;
+    private final GuildStorageAnchorHandler storage;
 
     public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
                             TerritoryRegistry territories, FacilityRegistry facilities,
                             BuildingAuthorization authorization, FacilityMutationService mutations,
                             FacilityAnchorValidator anchors, WaystoneAccess waystones,
                             WaystoneSelections selections, PluginManager pluginManager) {
+        this(sessions, config, territories, facilities, authorization, mutations, anchors,
+                waystones, selections, pluginManager, null);
+    }
+
+    /**
+     * Creates a listener that can open storage vaults.
+     *
+     * @param sessions placement sessions
+     * @param config building config
+     * @param territories territory registry
+     * @param facilities facility directory
+     * @param authorization management checks
+     * @param mutations durable mutations
+     * @param anchors active-anchor validator
+     * @param waystones waystone access
+     * @param selections waystone selections
+     * @param pluginManager plugin manager
+     * @param storage storage opener, or {@code null}
+     */
+    public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
+                            TerritoryRegistry territories, FacilityRegistry facilities,
+                            BuildingAuthorization authorization, FacilityMutationService mutations,
+                            FacilityAnchorValidator anchors, WaystoneAccess waystones,
+                            WaystoneSelections selections, PluginManager pluginManager,
+                            GuildStorageAnchorHandler storage) {
         this.sessions = sessions;
         this.config = config;
         this.territories = territories;
@@ -52,6 +80,7 @@ public final class BuildingListener implements Listener {
         this.waystones = waystones;
         this.selections = selections;
         this.pluginManager = pluginManager;
+        this.storage = storage;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -105,7 +134,16 @@ public final class BuildingListener implements Listener {
         if (facility == null) {
             return;
         }
-        if (facility.type() == dev.mintychochip.territory.model.FacilityType.TRADING_POST) {
+        if (facility.type() == FacilityType.STORAGE) {
+            event.setCancelled(true);
+            if (storage == null) {
+                player.sendMessage(Component.text("Guild storage is unavailable.", NamedTextColor.RED));
+                return;
+            }
+            storage.open(player, facility.worldId(), facility.x(), facility.y(), facility.z());
+            return;
+        }
+        if (facility.type() == FacilityType.TRADING_POST) {
             Territory territory = territories.get(facility.territoryId()).orElse(null);
             if (territory == null) return;
             TradingPostInteractEvent tradingPostEvent =
@@ -118,7 +156,7 @@ public final class BuildingListener implements Listener {
                     tradingPostEvent.isCancelled() ? NamedTextColor.RED : NamedTextColor.GOLD));
             return;
         }
-        if (facility.type() != dev.mintychochip.territory.model.FacilityType.WAYSTONE) {
+        if (facility.type() != FacilityType.WAYSTONE) {
             return;
         }
         var reachable = waystones.reachable(player.getUniqueId(), facility);
