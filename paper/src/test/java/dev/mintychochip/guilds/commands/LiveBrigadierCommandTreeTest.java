@@ -115,7 +115,7 @@ class LiveBrigadierCommandTreeTest {
     void everyLiveRootHasNamedLiteralsNotAGreedyCatchAll() {
         assertTree("guild", guildCommand().buildCommand(),
                 "create", "join", "leave", "delete", "claim", "unclaim", "list",
-                "info", "spawn", "setspawn", "toggle", "bank", "techtree", "government",
+                "info", "spawn", "setspawn", "toggle", "bank", "upgrade", "government",
                 "storage", "building");
         assertTree("plot", plotCommand().buildCommand(),
                 "claim", "unclaim", "info", "forsale", "buy", "perm", "set", "list");
@@ -127,7 +127,7 @@ class LiveBrigadierCommandTreeTest {
                 "help");
         assertTree("perm", permCommand().buildCommand(),
                 "check", "build", "destroy", "plot", "guild", "flags", "here");
-        assertTree("techtree", techTreeCommand.buildCommand(),
+        assertTree("upgrade", techTreeCommand.buildCommand(),
                 "info", "start", "unlock", "clear", "complete", "list");
         assertTree("alliance", allianceCommand().buildCommand(),
                 "create", "invite", "join", "leave", "list", "info", "ally",
@@ -168,7 +168,7 @@ class LiveBrigadierCommandTreeTest {
         executeAndHear(levelCommand().buildCommand(), "guildlevel", player);
         executeAndHear(mapCommand().buildCommand(), "guildsmap", player);
         executeAndHear(mapCommand().buildCommand(), "guildsmap help", player);
-        executeAndHear(techTreeCommand.buildCommand(), "techtree", player);
+        executeAndHear(techTreeCommand.buildCommand(), "upgrade", player);
         executeAndHear(chatCommand().buildCommand(), "tc", player);
         executeAndHear(allianceCommand().buildCommand(), "alliance", player);
         executeAndHear(specializeCommand().buildCommand(), "specialize", player);
