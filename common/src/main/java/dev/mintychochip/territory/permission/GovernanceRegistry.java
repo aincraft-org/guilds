@@ -163,25 +163,9 @@ public final class GovernanceRegistry {
             String proposerId,
             long nowEpochMs
     ) {
-        return proposePolicy(territoryId, policyId, title, body, proposerId, nowEpochMs,
-                dev.mintychochip.territory.decree.DecreeEffects.empty());
-    }
-
-    /**
-     * Propose a policy with structured decree effects under the effective government.
-     */
-    public Policy proposePolicy(
-            String territoryId,
-            String policyId,
-            String title,
-            String body,
-            String proposerId,
-            long nowEpochMs,
-            dev.mintychochip.territory.decree.DecreeEffects effects
-    ) {
         Territory t = requireTerritory(territoryId);
         Government gov = resolveForTerritory(territoryId).government();
-        Policy p = PolicyRules.propose(gov, policyId, title, body, proposerId, nowEpochMs, effects);
+        Policy p = PolicyRules.propose(gov, policyId, title, body, proposerId, nowEpochMs);
         if (t.policy(p.id()).isPresent()) {
             throw new IllegalArgumentException("policy already exists: " + p.id());
         }

@@ -1,7 +1,7 @@
 package dev.mintychochip.territory.persist;
 
 import dev.mintychochip.territory.PostgresTestDatabase;
-import dev.mintychochip.territory.decree.GoodsCatalog;
+import dev.mintychochip.territory.economy.GoodsCatalog;
 import dev.mintychochip.territory.economy.EconomyBridge;
 import dev.mintychochip.territory.economy.ExpenseEntry;
 import dev.mintychochip.territory.economy.ExpenseJournalState;

@@ -1,7 +1,5 @@
 package dev.mintychochip.territory.model;
 
-import dev.mintychochip.territory.decree.DecreeEffects;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -25,10 +23,9 @@ public final class Policy {
     private final Map<String, PolicyVote> votesByVoter;
     private final Long resolvedAtEpochMs;
     private final Long proposedAtEpochMs;
-    private final DecreeEffects effects;
 
     /**
-     * Creates a policy with empty decree effects.
+     * Creates a policy.
      *
      * @param id policy identifier
      * @param title policy title
@@ -48,33 +45,6 @@ public final class Policy {
             List<PolicyVote> votes,
             Long resolvedAtEpochMs,
             Long proposedAtEpochMs
-    ) {
-        this(id, title, body, proposerId, status, votes, resolvedAtEpochMs, proposedAtEpochMs, DecreeEffects.empty());
-    }
-
-    /**
-     * Creates a policy.
-     *
-     * @param id policy identifier
-     * @param title policy title
-     * @param body policy text
-     * @param proposerId opaque proposer identifier
-     * @param status lifecycle status
-     * @param votes initial votes
-     * @param resolvedAtEpochMs optional resolution time in epoch milliseconds
-     * @param proposedAtEpochMs optional proposal time in epoch milliseconds
-     * @param effects decree effects associated with the policy
-     */
-    public Policy(
-            String id,
-            String title,
-            String body,
-            String proposerId,
-            PolicyStatus status,
-            List<PolicyVote> votes,
-            Long resolvedAtEpochMs,
-            Long proposedAtEpochMs,
-            DecreeEffects effects
     ) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("policy id is required");
@@ -96,7 +66,6 @@ public final class Policy {
         this.votesByVoter = Collections.unmodifiableMap(map);
         this.resolvedAtEpochMs = resolvedAtEpochMs;
         this.proposedAtEpochMs = proposedAtEpochMs;
-        this.effects = effects == null ? DecreeEffects.empty() : effects;
     }
 
     /**
@@ -118,7 +87,7 @@ public final class Policy {
     ) {
         return new Policy(
                 id, title, body, proposerId,
-                PolicyStatus.PROPOSED, List.of(), null, proposedAtEpochMs, DecreeEffects.empty()
+                PolicyStatus.PROPOSED, List.of(), null, proposedAtEpochMs
         );
     }
 
@@ -208,15 +177,6 @@ public final class Policy {
     }
 
     /**
-     * Returns decree effects associated with this policy.
-     *
-     * @return decree effects
-     */
-    public DecreeEffects effects() {
-        return effects;
-    }
-
-    /**
      * Counts affirmative votes.
      *
      * @return number of yes votes
@@ -262,7 +222,7 @@ public final class Policy {
         next.put(vote.voterId(), vote);
         return new Policy(
                 id, title, body, proposerId, status,
-                new ArrayList<>(next.values()), resolvedAtEpochMs, proposedAtEpochMs, effects
+                new ArrayList<>(next.values()), resolvedAtEpochMs, proposedAtEpochMs
         );
     }
 
@@ -272,8 +232,7 @@ public final class Policy {
                 id, title, body, proposerId, newStatus,
                 new ArrayList<>(votesByVoter.values()),
                 newStatus.isTerminal() ? resolvedAt : resolvedAtEpochMs,
-                proposedAtEpochMs,
-                effects
+                proposedAtEpochMs
         );
     }
 
@@ -292,14 +251,13 @@ public final class Policy {
                 && status == that.status
                 && votesByVoter.equals(that.votesByVoter)
                 && Objects.equals(resolvedAtEpochMs, that.resolvedAtEpochMs)
-                && Objects.equals(proposedAtEpochMs, that.proposedAtEpochMs)
-                && effects.equals(that.effects);
+                && Objects.equals(proposedAtEpochMs, that.proposedAtEpochMs);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id, title, body, proposerId, status, votesByVoter,
-                resolvedAtEpochMs, proposedAtEpochMs, effects);
+                resolvedAtEpochMs, proposedAtEpochMs);
     }
 
     @Override

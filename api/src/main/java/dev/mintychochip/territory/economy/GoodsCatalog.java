@@ -1,4 +1,4 @@
-package dev.mintychochip.territory.decree;
+package dev.mintychochip.territory.economy;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +38,7 @@ public final class GoodsCatalog {
     }
 
     /**
-     * Default in-process catalog used by tests and the deterministic transcriber.
+     * Default in-process catalog used by tests and the economy bridge.
      * Vegetables: carrot, potato, beetroot, cabbage, onion. Plus a few non-vegetable goods.
      *
      * @return default catalog

@@ -1,8 +1,5 @@
 package dev.mintychochip.territory.economy;
 
-import dev.mintychochip.territory.decree.DecreeEffects;
-import dev.mintychochip.territory.decree.GoodsCatalog;
-import dev.mintychochip.territory.decree.TaxEffect;
 import dev.mintychochip.territory.model.BlockPos;
 import dev.mintychochip.territory.model.Boundary;
 import dev.mintychochip.territory.model.Government;
@@ -23,12 +20,8 @@ class EconomyBridgeCraftTest {
             new BlockPos(0, 0), new BlockPos(10, 0), new BlockPos(10, 10), new BlockPos(0, 10)));
 
     private static EconomyBridge bridge(RecordingRail rail) {
-        long now = 1_700_000_000_000L;
         Territory territory = new Territory("t1", "T", "world", SQUARE)
-                .withGovernment(Government.monarchy("king"))
-                .proposePolicy("tax", "Tax", "B", "king", now,
-                        DecreeEffects.ofTax(new TaxEffect(List.of("carrot"), 15.0)))
-                .decreePolicy("tax", "king", true, now + 1);
+                .withGovernment(Government.monarchy("king"));
         TerritoryRegistry territories = new TerritoryRegistry();
         territories.register(territory);
         return new EconomyBridge(
@@ -45,10 +38,9 @@ class EconomyBridgeCraftTest {
 
         TaxReport report = bridge(rail).reportCraft(PAYER, "world", 5, 5, "carrot", 4, 200.0);
 
-        assertEquals(TaxOutcome.TAXED, report.outcome());
-        assertEquals(30.0, report.taxAmount(), 1e-9);
-        assertEquals(30.0, rail.lastAmount, 1e-9);
-        assertEquals(1, rail.settleCalls);
+        assertEquals(TaxOutcome.NO_TAX, report.outcome());
+        assertEquals(0.0, report.taxAmount(), 1e-9);
+        assertEquals(0, rail.settleCalls);
     }
 
     @Test
@@ -83,12 +75,10 @@ class EconomyBridgeCraftTest {
 
     private static final class RecordingRail implements PaymentRail {
         private int settleCalls;
-        private double lastAmount;
 
         @Override
         public SettlementResult settle(UUID payerId, String territoryId, double amount) {
             settleCalls++;
-            lastAmount = amount;
             return new SettlementResult(PaymentRail.SettlementStatus.SETTLED);
         }
 

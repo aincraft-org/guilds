@@ -1,7 +1,5 @@
 package dev.mintychochip.territory.model;
 
-import dev.mintychochip.territory.decree.DecreeEffects;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -407,7 +405,7 @@ public final class Territory {
     }
 
     /**
-     * Proposes a policy without structured effects (delegates with empty effects).
+     * Propose a policy under this territory's government (proposer must be eligible).
      *
      * @param policyId policy identifier
      * @param title policy title
@@ -423,28 +421,7 @@ public final class Territory {
             String proposerId,
             long nowEpochMs
     ) {
-        return proposePolicy(policyId, title, body, proposerId, nowEpochMs, DecreeEffects.empty());
-    }
-
-    /**
-     * Propose a policy under this territory's government (proposer must be eligible).
-     * @param policyId policy identifier
-     * @param title policy title
-     * @param body policy body
-     * @param proposerId proposer identifier
-     * @param nowEpochMs proposal time
-     * @param effects decree effects
-     * @return updated territory
-     */
-    public Territory proposePolicy(
-            String policyId,
-            String title,
-            String body,
-            String proposerId,
-            long nowEpochMs,
-            DecreeEffects effects
-    ) {
-        Policy p = PolicyRules.propose(government, policyId, title, body, proposerId, nowEpochMs, effects);
+        Policy p = PolicyRules.propose(government, policyId, title, body, proposerId, nowEpochMs);
         if (policies.containsKey(p.id())) {
             throw new IllegalArgumentException("policy already exists: " + p.id());
         }

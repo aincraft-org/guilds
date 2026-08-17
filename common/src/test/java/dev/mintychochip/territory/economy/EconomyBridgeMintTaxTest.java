@@ -2,9 +2,6 @@ package dev.mintychochip.territory.economy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import dev.mintychochip.territory.decree.DecreeEffects;
-import dev.mintychochip.territory.decree.TaxEffect;
-import dev.mintychochip.territory.decree.GoodsCatalog;
 import dev.mintychochip.guilds.alliances.Alliance;
 import dev.mintychochip.territory.model.BlockPos;
 import dev.mintychochip.territory.model.Boundary;
@@ -36,13 +33,13 @@ class EconomyBridgeMintTaxTest {
     var settlement=new CountingSettlement();
     var reg=new TerritoryRegistry();
     var t=new Territory("t1","T","world",Boundary.ofPolygon(List.of(new BlockPos(0,0),new BlockPos(10,0),new BlockPos(10,10),new BlockPos(0,10)))).withGovernment(Government.monarchy(payer.toString()));
-    t=t.withGovernment(Government.monarchy(payer.toString())).proposePolicy("tax","Tax","body",payer.toString(),1,DecreeEffects.ofTax(new TaxEffect(List.of("carrot"),10.0)));
-    reg.register(t.decreePolicy("tax",payer.toString(),true,2));
+    t=t.withGovernment(Government.monarchy(payer.toString()));
+    reg.register(t);
     var guild=new Guild("g1","G",Government.monarchy(payer.toString()),List.of(payer.toString()),GuildToggles.defaults(),Map.of());
     var source=new GovernanceSource(){ public Optional<Guild> guild(String id){return Optional.of(guild);} public List<Guild> guildsForMember(String id){return List.of(guild);} public Optional<Alliance> allianceContainingGuild(String id){return Optional.empty();} public List<Guild> allGuilds(){return List.of(guild);} public List<Alliance> allAlliances(){return List.of();} };
     var b=new EconomyBridge(reg,new GovernanceRegistry(reg,source),GoodsCatalog.defaultCatalog(),new SimulationTreasury(),false);
     var actual=b.reportSaleAsync(payer,"world",1,1,"carrot",100,"event",settlement).toCompletableFuture().join();
-    assertEquals(TaxOutcome.NO_GOVERNMENT,actual.outcome(), actual.toString());
+    assertEquals(TaxOutcome.NO_TAX,actual.outcome(), actual.toString());
     assertEquals(0,settlement.calls);
   }
   private static EconomyBridge bridge(){return new EconomyBridge(new TerritoryRegistry(),new GovernanceRegistry(new TerritoryRegistry()),GoodsCatalog.defaultCatalog(),new SimulationTreasury(),false);}

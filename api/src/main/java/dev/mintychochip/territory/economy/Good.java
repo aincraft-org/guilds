@@ -1,4 +1,4 @@
-package dev.mintychochip.territory.decree;
+package dev.mintychochip.territory.economy;
 
 import java.util.Locale;
 

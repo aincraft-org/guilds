@@ -1,7 +1,5 @@
 package dev.mintychochip.territory.persist;
 
-import dev.mintychochip.territory.decree.DecreeEffects;
-import dev.mintychochip.territory.decree.DecreeEffectsCodec;
 import dev.mintychochip.territory.model.BlockPos;
 import dev.mintychochip.territory.model.Boundary;
 import dev.mintychochip.territory.model.ChunkPos;
@@ -138,7 +136,6 @@ public final class TerritoryJson {
             votes.add(vo);
         }
         o.add("votes", votes);
-        o.add("effects", DecreeEffectsCodec.toJson(p.effects()));
         return o;
     }
 
@@ -163,10 +160,7 @@ public final class TerritoryJson {
                 ));
             }
         }
-        DecreeEffects effects = o.has("effects") && o.get("effects").isJsonObject()
-                ? DecreeEffectsCodec.fromJson(o.getAsJsonObject("effects"))
-                : DecreeEffects.empty();
-        return new Policy(id, title, body, proposer, status, votes, resolved, proposed, effects);
+        return new Policy(id, title, body, proposer, status, votes, resolved, proposed);
     }
 
     public JsonObject governmentToJson(Government g) {

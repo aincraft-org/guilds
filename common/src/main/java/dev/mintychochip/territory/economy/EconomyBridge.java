@@ -1,14 +1,11 @@
 package dev.mintychochip.territory.economy;
 
-import dev.mintychochip.territory.decree.DecreeEffectsInterpreter;
-import dev.mintychochip.territory.decree.GoodsCatalog;
 import dev.mintychochip.territory.model.LookupResult;
 import dev.mintychochip.territory.permission.GovernanceRegistry;
 import dev.mintychochip.territory.registry.TerritoryRegistry;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
@@ -19,8 +16,8 @@ import dev.mintychochip.territory.economy.AsyncTaxSettlement;
 import dev.mintychochip.territory.economy.AsyncSettlementResult;
 import java.util.function.Consumer;
 /**
- * Public transaction API: other plugins report sales here; Azoth applies PASSED
- * policy tax rates and settles through the active payment rail.
+ * Public transaction API: other plugins report sales here; Guilds validates
+ * the sale location and good, then settles tax when a rate is available.
  *
  * <p>Pure domain code with no Bukkit or external economy-provider dependencies.</p>
  */
@@ -143,8 +140,7 @@ public class EconomyBridge {
             return report(TaxOutcome.NO_TERRITORY, null, good.get().id(), 0.0, 0.0);
         }
 
-        Map<String, Double> rates = DecreeEffectsInterpreter.taxRatesFromPolicies(territory.policies());
-        Double rate = rates.get(good.get().id());
+        Double rate = taxRateFor();
         if (rate == null) {
             return report(TaxOutcome.NO_TAX, territoryId, good.get().id(), 0.0, 0.0);
         }
@@ -197,7 +193,7 @@ public class EconomyBridge {
         var territory = territories.get(territoryId).orElse(null);
         if (territory == null) return java.util.concurrent.CompletableFuture.completedFuture(
                 report(TaxOutcome.NO_TERRITORY, null, good.get().id(), 0.0, 0.0));
-        Double rate = DecreeEffectsInterpreter.taxRatesFromPolicies(territory.policies()).get(good.get().id());
+        Double rate = taxRateFor();
         if (rate == null) return java.util.concurrent.CompletableFuture.completedFuture(
                 report(TaxOutcome.NO_TAX, territoryId, good.get().id(), 0.0, 0.0));
         double taxAmount = TaxCalculator.tax(grossAmount, rate);
@@ -372,6 +368,14 @@ public class EconomyBridge {
         return new ExpenseReport(outcome, territoryId, kind, amount, idempotencyKey);
     }
 
+
+    /**
+     * Decree-backed tax rates are parked until that feature is wired again.
+     * Sales currently resolve as {@link TaxOutcome#NO_TAX}.
+     */
+    private static Double taxRateFor() {
+        return null;
+    }
 
     private TaxReport mapSettlement(
             SettlementResult result,

@@ -1,7 +1,7 @@
 package dev.mintychochip.territory.command;
 
 import dev.mintychochip.territory.AzothTerritoryPlugin;
-import dev.mintychochip.territory.decree.GoodsCatalog;
+import dev.mintychochip.territory.economy.GoodsCatalog;
 import dev.mintychochip.territory.economy.EconomyBridge;
 import dev.mintychochip.territory.economy.PaymentRail;
 import dev.mintychochip.territory.economy.SettlementResult;

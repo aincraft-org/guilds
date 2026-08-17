@@ -1,8 +1,8 @@
 # Economy — Living Spec
 
 > Status: active
-> Last updated: 2026-08-12
-> Owners: azoth-territory
+> Last updated: 2026-08-17
+> Owners: guilds
 > Index: [README.md](./README.md)
 >
 > Related one-shot designs (historical; this catalog is authoritative for intent going forward):
@@ -15,12 +15,12 @@
 
 ## Intent
 
-Azoth Territory owns a **settlement economy kernel**: other plugins report taxable commerce and schedule treasury expenses; Azoth resolves *where* the activity happened, *who* governs that land, *what rate* PASSED policy decrees impose, and *how* money moves — without becoming a shop, auction house, or inventory system.
+Guilds Territory owns a **settlement economy kernel**: other plugins report taxable commerce and schedule treasury expenses; Guilds resolves *where* the activity happened, *who* governs that land, and *how* money moves — without becoming a shop, auction house, or inventory system. Tax rates from policy decrees are parked until that feature is wired again.
 
 Success looks like:
 
 - External commerce/crafting/upkeep plugins can integrate via a small, stable public API (`EconomyBridge` / `BukkitEconomyBridge`).
-- Tax rates are political artifacts (PASSED `DecreeEffects` on policies), not hard-coded config tables.
+- Tax rates will be political artifacts (PASSED policy effects) once decrees return; until then sales resolve as `NO_TAX` after location/government/good checks.
 - Money movement has a single seam (`PaymentRail`) with fail-closed Vault mode and an explicit non-monetary simulation mode.
 - Treasury debits (upkeep, fortification, other) are restart-safe and never double-charge for the same idempotency key.
 - Domain code in `api`/`common` stays free of Bukkit and Vault types.
@@ -30,7 +30,7 @@ Success looks like:
 ### In scope
 
 - Public transaction reporting: `reportSale`, `reportCraft` (explicit gross value).
-- Tax math from PASSED policies + `GoodsCatalog` good ids.
+- Tax math from `GoodsCatalog` good ids. Rate source is parked with decrees; current sales are `NO_TAX`.
 - Settlement treasury: Vault bank-per-territory, `SimulationTreasury`, or asynchronous Mint guild accounts (`guild:<guildId>`).
 - Expense charging: `chargeExpense` with journaled idempotency (`ExpenseLedger` + Postgres).
 - Settlement facility **directory** only: `SettlementFacility` / `FacilityRegistry` (`TRADING_POST`, `STORAGE`) as location metadata for integrations.
@@ -53,15 +53,15 @@ Success looks like:
 Settled law for this domain (plain bullets — do not “checkbox” these):
 
 1. **Single money seam.** All real transfers go through `PaymentRail` (`settle` for payer→treasury tax; `debitTreasury` for treasury→sink expenses). No ad-hoc Vault calls from bridge callers.
-2. **One active rail.** Exactly one of VAULT or SIMULATION is authoritative; never dual-write “Azoth ledger + Vault bank” as both truths for balances.
+2. **One active rail.** Exactly one of VAULT or SIMULATION is authoritative; never dual-write “Guilds ledger + Vault bank” as both truths for balances.
 3. **TAXED means both legs done.** `TaxOutcome.TAXED` only when payer was charged *and* treasury credited. Partial failures are net-zero (`SETTLEMENT_FAILED`) or durable unknown (`SETTLEMENT_RECONCILIATION_REQUIRED`) — never silent success.
 4. **Pre-transfer outcomes mutate nothing.** `NO_TERRITORY`, `NO_GOVERNMENT`, `NO_TAX`, `UNKNOWN_GOOD`, `INVALID_AMOUNT` / quantity, `PAYER_UNAVAILABLE`, `VAULT_UNAVAILABLE`, `INSUFFICIENT_FUNDS` leave balances unchanged.
-5. **Tax only from PASSED policies.** Proposed/rejected policies contribute no rates; rates merge additively via `DecreeEffectsInterpreter.taxRatesFromPolicies`.
+5. **No live tax rates until decrees return.** Sales that pass location, government, and catalog checks currently resolve as `NO_TAX`. When decree effects return, only PASSED policies may contribute rates.
 6. **No invented prices.** `reportCraft` requires integration-supplied `grossValue`; quantity is metadata only.
 7. **Expense idempotency.** Same non-blank key: first successful debit → later calls return `ALREADY_APPLIED` without re-debit. Restart-visible `PENDING` → `RECONCILIATION_REQUIRED`; **never** auto-retry that key (Vault may already have debited).
 8. **Governed territory required for expenses.** `chargeExpense` requires a registered territory with an assigned government.
 9. **Facilities are metadata.** A facility does not own inventory, access policy, or money; location must resolve inside its declared territory; at most one facility per block location.
-10. **Layering.** Pure domain (`common`/`api` economy, model, registry, decree, persist stores’ domain types) never imports Bukkit or Vault. Vault/Bukkit live under `paper/.../economy`.
+10. **Layering.** Pure domain (`common`/`api` economy, model, registry, persist stores’ domain types) never imports Bukkit or Vault. Vault/Bukkit live under `paper/.../economy`.
 11. **Postgres is durable store.** Facilities, expenses, upkeep, and reconciliation use the shared remote PostgreSQL pool — no new JSON/SQLite fallback for these.
 
 ## Implementation guidance
@@ -70,7 +70,7 @@ Settled law for this domain (plain bullets — do not “checkbox” these):
 
 | Layer | Responsibility |
 |-------|----------------|
-| `api` — `PaymentRail`, `SettlementResult`, treasury debit types; `model` facilities; `decree` tax effects; `registry.FacilityRegistry` | Public contracts and pure models |
+| `api` — `PaymentRail`, `SettlementResult`, treasury debit types; `model` facilities; `economy` goods catalog; `registry.FacilityRegistry` | Public contracts and pure models |
 | `common` — `EconomyBridge`, `TaxCalculator`, `ExpenseLedger`, `SimulationTreasury`, upkeep engine, Postgres `*Store`s | Domain logic + durable stores (no Bukkit) |
 | `paper` — `VaultTreasury`, `BukkitEconomyBridge`, `EconomyConfig`, plugin wiring, scheduled upkeep task | Platform adapters |
 
@@ -80,7 +80,7 @@ Flow for a sale (happy path):
 commerce plugin → EconomyBridge.reportSale
   → TerritoryRegistry.resolve(world,x,z)
   → GovernanceRegistry.resolveForTerritory
-  → PASSED policy tax rates (DecreeEffectsInterpreter)
+  → tax rate lookup (parked; currently `NO_TAX`)
   → TaxCalculator
   → PaymentRail.settle(payer, territoryId, tax)
   → TaxReport
@@ -101,7 +101,7 @@ UpkeepEngine.tick (or external scheduler)
 - **Vault banks** (mode VAULT): territory id = bank id; balances owned by Vault’s economy plugin.
 - **Simulation ledger**: in-memory only; resets on restart by design.
 - **Expense journal / facilities / upkeep / reconciliation**: PostgreSQL via `PostgresExpenseStore`, `PostgresFacilityStore`, `PostgresUpkeepStore`, `PostgresReconciliationStore`.
-- **Tax rates**: not stored as a separate economy table — derived from territory policy documents (Postgres territory JSONB) at report time.
+- **Tax rates**: parked with decrees. Not stored as a separate economy table; when decree effects return they will be derived from territory policy documents at report time.
 
 ### Error / failure handling
 
@@ -137,12 +137,11 @@ Active capability surface (shipped or wired) and any open work still on that sur
 - [x] Plugin registers a documented `MintClientReceiver`; received leases inject the Mint rail into territory tax settlement
 - [x] `/guild bank` balance/deposit/withdraw command surface (when a trusted Mint rail is available)
 
-- [x] `EconomyBridge.reportSale` — location resolve, government gate, PASSED tax rates, `PaymentRail.settle`
+- [x] `EconomyBridge.reportSale` — location resolve, government gate, catalog check; tax amount is `NO_TAX` until decree rates return
 - [x] `TaxCalculator` + `TaxReport` / `TaxOutcome` mapping from settlement status
 - [x] `PaymentRail` + `SettlementResult` (including compensation / reconciliation statuses)
 - [x] `SimulationTreasury` and `VaultTreasury` (settle + `debitTreasury`)
 - [x] `economy.mode` VAULT | SIMULATION and Vault soft-depend wiring
-- [x] `DecreeEffects` / `TaxEffect` on `Policy` and `taxRatesFromPolicies` aggregation
 - [x] `GoodsCatalog` good-id validation for tax reports
 - [x] `BukkitEconomyBridge` OfflinePlayer convenience entry
 - [x] Durable tax reconciliation queue + Postgres reconciliation store
@@ -180,6 +179,7 @@ Committed near-term once Current open items are stable. Not speculative.
 
 Parked; promote to Next/Current before implementing.
 
+- [ ] Re-attach PASSED policy decree effects as the tax-rate source
 - [ ] Native trading-post behaviors (listings, stock) — only if product direction changes; prefer external plugins
 - [ ] Automatic market-price service or craft valuation without integrator input
 - [ ] Cross-server or multi-shard treasury federation
@@ -191,8 +191,9 @@ Parked; promote to Next/Current before implementing.
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-08-05 | Public `EconomyBridge` first; shops remain external | Keep Azoth a tax/treasury kernel, not a commerce plugin |
+| 2026-08-05 | Public `EconomyBridge` first; shops remain external | Keep Guilds a tax/treasury kernel, not a commerce plugin |
 | 2026-08-05 | Tax rates from PASSED `DecreeEffects` only | Politics owns rates; avoids hard-coded tax tables fighting governance |
+| 2026-08-17 | Remove unwired decree effects until a player/plugin path exists | No command or transcriber wiring; tax reports stay `NO_TAX` rather than keep a dead effects payload |
 | 2026-08-05 | Single `PaymentRail.settle` encapsulating withdraw→deposit→refund | Callers cannot misorder partial Vault APIs; money invariants stay in one place |
 | 2026-08-05 | VAULT default, SIMULATION opt-in non-monetary | Production fail-closed on real money; tests/dev without Vault |
 | 2026-08-06 | Facilities are location metadata only | External plugins own inventories/UI; avoid dual ownership of items |

@@ -13,7 +13,7 @@ historical detail; these catalogs are the durable north star.
 | Domain | File | Role |
 |--------|------|------|
 | **Territory (spatial)** | [territory.md](./territory.md) | Boundaries, zones, resolve, non-overlap |
-| **Governance** | [governance.md](./governance.md) | Governments, policies/decrees, land protection, scope |
+| **Governance** | [governance.md](./governance.md) | Governments, policies, land protection, scope |
 | **Economy** | [economy.md](./economy.md) | Tax, treasury, facilities, expenses, upkeep |
 | **Influence** | [influence.md](./influence.md) | Contest races, declare, flip, cooldowns |
 | **Standing** | [standing.md](./standing.md) | Development standing, harvest/influence multipliers |

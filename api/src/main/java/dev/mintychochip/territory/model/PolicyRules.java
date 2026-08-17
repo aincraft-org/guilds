@@ -1,7 +1,5 @@
 package dev.mintychochip.territory.model;
 
-import dev.mintychochip.territory.decree.DecreeEffects;
-
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -86,7 +84,7 @@ public final class PolicyRules {
         return electorate(government).contains(authorityId.trim());
     }
 
-    /** Creates a proposed policy without structured effects.
+    /** Creates a proposed policy.
      * @param government governing authority
      * @param id policy identifier
      * @param title policy title
@@ -103,28 +101,6 @@ public final class PolicyRules {
             String proposerId,
             long nowEpochMs
     ) {
-        return propose(government, id, title, body, proposerId, nowEpochMs, DecreeEffects.empty());
-    }
-
-    /** Creates a proposed policy with structured effects.
-     * @param government governing authority
-     * @param id policy identifier
-     * @param title policy title
-     * @param body policy body
-     * @param proposerId proposer identifier
-     * @param nowEpochMs proposal time
-     * @param effects decree effects
-     * @return a proposed policy
-     */
-    public static Policy propose(
-            Government government,
-            String id,
-            String title,
-            String body,
-            String proposerId,
-            long nowEpochMs,
-            DecreeEffects effects
-    ) {
         Objects.requireNonNull(government, "government");
         if (!government.isAssigned()) {
             throw new IllegalArgumentException("cannot propose policy without an assigned government");
@@ -134,14 +110,7 @@ public final class PolicyRules {
                     "proposer '" + proposerId + "' is not eligible under " + government.form()
             );
         }
-        Policy p = Policy.propose(id, title, body, proposerId, nowEpochMs);
-        if (effects == null || effects.isEmpty()) {
-            return p;
-        }
-        return new Policy(
-                p.id(), p.title(), p.body(), p.proposerId(), PolicyStatus.PROPOSED,
-                p.votes(), null, nowEpochMs, effects
-        );
+        return Policy.propose(id, title, body, proposerId, nowEpochMs);
     }
 
     /** Casts or replaces a majority-form vote.

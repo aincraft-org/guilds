@@ -1,6 +1,5 @@
 package dev.mintychochip.territory.economy;
 
-import dev.mintychochip.territory.decree.GoodsCatalog;
 import dev.mintychochip.territory.model.BlockPos;
 import dev.mintychochip.territory.model.Boundary;
 import dev.mintychochip.territory.model.Government;

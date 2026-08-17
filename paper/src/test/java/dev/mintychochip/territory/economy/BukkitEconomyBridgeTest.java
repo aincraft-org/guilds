@@ -19,7 +19,7 @@ class BukkitEconomyBridgeTest {
             super(new dev.mintychochip.territory.registry.TerritoryRegistry(),
                     new dev.mintychochip.territory.permission.GovernanceRegistry(
                             new dev.mintychochip.territory.registry.TerritoryRegistry()),
-                    dev.mintychochip.territory.decree.GoodsCatalog.defaultCatalog(),
+                    dev.mintychochip.territory.economy.GoodsCatalog.defaultCatalog(),
                     new RecordingRail(), false);
         }
 

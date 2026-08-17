@@ -1,6 +1,6 @@
 package dev.mintychochip.territory;
 
-import dev.mintychochip.territory.decree.GoodsCatalog;
+import dev.mintychochip.territory.economy.GoodsCatalog;
 import dev.mintychochip.territory.economy.BukkitEconomyBridge;
 import dev.mintychochip.territory.economy.EconomyBridge;
 import dev.mintychochip.territory.economy.PaymentRail;

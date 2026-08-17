@@ -1,7 +1,7 @@
 # Governance — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-08  
+> Last updated: 2026-08-17  
 > Related: `docs/superpowers/specs/2026-08-08-scope-aware-governance-invariants-design.md`
 
 ## Intent
@@ -26,8 +26,8 @@ become anarchy or wilderness; federal vs local scope is explicit.
 
 - Government forms: `ANARCHY`, `MONARCHY`, `OLIGARCHY`, `DEMOCRACY`.
 - Seats / electorate derivation for guild and alliance scopes.
-- Policies: propose → vote/decree → `PASSED` / `REJECTED`; `DecreeEffects`
-  payload (tax effects consumed by **economy**).
+- Policies: propose → vote/decree → `PASSED` / `REJECTED` as decision records.
+  Structured decree-effect payloads are parked until a wiring path exists.
 - `GovernanceRegistry` + `GovernanceSource` resolution for territory, member,
   world location.
 - Formal authority (`SovereignAction`) and land protection (`BlockProtection`).
@@ -64,7 +64,7 @@ become anarchy or wilderness; federal vs local scope is explicit.
 | Concern | Location |
 |---------|----------|
 | Forms, seats, policies | `api/.../model` (`Government`, `Policy`, `PolicyRules`) |
-| Decree effects | `api/.../decree` |
+| Goods catalog (economy) | `api/.../economy` |
 | DTOs / rules | `api/.../permission` |
 | Registry + BlockProtection | `common/.../permission` |
 | Guild adapter | `paper/.../guilds/GuildsGovernanceSource` |
@@ -100,7 +100,6 @@ become anarchy or wilderness; federal vs local scope is explicit.
 
 - [x] Government forms and seat roles on guild/alliance via guilds
 - [x] Policy propose / vote / decree on territory-local and governance registry paths
-- [x] `DecreeEffects` / `TaxEffect` on policies
 - [x] `GovernanceRegistry` resolve for territory / member / location
 - [x] `BlockProtection` layered land + environment gates
 - [x] Paper protection listeners wired on enable
@@ -137,6 +136,7 @@ See design § “Current Architecture Findings”.
 - [ ] Elected alliance `delegate` beyond mayor default
 - [ ] Company / party friendly-fire identity
 - [ ] Per-player home registration into claims
+- [ ] Re-attach structured decree effects (`DecreeEffects` / tax payload) once a player or plugin path exists
 - [ ] Policy world-enforcement beyond tax effects (buffs, toggles-as-decree)
 
 ## Decisions log
@@ -148,6 +148,7 @@ See design § “Current Architecture Findings”.
 | (core) | Form IS permission structure for formal seats | Fewer parallel rank systems |
 | 2026-08-08 | Approve scope-aware federal model + invariant hardening | Current single “effective body” is wrong for players |
 | 2026-08-08 | Unresolvable binding deny, not anarchy fallback | Fail closed on corruption/stale ids |
+| 2026-08-17 | Park decree effects until wired | Domain payload and transcriber had no command/runtime creation path |
 
 ## Open questions
 
