@@ -36,18 +36,15 @@ public record DatabaseSettings(
 
     public DatabaseSettings {
         Objects.requireNonNull(type, "type");
-        host = Objects.requireNonNull(host, "host");
-        port = port;
-        name = Objects.requireNonNull(name, "name");
-        user = Objects.requireNonNull(user, "user");
+        Objects.requireNonNull(host, "host");
+        Objects.requireNonNull(name, "name");
+        Objects.requireNonNull(user, "user");
         password = password == null ? "" : password;
-        ssl = ssl;
         sslMode = sslMode == null ? "" : sslMode;
         sslCaCert = sslCaCert == null ? "" : sslCaCert;
         sslTrustStore = sslTrustStore == null ? "" : sslTrustStore;
         sslTrustStorePassword = sslTrustStorePassword == null ? "" : sslTrustStorePassword;
         sslTrustStoreType = (sslTrustStoreType == null || sslTrustStoreType.isBlank()) ? "PKCS12" : sslTrustStoreType;
-        poolSize = poolSize;
         jdbcUrlOverride = jdbcUrlOverride == null ? "" : jdbcUrlOverride;
     }
 

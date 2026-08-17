@@ -76,6 +76,7 @@ public record WebConfig(
      * Base URL for squaremap (no trailing slash), e.g. {@code http://localhost:8080}.
      * Empty means the editor shows a chunk grid only.
      */
+    @Override
     public String squaremapTileBaseUrl() {
         return squaremapTileBaseUrl;
     }
