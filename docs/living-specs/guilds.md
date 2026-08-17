@@ -1,7 +1,7 @@
 # Guilds — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-16  
+> Last updated: 2026-08-17  
 > Related: archived docs under `docs/archived-guilds/docs/`;  
 > `docs/superpowers/specs/2026-08-07-guild-contracts-design.md`
 
@@ -11,8 +11,10 @@ Provide the **player organization layer**: guilds (guilds) and alliances, with
 plots, residents, roles/permissions, chat, progression (levels, resources, tech
 tree, specializations, quests), and service APIs that feed **governance**.
 
-Ships **in the same Paper plugin JAR** as Azoth Territory — one main class,
+Ships **in the same Paper plugin JAR** as Guilds Territory — one main class,
 shared PostgreSQL, composition root `GuildsServices` / `GuildsGovernanceSource`.
+The portable domain and JDBC implementations live in `api` / `common`; Paper
+keeps only Bukkit glue.
 
 Success looks like: players run guilds through Brigadier commands; territory
 protection and influence see consistent membership DTOs; progression and
@@ -30,7 +32,7 @@ contracts are durable and transactional where money/items move.
 - Guild contracts service API (escrow materials for level costs).
 - Brigadier command surface (`/guild*`, `/alliance*`, plot/perm/map, …).
 - Config: `guilds-config.yml`, `techtree.yml`, level definitions.
-- SQL schema + migrations under guilds database package (Postgres).
+- SQL schema + migrations under `common` guilds database package (Postgres).
 
 ### Out of scope / non-goals
 
@@ -49,23 +51,29 @@ contracts are durable and transactional where money/items move.
 5. Level upgrade rechecks locked row; consumes XP progress once; skill points equal current level.
 6. Contract escrow: debit on post; release on fulfill; refund on cancel; no post
    without affordability.
-7. No Bukkit types in pure territory `api`/`common`; guilds code lives under
-   `paper/.../org.aincraft.guilds` and may use Paper APIs.
+7. No Bukkit types in `api`/`common`. Portable guilds models, Bukkit-free
+   service contracts, JDBC implementations, schema/migrations, and project/level
+   helpers live in `api`/`common`. Paper hosts only Bukkit-facing guilds
+   (commands, listeners, GUIs, YAML loaders, chat/broadcast/hearthstone,
+   inventory resources, Mint adapters). Territory governance snapshots
+   (`dev.mintychochip.guilds.Guild` etc.) stay separate from mutable
+   `...models.Guild` entities.
 
 ## Implementation guidance
 
 | Area | Location |
 |------|----------|
-| Services | `paper/.../org.aincraft.guilds.services` (+ `impl`) |
-| Models | `paper/.../org.aincraft.guilds.models` |
-| Commands | `paper/.../org.aincraft.guilds.commands` |
-| DB / migrations | `paper/.../org.aincraft.guilds.database` |
-| Governance bridge | `GuildsGovernanceSource` |
-| Composition | `GuildsServices` from `AzothTerritoryPlugin` |
+| Portable models + service contracts | `api/.../dev.mintychochip.guilds.models` and `...services` |
+| JDBC impls, schema, project/level helpers | `common/.../dev.mintychochip.guilds` |
+| Bukkit commands / listeners / GUI / YAML | `paper/.../dev.mintychochip.guilds` |
+| Governance bridge | `GuildsGovernanceSource` (paper) |
+| Composition | `GuildsServices` from `GuildsPlugin` |
 
 - Prefer service interfaces for contracts/levels so territory domain stays free of guild SQL.
+- Runtime guilds SQL lives under `common/src/main/resources/dev/mintychochip/guilds/sql` and is
+  executed with `NamedSql` named parameters. Do not re-embed full query text in Java.
 - When changing form or permission defaults, update **governance** living spec and form matrices together.
-- Historical MockBukkit suite is archived under `docs/archived-guilds-test/` — new tests should live with the paper module.
+- Historical MockBukkit suite is archived under `docs/archived-guilds-test/` — portable tests live in `api`/`common`; Bukkit tests stay in paper.
 
 ### Testing
 
@@ -86,13 +94,16 @@ contracts are durable and transactional where money/items move.
 
 - [x] Guild / alliance models and services on shared Postgres
 - [x] Brigadier commands (guild, alliance, plot, perm, chat, map, quests, tech, …)
+- [x] `/guilds building` / `/guild building` register guild-owned anchors in a region
+- [x] `/guildsmap` / `/map` opens a MapGUI map-item claim screen (ASCII chat renderer retired)
 - [x] Plot type system and handlers
 - [x] Permission service + public access / toggle listeners
 - [x] `GuildsGovernanceSource` for territory governance
 - [x] Level deposit / upgrade progression (XP-only; skill points = guild level)
 - [x] Tech tree projects (one active at a time) / specialization / quest services
 - [x] Guild contracts service + migration (`GuildContractService`)
-- [x] Integrated enable path from `AzothTerritoryPlugin`
+- [x] Integrated enable path from `GuildsPlugin`
+- [x] Portable guilds domain + JDBC slice published from `api`/`common`
 
 ### Open on the current surface
 
@@ -122,10 +133,13 @@ Nation vocabulary is retired in territory docs; command names may still say
 
 | Date | Decision | Why |
 |------|----------|-----|
-| (merge) | Guilds live inside azoth-territory Paper module | Single deployable; shared DB and governance |
+| (merge) | Guilds live inside guilds Paper module | Single deployable; shared DB and governance |
 | (core) | Guilds + alliances replace nation vocabulary in domain | Clearer federal model |
 | 2026-08-07 | Contracts as service API first | Escrow correctness before UX |
 | 2026-08-06+ | Postgres only for guilds schema | Unified persistence |
+| 2026-08-17 | Portable guilds slice in `api`/`common` | Paper-free reuse; paper stays Bukkit glue |
+| 2026-08-17 | `/guildsmap` uses FloG99 MapGUI Screen | Replace ASCII chat grid; compileOnly + join-classpath, do not shade |
+| 2026-08-17 | Buildings commanded under `/guilds building` | Territories are regions; guilds own the anchors inside them |
 
 ## Open questions
 

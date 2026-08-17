@@ -66,7 +66,7 @@ item moves.
 - [x] Guild storage document + `guild_storage_banks` schema
 - [x] `GuildStorageEngine` open/save/deposit/withdraw with exclusive viewer
 - [x] Virtual 54-slot chest UI at an active STORAGE anchor
-- [x] `/territory building create storage` then right-click chest/barrel
+- [x] `/guilds building create storage` then right-click chest/barrel
 - [x] `/guild storage` at the targeted storage block
 - [x] Default ranks: any resident may deposit; assistant/mayor may withdraw
 - [ ] Paper runtime smoke: deposit, officer withdraw, second viewer denied

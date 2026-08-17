@@ -89,7 +89,7 @@ violate spatial rules fail closed before persistence.
 - [x] `/territory` lookup, list, reload, save (spatial ops)
 - [x] Optional `governedByGuildId` on territory documents
 - [ ] Free-form physical facilities implemented through one exact anchor block; Paper runtime smoke pending
-- [ ] `/territory building` create/cancel/list/info/remove implemented; Paper runtime smoke pending
+- [x] Building commands live on `/guilds building` (guild-owned); `/territory building` points there
 - [ ] Active/inactive anchor lifecycle implemented; Paper restoration smoke pending
 - [ ] Same-guild waystone travel implemented; live teleport/protection smoke pending
 - [ ] Trading-post `TradingPostInteractEvent` implemented; live event observation pending
@@ -127,6 +127,7 @@ the registered functional anchor.
 | (core) | Edge-touch not overlap | Adjacent regions without gaps/fights |
 | 2026-08-06+ | Territory payload remains JSONB document | Avoid premature relational normalization |
 | 2026-08-06+ | No JSON file fallback | Single durable truth with Guilds |
+| 2026-08-17 | Building commands leave `/territory` | Guilds own buildings in a region; `/territory building` is a pointer |
 
 ## Open questions
 
