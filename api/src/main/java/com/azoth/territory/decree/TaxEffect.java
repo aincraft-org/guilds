@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -13,11 +12,9 @@ import java.util.Set;
  * {@code taxDeltaPercentPoints} is an additive change in percentage points
  * (e.g. {@code 15} means +15 percentage points on the tax rate for each listed good).
  */
-public final class TaxEffect {
-    private final List<String> goodIds;
-    private final double taxDeltaPercentPoints;
+public record TaxEffect(List<String> goodIds, double taxDeltaPercentPoints) {
 
-    public TaxEffect(List<String> goodIds, double taxDeltaPercentPoints) {
+    public TaxEffect {
         if (goodIds == null || goodIds.isEmpty()) {
             throw new IllegalArgumentException("tax effect requires at least one good id");
         }
@@ -28,16 +25,7 @@ public final class TaxEffect {
             }
             ordered.add(Good.normalizeId(id));
         }
-        this.goodIds = Collections.unmodifiableList(new ArrayList<>(ordered));
-        this.taxDeltaPercentPoints = taxDeltaPercentPoints;
-    }
-
-    public List<String> goodIds() {
-        return goodIds;
-    }
-
-    public double taxDeltaPercentPoints() {
-        return taxDeltaPercentPoints;
+        goodIds = Collections.unmodifiableList(new ArrayList<>(ordered));
     }
 
     @Override
@@ -54,7 +42,7 @@ public final class TaxEffect {
 
     @Override
     public int hashCode() {
-        return Objects.hash(goodIds, taxDeltaPercentPoints);
+        return goodIds.hashCode() + Double.hashCode(taxDeltaPercentPoints);
     }
 
     @Override

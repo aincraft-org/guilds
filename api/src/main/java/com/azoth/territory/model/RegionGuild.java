@@ -13,17 +13,13 @@ import java.util.Set;
  * Governments live at the region-guild layer (not on raw territories alone).
  * Member ids are opaque holder strings (player UUID, company id, …).
  */
-public final class RegionGuild {
-    private final String id;
-    private final String name;
-    private final Government government;
-    private final List<String> memberIds;
+public record RegionGuild(String id, String name, Government government, List<String> memberIds) {
 
-    private RegionGuild(String id, String name, Government government, Collection<String> memberIds) {
-        this.id = requireId(id);
-        this.name = name == null || name.isBlank() ? this.id : name.trim();
-        this.government = requireAssignedGovernment(government);
-        this.memberIds = List.copyOf(normalizeIds(memberIds));
+    public RegionGuild {
+        id = requireId(id);
+        name = name == null || name.isBlank() ? id : name.trim();
+        government = requireAssignedGovernment(government);
+        memberIds = List.copyOf(normalizeIds(memberIds));
     }
 
     /**
@@ -42,7 +38,7 @@ public final class RegionGuild {
             Government government,
             Collection<String> memberIds
     ) {
-        return new RegionGuild(id, name, government, memberIds);
+        return new RegionGuild(id, name, government, memberIds == null ? List.of() : new ArrayList<>(memberIds));
     }
 
     private static String requireId(String id) {
@@ -74,24 +70,8 @@ public final class RegionGuild {
         return new ArrayList<>(seen);
     }
 
-    public String id() {
-        return id;
-    }
-
-    public String name() {
-        return name;
-    }
-
-    public Government government() {
-        return government;
-    }
-
     public GovernmentForm governmentForm() {
         return government.form();
-    }
-
-    public List<String> memberIds() {
-        return memberIds;
     }
 
     public boolean containsMember(String memberId) {
@@ -129,25 +109,6 @@ public final class RegionGuild {
         List<String> next = new ArrayList<>(memberIds);
         next.remove(trimmed);
         return new RegionGuild(id, name, government, next);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof RegionGuild that)) {
-            return false;
-        }
-        return id.equals(that.id)
-                && name.equals(that.name)
-                && government.equals(that.government)
-                && memberIds.equals(that.memberIds);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, name, government, memberIds);
     }
 
     @Override

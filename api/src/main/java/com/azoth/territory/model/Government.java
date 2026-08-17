@@ -18,16 +18,14 @@ import java.util.stream.Collectors;
  *   <li>{@link GovernmentForm#ANARCHY} — no seats</li>
  * </ul>
  */
-public final class Government {
+public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
     public static final int DEFAULT_OLIGARCHY_SEATS = 3;
     public static final int DEFAULT_DEMOCRACY_SEATS = 5;
     public static final int MIN_OLIGARCHY_SEATS = 2;
     public static final int MIN_DEMOCRACY_SEATS = 1;
 
-    private final GovernmentForm form;
-    private final List<GovernmentSeat> seats;
 
-    private Government(GovernmentForm form, List<GovernmentSeat> seats) {
+    public Government(GovernmentForm form, List<GovernmentSeat> seats) {
         this.form = Objects.requireNonNull(form, "form");
         this.seats = List.copyOf(seats);
         validateStructure();
@@ -205,17 +203,11 @@ public final class Government {
         return out;
     }
 
-    public GovernmentForm form() {
-        return form;
-    }
 
     public boolean isAssigned() {
         return form.isAssigned();
     }
 
-    public List<GovernmentSeat> seats() {
-        return seats;
-    }
 
     public int seatCount() {
         return seats.size();
@@ -268,21 +260,6 @@ public final class Government {
         return new Government(form, next);
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof Government that)) {
-            return false;
-        }
-        return form == that.form && seats.equals(that.seats);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(form, seats);
-    }
 
     @Override
     public String toString() {

@@ -10,18 +10,15 @@ import java.util.Objects;
  * <p>
  * Schema version 1: a list of {@link TaxEffect}s. Empty means prose-only body with no machine effects.
  */
-public final class DecreeEffects {
+public record DecreeEffects(int version, List<TaxEffect> taxes) {
     public static final int SCHEMA_VERSION = 1;
 
-    private final int version;
-    private final List<TaxEffect> taxes;
-
-    public DecreeEffects(int version, List<TaxEffect> taxes) {
-        this.version = version <= 0 ? SCHEMA_VERSION : version;
+    public DecreeEffects {
+        version = version <= 0 ? SCHEMA_VERSION : version;
         if (taxes == null || taxes.isEmpty()) {
-            this.taxes = List.of();
+            taxes = List.of();
         } else {
-            this.taxes = Collections.unmodifiableList(new ArrayList<>(taxes));
+            taxes = Collections.unmodifiableList(new ArrayList<>(taxes));
         }
     }
 
@@ -36,14 +33,6 @@ public final class DecreeEffects {
     public static DecreeEffects ofTax(TaxEffect tax) {
         Objects.requireNonNull(tax, "tax");
         return ofTaxes(List.of(tax));
-    }
-
-    public int version() {
-        return version;
-    }
-
-    public List<TaxEffect> taxes() {
-        return taxes;
     }
 
     public boolean isEmpty() {

@@ -1,6 +1,7 @@
 package com.azoth.territory.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,13 +15,11 @@ import java.util.Set;
  * A location is inside if it matches <em>either</em> representation when that
  * representation is non-empty (union). If both are empty, nothing is contained.
  */
-public final class Boundary {
-    private final List<BlockPos> polygon;
-    private final Set<ChunkPos> chunks;
+public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
 
-    private Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
-        this.polygon = List.copyOf(polygon);
-        this.chunks = Set.copyOf(chunks);
+    public Boundary {
+        polygon = polygon == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(polygon));
+        chunks = chunks == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(chunks));
     }
 
     public static Boundary empty() {
@@ -55,13 +54,6 @@ public final class Boundary {
         return new Boundary(poly, ch);
     }
 
-    public List<BlockPos> polygon() {
-        return polygon;
-    }
-
-    public Set<ChunkPos> chunks() {
-        return chunks;
-    }
 
     public boolean hasPolygon() {
         return polygon.size() >= 3;
@@ -326,21 +318,6 @@ public final class Boundary {
         return px >= minX && px <= maxX && pz >= minZ && pz <= maxZ;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof Boundary that)) {
-            return false;
-        }
-        return polygon.equals(that.polygon) && chunks.equals(that.chunks);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(polygon, chunks);
-    }
 
     @Override
     public String toString() {
