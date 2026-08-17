@@ -1,7 +1,7 @@
 package org.aincraft.guilds;
 
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.persist.PostgresDatabase;
+import dev.mintychochip.territory.PostgresTestDatabase;
+import dev.mintychochip.territory.persist.PostgresDatabase;
 import org.aincraft.guilds.config.DatabaseConfig;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.database.migration.SchemaInitializer;

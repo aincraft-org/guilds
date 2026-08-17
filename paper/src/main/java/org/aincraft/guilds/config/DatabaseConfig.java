@@ -1,6 +1,6 @@
 package org.aincraft.guilds.config;
 
-import com.azoth.territory.persist.Database;
+import dev.mintychochip.territory.persist.Database;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.sql.DataSource;

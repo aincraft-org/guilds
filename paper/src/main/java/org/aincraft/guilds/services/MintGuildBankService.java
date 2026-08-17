@@ -1,7 +1,7 @@
 package org.aincraft.guilds.services;
 
-import com.azoth.territory.economy.GuildBankCapacity;
-import com.azoth.territory.economy.MintOperationResult;
+import dev.mintychochip.territory.economy.GuildBankCapacity;
+import dev.mintychochip.territory.economy.MintOperationResult;
 import org.aincraft.guilds.models.Guild;
 
 import java.math.BigDecimal;

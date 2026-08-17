@@ -2,7 +2,7 @@ package org.aincraft.guilds.services.impl;
 
 
 
-import com.azoth.territory.model.GovernmentForm;
+import dev.mintychochip.territory.model.GovernmentForm;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Location;

@@ -1,6 +1,6 @@
 package org.aincraft.guilds.services;
 
-import com.azoth.territory.economy.MintOperationResult;
+import dev.mintychochip.territory.economy.MintOperationResult;
 
 import java.math.BigDecimal;
 import java.util.UUID;

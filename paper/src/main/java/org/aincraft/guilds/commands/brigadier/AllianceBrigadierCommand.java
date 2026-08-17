@@ -548,7 +548,7 @@ public class AllianceBrigadierCommand {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
-        com.azoth.territory.model.GovernmentForm form =
+        dev.mintychochip.territory.model.GovernmentForm form =
                 GovernmentFormArgumentType.getForm(ctx, "form");
         Optional<Alliance> allianceOpt = getPlayerAlliance(player);
 

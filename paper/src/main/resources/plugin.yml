@@ -1,6 +1,6 @@
 name: AzothTerritory
 version: ${version}
-main: com.azoth.territory.AzothTerritoryPlugin
+main: dev.mintychochip.territory.AzothTerritoryPlugin
 api-version: '26.2'
 description: ${description}
 author: Azoth

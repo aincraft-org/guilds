@@ -1,13 +1,11 @@
 package org.aincraft.guilds;
 
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.GovernmentForm;
-import com.azoth.territory.permission.AllianceBody;
-import com.azoth.territory.permission.GovernanceSource;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.MemberPermissions;
-import com.azoth.territory.permission.SovereignAction;
-import com.azoth.territory.permission.GuildToggles;
+import dev.mintychochip.territory.model.Government;
+import dev.mintychochip.territory.model.GovernmentForm;
+import dev.mintychochip.guilds.GovernanceSource;
+import dev.mintychochip.guilds.MemberPermissions;
+import dev.mintychochip.territory.permission.SovereignAction;
+import dev.mintychochip.guilds.GuildToggles;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Guild;
@@ -31,8 +29,8 @@ import java.util.logging.Logger;
 
 /**
  * {@link GovernanceSource} backed by the guilds database: guilds materialize as
- * {@link GuildBody} (local government entities), alliances as {@link AllianceBody}
- * (alliance entities).
+ * {@link dev.mintychochip.guilds.Guild} (local government entities), alliances as
+ * {@link dev.mintychochip.guilds.alliances.Alliance} (alliance entities).
  * <p>
  * Government derivation: each entity picks a governance form (stored in the
  * {@code governance_form} column, default {@code MONARCHY}); seats are derived
@@ -70,7 +68,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     }
 
     @Override
-    public Optional<GuildBody> guild(String guildId) {
+    public Optional<dev.mintychochip.guilds.Guild> guild(String guildId) {
         if (guildId == null || guildId.isBlank()) {
             return Optional.empty();
         }
@@ -78,7 +76,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     }
 
     @Override
-    public List<GuildBody> guildsForMember(String holderId) {
+    public List<dev.mintychochip.guilds.Guild> guildsForMember(String holderId) {
         if (holderId == null || holderId.isBlank()) {
             return List.of();
         }
@@ -86,7 +84,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
         if (uuid == null) {
             return List.of();
         }
-        List<GuildBody> matches = new ArrayList<>();
+        List<dev.mintychochip.guilds.Guild> matches = new ArrayList<>();
         for (Guild guild : guildService.getAllGuilds()) {
             if (guild.isResident(uuid)) {
                 matches.add(toGuildBody(guild));
@@ -97,7 +95,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     }
 
     @Override
-    public Optional<AllianceBody> allianceContainingGuild(String guildId) {
+    public Optional<dev.mintychochip.guilds.alliances.Alliance> allianceContainingGuild(String guildId) {
         if (guildId == null || guildId.isBlank()) {
             return Optional.empty();
         }
@@ -111,8 +109,8 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     }
 
     @Override
-    public List<GuildBody> allGuilds() {
-        List<GuildBody> bodies = new ArrayList<>();
+    public List<dev.mintychochip.guilds.Guild> allGuilds() {
+        List<dev.mintychochip.guilds.Guild> bodies = new ArrayList<>();
         for (Guild guild : guildService.getAllGuilds()) {
             bodies.add(toGuildBody(guild));
         }
@@ -120,8 +118,8 @@ public final class GuildsGovernanceSource implements GovernanceSource {
     }
 
     @Override
-    public List<AllianceBody> allAlliances() {
-        List<AllianceBody> bodies = new ArrayList<>();
+    public List<dev.mintychochip.guilds.alliances.Alliance> allAlliances() {
+        List<dev.mintychochip.guilds.alliances.Alliance> bodies = new ArrayList<>();
         for (Alliance alliance : allianceService.getAllAlliances()) {
             bodies.add(toAllianceBody(alliance));
         }
@@ -158,7 +156,7 @@ public final class GuildsGovernanceSource implements GovernanceSource {
 
     // ---- materialization -------------------------------------------------
 
-    private GuildBody toGuildBody(Guild guild) {
+    private dev.mintychochip.guilds.Guild toGuildBody(Guild guild) {
         GovernmentForm form = readForm("guilds", "id", guild.getId());
         List<String> authorityIds = guildAuthorityIds(guild, form);
         Government government = Government.fromRoles(form, authorityIds);
@@ -181,7 +179,9 @@ public final class GuildsGovernanceSource implements GovernanceSource {
                 guild.isMobsEnabled(),
                 guild.isPublicEnabled()
         );
-        return new GuildBody(guild.getId(), guild.getName(), government, memberIds, toggles, permissions);
+        return new dev.mintychochip.guilds.Guild(
+                guild.getId(), guild.getName(), government, memberIds, toggles, permissions
+        );
     }
 
     private List<String> guildAuthorityIds(Guild guild, GovernmentForm form) {
@@ -206,14 +206,16 @@ public final class GuildsGovernanceSource implements GovernanceSource {
         };
     }
 
-    private AllianceBody toAllianceBody(Alliance alliance) {
+    private dev.mintychochip.guilds.alliances.Alliance toAllianceBody(Alliance alliance) {
         GovernmentForm form = readForm("alliances", "id", alliance.getId());
         List<String> authorityIds = allianceAuthorityIds(alliance, form);
         Government government = Government.fromRoles(form, authorityIds);
 
         List<String> memberGuildIds = new ArrayList<>(alliance.getMemberGuildIds());
         memberGuildIds.sort(String::compareTo);
-        return new AllianceBody(alliance.getId(), alliance.getName(), government, memberGuildIds);
+        return new dev.mintychochip.guilds.alliances.Alliance(
+                alliance.getId(), alliance.getName(), government, memberGuildIds
+        );
     }
 
     private List<String> allianceAuthorityIds(Alliance alliance, GovernmentForm form) {

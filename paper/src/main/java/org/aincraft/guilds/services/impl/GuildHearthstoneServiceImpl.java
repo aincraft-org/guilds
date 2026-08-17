@@ -1,6 +1,6 @@
 package org.aincraft.guilds.services.impl;
 
-import com.azoth.territory.permission.BlockProtection;
+import dev.mintychochip.territory.permission.BlockProtection;
 import org.aincraft.guilds.services.GuildHearthstoneService;
 import org.aincraft.guilds.services.GuildService;
 import org.bukkit.Location;

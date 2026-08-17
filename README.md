@@ -38,7 +38,7 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 
 Multi-module Gradle layout (`api` / `common` / `paper`):
 
-- **`api/`** — public API: value models (`com.azoth.territory.model`), decree
+- **`api/`** — public API: value models (`dev.mintychochip.territory.model`), decree
   effects (`…decree`), registries (`…registry`), and contracts
   (`…permission` / `…economy` interfaces and DTOs). Pure Java; no Bukkit types.
 - **`common/`** — Paper-free shared implementation: persistence
@@ -87,7 +87,7 @@ to the GitHub `v1.3.15` asset) so the live map is available out of the box at
 `http://localhost:8080`.
 
 Territory/zone/influence boundaries are rendered as squaremap layers by the
-in-plugin bridge (`com.azoth.territory.squaremap.TerritorySquaremapBridge`):
+in-plugin bridge (`dev.mintychochip.territory.squaremap.TerritorySquaremapBridge`):
 
 - **Azoth Territories** layer — polygon outlines per territory
 - **Azoth Zones** layer — zone fills coloured by type (green WILDERNESS /
@@ -141,7 +141,7 @@ git config --local --unset core.hooksPath
 Guilds production sources live under the `paper/` module tree
 (`paper/src/main/java/org/aincraft/guilds/`) and ship in the **same** plugin
 artifact as Azoth Territory. There is one `plugin.yml`, one main class
-(`com.azoth.territory.AzothTerritoryPlugin`), and that main enables both
+(`dev.mintychochip.territory.AzothTerritoryPlugin`), and that main enables both
 territory behavior and the guilds subsystem (commands via Paper Brigadier,
 listeners, plain constructor-wired services via the `GuildsServices`
 composition root).
@@ -248,7 +248,7 @@ including `"government"`, `"policies"`, and optional `"governedByGuildId"`.
 ### Guilds, alliances, and permissions
 
 The standalone in-memory `RegionGuild`/`TerritoryAlliance` models are gone.
-The territory layer consumes DTO snapshots (`GuildBody`, `AllianceBody`) via
+The territory layer consumes DTO snapshots (`Guild`, `Alliance`) via
 `GovernanceSource`; the guilds subsystem materializes them from
 `GuildService`/`AllianceService` + the permissions table. There is one source
 of truth: the guilds database.
@@ -369,7 +369,7 @@ if (r.isContained()) {
 }
 ```
 
-Domain packages under `com.azoth.territory.model` / `registry` / `persist` are free of Bukkit types for unit testing. The web package (`com.azoth.territory.web`) uses only the JDK HTTP server + domain types (plus Gson).
+Domain packages under `dev.mintychochip.territory.model` / `registry` / `persist` are free of Bukkit types for unit testing. The web package (`dev.mintychochip.territory.web`) uses only the JDK HTTP server + domain types (plus Gson).
 
 ## Web submodule
 

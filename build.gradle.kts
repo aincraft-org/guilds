@@ -12,9 +12,9 @@ plugins {
     id("com.github.spotbugs") version "6.5.10" apply false
 }
 
-group = "com.azoth"
+group = "dev.mintychochip"
 version = providers.gradleProperty("releaseVersion").orElse("26.8.13").get()
-description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
+description = "Territory and guild boundary API — large polygonal/chunk territories with integrated guild governance"
 
 // Shared configuration for the api / common / paper modules.
 // Delivery unit stays the single shadowed Paper plugin JAR built by :paper.

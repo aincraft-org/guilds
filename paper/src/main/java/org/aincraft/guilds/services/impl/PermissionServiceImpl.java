@@ -2,10 +2,10 @@ package org.aincraft.guilds.services.impl;
 
 
 
-import com.azoth.territory.model.GovernmentForm;
-import com.azoth.territory.model.LookupResult;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.registry.TerritoryRegistry;
+import dev.mintychochip.territory.model.GovernmentForm;
+import dev.mintychochip.territory.model.LookupResult;
+import dev.mintychochip.territory.model.Territory;
+import dev.mintychochip.territory.registry.TerritoryRegistry;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Permission;
 import org.aincraft.guilds.models.Alliance;
