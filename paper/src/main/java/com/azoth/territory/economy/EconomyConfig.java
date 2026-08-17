@@ -22,10 +22,10 @@ public record EconomyConfig(
     }
 
     public EconomyConfig {
-        this.mode = mode == null ? Mode.SIMULATION : mode;
-        this.mintCurrency = mintCurrency == null ? "coins" : mintCurrency;
-        this.mintClientBinding = mintClientBinding == null ? "" : mintClientBinding;
-        this.mintScale = mintScale < 0 ? 2 : mintScale;
+        mode = mode == null ? Mode.SIMULATION : mode;
+        mintCurrency = mintCurrency == null ? "coins" : mintCurrency;
+        mintClientBinding = mintClientBinding == null ? "" : mintClientBinding;
+        mintScale = mintScale < 0 ? 2 : mintScale;
     }
 
     public static EconomyConfig fromBukkit(FileConfiguration cfg) {
