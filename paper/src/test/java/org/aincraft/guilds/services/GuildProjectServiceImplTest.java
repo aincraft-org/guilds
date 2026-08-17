@@ -14,6 +14,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -92,6 +93,28 @@ class GuildProjectServiceImplTest {
         assertEquals("better_storage", guild.getActiveProjectId());
         assertEquals(2, guild.getTechPoints());
         verify(harness.update, never()).executeUpdate();
+    }
+
+    @Test
+    void completeActiveProject_unlocksRootSoChildCanStartWithoutPreseededUnlocks() {
+        StatefulProjectStore store = new StatefulProjectStore(2, null);
+        GuildProjectService service = store.service();
+        Guild guild = guildWithPoints(2);
+
+        GuildProjectService.ProjectStartResult startRoot = service.startProject(guild, "better_storage");
+        assertTrue(startRoot.isSuccessful(), String.valueOf(startRoot.getStatus()));
+        assertEquals("better_storage", guild.getActiveProjectId());
+        assertTrue(store.unlocked.isEmpty(), "start must not unlock the node");
+
+        assertTrue(service.completeActiveProject(guild));
+        assertNull(guild.getActiveProjectId());
+        assertTrue(store.unlocked.contains("better_storage"));
+        assertTrue(guild.isTechNodeUnlocked("better_storage"));
+
+        GuildProjectService.ProjectStartResult startChild = service.startProject(guild, "fast_travel");
+        assertTrue(startChild.isSuccessful(), String.valueOf(startChild.getStatus()));
+        assertEquals("fast_travel", startChild.getActiveProjectId());
+        assertEquals("fast_travel", guild.getActiveProjectId());
     }
 
     @Test
@@ -187,6 +210,117 @@ class GuildProjectServiceImplTest {
         node.setCost(1);
         node.setPrerequisites(List.of("better_storage"));
         return node;
+    }
+
+    /**
+     * In-memory guilds + unlock table that the shipped service SQL actually mutates.
+     */
+    private static final class StatefulProjectStore {
+        private int unspent;
+        private String activeProject;
+        private final Set<String> unlocked = new java.util.LinkedHashSet<>();
+        private final DatabaseManager database = mock(DatabaseManager.class);
+        private final Connection connection = mock(Connection.class);
+
+        private StatefulProjectStore(int unspent, String activeProject) {
+            this.unspent = unspent;
+            this.activeProject = activeProject;
+            try {
+                when(connection.prepareStatement(anyString())).thenAnswer(invocation ->
+                        statementFor(invocation.getArgument(0)));
+                when(database.executeTransactionWithResult(any())).thenAnswer(invocation -> {
+                    DatabaseManager.TransactionWithResultCallback<?> callback = invocation.getArgument(0);
+                    return Optional.ofNullable(callback.execute(connection));
+                });
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }
+
+        private GuildProjectService service() {
+            JavaPlugin plugin = mock(JavaPlugin.class);
+            when(plugin.getLogger()).thenReturn(Logger.getLogger("guild-project-test"));
+            TechTreeConfigLoader loader = mock(TechTreeConfigLoader.class);
+            when(loader.getNodes()).thenReturn(List.of(rootNode(), childNode(), otherRoot()));
+            return new GuildProjectServiceImpl(plugin, database, loader);
+        }
+
+        private PreparedStatement statementFor(String sql) {
+            Object[] bound = new Object[8];
+            List<String> snapshot = List.copyOf(unlocked);
+            final int[] cursor = {-1};
+            return mock(PreparedStatement.class, invocation -> {
+                String method = invocation.getMethod().getName();
+                if ("setString".equals(method) || "setInt".equals(method) || "setObject".equals(method)) {
+                    bound[invocation.getArgument(0)] = invocation.getArgument(1);
+                    return null;
+                }
+                if ("executeQuery".equals(method)) {
+                    if (sql.contains("FROM guilds")) {
+                        return guildRow();
+                    }
+                    if (sql.contains("guild_unlocked_nodes")) {
+                        return unlockRows(snapshot, cursor);
+                    }
+                    return mock(ResultSet.class, inv -> "next".equals(inv.getMethod().getName()) ? false : null);
+                }
+                if ("executeUpdate".equals(method)) {
+                    if (sql.contains("INSERT") && sql.contains("guild_unlocked_nodes")) {
+                        Object nodeId = bound[2];
+                        if (nodeId != null) {
+                            unlocked.add(nodeId.toString());
+                        }
+                        return 1;
+                    }
+                    if (sql.contains("tech_points") && sql.contains("active_project_id")) {
+                        if (bound[1] instanceof Integer points) {
+                            unspent = points;
+                        }
+                        activeProject = bound[2] == null ? null : bound[2].toString();
+                        return 1;
+                    }
+                    if (sql.contains("active_project_id = NULL") || sql.contains("active_project_id = null")) {
+                        activeProject = null;
+                        return 1;
+                    }
+                    return 1;
+                }
+                if ("close".equals(method) || "setQueryTimeout".equals(method)) {
+                    return null;
+                }
+                return org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation);
+            });
+        }
+
+        private ResultSet guildRow() {
+            return mock(ResultSet.class, invocation -> {
+                String method = invocation.getMethod().getName();
+                if ("next".equals(method)) {
+                    return true;
+                }
+                if ("getInt".equals(method) && "tech_points".equals(invocation.getArgument(0))) {
+                    return unspent;
+                }
+                if ("getString".equals(method) && "active_project_id".equals(invocation.getArgument(0))) {
+                    return activeProject;
+                }
+                return org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation);
+            });
+        }
+
+        private static ResultSet unlockRows(List<String> snapshot, int[] cursor) {
+            return mock(ResultSet.class, invocation -> {
+                String method = invocation.getMethod().getName();
+                if ("next".equals(method)) {
+                    cursor[0]++;
+                    return cursor[0] < snapshot.size();
+                }
+                if ("getString".equals(method) && "node_id".equals(invocation.getArgument(0))) {
+                    return snapshot.get(cursor[0]);
+                }
+                return org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation);
+            });
+        }
     }
 
     private static TechTreeNode otherRoot() {

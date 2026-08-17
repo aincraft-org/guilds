@@ -11,6 +11,8 @@ public interface GuildProjectService {
 
     ProjectStartResult startProject(Guild guild, String nodeId);
 
+    boolean completeActiveProject(Guild guild);
+
     boolean clearActiveProject(Guild guild);
 
     Optional<String> getActiveProjectId(Guild guild);

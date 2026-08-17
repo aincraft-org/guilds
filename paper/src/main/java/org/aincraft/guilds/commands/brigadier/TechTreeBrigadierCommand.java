@@ -80,7 +80,7 @@ public class TechTreeBrigadierCommand {
             .then(Commands.literal("clear")
                 .executes(this::handleClear))
             .then(Commands.literal("complete")
-                .executes(this::handleClear))
+                .executes(this::handleComplete))
             .then(Commands.literal("list")
                 .executes(this::handleListAll)
                 .then(Commands.argument("branch", StringArgumentType.word())
@@ -220,6 +220,25 @@ public class TechTreeBrigadierCommand {
             case ALREADY_UNLOCKED -> player.sendMessage("§7That project is already completed.");
             default -> player.sendMessage("§7Unknown project or guild.");
         }
+        return 0;
+    }
+
+    private int handleComplete(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        if (!(sender instanceof org.bukkit.entity.Player player)) {
+            sender.sendMessage("§cThis command can only be used by players.");
+            return 0;
+        }
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
+            player.sendMessage("§cYou are not in a guild!");
+            return 0;
+        }
+        if (guildProjectService.completeActiveProject(guild)) {
+            player.sendMessage("§aCompleted the active guild project. You can start another.");
+            return Command.SINGLE_SUCCESS;
+        }
+        player.sendMessage("§cNo active guild project to complete.");
         return 0;
     }
 

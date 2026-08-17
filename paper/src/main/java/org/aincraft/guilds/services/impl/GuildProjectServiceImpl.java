@@ -101,6 +101,61 @@ public class GuildProjectServiceImpl implements GuildProjectService {
     }
 
     @Override
+    public boolean completeActiveProject(Guild guild) {
+        if (guild == null) {
+            return false;
+        }
+        try {
+            Optional<String> completed = databaseManager.executeTransactionWithResult(
+                    connection -> completeInTransaction(connection, guild.getId()));
+            if (completed != null && completed.isPresent()) {
+                guild.unlockTechNode(completed.get());
+                guild.setActiveProjectId(null);
+                return true;
+            }
+            return false;
+        } catch (RuntimeException e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to complete active guild project", e);
+            return false;
+        }
+    }
+
+    private String completeInTransaction(Connection connection, String guildId) throws SQLException {
+        String activeProjectId;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT active_project_id FROM guilds WHERE id = ? FOR UPDATE")) {
+            statement.setString(1, guildId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return null;
+                }
+                activeProjectId = result.getString("active_project_id");
+            }
+        }
+        if (!GuildProjectRules.canClear(activeProjectId)) {
+            return null;
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT (guild_id, node_id) DO UPDATE SET unlocked_at = EXCLUDED.unlocked_at
+                """)) {
+            statement.setString(1, guildId);
+            statement.setString(2, activeProjectId);
+            statement.setString(3, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).toString());
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE guilds SET active_project_id = NULL WHERE id = ?")) {
+            statement.setString(1, guildId);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("Guild project complete updated no row");
+            }
+        }
+        return activeProjectId;
+    }
+
+    @Override
     public boolean clearActiveProject(Guild guild) {
         if (guild == null) {
             return false;
