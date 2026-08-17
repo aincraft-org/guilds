@@ -18,11 +18,15 @@ import java.util.Optional;
  * Does not re-parse English — only the structured payload.
  */
 public final class DecreeEffectsInterpreter {
+    /** Prevents instantiation. */
     private DecreeEffectsInterpreter() {
     }
 
     /**
      * Tax rate (percentage points) for each good mentioned in the effects, starting from 0.
+     *
+     * @param effects decree effects
+     * @return tax rates keyed by good id
      */
     public static Map<String, Double> taxRatesByGoodId(DecreeEffects effects) {
         if (effects == null || effects.isEmpty()) {
@@ -38,6 +42,13 @@ public final class DecreeEffectsInterpreter {
         return Collections.unmodifiableMap(rates);
     }
 
+    /**
+     * Finds the tax rate for one good.
+     *
+     * @param effects decree effects
+     * @param goodId good identifier
+     * @return the tax rate when present
+     */
     public static Optional<Double> taxRateFor(DecreeEffects effects, String goodId) {
         if (goodId == null || goodId.isBlank()) {
             return Optional.empty();
@@ -52,6 +63,9 @@ public final class DecreeEffectsInterpreter {
      * <p>
      * Structured {@link DecreeEffects} are not yet attached to {@link Policy};
      * until that wiring lands, this returns an empty map (PASSED status is still validated).
+     *
+     * @param policies policies to aggregate
+     * @return aggregate tax rates keyed by good id
      */
     public static Map<String, Double> taxRatesFromPolicies(Collection<Policy> policies) {
         if (policies == null || policies.isEmpty()) {

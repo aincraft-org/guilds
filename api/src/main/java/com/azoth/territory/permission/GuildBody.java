@@ -15,8 +15,11 @@ import java.util.Optional;
  * Replaces the former standalone {@code RegionGuild} model: there is no
  * parallel in-memory guild world; the territory side sees only this snapshot.
  *
- * @param government derived from the guild's chosen form + role holders
- * @param memberIds resident holder ids (player UUID strings)
+ * @param id stable guild identifier
+ * @param name display name
+ * @param government derived from the guild's chosen form and role holders
+ * @param memberIds resident holder identifiers
+ * @param toggles environmental and access toggles
  * @param memberPermissions effective territory permissions per member
  */
 public record GuildBody(
@@ -27,6 +30,7 @@ public record GuildBody(
         GuildToggles toggles,
         Map<String, MemberPermissions> memberPermissions
 ) {
+    /** Creates a guild snapshot after validating its required fields. */
 
     public GuildBody {
         Objects.requireNonNull(id, "id");
@@ -36,17 +40,19 @@ public record GuildBody(
         Objects.requireNonNull(toggles, "toggles");
         Objects.requireNonNull(memberPermissions, "memberPermissions");
     }
-
+    /** Returns the guild's government form.
+     *
+     * @return the guild's government form
+     */
     public GovernmentForm governmentForm() {
         return government.form();
     }
 
-    public boolean containsMember(String holderId) {
-        return holderId != null && !holderId.isBlank() && memberIds.contains(holderId.trim());
-    }
-
     /**
      * Effective territory permissions of a member, if they are a member.
+     *
+     * @param holderId holder identifier
+     * @return the member's effective permissions, or empty if not a member
      */
     public Optional<MemberPermissions> permissionsOf(String holderId) {
         if (holderId == null || holderId.isBlank()) {
@@ -55,6 +61,10 @@ public record GuildBody(
         return Optional.ofNullable(memberPermissions.get(holderId.trim()));
     }
 
+    /** Whether outsiders may access this guild's governed territory.
+     *
+     * @return whether outsiders may access this guild's governed territory
+     */
     public boolean isPublic() {
         return toggles.publicEnabled();
     }

@@ -18,10 +18,25 @@ public final class GovernmentSeat {
      */
     private final Long termEndsAtEpochMs;
 
+    /**
+     * Creates a seat without term-end metadata.
+     *
+     * @param seatId stable identifier for the seat
+     * @param role role assigned to the seat
+     * @param holderId optional opaque identifier of the current holder
+     */
     public GovernmentSeat(String seatId, SeatRole role, String holderId) {
         this(seatId, role, holderId, null);
     }
 
+    /**
+     * Creates a government seat.
+     *
+     * @param seatId stable identifier for the seat
+     * @param role role assigned to the seat
+     * @param holderId optional opaque identifier of the current holder
+     * @param termEndsAtEpochMs optional term end as epoch milliseconds
+     */
     public GovernmentSeat(String seatId, SeatRole role, String holderId, Long termEndsAtEpochMs) {
         if (seatId == null || seatId.isBlank()) {
             throw new IllegalArgumentException("seatId is required");
@@ -32,30 +47,67 @@ public final class GovernmentSeat {
         this.termEndsAtEpochMs = termEndsAtEpochMs;
     }
 
+    /**
+     * Returns this seat's identifier.
+     *
+     * @return stable seat identifier
+     */
     public String seatId() {
         return seatId;
     }
 
+    /**
+     * Returns this seat's role.
+     *
+     * @return seat role
+     */
     public SeatRole role() {
         return role;
     }
 
+    /**
+     * Returns the holder identifier, when occupied.
+     *
+     * @return optional opaque holder identifier
+     */
     public Optional<String> holderId() {
         return Optional.ofNullable(holderId);
     }
 
+    /**
+     * Indicates whether this seat has no holder.
+     *
+     * @return {@code true} when vacant
+     */
     public boolean isVacant() {
         return holderId == null;
     }
 
+    /**
+     * Returns the optional term end.
+     *
+     * @return term end epoch milliseconds, when configured
+     */
     public Optional<Long> termEndsAtEpochMs() {
         return Optional.ofNullable(termEndsAtEpochMs);
     }
 
+    /**
+     * Returns a copy with a different holder.
+     *
+     * @param newHolderId optional opaque identifier for the new holder
+     * @return seat containing the new holder
+     */
     public GovernmentSeat withHolder(String newHolderId) {
         return new GovernmentSeat(seatId, role, newHolderId, termEndsAtEpochMs);
     }
 
+    /**
+     * Returns a copy with a different term end.
+     *
+     * @param epochMs optional term end epoch milliseconds
+     * @return seat containing the new term metadata
+     */
     public GovernmentSeat withTermEndsAt(Long epochMs) {
         return new GovernmentSeat(seatId, role, holderId, epochMs);
     }

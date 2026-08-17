@@ -27,9 +27,17 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TerritoryRegistry {
     private final Map<String, Territory> byId = new ConcurrentHashMap<>();
 
+    /**
+     * Creates an empty territory registry.
+     */
     public TerritoryRegistry() {
     }
 
+    /**
+     * Creates a registry populated with the supplied territories.
+     *
+     * @param initial territories to register, or {@code null} for an empty registry
+     */
     public TerritoryRegistry(Collection<Territory> initial) {
         if (initial != null) {
             for (Territory t : initial) {
@@ -41,6 +49,8 @@ public final class TerritoryRegistry {
     /**
      * Register or replace a territory by id.
      *
+     * @param territory territory to register
+     * @throws NullPointerException if {@code territory} is {@code null}
      * @throws IllegalArgumentException if its boundary overlaps another territory
      *                                  in the same world (other than itself when replacing)
      */
@@ -57,10 +67,19 @@ public final class TerritoryRegistry {
         byId.put(territory.id(), territory);
     }
 
+    /**
+     * Removes a territory by id.
+     *
+     * @param territoryId id of the territory to remove
+     * @return {@code true} if a territory was removed
+     */
     public synchronized boolean unregister(String territoryId) {
         return byId.remove(territoryId) != null;
     }
 
+    /**
+     * Removes all registered territories.
+     */
     public synchronized void clear() {
         byId.clear();
     }
@@ -68,6 +87,10 @@ public final class TerritoryRegistry {
     /**
      * Replace all territories. Validates non-overlap on the full set (atomic:
      * registry unchanged if validation fails).
+     *
+     * @param territories territories to load, or {@code null} for an empty registry
+     * @throws NullPointerException if an element is {@code null}
+     * @throws IllegalArgumentException if ids are duplicated or boundaries overlap
      */
     public synchronized void replaceAll(Collection<Territory> territories) {
         Map<String, Territory> next = new ConcurrentHashMap<>();
@@ -98,14 +121,30 @@ public final class TerritoryRegistry {
         byId.putAll(next);
     }
 
+    /**
+     * Finds a territory by id.
+     *
+     * @param id territory id
+     * @return the matching territory, or empty if none is registered
+     */
     public Optional<Territory> get(String id) {
         return Optional.ofNullable(byId.get(id));
     }
 
+    /**
+     * Lists all registered territories.
+     *
+     * @return an immutable snapshot of registered territories
+     */
     public List<Territory> list() {
         return List.copyOf(byId.values());
     }
 
+    /**
+     * Returns the number of registered territories.
+     *
+     * @return the registry size
+     */
     public int size() {
         return byId.size();
     }
@@ -113,6 +152,10 @@ public final class TerritoryRegistry {
     /**
      * Find another registered territory in the same world whose boundary overlaps
      * {@code candidate}, ignoring {@code excludeId} (for replace-in-place).
+     *
+     * @param candidate territory whose boundary is checked
+     * @param excludeId id to ignore, or {@code null}
+     * @return an overlapping territory, or empty if none exists
      */
     public Optional<Territory> findOverlap(Territory candidate, String excludeId) {
         Objects.requireNonNull(candidate, "candidate");
@@ -136,6 +179,12 @@ public final class TerritoryRegistry {
      * With non-overlap registration, at most one territory should match.
      * If corrupt/legacy data still overlaps, the first match by id order is used.
      * Locations outside every territory yield {@link LookupResult#uncontained()}.
+     *
+     * @param worldId world identifier
+     * @param blockX block x-coordinate
+     * @param blockZ block z-coordinate
+     * @return the lookup result for the location
+     * @throws NullPointerException if {@code worldId} is {@code null}
      */
     public LookupResult resolve(String worldId, int blockX, int blockZ) {
         Objects.requireNonNull(worldId, "worldId");
@@ -158,6 +207,14 @@ public final class TerritoryRegistry {
         return LookupResult.of(chosen, zone);
     }
 
+    /**
+     * Resolves a block position within a world.
+     *
+     * @param worldId world identifier
+     * @param pos block position
+     * @return the lookup result for the location
+     * @throws NullPointerException if {@code pos} is {@code null}
+     */
     public LookupResult resolve(String worldId, BlockPos pos) {
         Objects.requireNonNull(pos, "pos");
         return resolve(worldId, pos.x(), pos.z());
@@ -166,6 +223,10 @@ public final class TerritoryRegistry {
     /**
      * Convenience: register a zone onto an existing territory (replaces by zone id).
      * Zone non-overlap is enforced by {@link Territory#withZone(Zone)}.
+     *
+     * @param territoryId id of the territory to update
+     * @param zone zone to attach
+     * @throws IllegalArgumentException if the territory does not exist
      */
     public synchronized void putZone(String territoryId, Zone zone) {
         Territory t = byId.get(territoryId);
@@ -177,6 +238,10 @@ public final class TerritoryRegistry {
 
     /**
      * Attach or replace the government of an existing territory.
+     *
+     * @param territoryId id of the territory to update
+     * @param government government to attach
+     * @throws IllegalArgumentException if the territory does not exist
      */
     public synchronized void putGovernment(String territoryId, Government government) {
         Territory t = byId.get(territoryId);

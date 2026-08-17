@@ -16,6 +16,13 @@ public enum ZoneType {
      */
     CLAIMABLE;
 
+    /**
+     * Parses a zone type name case-insensitively.
+     *
+     * @param raw zone type name
+     * @return parsed zone type
+     * @throws IllegalArgumentException if the input is blank or unknown
+     */
     public static ZoneType fromString(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new IllegalArgumentException("zone type is required");

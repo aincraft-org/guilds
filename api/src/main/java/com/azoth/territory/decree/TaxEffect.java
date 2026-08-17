@@ -11,9 +11,13 @@ import java.util.Set;
  * <p>
  * {@code taxDeltaPercentPoints} is an additive change in percentage points
  * (e.g. {@code 15} means +15 percentage points on the tax rate for each listed good).
+ *
+ * @param goodIds affected good identifiers
+ * @param taxDeltaPercentPoints additive tax-rate adjustment
  */
 public record TaxEffect(List<String> goodIds, double taxDeltaPercentPoints) {
 
+    /** Validates and normalizes the affected good identifiers. */
     public TaxEffect {
         if (goodIds == null || goodIds.isEmpty()) {
             throw new IllegalArgumentException("tax effect requires at least one good id");
@@ -28,6 +32,7 @@ public record TaxEffect(List<String> goodIds, double taxDeltaPercentPoints) {
         goodIds = Collections.unmodifiableList(new ArrayList<>(ordered));
     }
 
+    /** {@inheritDoc} */
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -40,11 +45,13 @@ public record TaxEffect(List<String> goodIds, double taxDeltaPercentPoints) {
                 && goodIds.equals(that.goodIds);
     }
 
+    /** {@inheritDoc} */
     @Override
     public int hashCode() {
         return goodIds.hashCode() + Double.hashCode(taxDeltaPercentPoints);
     }
 
+    /** {@inheritDoc} */
     @Override
     public String toString() {
         return "TaxEffect{goodIds=" + goodIds + ", taxDeltaPercentPoints=" + taxDeltaPercentPoints + '}';

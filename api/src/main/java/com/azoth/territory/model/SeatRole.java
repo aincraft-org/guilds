@@ -13,6 +13,11 @@ public enum SeatRole {
     /** Democracy: elected representative. */
     REPRESENTATIVE;
 
+    /** Parses a persisted seat role.
+     * @param raw persisted role name
+     * @return the matching role
+     * @throws IllegalArgumentException if {@code raw} is blank or invalid
+     */
     public static SeatRole fromString(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new IllegalArgumentException("seat role is required");

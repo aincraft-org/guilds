@@ -22,9 +22,16 @@ import java.util.List;
  * </pre>
  */
 public final class DecreeEffectsCodec {
+    /** Prevents instantiation. */
     private DecreeEffectsCodec() {
     }
 
+    /**
+     * Serializes decree effects to a JSON object.
+     *
+     * @param effects effects to serialize
+     * @return serialized effects
+     */
     public static JsonObject toJson(DecreeEffects effects) {
         if (effects == null || effects.isEmpty()) {
             JsonObject empty = new JsonObject();
@@ -49,10 +56,22 @@ public final class DecreeEffectsCodec {
         return o;
     }
 
+    /**
+     * Serializes decree effects to a JSON string.
+     *
+     * @param effects effects to serialize
+     * @return serialized JSON
+     */
     public static String toJsonString(DecreeEffects effects) {
         return toJson(effects).toString();
     }
 
+    /**
+     * Deserializes decree effects from JSON.
+     *
+     * @param o JSON object
+     * @return decoded effects
+     */
     public static DecreeEffects fromJson(JsonObject o) {
         if (o == null) {
             return DecreeEffects.empty();
@@ -83,6 +102,12 @@ public final class DecreeEffectsCodec {
         return new DecreeEffects(version, taxes);
     }
 
+    /**
+     * Deserializes decree effects from a JSON string.
+     *
+     * @param json JSON string
+     * @return decoded effects
+     */
     public static DecreeEffects fromJsonString(String json) {
         if (json == null || json.isBlank()) {
             return DecreeEffects.empty();

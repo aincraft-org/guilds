@@ -17,11 +17,17 @@ import java.util.Set;
  * </ul>
  */
 public final class PermissionRules {
+    /** Prevents instantiation. */
     private PermissionRules() {
     }
 
     /**
      * Whether {@code actorId} has formal authority under {@code government} for {@code action}.
+     *
+     * @param government government to inspect
+     * @param actorId actor identifier
+     * @param action sovereign action to check
+     * @return whether the actor has formal authority
      */
     public static boolean allows(Government government, String actorId, SovereignAction action) {
         Objects.requireNonNull(action, "action");

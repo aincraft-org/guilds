@@ -14,18 +14,30 @@ import java.util.Set;
  * Supports polygonal vertices (block XZ) and/or an explicit set of chunks.
  * A location is inside if it matches <em>either</em> representation when that
  * representation is non-empty (union). If both are empty, nothing is contained.
+ *
+ * @param polygon polygon vertices in block coordinates
+ * @param chunks explicitly contained chunks
  */
 public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
-
+    /** Normalizes the polygon and chunk collections. */
     public Boundary {
         polygon = polygon == null ? List.of() : Collections.unmodifiableList(new ArrayList<>(polygon));
         chunks = chunks == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(chunks));
     }
 
+    /** Creates an empty boundary.
+     * @return an empty boundary
+     */
     public static Boundary empty() {
         return new Boundary(List.of(), Set.of());
     }
 
+    /** Creates a polygon boundary.
+     * @param vertices polygon vertices
+     * @return a polygon boundary
+     * @throws NullPointerException if {@code vertices} is {@code null}
+     * @throws IllegalArgumentException if fewer than three vertices are supplied
+     */
     public static Boundary ofPolygon(Collection<BlockPos> vertices) {
         Objects.requireNonNull(vertices, "vertices");
         if (vertices.size() < 3) {
@@ -34,6 +46,12 @@ public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
         return new Boundary(new ArrayList<>(vertices), Set.of());
     }
 
+    /** Creates a chunk boundary.
+     * @param chunks contained chunks
+     * @return a chunk boundary
+     * @throws NullPointerException if {@code chunks} is {@code null}
+     * @throws IllegalArgumentException if no chunks are supplied
+     */
     public static Boundary ofChunks(Collection<ChunkPos> chunks) {
         Objects.requireNonNull(chunks, "chunks");
         if (chunks.isEmpty()) {
@@ -42,6 +60,12 @@ public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
         return new Boundary(List.of(), new LinkedHashSet<>(chunks));
     }
 
+    /** Creates a boundary from optional polygon and chunk representations.
+     * @param vertices optional polygon vertices
+     * @param chunks optional contained chunks
+     * @return the combined boundary
+     * @throws IllegalArgumentException if a non-empty polygon has fewer than three vertices
+     */
     public static Boundary of(Collection<BlockPos> vertices, Collection<ChunkPos> chunks) {
         List<BlockPos> poly = vertices == null ? List.of() : new ArrayList<>(vertices);
         Set<ChunkPos> ch = chunks == null ? Set.of() : new LinkedHashSet<>(chunks);
@@ -55,21 +79,33 @@ public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
     }
 
 
+    /** Reports whether this boundary has at least three polygon vertices.
+     * @return whether this boundary has a polygon
+     */
     public boolean hasPolygon() {
         return polygon.size() >= 3;
     }
 
+    /** Reports whether this boundary contains explicit chunks.
+     * @return whether this boundary has explicit chunks
+     */
     public boolean hasChunks() {
         return !chunks.isEmpty();
     }
 
+    /** Reports whether this boundary has neither polygon nor chunks.
+     * @return whether this boundary has neither polygon nor chunks
+     */
     public boolean isEmpty() {
         return !hasPolygon() && !hasChunks();
     }
 
     /**
-     * True if the block position is inside the polygon (if defined) or in a
-     * listed chunk (if defined). Empty boundary never contains.
+     * Reports whether the supplied block coordinates are contained by this boundary.
+     *
+     * @param blockX block X coordinate
+     * @param blockZ block Z coordinate
+     * @return whether the coordinates are contained
      */
     public boolean contains(int blockX, int blockZ) {
         if (isEmpty()) {
@@ -85,10 +121,20 @@ public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
         return false;
     }
 
+    /** Determines whether a block position is contained.
+     * @param pos block position
+     * @return whether the position is contained
+     * @throws NullPointerException if {@code pos} is {@code null}
+     */
     public boolean contains(BlockPos pos) {
         return contains(pos.x(), pos.z());
     }
 
+    /** Determines whether a chunk is contained.
+     * @param chunkX chunk X coordinate
+     * @param chunkZ chunk Z coordinate
+     * @return whether the chunk is contained
+     */
     public boolean containsChunk(int chunkX, int chunkZ) {
         if (hasChunks() && chunks.contains(new ChunkPos(chunkX, chunkZ))) {
             return true;
@@ -103,9 +149,10 @@ public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
     }
 
     /**
-     * True if this boundary and {@code other} share any <em>interior</em> area.
-     * Touching only on edges/corners (adjacent territories/zones) is allowed and
-     * returns {@code false}. Same chunk ids count as overlap.
+     * Reports whether this boundary and {@code other} share any interior area.
+     *
+     * @param other boundary to compare
+     * @return whether the boundaries overlap
      */
     public boolean overlaps(Boundary other) {
         Objects.requireNonNull(other, "other");
@@ -319,6 +366,9 @@ public record Boundary(List<BlockPos> polygon, Set<ChunkPos> chunks) {
     }
 
 
+    /** Returns a concise description of this boundary.
+     * @return a string describing polygon and chunk sizes
+     */
     @Override
     public String toString() {
         return "Boundary{polygon=" + polygon.size() + " verts, chunks=" + chunks.size() + '}';

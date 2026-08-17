@@ -17,24 +17,43 @@ import java.util.stream.Collectors;
  *   <li>{@link GovernmentForm#DEMOCRACY} — 1+ {@link SeatRole#REPRESENTATIVE}</li>
  *   <li>{@link GovernmentForm#ANARCHY} — no seats</li>
  * </ul>
+ *
+ * @param form government form
+ * @param seats ordered government seats
  */
 public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
+    /** Default oligarchy seat count. */
     public static final int DEFAULT_OLIGARCHY_SEATS = 3;
+    /** Default democracy seat count. */
     public static final int DEFAULT_DEMOCRACY_SEATS = 5;
+    /** Minimum oligarchy seat count. */
     public static final int MIN_OLIGARCHY_SEATS = 2;
+    /** Minimum democracy seat count. */
     public static final int MIN_DEMOCRACY_SEATS = 1;
 
-
+    /** Constructs and validates a government.
+     * @param form government form
+     * @param seats ordered seats
+     * @throws NullPointerException if {@code form} or {@code seats} is {@code null}
+     * @throws IllegalArgumentException if the seat structure is invalid
+     */
     public Government(GovernmentForm form, List<GovernmentSeat> seats) {
         this.form = Objects.requireNonNull(form, "form");
         this.seats = List.copyOf(seats);
         validateStructure();
     }
 
+    /** Creates an unassigned government.
+     * @return anarchy government
+     */
     public static Government anarchy() {
         return new Government(GovernmentForm.ANARCHY, List.of());
     }
 
+    /** Creates a monarchy with one sovereign seat.
+     * @param sovereignHolderId sovereign holder identifier
+     * @return a monarchy
+     */
     public static Government monarchy(String sovereignHolderId) {
         return singleSeat(GovernmentForm.MONARCHY, "sovereign", SeatRole.SOVEREIGN, sovereignHolderId);
     }
@@ -45,12 +64,22 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
         return new Government(form, List.of(new GovernmentSeat(seatId, role, holderId)));
     }
 
+    /** Creates an oligarchy using default seat sizing.
+     * @param councilorHolderIds councilor holder identifiers
+     * @return an oligarchy
+     */
     public static Government oligarchy(Collection<String> councilorHolderIds) {
         List<String> holders = normalizeHolders(councilorHolderIds);
         int count = Math.max(MIN_OLIGARCHY_SEATS, Math.max(DEFAULT_OLIGARCHY_SEATS, holders.size()));
         return oligarchy(count, holders);
     }
 
+    /** Creates an oligarchy with a requested seat count.
+     * @param seatCount number of seats
+     * @param councilorHolderIds councilor holder identifiers
+     * @return an oligarchy
+     * @throws IllegalArgumentException if {@code seatCount} is too small
+     */
     public static Government oligarchy(int seatCount, Collection<String> councilorHolderIds) {
         return multiSeat(
                 GovernmentForm.OLIGARCHY, SeatRole.COUNCILOR, "councilor",
@@ -58,12 +87,23 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
         );
     }
 
+    /** Creates a democracy using default seat sizing.
+     * @param representativeHolderIds representative holder identifiers
+     * @return a democracy
+     */
     public static Government democracy(Collection<String> representativeHolderIds) {
         List<String> holders = normalizeHolders(representativeHolderIds);
         int count = Math.max(MIN_DEMOCRACY_SEATS, Math.max(DEFAULT_DEMOCRACY_SEATS, holders.size()));
         return democracy(count, holders, null);
     }
 
+    /** Creates a democracy with seats and optional terms.
+     * @param seatCount number of seats
+     * @param representativeHolderIds representative holder identifiers
+     * @param termEndsAtEpochMs optional term end times
+     * @return a democracy
+     * @throws IllegalArgumentException if {@code seatCount} is too small
+     */
     public static Government democracy(
             int seatCount,
             Collection<String> representativeHolderIds,
@@ -126,6 +166,10 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
      * </ul>
      * Used to derive guild (guild) and alliance (nation) governments from their
      * role holders (mayor/assistants/residents, king/ministers/guild mayors).
+     *
+     * @param form government form
+     * @param authorityIds role-ordered authority identifiers
+     * @return the derived government
      */
     public static Government fromRoles(GovernmentForm form, Collection<String> authorityIds) {
         Objects.requireNonNull(form, "form");
@@ -139,7 +183,11 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
     }
 
     /**
-     * Reconstruct from persisted form + seats (validates structure).
+     * Reconstruct from persisted form and seats, validating the structure.
+     *
+     * @param form persisted government form
+     * @param seats persisted government seats
+     * @return the reconstructed government
      */
     public static Government of(GovernmentForm form, Collection<GovernmentSeat> seats) {
         if (form == null || form == GovernmentForm.ANARCHY) {
@@ -204,24 +252,42 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
     }
 
 
+    /** Reports whether this government has assigned authority.
+     * @return whether this government has assigned authority
+     */
     public boolean isAssigned() {
         return form.isAssigned();
     }
 
 
+    /** Reports the number of seats in this government.
+     * @return the number of seats
+     */
     public int seatCount() {
         return seats.size();
     }
 
+    /** Finds a seat by identifier.
+     * @param seatId seat identifier
+     * @return the matching seat, if present
+     */
     public Optional<GovernmentSeat> seat(String seatId) {
         return seats.stream().filter(s -> s.seatId().equals(seatId)).findFirst();
     }
 
+    /** Returns seats having a role.
+     * @param role seat role
+     * @return matching seats
+     * @throws NullPointerException if {@code role} is {@code null}
+     */
     public List<GovernmentSeat> seatsByRole(SeatRole role) {
         Objects.requireNonNull(role, "role");
         return seats.stream().filter(s -> s.role() == role).toList();
     }
 
+    /** Reports holder identifiers for occupied seats.
+     * @return holder identifiers for occupied seats
+     */
     public List<String> holderIds() {
         return seats.stream()
                 .map(GovernmentSeat::holderId)
@@ -229,6 +295,9 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
                 .collect(Collectors.toList());
     }
 
+    /** Reports the monarchy's sovereign holder, if assigned.
+     * @return the monarchy's sovereign holder, if assigned
+     */
     public Optional<String> sovereignHolderId() {
         if (form != GovernmentForm.MONARCHY) {
             return Optional.empty();
@@ -236,6 +305,9 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
         return seats.isEmpty() ? Optional.empty() : seats.get(0).holderId();
     }
 
+    /** Reports the primary decree authority holder, if assigned.
+     * @return the primary decree authority holder, if assigned
+     */
     public Optional<String> primaryAuthorityHolderId() {
         if (!isAssigned() || form.decisionStyle() != GovernmentForm.DecisionStyle.DECREE) {
             return Optional.empty();
@@ -243,6 +315,12 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
         return seats.isEmpty() ? Optional.empty() : seats.get(0).holderId();
     }
 
+    /** Replaces a seat holder.
+     * @param seatId seat identifier
+     * @param holderId new holder identifier
+     * @return a government with the updated seat
+     * @throws IllegalArgumentException if the seat is unknown
+     */
     public Government withSeatHolder(String seatId, String holderId) {
         List<GovernmentSeat> next = new ArrayList<>(seats.size());
         boolean found = false;
@@ -259,10 +337,12 @@ public record Government(GovernmentForm form, List<GovernmentSeat> seats) {
         }
         return new Government(form, next);
     }
-
-
+    /** Returns a concise textual representation.
+     * @return a description of this government
+     */
     @Override
     public String toString() {
         return "Government{form=" + form + ", seats=" + seats.size() + '}';
+
     }
 }

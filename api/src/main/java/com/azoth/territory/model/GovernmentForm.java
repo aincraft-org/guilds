@@ -18,6 +18,11 @@ public enum GovernmentForm {
     /** Multi-seat elected representatives; majority of filled seats (optional terms). */
     DEMOCRACY;
 
+    /** Parses a persisted government form.
+     * @param raw persisted form name
+     * @return the matching form, or {@link #ANARCHY} for blank input
+     * @throws IllegalArgumentException if the non-blank value is invalid
+     */
     public static GovernmentForm fromString(String raw) {
         if (raw == null || raw.isBlank()) {
             return ANARCHY;
@@ -30,12 +35,16 @@ public enum GovernmentForm {
         return GovernmentForm.valueOf(key);
     }
 
+    /** Reports whether this form has assigned authority.
+     * @return whether this form has assigned authority
+     */
     public boolean isAssigned() {
         return this != ANARCHY;
     }
 
     /**
      * How this form adopts policies.
+     * @return this form's decision style
      */
     public DecisionStyle decisionStyle() {
         return switch (this) {
@@ -47,6 +56,8 @@ public enum GovernmentForm {
 
     /**
      * Seat role that forms the electorate / decisive authority for this form.
+     * @return this form's authority role
+     * @throws IllegalStateException if this is {@link #ANARCHY}
      */
     public SeatRole authorityRole() {
         return switch (this) {
@@ -57,6 +68,7 @@ public enum GovernmentForm {
         };
     }
 
+    /** Policy decision mechanics for a government form. */
     public enum DecisionStyle {
         /** No decisions allowed. */
         NONE,

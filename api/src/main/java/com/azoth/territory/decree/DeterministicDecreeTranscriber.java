@@ -21,6 +21,9 @@ import java.util.regex.Pattern;
  * match the catalog the interpreter uses — never hardcodes vegetable ids outside the catalog.
  */
 public final class DeterministicDecreeTranscriber implements DecreeTranscriber {
+    /** Creates a deterministic transcriber. */
+    public DeterministicDecreeTranscriber() {
+    }
 
     /**
      * Grouped patterns that capture a goods label and a percentage.
@@ -45,6 +48,13 @@ public final class DeterministicDecreeTranscriber implements DecreeTranscriber {
             )
     );
 
+    /**
+     * {@inheritDoc}
+     *
+     * @param english English decree text
+     * @param catalog goods catalog
+     * @return structured decree effects
+     */
     @Override
     public DecreeEffects transcribe(String english, GoodsCatalog catalog) {
         Objects.requireNonNull(catalog, "catalog");

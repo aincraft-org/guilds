@@ -19,6 +19,11 @@ import java.util.stream.Collectors;
 public final class GoodsCatalog {
     private final Map<String, Good> byId;
 
+    /**
+     * Creates a catalog from goods.
+     *
+     * @param goods goods to catalog
+     */
     public GoodsCatalog(Collection<Good> goods) {
         Map<String, Good> map = new LinkedHashMap<>();
         if (goods != null) {
@@ -35,6 +40,8 @@ public final class GoodsCatalog {
     /**
      * Default in-process catalog used by tests and the deterministic transcriber.
      * Vegetables: carrot, potato, beetroot, cabbage, onion. Plus a few non-vegetable goods.
+     *
+     * @return default catalog
      */
     public static GoodsCatalog defaultCatalog() {
         return new GoodsCatalog(List.of(
@@ -49,6 +56,12 @@ public final class GoodsCatalog {
         ));
     }
 
+    /**
+     * Finds a good by identifier.
+     *
+     * @param id good identifier
+     * @return matching good, when present
+     */
     public Optional<Good> findById(String id) {
         if (id == null || id.isBlank()) {
             return Optional.empty();
@@ -56,10 +69,21 @@ public final class GoodsCatalog {
         return Optional.ofNullable(byId.get(Good.normalizeId(id)));
     }
 
+    /**
+     * Returns all catalogued goods.
+     *
+     * @return catalogued goods
+     */
     public List<Good> all() {
         return List.copyOf(byId.values());
     }
 
+    /**
+     * Finds ids for a category.
+     *
+     * @param category category name
+     * @return matching good ids
+     */
     public List<String> idsInCategory(String category) {
         if (category == null || category.isBlank()) {
             return List.of();
@@ -81,6 +105,9 @@ public final class GoodsCatalog {
 
     /**
      * Resolve a free-text label to good ids: category name first, then exact good id/display name.
+     *
+     * @param label free-text category, id, or display name
+     * @return resolved good ids
      */
     public List<String> resolveLabel(String label) {
         if (label == null || label.isBlank()) {
@@ -115,10 +142,16 @@ public final class GoodsCatalog {
         return List.of();
     }
 
+    /**
+     * Returns the number of goods.
+     *
+     * @return catalog size
+     */
     public int size() {
         return byId.size();
     }
 
+    /** {@inheritDoc} */
     @Override
     public String toString() {
         return "GoodsCatalog{size=" + byId.size()

@@ -14,33 +14,47 @@ import java.util.Optional;
 public interface GovernanceSource {
 
     /**
-     * Guild (guild) snapshot by guild id (guild id).
+     * Finds a guild snapshot by identifier.
+     *
+     * @param guildId guild identifier
+     * @return matching guild, if present
      */
     Optional<GuildBody> guild(String guildId);
 
     /**
-     * Guilds that list {@code holderId} as a member (stable id order).
+     * Finds guilds listing a member.
+     *
+     * @param holderId member identifier
+     * @return guilds in stable identifier order
      */
     List<GuildBody> guildsForMember(String holderId);
 
     /**
-     * First alliance (nation) that contains the guild, if any.
+     * Finds the first alliance containing a guild.
+     *
+     * @param guildId guild identifier
+     * @return containing alliance, if present
      */
     Optional<AllianceBody> allianceContainingGuild(String guildId);
 
     /**
-     * All guilds.
+     * Returns all guild snapshots.
+     *
+     * @return all guild snapshots
      */
     List<GuildBody> allGuilds();
 
     /**
-     * All alliances.
+     * Returns all alliance snapshots.
+     *
+     * @return all alliance snapshots
      */
     List<AllianceBody> allAlliances();
 
     /**
-     * Empty source: no guilds, no alliances. Used when the guilds subsystem
-     * failed to start — everything resolves to territory-local government.
+     * Returns an empty source with no guilds or alliances.
+     *
+     * @return an empty governance source
      */
     static GovernanceSource none() {
         return new GovernanceSource() {

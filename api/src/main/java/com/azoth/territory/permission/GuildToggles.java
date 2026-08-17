@@ -1,16 +1,13 @@
 package com.azoth.territory.permission;
 
 /**
- * Guild (guild) toggle state, mirrored from the guilds subsystem's guild toggles.
- * These drive environmental/PvP behavior on guild-governed territory:
- * <ul>
- *   <li>{@code pvpEnabled} — PvP allowed between members on governed land</li>
- *   <li>{@code fireEnabled} — fire may burn/spread/ignite on governed land</li>
- *   <li>{@code explosionsEnabled} — explosions may damage governed land</li>
- *   <li>{@code mobsEnabled} — natural/hostile mob spawning on governed land</li>
- *   <li>{@code publicEnabled} — outsiders may access (build/interact, not break) governed land</li>
- * </ul>
- * Pure domain — no Bukkit.
+ * Guild toggle state controlling environmental and PvP behavior on governed territory.
+ *
+ * @param pvpEnabled whether PvP is allowed between members
+ * @param fireEnabled whether fire may burn, spread, or ignite
+ * @param explosionsEnabled whether explosions may damage governed land
+ * @param mobsEnabled whether natural or hostile mobs may spawn
+ * @param publicEnabled whether outsiders may access governed land
  */
 public record GuildToggles(
         boolean pvpEnabled,
@@ -19,6 +16,10 @@ public record GuildToggles(
         boolean mobsEnabled,
         boolean publicEnabled
 ) {
+    /** Returns the default toggle state for a new guild.
+     *
+     * @return the default toggle state
+     */
     public static GuildToggles defaults() {
         // Mirrors the guilds subsystem's new-guild defaults.
         return new GuildToggles(false, false, false, true, false);

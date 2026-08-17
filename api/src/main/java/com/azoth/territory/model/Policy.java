@@ -27,6 +27,18 @@ public final class Policy {
     private final Long proposedAtEpochMs;
     private final DecreeEffects effects;
 
+    /**
+     * Creates a policy with empty decree effects.
+     *
+     * @param id policy identifier
+     * @param title policy title
+     * @param body policy text
+     * @param proposerId opaque proposer identifier
+     * @param status lifecycle status
+     * @param votes initial votes
+     * @param resolvedAtEpochMs optional resolution time in epoch milliseconds
+     * @param proposedAtEpochMs optional proposal time in epoch milliseconds
+     */
     public Policy(
             String id,
             String title,
@@ -40,6 +52,19 @@ public final class Policy {
         this(id, title, body, proposerId, status, votes, resolvedAtEpochMs, proposedAtEpochMs, DecreeEffects.empty());
     }
 
+    /**
+     * Creates a policy.
+     *
+     * @param id policy identifier
+     * @param title policy title
+     * @param body policy text
+     * @param proposerId opaque proposer identifier
+     * @param status lifecycle status
+     * @param votes initial votes
+     * @param resolvedAtEpochMs optional resolution time in epoch milliseconds
+     * @param proposedAtEpochMs optional proposal time in epoch milliseconds
+     * @param effects decree effects associated with the policy
+     */
     public Policy(
             String id,
             String title,
@@ -74,6 +99,16 @@ public final class Policy {
         this.effects = effects == null ? DecreeEffects.empty() : effects;
     }
 
+    /**
+     * Proposes a new policy.
+     *
+     * @param id policy identifier
+     * @param title policy title
+     * @param body policy text
+     * @param proposerId opaque proposer identifier
+     * @param proposedAtEpochMs proposal time in epoch milliseconds
+     * @return proposed policy with no votes or resolution
+     */
     public static Policy propose(
             String id,
             String title,
@@ -87,30 +122,66 @@ public final class Policy {
         );
     }
 
+    /**
+     * Returns the policy identifier.
+     *
+     * @return policy identifier
+     */
     public String id() {
         return id;
     }
 
+    /**
+     * Returns the policy title.
+     *
+     * @return title
+     */
     public String title() {
         return title;
     }
 
+    /**
+     * Returns the policy body.
+     *
+     * @return body text
+     */
     public String body() {
         return body;
     }
 
+    /**
+     * Returns the proposer identifier.
+     *
+     * @return opaque proposer identifier
+     */
     public String proposerId() {
         return proposerId;
     }
 
+    /**
+     * Returns the lifecycle status.
+     *
+     * @return policy status
+     */
     public PolicyStatus status() {
         return status;
     }
 
+    /**
+     * Returns votes in insertion order.
+     *
+     * @return immutable vote list
+     */
     public List<PolicyVote> votes() {
         return List.copyOf(votesByVoter.values());
     }
 
+    /**
+     * Finds a voter's current vote.
+     *
+     * @param voterId voter identifier
+     * @return matching vote, or empty when absent
+     */
     public Optional<PolicyVote> voteOf(String voterId) {
         if (voterId == null) {
             return Optional.empty();
@@ -118,26 +189,56 @@ public final class Policy {
         return Optional.ofNullable(votesByVoter.get(voterId.trim()));
     }
 
+    /**
+     * Returns the resolution time.
+     *
+     * @return optional resolution epoch milliseconds
+     */
     public Optional<Long> resolvedAtEpochMs() {
         return Optional.ofNullable(resolvedAtEpochMs);
     }
 
+    /**
+     * Returns the proposal time.
+     *
+     * @return optional proposal epoch milliseconds
+     */
     public Optional<Long> proposedAtEpochMs() {
         return Optional.ofNullable(proposedAtEpochMs);
     }
 
+    /**
+     * Returns decree effects associated with this policy.
+     *
+     * @return decree effects
+     */
     public DecreeEffects effects() {
         return effects;
     }
 
+    /**
+     * Counts affirmative votes.
+     *
+     * @return number of yes votes
+     */
     public int yesCount() {
         return count(VoteChoice.YES);
     }
 
+    /**
+     * Counts negative votes.
+     *
+     * @return number of no votes
+     */
     public int noCount() {
         return count(VoteChoice.NO);
     }
 
+    /**
+     * Counts abstentions.
+     *
+     * @return number of abstain votes
+     */
     public int abstainCount() {
         return count(VoteChoice.ABSTAIN);
     }

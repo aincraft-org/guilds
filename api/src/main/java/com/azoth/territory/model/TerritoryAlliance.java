@@ -8,13 +8,19 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Alliance of territories: formed with an assigned {@link Government}.
- * <p>
- * Governments live at the territory-alliance layer for multi-territory sovereignty.
- * Member ids are territory ids (opaque strings matching {@link Territory#id()}).
+ * Alliance of territories formed with an assigned government.
+ *
+ * @param id alliance identifier
+ * @param name display name
+ * @param government assigned government
+ * @param territoryIds member territory identifiers
  */
 public record TerritoryAlliance(String id, String name, Government government, List<String> territoryIds) {
-
+    /**
+     * Validates and normalizes an alliance.
+     *
+     * @throws IllegalArgumentException if an identifier or government is invalid
+     */
     public TerritoryAlliance {
         id = requireId(id);
         name = name == null || name.isBlank() ? id : name.trim();
@@ -23,14 +29,25 @@ public record TerritoryAlliance(String id, String name, Government government, L
     }
 
     /**
-     * Form a territory alliance with a chosen government and no member territories yet.
+     * Form an alliance with no member territories.
+     *
+     * @param id alliance identifier
+     * @param name display name
+     * @param government assigned government
+     * @return formed alliance
      */
     public static TerritoryAlliance form(String id, String name, Government government) {
         return form(id, name, government, List.of());
     }
 
     /**
-     * Form a territory alliance with a chosen government and initial member territories.
+     * Form an alliance with initial member territories.
+     *
+     * @param id alliance identifier
+     * @param name display name
+     * @param government assigned government
+     * @param territoryIds initial territory identifiers
+     * @return formed alliance
      */
     public static TerritoryAlliance form(
             String id,
@@ -70,10 +87,21 @@ public record TerritoryAlliance(String id, String name, Government government, L
         return new ArrayList<>(seen);
     }
 
+    /**
+     * Returns the assigned government form.
+     *
+     * @return government form
+     */
     public GovernmentForm governmentForm() {
         return government.form();
     }
 
+    /**
+     * Tests whether a territory is present.
+     *
+     * @param territoryId territory identifier
+     * @return {@code true} when the territory is present
+     */
     public boolean containsTerritory(String territoryId) {
         if (territoryId == null || territoryId.isBlank()) {
             return false;
@@ -81,10 +109,22 @@ public record TerritoryAlliance(String id, String name, Government government, L
         return territoryIds.contains(territoryId.trim());
     }
 
+    /**
+     * Returns a copy using another government.
+     *
+     * @param next assigned replacement government
+     * @return updated alliance
+     */
     public TerritoryAlliance withGovernment(Government next) {
         return new TerritoryAlliance(id, name, next, territoryIds);
     }
 
+    /**
+     * Returns a copy containing the territory.
+     *
+     * @param territoryId territory identifier
+     * @return updated alliance, or this instance when unchanged
+     */
     public TerritoryAlliance withTerritory(String territoryId) {
         if (territoryId == null || territoryId.isBlank()) {
             return this;
@@ -98,6 +138,12 @@ public record TerritoryAlliance(String id, String name, Government government, L
         return new TerritoryAlliance(id, name, government, next);
     }
 
+    /**
+     * Returns a copy without the territory.
+     *
+     * @param territoryId territory identifier
+     * @return updated alliance, or this instance when unchanged
+     */
     public TerritoryAlliance withoutTerritory(String territoryId) {
         if (territoryId == null || territoryId.isBlank()) {
             return this;

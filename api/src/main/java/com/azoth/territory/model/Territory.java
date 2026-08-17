@@ -26,10 +26,24 @@ public final class Territory {
     private final Map<String, Policy> policies;
     private final String governedByGuildId;
 
+    /** Creates a wilderness territory with anarchy government.
+     * @param id territory identifier
+     * @param name display name
+     * @param worldId world identifier
+     * @param boundary outer boundary
+     */
     public Territory(String id, String name, String worldId, Boundary boundary) {
         this(id, name, worldId, boundary, List.of(), ZoneType.WILDERNESS, Government.anarchy(), List.of(), null);
     }
 
+    /** Creates a territory with zones and default government.
+     * @param id territory identifier
+     * @param name display name
+     * @param worldId world identifier
+     * @param boundary outer boundary
+     * @param zones nested zones
+     * @param defaultZoneType fallback zone type
+     */
     public Territory(
             String id,
             String name,
@@ -41,6 +55,15 @@ public final class Territory {
         this(id, name, worldId, boundary, zones, defaultZoneType, Government.anarchy(), List.of(), null);
     }
 
+    /** Creates a territory with a government.
+     * @param id territory identifier
+     * @param name display name
+     * @param worldId world identifier
+     * @param boundary outer boundary
+     * @param zones nested zones
+     * @param defaultZoneType fallback zone type
+     * @param government territory government
+     */
     public Territory(
             String id,
             String name,
@@ -53,6 +76,16 @@ public final class Territory {
         this(id, name, worldId, boundary, zones, defaultZoneType, government, List.of(), null);
     }
 
+    /** Creates a territory with policies.
+     * @param id territory identifier
+     * @param name display name
+     * @param worldId world identifier
+     * @param boundary outer boundary
+     * @param zones nested zones
+     * @param defaultZoneType fallback zone type
+     * @param government territory government
+     * @param policies policies
+     */
     public Territory(
             String id,
             String name,
@@ -66,6 +99,19 @@ public final class Territory {
         this(id, name, worldId, boundary, zones, defaultZoneType, government, policies, null);
     }
 
+    /**
+     * Creates a fully configured territory.
+     *
+     * @param id territory identifier
+     * @param name display name
+     * @param worldId world identifier
+     * @param boundary outer boundary
+     * @param zones nested zones
+     * @param defaultZoneType fallback zone type
+     * @param government territory government
+     * @param policies policies
+     * @param governedByGuildId governing guild identifier, if any
+     */
     public Territory(
             String id,
             String name,
@@ -135,57 +181,91 @@ public final class Territory {
         return id.trim();
     }
 
+    /** Returns the territory identifier.
+     * @return territory identifier
+     */
     public String id() {
         return id;
     }
 
+    /** Returns the display name.
+     * @return display name
+     */
     public String name() {
         return name;
     }
 
+    /** Returns the world identifier.
+     * @return world identifier
+     */
     public String worldId() {
         return worldId;
     }
 
+    /** Returns the outer boundary.
+     * @return outer boundary
+     */
     public Boundary boundary() {
         return boundary;
     }
 
+    /** Returns the default zone type.
+     * @return default zone type
+     */
     public ZoneType defaultZoneType() {
         return defaultZoneType;
     }
 
+    /** Returns the territory government.
+     * @return territory government
+     */
     public Government government() {
         return government;
     }
 
+    /** Returns the government form.
+     * @return government form
+     */
     public GovernmentForm governmentForm() {
         return government.form();
     }
 
+    /** Returns immutable nested zones.
+     * @return immutable zones
+     */
     public List<Zone> zones() {
         return List.copyOf(zones.values());
     }
 
+    /** Finds a nested zone by identifier.
+     * @param zoneId zone identifier
+     * @return matching zone, if present
+     */
     public Optional<Zone> zone(String zoneId) {
         return Optional.ofNullable(zones.get(zoneId));
     }
 
+    /** Returns immutable policies.
+     * @return immutable policies
+     */
     public List<Policy> policies() {
         return List.copyOf(policies.values());
     }
 
     /**
-     * Guild (guild) id that governs this territory, if bound. The guilds
-     * subsystem is the source of truth for that guild's government and
-     * permissions; the territory only records the binding.
+     * Returns the governing guild identifier, if bound.
+     *
+     * @return the governing guild identifier, if any
      */
     public Optional<String> governedByGuildId() {
         return Optional.ofNullable(governedByGuildId);
     }
 
     /**
-     * Bind a governing guild (guild) to this territory.
+     * Binds a governing guild to this territory.
+     *
+     * @param guildId governing guild identifier, or {@code null} to clear
+     * @return updated territory
      */
     public Territory withGoverningGuild(String guildId) {
         String next = guildId == null || guildId.isBlank() ? null : guildId.trim();
@@ -193,24 +273,44 @@ public final class Territory {
     }
 
     /**
-     * Remove the governing-guild binding (falls back to territory-local government).
+     * Removes the governing-guild binding.
+     *
+     * @return updated territory
      */
     public Territory withoutGoverningGuild() {
         return withGoverningGuild(null);
     }
 
+    /** Finds a policy by identifier.
+     * @param policyId policy identifier
+     * @return matching policy, if present
+     */
     public Optional<Policy> policy(String policyId) {
         return Optional.ofNullable(policies.get(policyId));
     }
 
+    /** Reports whether block coordinates are contained.
+     * @param blockX block X coordinate
+     * @param blockZ block Z coordinate
+     * @return whether the block is contained
+     */
     public boolean contains(int blockX, int blockZ) {
         return boundary.contains(blockX, blockZ);
     }
 
+    /** Reports whether a block position is contained.
+     * @param pos block position
+     * @return whether the position is contained
+     */
     public boolean contains(BlockPos pos) {
         return contains(pos.x(), pos.z());
     }
 
+    /** Resolves the highest-priority matching zone.
+     * @param blockX block X coordinate
+     * @param blockZ block Z coordinate
+     * @return zone resolution
+     */
     public ZoneResolution resolveZone(int blockX, int blockZ) {
         Zone best = null;
         for (Zone z : zones.values()) {
@@ -262,7 +362,18 @@ public final class Territory {
                 nextGoverningGuildId
         );
     }
+    /** Replaces the territory government.
+     * @param next replacement government
+     * @return updated territory
+     */
+    public Territory withGovernment(Government next) {
+        return copyWith(zones.values(), next == null ? Government.anarchy() : next, policies.values());
+    }
 
+    /** Adds or replaces a zone.
+     * @param zone zone to add
+     * @return updated territory
+     */
     public Territory withZone(Zone zone) {
         Objects.requireNonNull(zone, "zone");
         Map<String, Zone> next = new LinkedHashMap<>(zones);
@@ -270,26 +381,40 @@ public final class Territory {
         return copyWith(next.values(), government, policies.values());
     }
 
+    /** Removes a zone.
+     * @param zoneId zone identifier
+     * @return updated territory
+     */
     public Territory withoutZone(String zoneId) {
         Map<String, Zone> next = new LinkedHashMap<>(zones);
         next.remove(zoneId);
         return copyWith(next.values(), government, policies.values());
     }
 
-    public Territory withGovernment(Government gov) {
-        return copyWith(zones.values(), gov == null ? Government.anarchy() : gov, policies.values());
-    }
-
+    /** Removes the government.
+     * @return updated territory
+     */
     public Territory withoutGovernment() {
         return withGovernment(Government.anarchy());
     }
 
+    /** Replaces all policies.
+     * @param nextPolicies replacement policies
+     * @return updated territory
+     */
     public Territory withPolicies(Collection<Policy> nextPolicies) {
         return copyWith(zones.values(), government, nextPolicies == null ? List.of() : nextPolicies);
     }
 
     /**
-     * Propose a policy without structured effects (delegates with empty effects).
+     * Proposes a policy without structured effects (delegates with empty effects).
+     *
+     * @param policyId policy identifier
+     * @param title policy title
+     * @param body policy body
+     * @param proposerId proposer identifier
+     * @param nowEpochMs proposal time
+     * @return updated territory
      */
     public Territory proposePolicy(
             String policyId,
@@ -303,6 +428,13 @@ public final class Territory {
 
     /**
      * Propose a policy under this territory's government (proposer must be eligible).
+     * @param policyId policy identifier
+     * @param title policy title
+     * @param body policy body
+     * @param proposerId proposer identifier
+     * @param nowEpochMs proposal time
+     * @param effects decree effects
+     * @return updated territory
      */
     public Territory proposePolicy(
             String policyId,
@@ -321,8 +453,12 @@ public final class Territory {
         return copyWith(zones.values(), government, next.values());
     }
 
-    /**
-     * Cast a vote (majority forms) or reject if form uses decree.
+    /** Casts a majority-form vote.
+     * @param policyId policy identifier
+     * @param voterId voter identifier
+     * @param choice vote choice
+     * @param nowEpochMs vote time
+     * @return updated territory
      */
     public Territory castPolicyVote(
             String policyId,
@@ -335,8 +471,12 @@ public final class Territory {
         return replacePolicy(updated);
     }
 
-    /**
-     * Decree pass/reject for monarchy (single-seat decree forms).
+    /** Records a monarchy decree.
+     * @param policyId policy identifier
+     * @param authorityId authority identifier
+     * @param pass whether to pass
+     * @param nowEpochMs decree time
+     * @return updated territory
      */
     public Territory decreePolicy(
             String policyId,
@@ -363,7 +503,9 @@ public final class Territory {
         return copyWith(zones.values(), government, next.values());
     }
 
-    @Override
+    /** @param o object to compare
+     * @return whether both territories are equal
+     */
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -382,12 +524,14 @@ public final class Territory {
                 && Objects.equals(governedByGuildId, that.governedByGuildId);
     }
 
+    /** @return hash code for this territory */
     @Override
     public int hashCode() {
         return Objects.hash(id, name, worldId, boundary, zones, defaultZoneType,
                 government, policies, governedByGuildId);
     }
 
+    /** @return concise textual representation */
     @Override
     public String toString() {
         return "Territory{id='" + id + "', world='" + worldId
@@ -397,6 +541,12 @@ public final class Territory {
                 + ", governingGuild=" + (governedByGuildId == null ? "none" : governedByGuildId) + '}';
     }
 
+    /** Resolution of a location against a zone.
+     * @param zoneId resolved zone identifier, or {@code null} for default
+     * @param zoneName resolved zone name
+     * @param type resolved zone type
+     * @param isDefault whether the default zone was selected
+     */
     public record ZoneResolution(String zoneId, String zoneName, ZoneType type, boolean isDefault) {
     }
 }
