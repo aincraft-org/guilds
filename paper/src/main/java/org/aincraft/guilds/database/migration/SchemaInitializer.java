@@ -92,6 +92,9 @@ public class SchemaInitializer {
         // Add persistent guild-bank player enrollment tracking
         migrations.add(new AddGuildBankEnrollmentMigration());
 
+        // Guild projects: one active tech-tree project and XP skill-point default
+        migrations.add(new AddGuildProjectsMigration());
+
         // Future migrations will be added here
         // migrations.add(new MigrationV3_AddPermissionFlags());
     }

@@ -48,6 +48,7 @@ import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.ResourceService;
 import org.aincraft.guilds.services.SpecializationService;
 import org.aincraft.guilds.services.TechTreeService;
+import org.aincraft.guilds.services.GuildProjectService;
 import org.aincraft.guilds.services.GuildLevelService;
 import org.aincraft.guilds.services.GuildContractService;
 import org.aincraft.guilds.services.GuildService;
@@ -63,6 +64,7 @@ import org.aincraft.guilds.services.impl.ResidentServiceImpl;
 import org.aincraft.guilds.services.impl.ResourceServiceImpl;
 import org.aincraft.guilds.services.impl.SpecializationServiceImpl;
 import org.aincraft.guilds.services.impl.TechTreeServiceImpl;
+import org.aincraft.guilds.services.impl.GuildProjectServiceImpl;
 import org.aincraft.guilds.services.impl.GuildLevelServiceImpl;
 import org.aincraft.guilds.services.impl.GuildContractServiceImpl;
 import org.aincraft.guilds.services.impl.GuildServiceImpl;
@@ -126,6 +128,7 @@ public class GuildsServices {
     private final GuildContractService guildContractService;
     private final ResourceService resourceService;
     private final TechTreeService techTreeService;
+    private final GuildProjectService guildProjectService;
     private final SpecializationService specializationService;
     private final BroadcastService broadcastService;
     private final ChatService chatService;
@@ -201,6 +204,7 @@ public class GuildsServices {
         guildContractService = new GuildContractServiceImpl(databaseManager, guildService);
         resourceService = new ResourceServiceImpl(plugin, databaseManager, guildService);
         techTreeService = new TechTreeServiceImpl(plugin, databaseManager, techTreeConfigLoader, guildService);
+        guildProjectService = new GuildProjectServiceImpl(plugin, databaseManager, techTreeConfigLoader);
         specializationService = new SpecializationServiceImpl(plugin, databaseManager, guildService);
         broadcastService = new BroadcastServiceImpl(databaseManager,
                 Logger.getLogger(BroadcastServiceImpl.class.getName()),
@@ -220,9 +224,9 @@ public class GuildsServices {
                 Logger.getLogger(PlotTypeHandlerManager.class.getName()));
 
         // GUI
-        techTreeGUI = new TechTreeGUI(plugin, techTreeService, guildService, residentService);
+        techTreeGUI = new TechTreeGUI(plugin, techTreeService, guildProjectService, guildService, residentService);
         TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(techTreeService,
-                guildService, residentService, techTreeGUI);
+                guildProjectService, guildService, residentService, techTreeGUI);
         // Commands are built after all core services exist.
         // Listeners
         playerMovementListener = new PlayerMovementListener(plugin, plotService, guildService,
@@ -507,6 +511,10 @@ public class GuildsServices {
 
     public TechTreeService getTechTreeService() {
         return techTreeService;
+    }
+
+    public GuildProjectService getGuildProjectService() {
+        return guildProjectService;
     }
 
     public SpecializationService getSpecializationService() {

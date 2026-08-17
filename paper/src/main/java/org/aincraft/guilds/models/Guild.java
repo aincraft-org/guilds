@@ -34,6 +34,9 @@ public class Guild {
     // Guild tech tree system (composition)
     private GuildTechData techData;
 
+    /** Currently active guild project node id, or null when none. */
+    private String activeProjectId;
+
     /**
      * Default constructor for database mapping
      */
@@ -194,6 +197,15 @@ public class Guild {
 
     public void setTechPoints(int techPoints) {
         levelData.setTechPoints(techPoints);
+    }
+
+    public String getActiveProjectId() {
+        return activeProjectId;
+    }
+
+    public void setActiveProjectId(String activeProjectId) {
+        this.activeProjectId = activeProjectId == null || activeProjectId.isBlank()
+                ? null : activeProjectId;
     }
 
     public Map<String, Integer> getUpgradeProgress() {

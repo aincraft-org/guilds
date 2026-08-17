@@ -4,6 +4,8 @@ package org.aincraft.guilds.commands.brigadier;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -13,6 +15,7 @@ import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.TechTreeService;
+import org.aincraft.guilds.services.GuildProjectService;
 import org.aincraft.guilds.services.GuildService;
 
 import java.util.ArrayList;
@@ -20,26 +23,32 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
- * Brigadier command for the tech tree system.
+ * Brigadier command for guild projects (the tech-tree node catalog).
  * /techtree — open GUI
- * /techtree info [node] — show node details
- * /techtree unlock <node> — unlock a node
- * /techtree list [branch] — list nodes by branch
+ * /techtree info [node] — show project details
+ * /techtree start <node> — start the guild's one active project
+ * /techtree unlock <node> — alias for start
+ * /techtree clear — clear the active project so another can start
+ * /techtree list [branch] — list projects by branch
  */
 public class TechTreeBrigadierCommand {
 
     private final TechTreeService techTreeService;
+    private final GuildProjectService guildProjectService;
     private final GuildService guildService;
     private final ResidentService residentService;
     private final TechTreeGUI techTreeGUI;
 
 
     public TechTreeBrigadierCommand(TechTreeService techTreeService,
+                                    GuildProjectService guildProjectService,
                                     GuildService guildService, ResidentService residentService,
                                     TechTreeGUI techTreeGUI) {
         this.techTreeService = techTreeService;
+        this.guildProjectService = guildProjectService;
         this.guildService = guildService;
         this.residentService = residentService;
         this.techTreeGUI = techTreeGUI;
@@ -60,21 +69,18 @@ public class TechTreeBrigadierCommand {
                         return builder.buildFuture();
                     })
                     .executes(this::handleInfo)))
+            .then(Commands.literal("start")
+                .then(Commands.argument("node", StringArgumentType.word())
+                    .suggests(this::suggestStartableNodes)
+                    .executes(this::handleStart)))
             .then(Commands.literal("unlock")
                 .then(Commands.argument("node", StringArgumentType.word())
-                    .suggests((ctx, builder) -> {
-                        // Suggest available nodes for the player's guild
-                        Guild guild = getPlayerGuild(ctx.getSource().getSender());
-                        if (guild != null) {
-                            for (TechTreeNode node : techTreeService.getAvailableNodes(guild)) {
-                                if (node.getId().toLowerCase().startsWith(builder.getRemainingLowerCase())) {
-                                    builder.suggest(node.getId());
-                                }
-                            }
-                        }
-                        return builder.buildFuture();
-                    })
-                    .executes(this::handleUnlock)))
+                    .suggests(this::suggestStartableNodes)
+                    .executes(this::handleStart)))
+            .then(Commands.literal("clear")
+                .executes(this::handleClear))
+            .then(Commands.literal("complete")
+                .executes(this::handleClear))
             .then(Commands.literal("list")
                 .executes(this::handleListAll)
                 .then(Commands.argument("branch", StringArgumentType.word())
@@ -125,7 +131,7 @@ public class TechTreeBrigadierCommand {
         sender.sendMessage("§7ID: §f" + node.getId());
         sender.sendMessage("§7Branch: " + branchColor + (node.getBranch() != null ? node.getBranch().getDisplayName() : "None"));
         sender.sendMessage("§7Description: §f" + node.getDescription());
-        sender.sendMessage("§7Cost: §d" + node.getCost() + " §7tech points");
+        sender.sendMessage("§7Cost: §d" + node.getCost() + " §7project skill points");
 
         if (node.getPrerequisites() != null && !node.getPrerequisites().isEmpty()) {
             sender.sendMessage("§7Prerequisites:");
@@ -149,14 +155,14 @@ public class TechTreeBrigadierCommand {
             Guild guild = getPlayerGuild(player);
             if (guild != null) {
                 boolean unlocked = techTreeService.isTechNodeUnlocked(guild, nodeId);
-                boolean available = techTreeService.canUnlockNode(guild, nodeId);
                 sender.sendMessage("");
                 if (unlocked) {
-                    sender.sendMessage("§a✓ Already unlocked");
-                } else if (available) {
-                    sender.sendMessage("§e▸ Available to unlock (§d" + guild.getTechPoints() + "§e tech points)");
+                    sender.sendMessage("§a✓ Already completed");
+                } else if (nodeId.equals(guild.getActiveProjectId())) {
+                    sender.sendMessage("§e▸ Active project");
                 } else {
-                    sender.sendMessage("§c✗ Locked — prerequisites not met or insufficient tech points");
+                    sender.sendMessage("§7Unspent skill points: §d" + guild.getTechPoints()
+                            + "§7 / total §d" + guild.getGuildLevel());
                 }
             }
         }
@@ -164,7 +170,17 @@ public class TechTreeBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleUnlock(CommandContext<CommandSourceStack> ctx) {
+    private CompletableFuture<Suggestions> suggestStartableNodes(
+            CommandContext<CommandSourceStack> ctx, SuggestionsBuilder builder) {
+        for (TechTreeNode node : techTreeService.getAllNodes()) {
+            if (node.getId().toLowerCase(java.util.Locale.ROOT).startsWith(builder.getRemainingLowerCase())) {
+                builder.suggest(node.getId());
+            }
+        }
+        return builder.buildFuture();
+    }
+
+    private int handleStart(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         if (!(sender instanceof org.bukkit.entity.Player player)) {
             sender.sendMessage("§cThis command can only be used by players.");
@@ -178,45 +194,52 @@ public class TechTreeBrigadierCommand {
         }
 
         String nodeId = StringArgumentType.getString(ctx, "node");
-        Optional<TechTreeNode> nodeOpt = techTreeService.getNode(nodeId);
+        Optional<TechTreeNode> nodeOpt = guildProjectService.getProject(nodeId);
         if (nodeOpt.isEmpty()) {
-            player.sendMessage("§cTech node not found: " + nodeId);
+            player.sendMessage("§cProject not found: " + nodeId);
             return 0;
         }
 
         TechTreeNode node = nodeOpt.get();
+        GuildProjectService.ProjectStartResult result = guildProjectService.startProject(guild, nodeId);
+        if (result.isSuccessful()) {
+            player.sendMessage("§aStarted project " + (node.getBranch() != null ? node.getBranch().getColorCode() : "§f")
+                    + node.getName() + "§a.");
+            player.sendMessage("§7Skill points remaining: §d" + result.getUnspentPoints()
+                    + "§7 / total §d" + guild.getGuildLevel());
+            return Command.SINGLE_SUCCESS;
+        }
 
-        if (techTreeService.isTechNodeUnlocked(guild, nodeId)) {
-            player.sendMessage("§e" + node.getName() + " is already unlocked!");
+        player.sendMessage("§cCannot start " + node.getName() + ".");
+        switch (result.getStatus()) {
+            case ALREADY_ACTIVE -> player.sendMessage(
+                    "§7A project is already active. Use /techtree clear first.");
+            case INSUFFICIENT_POINTS -> player.sendMessage(
+                    "§7Need §d" + node.getCost() + "§7 skill points, have §d" + guild.getTechPoints());
+            case UNMET_REQUIREMENTS -> player.sendMessage("§7Project requirements are not met.");
+            case ALREADY_UNLOCKED -> player.sendMessage("§7That project is already completed.");
+            default -> player.sendMessage("§7Unknown project or guild.");
+        }
+        return 0;
+    }
+
+    private int handleClear(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        if (!(sender instanceof org.bukkit.entity.Player player)) {
+            sender.sendMessage("§cThis command can only be used by players.");
             return 0;
         }
-
-        if (!techTreeService.canUnlockNode(guild, nodeId)) {
-            player.sendMessage("§cCannot unlock " + node.getName() + "!");
-            if (guild.getTechPoints() < node.getCost()) {
-                player.sendMessage("§7  Not enough tech points. Need §d" + node.getCost() + "§7, have §d" + guild.getTechPoints());
-            }
-            if (node.getPrerequisites() != null) {
-                for (String prereqId : node.getPrerequisites()) {
-                    if (!techTreeService.isTechNodeUnlocked(guild, prereqId)) {
-                        techTreeService.getNode(prereqId).ifPresent(prereq ->
-                            player.sendMessage("§7  Missing prerequisite: §f" + prereq.getName())
-                        );
-                    }
-                }
-            }
+        Guild guild = getPlayerGuild(player);
+        if (guild == null) {
+            player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
-
-        boolean success = techTreeService.unlockTechNode(guild, nodeId);
-        if (success) {
-            player.sendMessage("§a✓ Unlocked " + (node.getBranch() != null ? node.getBranch().getColorCode() : "§f") + node.getName() + "§a!");
-            player.sendMessage("§7Tech points remaining: §d" + guild.getTechPoints());
-        } else {
-            player.sendMessage("§cFailed to unlock " + node.getName() + ". Try again.");
+        if (guildProjectService.clearActiveProject(guild)) {
+            player.sendMessage("§aCleared the active guild project. You can start another.");
+            return Command.SINGLE_SUCCESS;
         }
-
-        return Command.SINGLE_SUCCESS;
+        player.sendMessage("§cNo active guild project to clear.");
+        return 0;
     }
 
     private int handleListAll(CommandContext<CommandSourceStack> ctx) {
@@ -242,7 +265,7 @@ public class TechTreeBrigadierCommand {
             sender.sendMessage("");
             sender.sendMessage(entry.getKey().getColoredName() + " §7(" + entry.getValue().size() + " nodes)");
             for (TechTreeNode node : entry.getValue()) {
-                sender.sendMessage("  §f" + node.getName() + " §7[" + node.getId() + "] §7- §d" + node.getCost() + " tp");
+                sender.sendMessage("  §f" + node.getName() + " §7[" + node.getId() + "] §7- §d" + node.getCost() + " sp");
             }
         }
 
@@ -266,7 +289,7 @@ public class TechTreeBrigadierCommand {
         for (TechTreeNode node : nodes) {
             sender.sendMessage("  §f" + node.getName() + " §7[" + node.getId() + "]");
             sender.sendMessage("    §7" + node.getDescription());
-            sender.sendMessage("    §7Cost: §d" + node.getCost() + " tp");
+            sender.sendMessage("    §7Cost: §d" + node.getCost() + " skill points");
 
             if (node.getPrerequisites() != null && !node.getPrerequisites().isEmpty()) {
                 sender.sendMessage("    §7Requires: §f" + String.join(", ", node.getPrerequisites()));

@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.TechTreeService;
+import org.aincraft.guilds.services.GuildProjectService;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.ResidentService;
 import org.bukkit.Bukkit;
@@ -37,11 +38,12 @@ import java.util.WeakHashMap;
 
 public class TechTreeGUI implements Listener, InventoryHolder {
 
-    private static final String TITLE = ChatColor.DARK_GREEN + "" + ChatColor.BOLD + "Guild Tech Tree";
+    private static final String TITLE = ChatColor.DARK_GREEN + "" + ChatColor.BOLD + "Guild Projects";
     private static final int ROWS = 6;
 
     private final JavaPlugin plugin;
     private final TechTreeService techTreeService;
+    private final GuildProjectService guildProjectService;
     private final GuildService guildService;
     private final ResidentService residentService;
 
@@ -50,9 +52,11 @@ public class TechTreeGUI implements Listener, InventoryHolder {
 
 
     public TechTreeGUI(JavaPlugin plugin, TechTreeService techTreeService,
+                       GuildProjectService guildProjectService,
                        GuildService guildService, ResidentService residentService) {
         this.plugin = plugin;
         this.techTreeService = techTreeService;
+        this.guildProjectService = guildProjectService;
         this.guildService = guildService;
         this.residentService = residentService;
     }
@@ -208,19 +212,19 @@ public class TechTreeGUI implements Listener, InventoryHolder {
         for (TechTreeNode node : techTreeService.getAllNodes()) {
             if (node.getSlot() == slot) {
                 if (techTreeService.isTechNodeUnlocked(guild, node.getId())) {
-                    player.sendMessage(ChatColor.GREEN + node.getName() + " is already unlocked!");
-                } else if (techTreeService.canUnlockNode(guild, node.getId())) {
-                    boolean success = techTreeService.unlockTechNode(guild, node.getId());
-                    if (success) {
-                        player.sendMessage(ChatColor.GREEN + "✓ Unlocked " + node.getName() + "!");
-                        // Refresh GUI
+                    player.sendMessage(ChatColor.GREEN + node.getName() + " is already completed!");
+                } else if (node.getId().equals(guild.getActiveProjectId())) {
+                    player.sendMessage(ChatColor.YELLOW + node.getName() + " is already the active project.");
+                } else {
+                    var result = guildProjectService.startProject(guild, node.getId());
+                    if (result.isSuccessful()) {
+                        player.sendMessage(ChatColor.GREEN + "Started project " + node.getName() + ".");
+                        player.sendMessage(ChatColor.GRAY + "Skill points remaining: " + result.getUnspentPoints());
                         openTechTree(player, guild);
                     } else {
-                        player.sendMessage(ChatColor.RED + "Failed to unlock " + node.getName() + ".");
+                        player.sendMessage(ChatColor.RED + "Cannot start " + node.getName() + ".");
+                        player.sendMessage(ChatColor.GRAY + "Need unmet requirements, enough skill points, and no other active project.");
                     }
-                } else {
-                    player.sendMessage(ChatColor.RED + "You cannot unlock " + node.getName() + " yet.");
-                    player.sendMessage(ChatColor.GRAY + "Check prerequisites and tech points.");
                 }
                 return;
             }

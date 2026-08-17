@@ -1076,6 +1076,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             // Guild constructor already sets default values
         }
 
+        loadLevelAndProjectColumns(resultSet, guild, name);
+
         return guild;
     }
 
@@ -1133,7 +1135,25 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             // Guild constructor already sets default values
         }
 
+        loadLevelAndProjectColumns(resultSet, guild, name);
+
         return guild;
+    }
+
+    private void loadLevelAndProjectColumns(ResultSet resultSet, Guild guild, String name) {
+        try {
+            int level = resultSet.getInt("guild_level");
+            if (!resultSet.wasNull()) {
+                guild.setGuildLevel(level);
+            }
+            int points = resultSet.getInt("tech_points");
+            if (!resultSet.wasNull()) {
+                guild.setTechPoints(points);
+            }
+            guild.setActiveProjectId(resultSet.getString("active_project_id"));
+        } catch (SQLException e) {
+            logger.fine("Could not load level/project fields for guild: " + name + " - " + e.getMessage());
+        }
     }
 
     /**

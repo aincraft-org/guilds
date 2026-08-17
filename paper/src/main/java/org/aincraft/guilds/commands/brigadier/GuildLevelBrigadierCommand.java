@@ -104,19 +104,17 @@ public class GuildLevelBrigadierCommand {
 
         player.sendMessage("§e=== Guild Level Commands ===");
 
-        player.sendMessage("§f/guildlevel level§7 - Show your guild level and progress");
-        player.sendMessage("§f/guildlevel deposit <resource> <amount>§7 - Contribute resources to upgrade");
+        player.sendMessage("§f/guildlevel level§7 - Show your guild level and XP progress");
+        player.sendMessage("§f/guildlevel deposit EXPERIENCE <amount>§7 - Contribute XP toward the next level");
         player.sendMessage("§f/guildlevel bank§7 - View guild resource bank");
-        player.sendMessage("§f/guildlevel upgrade§7 - Upgrade guild to next level");
-        player.sendMessage("§f/guildlevel contributions§7 - View contribution statistics");
+        player.sendMessage("§f/guildlevel upgrade§7 - Upgrade guild to next level (XP only)");
+        player.sendMessage("§f/guildlevel contributions§7 - View XP contribution progress");
         player.sendMessage("§f/guildlevel top [type] [count]§7 - Show top guilds (level/residents/balance/techpoints)");
 
         player.sendMessage("§7");
-        player.sendMessage("§7Supported Resources: "
-                + String.join(", ", resourceService.getSupportedResourceTypes()).toUpperCase(Locale.ROOT));
-        player.sendMessage("§7Only configured guild upgrade resources can be deposited.");
-        player.sendMessage("§7Example: /guildlevel deposit DIAMOND 10");
-        player.sendMessage("§7Aliases: /tl deposit DIAMOND 10");
+        player.sendMessage("§7Guild levels require XP only. Each level grants that many project skill points.");
+        player.sendMessage("§7Example: /guildlevel deposit EXPERIENCE 10");
+        player.sendMessage("§7Pick one project at a time with /techtree start <node>");
 
         return Command.SINGLE_SUCCESS;
     }
@@ -146,14 +144,18 @@ public class GuildLevelBrigadierCommand {
 
         player.sendMessage("§eGuild: §b" + guild.getName());
         player.sendMessage("§eCurrent Level: §a" + guild.getGuildLevel());
-        player.sendMessage("§eTech Points: §d" + guild.getTechPoints());
+        player.sendMessage("§eProject skill points: §d" + guild.getTechPoints()
+                + "§7 unspent / §d" + guild.getGuildLevel() + "§7 total");
+        if (guild.getActiveProjectId() != null) {
+            player.sendMessage("§eActive project: §b" + guild.getActiveProjectId());
+        }
         player.sendMessage("§eClaim Limit: §a" + guild.getMaxClaimLimit() + " chunks");
         player.sendMessage("§eAssistant Slots: §a" + guild.getMaxAssistantSlots());
         player.sendMessage("§eDaily Income Bonus: §6§" + String.format("%.2f", guild.getDailyIncomeBonus()));
 
         if (guild.getGuildLevel() < guildLevelService.getMaxLevel()) {
             player.sendMessage("§eNext Level: §a" + (guild.getGuildLevel() + 1));
-            player.sendMessage("§7  Progress: §eUse /guild level deposit to contribute resources");
+            player.sendMessage("§7  Progress: §eUse /guildlevel deposit EXPERIENCE <amount>");
         } else {
             player.sendMessage("§aYour guild is at the maximum level!");
         }
@@ -283,7 +285,8 @@ public class GuildLevelBrigadierCommand {
             player.sendMessage("");
             player.sendMessage("§e=== 🎉 GUILD UPGRADE COMPLETE! 🎉 ===");
             player.sendMessage("§aYour guild has been upgraded to level §a" + result.getNewLevel() + "!");
-            player.sendMessage("§eYou earned §d" + result.getTechPointsEarned() + "§e tech points!");
+            player.sendMessage("§eYou now have §d" + guild.getTechPoints()
+                    + "§e unspent project skill points (total §d" + result.getNewLevel() + "§e).");
 
             player.sendMessage("§eNew Benefits:");
             player.sendMessage("§7  Claim Limit: §a" + guild.getMaxClaimLimit() + " chunks");
@@ -291,7 +294,7 @@ public class GuildLevelBrigadierCommand {
             player.sendMessage("§7  Daily Income: §6§" + String.format("%.2f", guild.getDailyIncomeBonus()));
         } else {
             player.sendMessage("§c" + result.getMessage());
-            player.sendMessage("§eUse '/guild level' to see requirements");
+            player.sendMessage("§eUse '/guildlevel level' to see XP requirements");
         }
 
         return Command.SINGLE_SUCCESS;
