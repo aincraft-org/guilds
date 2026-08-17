@@ -61,8 +61,7 @@ guild_levels:
   levels:
     2:
       requirements:
-        DIAMOND: 50
-        GOLD_INGOT: 100
+        EXPERIENCE: 50
       benefits:
         tech_points: 1
         claim_limit_bonus: 2
@@ -71,9 +70,7 @@ guild_levels:
         unlocked_plot_types: []
     3:
       requirements:
-        DIAMOND: 75
-        GOLD_INGOT: 150
-        IRON_INGOT: 50
+        EXPERIENCE: 75
       benefits:
         tech_points: 1
         claim_limit_bonus: 2
@@ -82,9 +79,7 @@ guild_levels:
         unlocked_plot_types: []
     4:
       requirements:
-        DIAMOND: 100
-        GOLD_INGOT: 200
-        IRON_INGOT: 75
+        EXPERIENCE: 100
       benefits:
         tech_points: 1
         claim_limit_bonus: 2
@@ -93,9 +88,7 @@ guild_levels:
         unlocked_plot_types: []
     5:
       requirements:
-        DIAMOND: 150
-        GOLD_INGOT: 300
-        IRON_INGOT: 100
+        EXPERIENCE: 150
       benefits:
         tech_points: 1
         claim_limit_bonus: 2
@@ -104,12 +97,9 @@ guild_levels:
         unlocked_plot_types: []
     10:
       requirements:
-        DIAMOND: 500
-        GOLD_INGOT: 1000
-        IRON_INGOT: 500
-        EMERALD: 50
+        EXPERIENCE: 400
       benefits:
-        tech_points: 2
+        tech_points: 1
         claim_limit_bonus: 2
         assistant_slots_bonus: 1
         daily_income_bonus: 0.5

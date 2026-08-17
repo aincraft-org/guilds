@@ -18,7 +18,7 @@ public class GuildLevelData {
      */
     public GuildLevelData() {
         this.level = 1;
-        this.techPoints = 0;
+        this.techPoints = 1;
         this.upgradeProgress = new HashMap<>();
     }
 

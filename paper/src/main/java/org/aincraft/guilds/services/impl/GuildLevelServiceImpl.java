@@ -9,6 +9,8 @@ import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildLevel;
 import org.aincraft.guilds.models.ResourceType;
+import org.aincraft.guilds.projects.GuildSkillPoints;
+import org.aincraft.guilds.projects.XpUpgradeGate;
 import org.aincraft.guilds.services.GuildLevelService;
 import org.aincraft.guilds.services.GuildService;
 
@@ -127,25 +129,16 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         }
 
         GuildLevel nextLevel = nextLevelOpt.get();
-        Map<String, Integer> requiredResources = new HashMap<>();
-        for (Map.Entry<String, Integer> entry : nextLevel.getResourceCosts().entrySet()) {
-            requiredResources.merge(
-                    normalizeResourceKey(entry.getKey()), entry.getValue(), Integer::sum);
-        }
+        int requiredXp = XpUpgradeGate.requiredExperience(nextLevel.getResourceCosts());
+        Map<String, Integer> requiredResources = Map.of(XpUpgradeGate.EXPERIENCE_KEY, requiredXp);
         Map<String, Integer> contributedResources = calculateTotalContributions(guild);
-        Map<String, Boolean> resourceStatus = new HashMap<>();
-        boolean allRequirementsMet = true;
-        for (Map.Entry<String, Integer> entry : requiredResources.entrySet()) {
-            int contributed = contributedResources.getOrDefault(entry.getKey(), 0);
-            boolean hasEnough = contributed >= entry.getValue();
-            resourceStatus.put(entry.getKey(), hasEnough);
-            allRequirementsMet &= hasEnough;
-        }
-        String reason = allRequirementsMet
+        boolean eligible = XpUpgradeGate.hasEnoughExperience(contributedResources, requiredXp);
+        Map<String, Boolean> resourceStatus = Map.of(XpUpgradeGate.EXPERIENCE_KEY, eligible);
+        String reason = eligible
                 ? "All requirements met"
-                : "Insufficient resources for upgrade";
+                : "Insufficient experience for upgrade";
         return new UpgradeEligibility(
-                allRequirementsMet, reason, requiredResources, contributedResources, resourceStatus);
+                eligible, reason, requiredResources, contributedResources, resourceStatus);
     }
 
     @Override
@@ -217,14 +210,15 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         }
 
         Map<String, Integer> progress = parseUpgradeProgressJson(progressJson);
-        for (Map.Entry<String, Integer> requirement : nextLevel.getResourceCosts().entrySet()) {
-            if (progress.getOrDefault(normalizeResourceKey(requirement.getKey()), 0) < requirement.getValue()) {
-                return UpgradeMutation.failure(currentLevel, "Insufficient resources for upgrade");
-            }
+        int requiredXp = XpUpgradeGate.requiredExperience(nextLevel.getResourceCosts());
+        if (!XpUpgradeGate.hasEnoughExperience(progress, requiredXp)) {
+            return UpgradeMutation.failure(currentLevel, "Insufficient experience for upgrade");
         }
 
         int newLevel = nextLevel.getLevel();
-        int newTechPoints = currentTechPoints + nextLevel.getTechPointsReward();
+        int newTechPoints = GuildSkillPoints.unspentAfterLevelChange(
+                currentTechPoints, currentLevel, newLevel);
+        int pointsEarned = newTechPoints - currentTechPoints;
         try (PreparedStatement statement = connection.prepareStatement("""
                 UPDATE guilds
                    SET guild_level = ?, tech_points = ?, upgrade_progress = '{}'
@@ -240,7 +234,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         }
         recordLevelBenefits(connection, guildId, nextLevel);
         return UpgradeMutation.success(
-                currentLevel, newLevel, nextLevel.getTechPointsReward(), newTechPoints);
+                currentLevel, newLevel, pointsEarned, newTechPoints);
     }
 
     @Override
@@ -275,17 +269,11 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         }
 
         Map<String, Integer> contributions = calculateTotalContributions(guild);
-        double totalProgress = 0.0;
-        int resourceCount = 0;
-        for (Map.Entry<String, Integer> requirement : nextLevelOpt.get().getResourceCosts().entrySet()) {
-            if (requirement.getValue() > 0) {
-                totalProgress += Math.min(100.0,
-                        contributions.getOrDefault(normalizeResourceKey(requirement.getKey()), 0) * 100.0
-                                / requirement.getValue());
-                resourceCount++;
-            }
+        int requiredXp = XpUpgradeGate.requiredExperience(nextLevelOpt.get().getResourceCosts());
+        if (requiredXp <= 0) {
+            return 0.0;
         }
-        return resourceCount == 0 ? 0.0 : totalProgress / resourceCount;
+        return Math.min(100.0, XpUpgradeGate.contributedExperience(contributions) * 100.0 / requiredXp);
     }
 
     @Override
@@ -351,17 +339,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         if (guild == null) {
             return 0;
         }
-
-        // Sum tech points from all levels up to current level
-        int totalTechPoints = 0;
-        for (int level = 1; level <= guild.getGuildLevel(); level++) {
-            Optional<GuildLevel> guildLevelOpt = getGuildLevel(level);
-            if (guildLevelOpt.isPresent()) {
-                totalTechPoints += guildLevelOpt.get().getTechPointsReward();
-            }
-        }
-
-        return totalTechPoints;
+        return GuildSkillPoints.totalEarned(guild.getGuildLevel());
     }
 
     @Override

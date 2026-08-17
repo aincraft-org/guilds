@@ -57,6 +57,10 @@ class GuildsIntegrationTest {
             String territoryYaml = new String(territory.readAllBytes(), StandardCharsets.UTF_8);
             assertTrue(guildsYaml.contains("guild_levels") || guildsYaml.contains("guild:"),
                     "guilds-config should carry town defaults");
+            assertTrue(guildsYaml.contains("EXPERIENCE:"),
+                    "guild levels must require XP");
+            assertFalse(guildsYaml.contains("DIAMOND:"),
+                    "guild levels must not require diamond materials");
             assertTrue(territoryYaml.contains("web:") || territoryYaml.contains("economy:"),
                     "territory config should carry web/economy settings");
             assertFalse(territoryYaml.contains("guild_levels"),
