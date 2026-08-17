@@ -98,76 +98,91 @@ require(mintPluginCoordinates.all { it == null } || mintPluginCoordinates.all { 
             "mintPluginOwner, mintPluginRepository, mintPluginTag, mintPluginAsset"
 }
 
-// Verified runServer plugin downloads — the squaremap Paper jar is downloaded from
-// the pinned GitHub release, its SHA-512 checked against gradle.properties, and then
-// added as a local plugin jar for the test server.
-val squaremapUrl = "https://github.com/jpenilla/squaremap/releases/download/v1.3.15/squaremap-paper-mc26.2-1.3.15.jar"
-val squaremapFile = layout.buildDirectory.file("run-paper-plugins/squaremap-paper-mc26.2-1.3.15.jar")
-val squaremapSha512 = providers.gradleProperty("squaremapPaperMc26JarSha512").orNull
-        ?.takeIf { it.isNotBlank() }
-        ?: throw GradleException("squaremapPaperMc26JarSha512 must be set in gradle.properties")
+// Optional: use a locally-built squaremap jar instead of the pinned upstream release.
+// ./gradlew :paper:runServer -PsquaremapLocalJar=/path/to/squaremap-paper.jar
+val squaremapLocalJar = providers.gradleProperty("squaremapLocalJar").orNull
 
-fun sha512(file: java.io.File): String {
-    val digest = MessageDigest.getInstance("SHA-512")
-    file.inputStream().buffered().use { input ->
-        val buf = ByteArray(8192)
-        var n: Int
-        while (input.read(buf).also { n = it } > 0) {
-            digest.update(buf, 0, n)
-        }
-    }
-    return BigInteger(1, digest.digest()).toString(16).padStart(128, '0')
-}
+// The squaremap Paper jar loaded by runServer. By default it is downloaded from the
+// pinned upstream GitHub release and SHA-512 verified. Pass -PsquaremapLocalJar to
+// load a locally-built jar (e.g. a fork) instead, skipping the download and hash check.
+val squaremapJarFile: java.io.File = if (squaremapLocalJar != null) {
+    val f = file(squaremapLocalJar)
+    require(f.isFile) { "squaremapLocalJar does not point to a file: $f" }
+    logger.lifecycle("runServer: using local squaremap jar: $f")
+    f
+} else {
+    val squaremapUrl = "https://github.com/jpenilla/squaremap/releases/download/v1.3.15/squaremap-paper-mc26.2-1.3.15.jar"
+    val squaremapFile = layout.buildDirectory.file("run-paper-plugins/squaremap-paper-mc26.2-1.3.15.jar")
+    val squaremapSha512 = providers.gradleProperty("squaremapPaperMc26JarSha512").orNull
+            ?.takeIf { it.isNotBlank() }
+            ?: throw GradleException("squaremapPaperMc26JarSha512 must be set in gradle.properties")
 
-tasks.register("verifySquaremapPlugin") {
-    group = "verification"
-    description = "Downloads and SHA-512 verifies the squaremap Paper plugin"
-    inputs.property("sha512", squaremapSha512)
-    outputs.file(squaremapFile)
-    outputs.upToDateWhen { false }
-    doLast {
-        val dest = squaremapFile.get().asFile
-        dest.parentFile.mkdirs()
-
-        if (dest.exists() && sha512(dest) == squaremapSha512) {
-            logger.lifecycle("squaremap plugin already present and SHA-512 verified")
-            return@doLast
-        }
-
-        val conn = URI.create(squaremapUrl).toURL().openConnection() as HttpURLConnection
-        conn.setRequestProperty("Accept", "application/octet-stream")
-        conn.connectTimeout = 30000
-        conn.readTimeout = 60000
-        conn.instanceFollowRedirects = true
-        conn.connect()
-        if (conn.responseCode != HttpURLConnection.HTTP_OK) {
-            throw GradleException("squaremap download failed: HTTP ${conn.responseCode} from $squaremapUrl")
-        }
-        val contentLength = conn.contentLengthLong
-        if (contentLength <= 0) {
-            throw GradleException("squaremap download returned empty or unknown Content-Length")
-        }
-
-        conn.inputStream.use { input ->
-            FileOutputStream(dest).use { output ->
-                input.copyTo(output, bufferSize = 8192)
+    fun sha512(file: java.io.File): String {
+        val digest = MessageDigest.getInstance("SHA-512")
+        file.inputStream().buffered().use { input ->
+            val buf = ByteArray(8192)
+            var n: Int
+            while (input.read(buf).also { n = it } > 0) {
+                digest.update(buf, 0, n)
             }
         }
-        conn.disconnect()
+        return BigInteger(1, digest.digest()).toString(16).padStart(128, '0')
+    }
 
-        val hash = sha512(dest)
-        if (hash != squaremapSha512) {
-            dest.delete()
-            throw GradleException("squaremap SHA-512 mismatch: expected $squaremapSha512, got $hash")
+    tasks.register("verifySquaremapPlugin") {
+        group = "verification"
+        description = "Downloads and SHA-512 verifies the squaremap Paper plugin"
+        inputs.property("sha512", squaremapSha512)
+        outputs.file(squaremapFile)
+        outputs.upToDateWhen { false }
+        doLast {
+            val dest = squaremapFile.get().asFile
+            dest.parentFile.mkdirs()
+
+            if (dest.exists() && sha512(dest) == squaremapSha512) {
+                logger.lifecycle("squaremap plugin already present and SHA-512 verified")
+                return@doLast
+            }
+
+            val conn = URI.create(squaremapUrl).toURL().openConnection() as HttpURLConnection
+            conn.setRequestProperty("Accept", "application/octet-stream")
+            conn.connectTimeout = 30000
+            conn.readTimeout = 60000
+            conn.instanceFollowRedirects = true
+            conn.connect()
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                throw GradleException("squaremap download failed: HTTP ${conn.responseCode} from $squaremapUrl")
+            }
+            val contentLength = conn.contentLengthLong
+            if (contentLength <= 0) {
+                throw GradleException("squaremap download returned empty or unknown Content-Length")
+            }
+
+            conn.inputStream.use { input ->
+                FileOutputStream(dest).use { output ->
+                    input.copyTo(output, bufferSize = 8192)
+                }
+            }
+            conn.disconnect()
+
+            val hash = sha512(dest)
+            if (hash != squaremapSha512) {
+                dest.delete()
+                throw GradleException("squaremap SHA-512 mismatch: expected $squaremapSha512, got $hash")
+            }
         }
     }
+
+    tasks.runServer {
+        dependsOn(tasks.named("verifySquaremapPlugin"))
+    }
+    squaremapFile.get().asFile
 }
 
 tasks.runServer {
-    dependsOn(tasks.named("verifySquaremapPlugin"))
     minecraftVersion("26.2")
     runDirectory.set(layout.projectDirectory.dir("run"))
-    pluginJars(squaremapFile.get().asFile)
+    pluginJars(squaremapJarFile)
     downloadPlugins {
         if (mintPluginOwner != null) {
             github(
@@ -176,6 +191,21 @@ tasks.runServer {
                     mintPluginTag!!,
                     mintPluginAsset!!,
             )
+        }
+    }
+}
+
+// When using a local squaremap jar with a Rust backend, pass the backend binary
+// path and output root as system properties. These can be overridden with
+// -PsquaremapBackendBinary and -PsquaremapBackendOutputRoot.
+if (squaremapLocalJar != null) {
+    val backendBinary = providers.gradleProperty("squaremapBackendBinary").orNull
+    val backendOutputRoot = providers.gradleProperty("squaremapBackendOutputRoot")
+            .orElse(layout.projectDirectory.dir("run/rust-output").asFile.absolutePath)
+    if (backendBinary != null) {
+        tasks.runServer {
+            systemProperty("squaremap.backendBinary", file(backendBinary).absolutePath)
+            systemProperty("squaremap.backendOutputRoot", backendOutputRoot.get())
         }
     }
 }
