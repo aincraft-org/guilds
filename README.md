@@ -166,7 +166,8 @@ Only the guild mayor or a holder of `guilds.admin.guild` may run
 `/guildlevel upgrade`. The upgrade rechecks the locked database row, consumes XP
 progress once, and grants project skill points equal to the new guild level
 (level 2 is two points). Spend those points on one tech-tree project at a time
-with `/techtree start <node>`; `/techtree clear` frees the active slot.
+with `/g upgrade start <node>`; `/g upgrade clear` frees the active slot.
+`/g` is an alias for `/guild`. `/techtree` points at `/g upgrade`.
 
 ## Mint cash guild banks
 

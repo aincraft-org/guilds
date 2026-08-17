@@ -101,6 +101,7 @@ contracts are durable and transactional where money/items move.
 - [x] `GuildsGovernanceSource` for territory governance
 - [x] Level deposit / upgrade progression (XP-only; skill points = guild level)
 - [x] Tech tree projects (one active at a time) / specialization / quest services
+- [x] Guild projects commanded as `/g upgrade` (`/g` aliases `/guild`)
 - [x] Guild contracts service + migration (`GuildContractService`)
 - [x] Integrated enable path from `GuildsPlugin`
 - [x] Portable guilds domain + JDBC slice published from `api`/`common`
@@ -140,6 +141,7 @@ Nation vocabulary is retired in territory docs; command names may still say
 | 2026-08-17 | Portable guilds slice in `api`/`common` | Paper-free reuse; paper stays Bukkit glue |
 | 2026-08-17 | `/guildsmap` uses FloG99 MapGUI Screen | Replace ASCII chat grid; compileOnly + join-classpath, do not shade |
 | 2026-08-17 | Buildings commanded under `/guilds building` | Territories are regions; guilds own the anchors inside them |
+| 2026-08-17 | Guild projects use `/g upgrade` | Player-facing name; `/techtree` is a pointer |
 
 ## Open questions
 
