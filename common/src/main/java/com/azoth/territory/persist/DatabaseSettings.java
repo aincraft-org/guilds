@@ -5,21 +5,22 @@ import java.util.Objects;
 import java.util.Properties;
 
 /** Connection settings for the shared durable database. */
-public final class DatabaseSettings {
-    private final DatabaseType type;
-    private final String host;
-    private final int port;
-    private final String name;
-    private final String user;
-    private final String password;
-    private final boolean ssl;
-    private final String sslMode;
-    private final String sslCaCert;
-    private final String sslTrustStore;
-    private final String sslTrustStorePassword;
-    private final String sslTrustStoreType;
-    private final int poolSize;
-    private final String jdbcUrlOverride;
+public record DatabaseSettings(
+        DatabaseType type,
+        String host,
+        int port,
+        String name,
+        String user,
+        String password,
+        boolean ssl,
+        String sslMode,
+        String sslCaCert,
+        String sslTrustStore,
+        String sslTrustStorePassword,
+        String sslTrustStoreType,
+        int poolSize,
+        String jdbcUrlOverride
+) {
 
     public DatabaseSettings(
             String host, int port, String name, String user, String password,
@@ -33,45 +34,27 @@ public final class DatabaseSettings {
         this(type, host, port, name, user, password, ssl, "", "", "", "", "", poolSize, jdbcUrlOverride);
     }
 
-    public DatabaseSettings(
-            DatabaseType type, String host, int port, String name, String user, String password,
-            boolean ssl, String sslMode, String sslCaCert, String sslTrustStore,
-            String sslTrustStorePassword, String sslTrustStoreType,
-            int poolSize, String jdbcUrlOverride) {
-        this.type = Objects.requireNonNull(type, "type");
-        this.host = Objects.requireNonNull(host, "host");
-        this.port = port;
-        this.name = Objects.requireNonNull(name, "name");
-        this.user = Objects.requireNonNull(user, "user");
-        this.password = password == null ? "" : password;
-        this.ssl = ssl;
-        this.sslMode = sslMode == null ? "" : sslMode;
-        this.sslCaCert = sslCaCert == null ? "" : sslCaCert;
-        this.sslTrustStore = sslTrustStore == null ? "" : sslTrustStore;
-        this.sslTrustStorePassword = sslTrustStorePassword == null ? "" : sslTrustStorePassword;
-        this.sslTrustStoreType = (sslTrustStoreType == null || sslTrustStoreType.isBlank()) ? "PKCS12" : sslTrustStoreType;
-        this.poolSize = poolSize;
-        this.jdbcUrlOverride = jdbcUrlOverride == null ? "" : jdbcUrlOverride;
+    public DatabaseSettings {
+        Objects.requireNonNull(type, "type");
+        host = Objects.requireNonNull(host, "host");
+        port = port;
+        name = Objects.requireNonNull(name, "name");
+        user = Objects.requireNonNull(user, "user");
+        password = password == null ? "" : password;
+        ssl = ssl;
+        sslMode = sslMode == null ? "" : sslMode;
+        sslCaCert = sslCaCert == null ? "" : sslCaCert;
+        sslTrustStore = sslTrustStore == null ? "" : sslTrustStore;
+        sslTrustStorePassword = sslTrustStorePassword == null ? "" : sslTrustStorePassword;
+        sslTrustStoreType = (sslTrustStoreType == null || sslTrustStoreType.isBlank()) ? "PKCS12" : sslTrustStoreType;
+        poolSize = poolSize;
+        jdbcUrlOverride = jdbcUrlOverride == null ? "" : jdbcUrlOverride;
     }
 
     public static DatabaseSettings defaults() {
         return new DatabaseSettings(DatabaseType.POSTGRESQL, "127.0.0.1", 5432,
                 "azoth_territory", "azoth", "", false, 10, "");
     }
-
-    public DatabaseType type() { return type; }
-    public String host() { return host; }
-    public int port() { return port; }
-    public String name() { return name; }
-    public String user() { return user; }
-    public String password() { return password; }
-    public boolean ssl() { return ssl; }
-    public String sslMode() { return sslMode; }
-    public String sslCaCert() { return sslCaCert; }
-    public String sslTrustStore() { return sslTrustStore; }
-    public String sslTrustStorePassword() { return sslTrustStorePassword; }
-    public String sslTrustStoreType() { return sslTrustStoreType; }
-    public int poolSize() { return poolSize; }
 
     /** Base JDBC URL without driver properties. */
     public String jdbcUrl() {

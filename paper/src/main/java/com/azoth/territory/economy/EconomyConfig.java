@@ -5,33 +5,28 @@ import org.bukkit.configuration.file.FileConfiguration;
 import java.util.Locale;
 
 /** Loads the {@code economy:} block from config.yml. */
-public final class EconomyConfig {
+public record EconomyConfig(
+        Mode mode,
+        String mintCurrency,
+        String mintClientBinding,
+        int mintScale
+) {
 
     public enum Mode {
         SIMULATION,
         MINT
     }
 
-    private final Mode mode;
-    private final String mintCurrency;
-    private final String mintClientBinding;
-    private final int mintScale;
-
     public EconomyConfig(Mode mode) {
         this(mode, "coins", "", 2);
     }
 
-    public EconomyConfig(Mode mode, String mintCurrency, String mintClientBinding, int mintScale) {
+    public EconomyConfig {
         this.mode = mode == null ? Mode.SIMULATION : mode;
         this.mintCurrency = mintCurrency == null ? "coins" : mintCurrency;
         this.mintClientBinding = mintClientBinding == null ? "" : mintClientBinding;
         this.mintScale = mintScale < 0 ? 2 : mintScale;
     }
-
-    public Mode mode() { return mode; }
-    public String mintCurrency() { return mintCurrency; }
-    public String mintClientBinding() { return mintClientBinding; }
-    public int mintScale() { return mintScale; }
 
     public static EconomyConfig fromBukkit(FileConfiguration cfg) {
         String raw = cfg == null ? null : cfg.getString("economy.mode", "SIMULATION");
