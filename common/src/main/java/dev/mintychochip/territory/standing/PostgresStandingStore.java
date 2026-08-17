@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.standing;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.persist.Database;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 /** PostgreSQL persistence for standing state (single doc row, mirrors influence). */
 public final class PostgresStandingStore {
+    private static final NamedSql SQL = NamedSql.territory();
     private final Database database;
 
     public PostgresStandingStore(Database database) {
@@ -41,7 +43,7 @@ public final class PostgresStandingStore {
 
     public StandingState load() throws IOException {
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM standing_state WHERE id = 1");
+             PreparedStatement ps = c.prepareStatement(SQL.jdbc("standing/select-state.sql"));
              ResultSet rs = ps.executeQuery()) {
             if (!rs.next()) {
                 return new StandingState();

@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.persist;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.economy.ExpenseOutcome;
 import dev.mintychochip.territory.upkeep.UpkeepState;
 import dev.mintychochip.territory.upkeep.UpkeepStatus;
@@ -23,6 +24,7 @@ import java.util.Map;
 
 /** PostgreSQL JSONB snapshot store for recurring upkeep state. */
 public final class PostgresUpkeepStore implements UpkeepStore {
+    private static final NamedSql SQL = NamedSql.territory();
     private static final int VERSION = 1;
     private final Database database;
     private final Gson gson = new Gson();
@@ -60,8 +62,7 @@ public final class PostgresUpkeepStore implements UpkeepStore {
     @Override
     public List<UpkeepState> load() throws IOException {
         try (Connection connection = database.connection();
-             PreparedStatement statement = connection.prepareStatement(
-                     "SELECT doc FROM upkeep_state WHERE id = 1");
+             PreparedStatement statement = connection.prepareStatement(SQL.jdbc("upkeep/select-state.sql"));
              ResultSet results = statement.executeQuery()) {
             if (!results.next()) {
                 return List.of();

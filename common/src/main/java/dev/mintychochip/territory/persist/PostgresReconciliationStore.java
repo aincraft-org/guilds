@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.persist;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.economy.EconomyBridge;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -15,10 +16,12 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** PostgreSQL persistence for settlement reconciliation entries. */
 public final class PostgresReconciliationStore {
+    private static final NamedSql SQL = NamedSql.territory();
     private static final String KEY = "state";
     private final Database database;
     private final Gson gson = new Gson();
@@ -49,9 +52,8 @@ public final class PostgresReconciliationStore {
 
     public List<EconomyBridge.UnresolvedTransaction> load() throws IOException {
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement(
-                     "SELECT doc FROM reconciliation_entries WHERE idempotency_key = ?")) {
-            ps.setString(1, KEY);
+             PreparedStatement ps = SQL.prepare(c, "persist/select-reconciliation.sql", Map.of(
+                     "idempotency_key", KEY))) {
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
                     return List.of();

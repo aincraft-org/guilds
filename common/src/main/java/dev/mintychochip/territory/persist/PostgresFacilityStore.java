@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.persist;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.model.FacilityType;
 import dev.mintychochip.territory.model.SettlementFacility;
 import dev.mintychochip.territory.registry.FacilityRegistry;
@@ -19,6 +20,7 @@ import java.util.List;
 
 /** PostgreSQL persistence for settlement facility metadata. */
 public final class PostgresFacilityStore implements FacilityStore {
+    private static final NamedSql SQL = NamedSql.territory();
     private final Database database;
     private final Gson gson = new Gson();
 
@@ -32,7 +34,7 @@ public final class PostgresFacilityStore implements FacilityStore {
         try (Connection c = database.connection()) {
             c.setAutoCommit(false);
             try {
-                try (PreparedStatement clear = c.prepareStatement("DELETE FROM facilities")) {
+                try (PreparedStatement clear = c.prepareStatement(SQL.jdbc("persist/delete-facilities.sql"))) {
                     clear.executeUpdate();
                 }
                 try (PreparedStatement insert = c.prepareStatement(
@@ -57,7 +59,7 @@ public final class PostgresFacilityStore implements FacilityStore {
     public void loadInto(FacilityRegistry registry) throws IOException {
         List<SettlementFacility> loaded = new ArrayList<>();
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM facilities ORDER BY id");
+             PreparedStatement ps = c.prepareStatement(SQL.jdbc("persist/select-facilities.sql"));
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 JsonElement parsed = JsonParser.parseString(rs.getString("doc"));

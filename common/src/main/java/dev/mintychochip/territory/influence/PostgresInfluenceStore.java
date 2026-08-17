@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.influence;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.persist.Database;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 /** PostgreSQL persistence for influence race state. */
 public final class PostgresInfluenceStore {
+    private static final NamedSql SQL = NamedSql.territory();
     private final Database database;
 
     public PostgresInfluenceStore(Database database) {
@@ -41,7 +43,7 @@ public final class PostgresInfluenceStore {
 
     public InfluenceState load() throws IOException {
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM influence_state WHERE id = 1");
+             PreparedStatement ps = c.prepareStatement(SQL.jdbc("influence/select-state.sql"));
              ResultSet rs = ps.executeQuery()) {
             if (!rs.next()) {
                 return new InfluenceState();

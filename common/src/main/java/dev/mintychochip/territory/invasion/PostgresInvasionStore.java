@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.invasion;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.persist.Database;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -23,6 +24,7 @@ import java.util.UUID;
 
 /** PostgreSQL JSONB snapshot store for the singleton invasion state. */
 public final class PostgresInvasionStore implements InvasionStore {
+    private static final NamedSql SQL = NamedSql.territory();
     private static final int VERSION = 1;
     private final Database database;
     private final Gson gson = new Gson();
@@ -77,7 +79,7 @@ public final class PostgresInvasionStore implements InvasionStore {
 
     private List<InvasionRecord> loadChecked() throws IOException {
         try (Connection connection = database.connection();
-             PreparedStatement statement = connection.prepareStatement("SELECT doc FROM invasion_state WHERE id = 1");
+             PreparedStatement statement = connection.prepareStatement(SQL.jdbc("invasion/select-state.sql"));
              ResultSet results = statement.executeQuery()) {
             if (!results.next()) return List.of();
             try {

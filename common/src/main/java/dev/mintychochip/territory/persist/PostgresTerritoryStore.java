@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.persist;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.model.Territory;
 import dev.mintychochip.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonParser;
@@ -20,6 +21,7 @@ import java.util.List;
  * every other durable store.</p>
  */
 public class PostgresTerritoryStore implements AutoCloseable {
+    private static final NamedSql SQL = NamedSql.territory();
     private final Database database;
     private final TerritoryJson json = new TerritoryJson();
 
@@ -31,7 +33,7 @@ public class PostgresTerritoryStore implements AutoCloseable {
         List<Territory> territories = new ArrayList<>();
         try (Connection c = database.connection();
              Statement s = c.createStatement();
-             ResultSet rs = s.executeQuery("SELECT doc FROM territories ORDER BY id")) {
+             ResultSet rs = s.executeQuery(SQL.jdbc("persist/select-territories.sql"))) {
             while (rs.next()) {
                 String doc = rs.getString("doc");
                 territories.add(json.fromJson(JsonParser.parseString(doc).getAsJsonObject()));
@@ -47,7 +49,7 @@ public class PostgresTerritoryStore implements AutoCloseable {
             c.setAutoCommit(false);
             try {
                 try (Statement clear = c.createStatement()) {
-                    clear.execute("DELETE FROM territories");
+                    clear.execute(SQL.jdbc("persist/delete-territories.sql"));
                 }
                 try (PreparedStatement ps = c.prepareStatement(
                         database.dialect().documentUpsertSql("territories", "id"))) {

@@ -1,5 +1,6 @@
 package dev.mintychochip.territory.persist;
 
+import dev.mintychochip.sql.NamedSql;
 import dev.mintychochip.territory.economy.ExpenseEntry;
 import dev.mintychochip.territory.economy.ExpenseJournalState;
 import dev.mintychochip.territory.economy.ExpenseKind;
@@ -20,6 +21,7 @@ import java.util.List;
 
 /** PostgreSQL persistence for treasury expense idempotency records. */
 public final class PostgresExpenseStore {
+    private static final NamedSql SQL = NamedSql.territory();
     private final Database database;
     private final Gson gson = new Gson();
 
@@ -31,7 +33,7 @@ public final class PostgresExpenseStore {
         try (Connection c = database.connection()) {
             c.setAutoCommit(false);
             try {
-                try (PreparedStatement clear = c.prepareStatement("DELETE FROM expenses")) {
+                try (PreparedStatement clear = c.prepareStatement(SQL.jdbc("persist/delete-expenses.sql"))) {
                     clear.executeUpdate();
                 }
                 try (PreparedStatement insert = c.prepareStatement(
@@ -56,7 +58,7 @@ public final class PostgresExpenseStore {
     public List<ExpenseEntry> load() throws IOException {
         List<ExpenseEntry> loaded = new ArrayList<>();
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM expenses ORDER BY idempotency_key");
+             PreparedStatement ps = c.prepareStatement(SQL.jdbc("persist/select-expenses.sql"));
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 JsonElement parsed = JsonParser.parseString(rs.getString("doc"));
