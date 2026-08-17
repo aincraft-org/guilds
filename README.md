@@ -1,4 +1,4 @@
-# Azoth Territory
+# Guilds
 
 Paper plugin for large map **territories** with nested **Wilderness** and **Claimable** zones — inspired by New World / LokaMC style regions. It also supports administrator-triggered guild mob invasions scoped to guild claims; invasions are not scheduled automatically.
 
@@ -14,7 +14,7 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
   `5432`). Territory, influence, reconciliation, facilities, expenses, and
   Guilds tables share the same connection pool.
 - Admin command: `/territory [lookup|list|reload|save|web|upkeep]`
-- **Free-form physical buildings**: `/territory building create <waystone|trading_post> <id> [name]`
+- **Free-form physical buildings**: `/territory building create <waystone|trading_post|storage> <id> [name]`
   starts a command-then-click registration. The clicked anchor is functional;
   every surrounding block is unrestricted RP construction.
 - **Waystones**: right-click an active lodestone to select another active
@@ -23,6 +23,11 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 - **Trading posts**: right-click an active bell or lectern to emit
   `TradingPostInteractEvent`. The plugin supplies validated territory/guild
   context but does not own listings, stock, NPCs, or shop UI.
+- **Guild item storage**: right-click an active chest, barrel, or trapped chest
+  registered as `storage`, or run `/guild storage` while targeting it. The
+  virtual 54-slot bank is owned by the governing guild. Any resident may
+  deposit; assistants and the mayor may withdraw. This is not the Mint cash
+  bank.
 - **Embedded web submodule** (JDK `HttpServer` / `HttpsServer`):
   - REST API under `/api/*`
   - **Admin map editor** at `/editor/` (draw territories/zones; chunk-medium tools)
@@ -38,19 +43,18 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 
 Multi-module Gradle layout (`api` / `common` / `paper`):
 
-- **`api/`** — public API: value models (`dev.mintychochip.territory.model`), decree
-  effects (`…decree`), registries (`…registry`), and contracts
+- **`api/`** — public API: value models (`dev.mintychochip.territory.model`),
+  registries (`…registry`), and contracts
   (`…permission` / `…economy` interfaces and DTOs). Pure Java; no Bukkit types.
 - **`common/`** — Paper-free shared implementation: persistence
   (`…persist`), economy (`…economy`), governance logic (`…permission`),
   and the JDK HTTP REST API submodule (`…web`).
 - **`paper/`** — the single Paper plugin: main class, listeners, commands,
-  Vault/economy bridges, and the integrated Guilds subsystem
-  (`org.aincraft.guilds`, including `plugin.yml` / `config.yml` /
+  (`dev.mintychochip.guilds`, including `plugin.yml` / `config.yml` /
   `guilds-config.yml` / `techtree.yml`).
 
 Produces the single Paper plugin JAR:
-`paper/build/libs/azoth-territory-1.1.0.jar`
+`paper/build/libs/guilds-26.8.13.jar`
 (shadow/fat jar with Guilds runtime libraries: HikariCP, PostgreSQL, Caffeine).
 
 ```bash
@@ -81,7 +85,7 @@ path unchanged.
 ```
 
 The `runServer` task (run-paper 3.0.2) downloads Paper **26.2**, loads the
-azoth-territory shadow jar, and runs it in `paper/run/`. It also auto-downloads
+guilds shadow jar, and runs it in `paper/run/`. It also auto-downloads
 the **squaremap 1.3.15** Paper jar (the release that targets MC 26.2, pinned
 to the GitHub `v1.3.15` asset) so the live map is available out of the box at
 `http://localhost:8080`.
@@ -89,10 +93,10 @@ to the GitHub `v1.3.15` asset) so the live map is available out of the box at
 Territory/zone/influence boundaries are rendered as squaremap layers by the
 in-plugin bridge (`dev.mintychochip.territory.squaremap.TerritorySquaremapBridge`):
 
-- **Azoth Territories** layer — polygon outlines per territory
-- **Azoth Zones** layer — zone fills coloured by type (green WILDERNESS /
+- **Guilds Territories** layer — polygon outlines per territory
+- **Guilds Zones** layer — zone fills coloured by type (green WILDERNESS /
   yellow CLAIMABLE) with name tooltips
-- **Azoth Influence** layer — neutral territory strokes, or red contest
+- **Guilds Influence** layer — neutral territory strokes, or red contest
   fills/strokes with owner and leading-attacker tooltips while a race is active
 
 The bridge refreshes every 5 seconds, so boundaries created via the REST API,
@@ -106,7 +110,7 @@ warning and all map layers are skipped.
 Open `http://localhost:8765/editor/` (same host/port as the territory web
 submodule). Features:
 
-- Login with `web.api-token` → HttpOnly `AZOTH_SESSION` cookie
+- Login with `web.api-token` → HttpOnly `GUILDS_SESSION` cookie
   (`POST /api/session`; TTL from `web.session-ttl-seconds`)
 - Leaflet basemap from squaremap tiles (`web.squaremap-tile-base-url`, default
   `http://localhost:8080` → tiles at
@@ -118,7 +122,7 @@ Public squaremap stays view-only; no squaremap fork required.
 
 Accept the EULA on first run (`paper/run/eula.txt`). The plugin requires the
 shared PostgreSQL database (see "Persistence" below) — point `database.*` in
-`paper/run/plugins/AzothTerritory/config.yml` at a reachable instance.
+`paper/run/plugins/Guilds/config.yml` at a reachable instance.
 
 ### Local pre-commit checks
 
@@ -139,9 +143,9 @@ git config --local --unset core.hooksPath
 ### Integrated Guilds subsystem
 
 Guilds production sources live under the `paper/` module tree
-(`paper/src/main/java/org/aincraft/guilds/`) and ship in the **same** plugin
-artifact as Azoth Territory. There is one `plugin.yml`, one main class
-(`dev.mintychochip.territory.AzothTerritoryPlugin`), and that main enables both
+(`paper/src/main/java/dev/mintychochip/guilds/`) and ship in the **same** plugin
+artifact as Guilds. There is one `plugin.yml`, one main class
+(`dev.mintychochip.guilds.GuildsPlugin`), and that main enables both
 territory behavior and the guilds subsystem (commands via Paper Brigadier,
 listeners, plain constructor-wired services via the `GuildsServices`
 composition root).
@@ -180,6 +184,19 @@ Mint cash balances are independent of SQL `Guild.balance`, which remains authori
 for existing plot purchases, contracts, resources, and progression. Vault and simulation
 mode behavior remains unchanged. Mint mode fails closed when its trusted binding is
 not available.
+
+## Guild item storage
+
+A registered `STORAGE` building holds a shared item chest for the governing
+guild. Place a chest, barrel, or trapped chest, then:
+
+```text
+/territory building create storage vault Guild Vault
+```
+
+Right-click the same block (or `/guild storage` while looking at it) to open
+the 54-slot UI. Only one member may have it open at a time. Item contents
+persist in PostgreSQL independently of the facility record.
 
 ## Spatial rules
 
@@ -380,7 +397,7 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 | GET | `/editor/` | Admin map editor (static UI) |
 | GET | `/api/health` | Liveness + territory count |
 | GET | `/api/meta` | Public origin, scheme, proxy/TLS flags, tile base URL |
-| POST | `/api/session` | Exchange API token for `AZOTH_SESSION` cookie |
+| POST | `/api/session` | Exchange API token for `GUILDS_SESSION` cookie |
 | DELETE | `/api/session` | Logout (clear session cookie) |
 | GET | `/api/territories` | Full registry JSON |
 | GET | `/api/territories/{id}` | One territory |
@@ -481,8 +498,8 @@ per-store fallback backends.
 database:
   host: db.example.com
   port: 5432
-  name: azoth_territory
-  user: azoth
+  name: guilds_territory
+  user: guilds
   password: "…"
   ssl: true
   pool-size: 10

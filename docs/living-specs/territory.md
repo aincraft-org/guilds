@@ -1,7 +1,7 @@
 # Territory (Spatial) — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-08  
+> Last updated: 2026-08-17  
 > Related: `docs/superpowers/specs/2026-08-08-admin-map-editor-design.md` (editing UX lives under **map** / **web-api**)
 
 ## Intent
@@ -93,6 +93,7 @@ violate spatial rules fail closed before persistence.
 - [ ] Active/inactive anchor lifecycle implemented; Paper restoration smoke pending
 - [ ] Same-guild waystone travel implemented; live teleport/protection smoke pending
 - [ ] Trading-post `TradingPostInteractEvent` implemented; live event observation pending
+- [x] `STORAGE` building type is placeable; item bank UI implemented (**guild-storage**)
 
 ### Open on the current surface
 

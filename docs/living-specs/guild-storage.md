@@ -1,7 +1,7 @@
 # Guild Storage — Living Spec
 
-> Status: active (design-only; item storage implementation not started)
-> Last updated: 2026-08-08
+> Status: active
+> Last updated: 2026-08-17
 > Related: `docs/superpowers/specs/2026-08-06-guild-storage-design.md`
 
 ## Intent
@@ -56,29 +56,33 @@ item moves.
 
 - Store NBT blobs in territory JSONB documents.
 - Allow access outside the STORAGE facility without a deliberate product change.
-- Implement before promoting horizons and agreeing capacity rules.
+- Implement extra tabs or remote access without promoting those horizons first.
 
 ## Current
 
 ### Capability
 
 - [x] `FacilityType.STORAGE` and facility directory exist (**economy**)
-- [ ] Guild bank aggregate / schema
-- [ ] Virtual UI
-- [ ] Deposit / withdraw services
+- [x] Guild storage document + `guild_storage_banks` schema
+- [x] `GuildStorageEngine` open/save/deposit/withdraw with exclusive viewer
+- [x] Virtual 54-slot chest UI at an active STORAGE anchor
+- [x] `/territory building create storage` then right-click chest/barrel
+- [x] `/guild storage` at the targeted storage block
+- [x] Default ranks: any resident may deposit; assistant/mayor may withdraw
+- [ ] Paper runtime smoke: deposit, officer withdraw, second viewer denied
 - [ ] Capacity progression
 - [ ] Permission thresholds config per guild
 
 ### Current notes
 
-Design status was “draft for review”. Treat as **not approved for silent
-implementation** until product confirms and items move to Next/Current.
+v1 is a single `General` 54-slot chest. Item bytes are Paper
+`ItemStack.serializeAsBytes` payloads (`paper-itemstack-bytes-v1`). Facility
+records stay location-only. Cash Mint banks are unchanged.
 
 ## Next
 
-- [ ] Product approve design + capacity numbers
-- [ ] Schema + service API plan (TDD)
-- [ ] Minimal deposit/withdraw at STORAGE facility with role gates
+- [ ] Operator/player docs for storage vs `/guild bank`
+- [ ] Runtime smoke on a Paper server with a governed territory
 
 ## Future
 
@@ -93,9 +97,11 @@ implementation** until product confirms and items move to Next/Current.
 |------|----------|-----|
 | 2026-08-06 | Virtual bank at STORAGE facility | Settlement-bound access without chest spam |
 | 2026-08-06 | Facility remains metadata only | Clear ownership boundary with economy |
+| 2026-08-17 | Implement v1 item bank at STORAGE anchors | User asked for the items half of guild banks |
+| 2026-08-17 | Residents deposit; officers withdraw | Matches design defaults without new permission flags |
 
 ## Open questions
 
-- [ ] Capacity units: slots, stacks, or weight?
+- [x] Capacity units: slots, stacks, or weight? — v1 uses 54 logical slots
 - [ ] Interaction with plot private storage?
-- [ ] Promote to Next this milestone or later?
+- [x] Promote to Next this milestone or later? — promoted 2026-08-17
