@@ -40,6 +40,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     private org.aincraft.guilds.services.PermissionService permissionService;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String GUILD_PROGRESS_COLUMNS = "guild_level, tech_points, active_project_id";
 
     public GuildServiceImpl(DatabaseManager databaseManager, Logger logger,
                          org.aincraft.guilds.services.ResidentService residentService) {
@@ -250,7 +251,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
                                "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE name = ?";
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
+                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE name = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -271,7 +273,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE name = ?";
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
+                                         GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE name = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -306,7 +309,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
                                "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
+                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -330,7 +334,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
+                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -363,7 +368,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
                                "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
+                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
+                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -384,7 +390,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 try {
                     String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                                          "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled FROM guilds WHERE id = ?";
+                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
+                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -548,7 +555,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     public List<Guild> getAllGuilds() {
         String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                     "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates FROM guilds ORDER BY name";
+                    "is_open, created_at, permissions_flags, tax_rates, " +
+                    GUILD_PROGRESS_COLUMNS + " FROM guilds ORDER BY name";
         List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -579,6 +587,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             SELECT t.id, t.name, t.mayor_uuid, t.balance, t.home_block_x, t.home_block_z, t.home_block_world,
                    t.spawn_x, t.spawn_y, t.spawn_z, t.spawn_yaw, t.spawn_pitch, t.spawn_world,
                    t.is_open, t.created_at, t.permissions_flags, t.tax_rates,
+                   t.guild_level, t.tech_points, t.active_project_id,
                    COUNT(tr.resident_uuid) as resident_count
             FROM guilds t
             LEFT JOIN guild_residents tr ON t.id = tr.guild_id
@@ -614,7 +623,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         String sql = """
             SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world,
                    spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world,
-                   is_open, created_at, permissions_flags, tax_rates
+                   is_open, created_at, permissions_flags, tax_rates,
+                   guild_level, tech_points, active_project_id
             FROM guilds
             ORDER BY balance DESC
             """;
@@ -939,7 +949,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     public List<Guild> getOpenGuilds() {
         String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                     "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates FROM guilds WHERE is_open = TRUE ORDER BY name";
+                    "is_open, created_at, permissions_flags, tax_rates, " +
+                    GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE is_open = TRUE ORDER BY name";
         List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -967,7 +978,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     public List<Guild> searchGuilds(String query) {
         String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
                     "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates FROM guilds WHERE name LIKE ? ORDER BY name";
+                    "is_open, created_at, permissions_flags, tax_rates, " +
+                    GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE name LIKE ? ORDER BY name";
         List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
