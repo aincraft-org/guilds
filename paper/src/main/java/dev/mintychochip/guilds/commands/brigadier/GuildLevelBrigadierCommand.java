@@ -97,7 +97,7 @@ public class GuildLevelBrigadierCommand {
             .then(Commands.literal("bank")
                 .executes(this::handleBank))
             .then(Commands.literal("upgrade")
-                .executes(this::handleUpgrade))
+                .executes(this::handleUpgradeDeprecated))
             .then(Commands.literal("contributions")
                 .executes(this::handleContributions))
             .then(Commands.literal("top")
@@ -131,9 +131,9 @@ public class GuildLevelBrigadierCommand {
         player.sendMessage("§e=== Guild Level Commands ===");
 
         player.sendMessage("§f/guildlevel level§7 - Show your guild level and XP progress");
-        player.sendMessage("§f/guildlevel deposit EXPERIENCE <amount>§7 - Contribute XP toward the next level");
+        player.sendMessage("§f/guildlevel deposit EXPERIENCE <amount>§7 - Contribute XP; level rises automatically");
         player.sendMessage("§f/guildlevel bank§7 - View guild resource bank");
-        player.sendMessage("§f/guildlevel upgrade§7 - Upgrade guild to next level (XP only)");
+        player.sendMessage("§f/g upgrade§7 - Spend project points on a guild project");
         player.sendMessage("§f/guildlevel contributions§7 - View XP contribution progress");
         player.sendMessage("§f/guildlevel top [type] [count]§7 - Show top guilds (level/residents/balance/techpoints)");
 
@@ -231,6 +231,15 @@ public class GuildLevelBrigadierCommand {
         int newAmount = guild.getUpgradeProgress().getOrDefault(normalized, 0);
         player.sendMessage("§a" + result.getMessage());
         player.sendMessage("§eTotal contributed: " + newAmount + " " + normalized);
+        if ("experience".equals(normalized)) {
+            java.util.List<GuildLevelService.UpgradeResult> leveled =
+                    guildLevelService.applyReadyLevels(guild);
+            if (!leveled.isEmpty()) {
+                GuildLevelService.UpgradeResult last = leveled.get(leveled.size() - 1);
+                player.sendMessage("§aGuild reached level " + last.getNewLevel()
+                        + " automatically. Use /g upgrade to spend project points.");
+            }
+        }
         guildLevelService.getNextGuildLevel(guild).ifPresent(nextLevel -> {
             int required = nextLevel.getResourceCosts().entrySet().stream()
                     .filter(entry -> normalizeResourceKey(entry.getKey()).equals(normalized))
@@ -289,60 +298,13 @@ public class GuildLevelBrigadierCommand {
     }
 
     /**
-     * Handles the upgrade.
+     * Deprecated: level rises from XP deposits. Projects are /g upgrade.
      * @param ctx the ctx
      * @return the result
      */
-    private int handleUpgrade(CommandContext<CommandSourceStack> ctx) {
-        var sender = ctx.getSource().getSender();
-        if (!(sender instanceof org.bukkit.entity.Player player)) {
-            sender.sendMessage("§cThis command can only be used by players.");
-            return 0;
-        }
-
-        String playerGuild = getPlayerGuild(player);
-        if (playerGuild == null) {
-            player.sendMessage("§cYou are not in a guild!");
-            return 0;
-        }
-
-        Optional<Guild> guildOpt = guildService.getGuild(playerGuild);
-        if (guildOpt.isEmpty()) {
-            player.sendMessage("§cGuild not found!");
-            return 0;
-        }
-
-        Guild guild = guildOpt.get();
-        boolean authorized = guild.getMayorUuid() != null
-                && guild.getMayorUuid().equals(player.getUniqueId());
-        if (!authorized && !player.hasPermission("guilds.admin.guild")) {
-            player.sendMessage("§cOnly the guild mayor or a guild administrator can upgrade this guild.");
-            return 0;
-        }
-
-        if (guild.getGuildLevel() >= guildLevelService.getMaxLevel()) {
-            player.sendMessage("§aYour guild is already at the maximum level!");
-            return Command.SINGLE_SUCCESS;
-        }
-
-        GuildLevelService.UpgradeResult result = guildLevelService.performGuildUpgrade(guild);
-
-        if (result.isSuccessful()) {
-            player.sendMessage("");
-            player.sendMessage("§e=== 🎉 GUILD UPGRADE COMPLETE! 🎉 ===");
-            player.sendMessage("§aYour guild has been upgraded to level §a" + result.getNewLevel() + "!");
-            player.sendMessage("§eYou now have §d" + guild.getTechPoints()
-                    + "§e unspent project skill points (total §d" + result.getNewLevel() + "§e).");
-
-            player.sendMessage("§eNew Benefits:");
-            player.sendMessage("§7  Claim Limit: §a" + guild.getMaxClaimLimit() + " chunks");
-            player.sendMessage("§7  Assistant Slots: §a" + guild.getMaxAssistantSlots());
-            player.sendMessage("§7  Daily Income: §6§" + String.format("%.2f", guild.getDailyIncomeBonus()));
-        } else {
-            player.sendMessage("§c" + result.getMessage());
-            player.sendMessage("§eUse '/guildlevel level' to see XP requirements");
-        }
-
+    private int handleUpgradeDeprecated(CommandContext<CommandSourceStack> ctx) {
+        ctx.getSource().getSender().sendMessage(
+                "§eGuild level rises automatically as XP is deposited. Use /g upgrade for projects.");
         return Command.SINGLE_SUCCESS;
     }
 
