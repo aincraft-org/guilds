@@ -2,44 +2,44 @@
 <FindBugsFilter>
     <!-- Migration identifiers are fixed internal names, not user-controlled SQL. -->
     <Match>
-        <Class name="org.aincraft.guilds.database.migration.AddGuildRenameMigration"/>
+        <Class name="dev.mintychochip.guilds.database.migration.AddGuildRenameMigration"/>
         <Method name="renameTable"/>
         <Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
     </Match>
     <Match>
-        <Class name="org.aincraft.guilds.database.migration.AddAllianceRenameMigration"/>
+        <Class name="dev.mintychochip.guilds.database.migration.AddAllianceRenameMigration"/>
         <Method name="renameTable"/>
         <Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
     </Match>
     <!-- Bukkit InventoryHolder permits a non-persistent holder to return null. -->
     <Match>
-        <Class name="org.aincraft.guilds.gui.TechTreeGUI"/>
+        <Class name="dev.mintychochip.guilds.gui.TechTreeGUI"/>
         <Method name="getInventory"/>
         <Bug pattern="NP_NONNULL_RETURN_VIOLATION"/>
     </Match>
     <!-- This value object deliberately provides a copy method without Cloneable. -->
     <Match>
-        <Class name="org.aincraft.guilds.models.Location"/>
+        <Class name="dev.mintychochip.guilds.models.Location"/>
         <Bug pattern="CN_IMPLEMENTS_CLONE_BUT_NOT_CLONEABLE"/>
     </Match>
     <!-- Quest targets intentionally use a fresh random draw per generated target. -->
     <Match>
-        <Class name="org.aincraft.guilds.services.impl.QuestServiceImpl"/>
+        <Class name="dev.mintychochip.guilds.services.impl.QuestServiceImpl"/>
         <Method name="generateTargetForType"/>
         <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
     </Match>
     <Match>
-        <Class name="org.aincraft.guilds.services.impl.QuestServiceImpl"/>
+        <Class name="dev.mintychochip.guilds.services.impl.QuestServiceImpl"/>
         <Method name="generateTechPointsForType"/>
         <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
     </Match>
     <!-- Test fixtures query fixed schema identifiers; no user input reaches these statements. -->
     <Match>
-        <Class name="org.aincraft.guilds.database.migration.GuildRenameMigrationTest"/>
+        <Class name="dev.mintychochip.guilds.database.migration.GuildRenameMigrationTest"/>
         <Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
     </Match>
     <Match>
-        <Class name="org.aincraft.guilds.services.PlotPermissionFormTest"/>
+        <Class name="dev.mintychochip.guilds.services.PlotPermissionFormTest"/>
         <Method name="noPlotTerritoryChunk_publicGuildFallbackForOutsiders"/>
         <Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
     </Match>

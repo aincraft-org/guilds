@@ -125,7 +125,7 @@ class ProtectionListenerWiringTest {
 
     @Test
     void pluginOnEnable_registersGovernanceProtectionAndListeners() throws Exception {
-        String source = readMainSource("dev/mintychochip/territory/AzothTerritoryPlugin.java");
+        String source = readMainSource("dev/mintychochip/guilds/GuildsPlugin.java");
         assertTrue(source.contains("new GovernanceRegistry("), "must construct GovernanceRegistry");
         assertTrue(source.contains("new BlockProtection("), "must construct BlockProtection");
         assertTrue(source.contains("new ProtectionListener("), "must construct ProtectionListener");

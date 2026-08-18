@@ -78,8 +78,8 @@ class LookupSmokeTest {
     @Test
     void pluginMainClassIsLoadable() {
         // Structural check: Paper entry class is on the test classpath.
-        Class<?> main = AzothTerritoryPlugin.class;
-        assertEquals("dev.mintychochip.territory.AzothTerritoryPlugin", main.getName());
+        Class<?> main = dev.mintychochip.guilds.GuildsPlugin.class;
+        assertEquals("dev.mintychochip.guilds.GuildsPlugin", main.getName());
         assertTrue(JavaPluginMarker.isJavaPlugin(main));
     }
 
@@ -98,7 +98,7 @@ class LookupSmokeTest {
             }
             // If Paper API is not on the test runtime classpath for hierarchy walk,
             // still accept that the class itself loads.
-            return c.getName().endsWith("AzothTerritoryPlugin");
+            return c.getName().endsWith("GuildsPlugin");
         }
     }
 }

@@ -1,6 +1,6 @@
 package dev.mintychochip.territory.building;
 
-import dev.mintychochip.territory.AzothTerritoryPlugin;
+import dev.mintychochip.guilds.GuildsPlugin;
 import dev.mintychochip.territory.registry.FacilityRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -11,14 +11,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class BuildingLifecycleWiringTest {
     @Test
     void pluginExposesBuildingRuntimeContracts() throws Exception {
-        Method facilities = AzothTerritoryPlugin.class.getMethod("getFacilities");
-        Method mutations = AzothTerritoryPlugin.class.getMethod("getFacilityMutations");
-        Method command = AzothTerritoryPlugin.class.getMethod("getBuildingCommand");
-        Method travel = AzothTerritoryPlugin.class.getMethod("getWaystoneTravelService");
+        Method facilities = GuildsPlugin.class.getMethod("getFacilities");
+        Method mutations = GuildsPlugin.class.getMethod("getFacilityMutations");
+        Method command = GuildsPlugin.class.getMethod("getBuildingCommand");
+        Method travel = GuildsPlugin.class.getMethod("getWaystoneTravelService");
 
         assertEquals(FacilityRegistry.class, facilities.getReturnType());
         assertEquals(FacilityMutationService.class, mutations.getReturnType());
-        assertEquals(BuildingCommand.class, command.getReturnType());
+        assertEquals(dev.mintychochip.guilds.commands.brigadier.BuildingCommand.class, command.getReturnType());
         assertEquals(WaystoneTravelService.class, travel.getReturnType());
     }
 }

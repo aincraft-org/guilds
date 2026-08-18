@@ -63,7 +63,7 @@ class StaticFileHandlerTest {
     @Test
     void servesIndexAndJsFromClasspath() throws Exception {
         String base = "http://127.0.0.1:" + port;
-        assertBodyContains(base + "/editor/", "Azoth Map Editor");
+        assertBodyContains(base + "/editor/", "Guilds Map Editor");
         assertBodyContains(base + "/editor/index.html", "leaflet");
         assertBodyContains(base + "/editor/js/app.js", "bootstrap");
         assertBodyContains(base + "/editor/css/editor.css", "--panel");

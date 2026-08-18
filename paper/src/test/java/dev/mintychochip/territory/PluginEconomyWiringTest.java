@@ -84,13 +84,13 @@ class PluginEconomyWiringTest {
 
     private static Path findMainSource() throws Exception {
         Path cwd = Path.of("").toAbsolutePath();
-        Path candidate = cwd.resolve("src/main/java/dev/mintychochip/territory/AzothTerritoryPlugin.java");
+        Path candidate = cwd.resolve("src/main/java/dev/mintychochip/guilds/GuildsPlugin.java");
         if (Files.isRegularFile(candidate)) {
             return candidate;
         }
         Path p = cwd;
         for (int i = 0; i < 4; i++) {
-            Path tryPath = p.resolve("src/main/java/dev/mintychochip/territory/AzothTerritoryPlugin.java");
+            Path tryPath = p.resolve("src/main/java/dev/mintychochip/guilds/GuildsPlugin.java");
             if (Files.isRegularFile(tryPath)) {
                 return tryPath;
             }
@@ -99,7 +99,7 @@ class PluginEconomyWiringTest {
                 break;
             }
         }
-        throw new IllegalStateException("Could not locate AzothTerritoryPlugin.java from " + cwd);
+        throw new IllegalStateException("Could not locate GuildsPlugin.java from " + cwd);
     }
     private static final class TestRail implements PaymentRail {
         @Override

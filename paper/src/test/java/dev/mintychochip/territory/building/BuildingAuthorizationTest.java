@@ -3,9 +3,9 @@ package dev.mintychochip.territory.building;
 import dev.mintychochip.territory.model.BlockPos;
 import dev.mintychochip.territory.model.Boundary;
 import dev.mintychochip.territory.model.Territory;
-import org.aincraft.guilds.models.Guild;
-import org.aincraft.guilds.services.GuildService;
-import org.aincraft.guilds.services.PermissionService;
+import dev.mintychochip.guilds.models.Guild;
+import dev.mintychochip.guilds.services.GuildService;
+import dev.mintychochip.guilds.services.PermissionService;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 

@@ -1,6 +1,6 @@
 package dev.mintychochip.territory.invasion;
 
-import dev.mintychochip.territory.AzothTerritoryPlugin;
+import dev.mintychochip.guilds.GuildsPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.junit.jupiter.api.Test;
 
@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class InvasionLifecycleWiringTest {
     @Test
     void pluginRetainsAndCancelsBossBarReconciliationTask() throws Exception {
-        Field task = AzothTerritoryPlugin.class.getDeclaredField("invasionBossBarTask");
+        Field task = GuildsPlugin.class.getDeclaredField("invasionBossBarTask");
         assertTrue(BukkitTask.class.isAssignableFrom(task.getType()));
         String source = source();
         assertTrue(source.contains("this.invasionBossBarTask = getServer().getScheduler().runTaskTimer("));
@@ -22,7 +22,7 @@ class InvasionLifecycleWiringTest {
     }
 
     private static String source() throws Exception {
-        Path path = Path.of("src/main/java/dev/mintychochip/territory/AzothTerritoryPlugin.java");
+        Path path = Path.of("src/main/java/dev/mintychochip/guilds/GuildsPlugin.java");
         assertTrue(Files.isRegularFile(path));
         return Files.readString(path);
     }

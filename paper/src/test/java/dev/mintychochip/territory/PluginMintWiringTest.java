@@ -20,7 +20,7 @@ class PluginMintWiringTest {
 
     @Test
     void mintConfigFailsClosedWithoutBinding() {
-        String s = read("paper/src/main/java/dev/mintychochip/territory/AzothTerritoryPlugin.java");
+        String s = read("paper/src/main/java/dev/mintychochip/guilds/GuildsPlugin.java");
         assertTrue(s.contains("Mode.MINT"));
         assertTrue(s.contains("bindMintClient"));
         assertTrue(s.contains("MintClientReceiver.class"));
@@ -30,7 +30,7 @@ class PluginMintWiringTest {
 
     @Test
     void guildServicesAcceptTrustedMintRail() {
-        String s = read("paper/src/main/java/org/aincraft/guilds/GuildsServices.java");
+        String s = read("paper/src/main/java/dev/mintychochip/guilds/GuildsServices.java");
         assertTrue(s.contains("MintClientLease"));
         assertTrue(s.contains("withMintLease"));
     }
@@ -72,7 +72,7 @@ class PluginMintWiringTest {
 
     @Test
     void movementListenerReceivesTerritoryRegistry() {
-        String s = read("paper/src/main/java/org/aincraft/guilds/listeners/PlayerMovementListener.java");
+        String s = read("paper/src/main/java/dev/mintychochip/guilds/listeners/PlayerMovementListener.java");
         assertTrue(s.contains("TerritoryRegistry"));
         assertTrue(s.contains("sendTitle"));
     }

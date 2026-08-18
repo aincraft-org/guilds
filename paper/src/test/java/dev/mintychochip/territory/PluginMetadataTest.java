@@ -21,20 +21,21 @@ class PluginMetadataTest {
                 "plugin.yml missing from test classpath"
         )) {
             String yaml = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            assertTrue(yaml.contains("name: AzothTerritory") || yaml.contains("name: AzothTerritory\n"),
+            assertTrue(yaml.contains("name: Guilds"),
                     "plugin name missing: " + yaml);
-            assertTrue(yaml.contains("main: dev.mintychochip.territory.AzothTerritoryPlugin"),
+            assertTrue(yaml.contains("main: dev.mintychochip.guilds.GuildsPlugin"),
                     "main class missing: " + yaml);
             assertTrue(yaml.contains("api-version:"), "api-version missing: " + yaml);
             assertTrue(yaml.contains("26.2"), "api-version should be 26.2: " + yaml);
             assertTrue(yaml.matches("(?s).*version: [0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?.*"),
                     "release version should be numeric: " + yaml);
-            // Single identity: no second Guilds main on this descriptor
-            assertTrue(!yaml.contains("main: org.aincraft.guilds.GuildsPlugin"),
-                    "must not declare GuildsPlugin as a second main");
+            assertTrue(!yaml.contains("AzothTerritoryPlugin"),
+                    "must not declare the retired AzothTerritoryPlugin main");
+            assertTrue(!yaml.contains("org.aincraft.guilds"),
+                    "must not declare the retired org.aincraft.guilds namespace");
         }
-        assertNotNull(Class.forName("dev.mintychochip.territory.AzothTerritoryPlugin"));
-        assertNotNull(Class.forName("org.aincraft.guilds.GuildsServices"));
+        assertNotNull(Class.forName("dev.mintychochip.guilds.GuildsPlugin"));
+        assertNotNull(Class.forName("dev.mintychochip.guilds.GuildsServices"));
     }
 
     @Test

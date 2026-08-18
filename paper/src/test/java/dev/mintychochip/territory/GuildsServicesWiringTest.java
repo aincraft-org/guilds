@@ -1,10 +1,10 @@
 package dev.mintychochip.territory;
 
 import dev.mintychochip.territory.persist.PostgresDatabase;
-import org.aincraft.guilds.GuildsServices;
-import org.aincraft.guilds.services.PermissionService;
-import org.aincraft.guilds.services.GuildService;
-import org.aincraft.guilds.services.impl.GuildServiceImpl;
+import dev.mintychochip.guilds.GuildsServices;
+import dev.mintychochip.guilds.services.PermissionService;
+import dev.mintychochip.guilds.services.GuildService;
+import dev.mintychochip.guilds.services.impl.GuildServiceImpl;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -19,7 +19,7 @@ import static org.mockito.Mockito.when;
  * Smoke test for the manual composition root: building {@link GuildsServices}
  * must wire the whole service graph (previously Guice's eager singletons),
  * including the Guild/Permission/Plot cycle broken by setPermissionService.
- * The composition root is hosted directly by the Azoth Territory plugin.
+ * The composition root is hosted directly by the Guilds plugin.
  */
 class GuildsServicesWiringTest {
 

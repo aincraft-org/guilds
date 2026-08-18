@@ -149,7 +149,7 @@ class InteractionProtectionListenerTest {
 
     @Test
     void pluginOnEnable_registersInteractionListener() throws Exception {
-        String source = readMainSource("dev/mintychochip/territory/AzothTerritoryPlugin.java");
+        String source = readMainSource("dev/mintychochip/guilds/GuildsPlugin.java");
         assertTrue(source.contains("new InteractionProtectionListener("),
                 "must construct InteractionProtectionListener");
         assertTrue(source.contains(

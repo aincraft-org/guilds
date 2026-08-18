@@ -70,7 +70,7 @@ class EditorStaticWebTest {
         assertEquals(200, conn.getResponseCode(), url);
         assertTrue(conn.getContentType().contains("text/html"), conn.getContentType());
         String body = read(conn);
-        assertTrue(body.contains("Azoth Map Editor"), body);
+        assertTrue(body.contains("Guilds Map Editor"), body);
     }
 
     private static void assertContains(String url, String needle) throws IOException {
