@@ -55,8 +55,8 @@ MySQL JSON columns use `JSON NOT NULL`; PostgreSQL retains `JSONB NOT NULL`.
 ## Testing
 
 - Unit tests cover backend defaults, MySQL URL derivation, explicit URL precedence, invalid backend rejection, and dialect SQL/schema invariants.
-- Existing PostgreSQL tests remain unchanged and continue to run when `AZOTH_TEST_JDBC_URL` is set.
-- New MySQL integration tests use `AZOTH_TEST_MYSQL_JDBC_URL` and skip when unset; they initialize the real schema and round-trip representative territory/invasion state through the MySQL path.
+- Existing PostgreSQL tests remain unchanged and continue to run when `GUILDS_TEST_JDBC_URL` is set.
+- New MySQL integration tests use `GUILDS_TEST_MYSQL_JDBC_URL` and skip when unset; they initialize the real schema and round-trip representative territory/invasion state through the MySQL path.
 - Full Gradle tests and build verify packaging includes Connector/J and PostgreSQL drivers.
 
 ## Delivery verification

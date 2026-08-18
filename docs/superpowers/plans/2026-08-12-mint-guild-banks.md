@@ -32,7 +32,7 @@
 - Modify: `paper/build.gradle.kts`
 - Modify: `gradle.properties`
 - Modify: `paper/src/main/resources/config.yml`
-- Test: `paper/src/test/java/com/azoth/territory/MintDependencyWiringTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/MintDependencyWiringTest.java`
 
 **Interfaces:**
 - Produces the compile-time Mint API dependency and configuration keys consumed by Tasks 2–5.
@@ -45,7 +45,7 @@ Create a test that reads `paper/build.gradle.kts` and the processed plugin confi
 - [x] **Step 2: Run test to verify RED**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.MintDependencyWiringTest
+./gradlew :paper:test --tests com.guilds.territory.MintDependencyWiringTest
 ```
 
 Expected: FAIL because the Mint dependency and configuration keys do not exist.
@@ -65,7 +65,7 @@ Run the same focused test. Expected: PASS.
 - [x] **Step 6: Commit**
 
 ```bash
-git add settings.gradle.kts paper/build.gradle.kts gradle.properties paper/src/main/resources/config.yml paper/src/test/java/com/azoth/territory/MintDependencyWiringTest.java
+git add settings.gradle.kts paper/build.gradle.kts gradle.properties paper/src/main/resources/config.yml paper/src/test/java/com/guilds/territory/MintDependencyWiringTest.java
 git commit -m "build: wire latest Mint API dependency"
 ```
 
@@ -73,9 +73,9 @@ git commit -m "build: wire latest Mint API dependency"
 
 ### Task 2: Pure Async Settlement Contract and Outcomes
 
-- Create: `api/src/main/java/com/azoth/territory/economy/AsyncTaxSettlement.java`
-- Create: `api/src/main/java/com/azoth/territory/economy/AsyncSettlementResult.java`
-- Test: `api/src/test/java/com/azoth/territory/economy/AsyncTaxSettlementContractTest.java`
+- Create: `api/src/main/java/com/guilds/territory/economy/AsyncTaxSettlement.java`
+- Create: `api/src/main/java/com/guilds/territory/economy/AsyncSettlementResult.java`
+- Test: `api/src/test/java/com/guilds/territory/economy/AsyncTaxSettlementContractTest.java`
 
 **Interfaces:**
 - `AsyncTaxSettlement.settle(UUID payerId, String guildId, BigDecimal amount, String idempotencyKey)` returns `CompletionStage<AsyncSettlementResult>`.
@@ -89,7 +89,7 @@ Assert null/blank identifiers are rejected, statuses are stable, result values a
 - [x] **Step 2: Run focused tests and verify RED**
 
 ```bash
-./gradlew :api:test --tests com.azoth.territory.economy.AsyncTaxSettlementContractTest
+./gradlew :api:test --tests com.guilds.territory.economy.AsyncTaxSettlementContractTest
 ```
 
 Expected: FAIL because the contract and explicit outcomes do not exist.
@@ -105,7 +105,7 @@ Run the focused API test class. Expected: PASS.
 - [x] **Step 5: Commit**
 
 ```bash
-git add api/src/main/java/com/azoth/territory/economy api/src/test/java/com/azoth/territory/economy/AsyncTaxSettlementContractTest.java
+git add api/src/main/java/com/guilds/territory/economy api/src/test/java/com/guilds/territory/economy/AsyncTaxSettlementContractTest.java
 git commit -m "feat: define pure async tax settlement contract"
 ```
 
@@ -114,10 +114,10 @@ git commit -m "feat: define pure async tax settlement contract"
 ### Task 3: Mint Account and Transfer Adapter
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/economy/MintEconomyRail.java`
-- Create: `paper/src/main/java/com/azoth/territory/economy/MintOperationResult.java`
-- Modify: `paper/src/main/java/com/azoth/territory/economy/EconomyConfig.java`
-- Test: `paper/src/test/java/com/azoth/territory/economy/MintEconomyRailTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/economy/MintEconomyRail.java`
+- Create: `paper/src/main/java/com/guilds/territory/economy/MintOperationResult.java`
+- Modify: `paper/src/main/java/com/guilds/territory/economy/EconomyConfig.java`
+- Test: `paper/src/test/java/com/guilds/territory/economy/MintEconomyRailTest.java`
 
 **Interfaces:**
 - `MintEconomyRail` implements `AsyncTaxSettlement` and exposes `CompletionStage<MintOperationResult> balance(String guildId)`, `deposit(UUID, String, BigDecimal, String)`, and `withdraw(UUID, String, BigDecimal, String)`.
@@ -131,7 +131,7 @@ Cover guild/player account IDs, positive amount canonicalization at configured s
 - [x] **Step 2: Run focused tests and verify RED**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.economy.MintEconomyRailTest
+./gradlew :paper:test --tests com.guilds.territory.economy.MintEconomyRailTest
 ```
 
 Expected: FAIL because the adapter types do not exist.
@@ -140,7 +140,7 @@ Expected: FAIL because the adapter types do not exist.
 
 Use `AccountId.player(uuid)` and `AccountId.of(NamespaceId.parse("guild:" + guildId))`. Convert at the boundary with BigDecimal, `setScale(configuredScale, RoundingMode.HALF_UP)`, and reject non-positive/overflow values before Mint calls.
 
-Call `lease.accounts().ensure(source)` and `lease.accounts().ensure(destination)` asynchronously. Build `TransactionRequest` with one negative source posting and one positive destination posting using configured `CurrencyId`, reason `azoth.guild-bank.transfer`, and metadata containing guild, direction, and idempotency key. Call `lease.ledger().transact(request)` and map `Committed`/`Rejected`/exceptional outcomes.
+Call `lease.accounts().ensure(source)` and `lease.accounts().ensure(destination)` asynchronously. Build `TransactionRequest` with one negative source posting and one positive destination posting using configured `CurrencyId`, reason `guilds.guild-bank.transfer`, and metadata containing guild, direction, and idempotency key. Call `lease.ledger().transact(request)` and map `Committed`/`Rejected`/exceptional outcomes.
 
 Call `lease.accounts().ensure(guildAccount)`, then call `lease.ledger().balance(guildAccount, currency)` and map `BalanceSnapshot.total()`.
 
@@ -152,7 +152,7 @@ Run the focused test class. Expected: PASS, including assertions that no blockin
 - [x] **Step 7: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/economy/MintEconomyRail.java paper/src/main/java/com/azoth/territory/economy/MintOperationResult.java paper/src/main/java/com/azoth/territory/economy/EconomyConfig.java paper/src/test/java/com/azoth/territory/economy/MintEconomyRailTest.java
+git add paper/src/main/java/com/guilds/territory/economy/MintEconomyRail.java paper/src/main/java/com/guilds/territory/economy/MintOperationResult.java paper/src/main/java/com/guilds/territory/economy/EconomyConfig.java paper/src/test/java/com/guilds/territory/economy/MintEconomyRailTest.java
 git commit -m "feat: add async Mint guild account rail"
 ```
 
@@ -161,10 +161,10 @@ git commit -m "feat: add async Mint guild account rail"
 ### Task 4: Async Tax Routing to Governing Guild
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/economy/EconomyBridge.java`
-- Modify: `common/src/main/java/com/azoth/territory/economy/TaxOutcome.java`
-- Modify: `paper/src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java`
-- Test: `common/src/test/java/com/azoth/territory/economy/EconomyBridgeMintTaxTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/economy/EconomyBridge.java`
+- Modify: `common/src/main/java/com/guilds/territory/economy/TaxOutcome.java`
+- Modify: `paper/src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java`
+- Test: `common/src/test/java/com/guilds/territory/economy/EconomyBridgeMintTaxTest.java`
 
 **Interfaces:**
 - `EconomyBridge.reportSaleAsync(..., String eventKey, AsyncTaxSettlement settlement)` returns `CompletionStage<TaxReport>`.
@@ -178,7 +178,7 @@ Test a passed tax policy with a territory governed by guild `g1`, asserting the 
 - [x] **Step 2: Run focused tests and verify RED**
 
 ```bash
-./gradlew :common:test --tests com.azoth.territory.economy.EconomyBridgeMintTaxTest
+./gradlew :common:test --tests com.guilds.territory.economy.EconomyBridgeMintTaxTest
 ```
 
 Expected: FAIL because async tax APIs do not exist.
@@ -202,7 +202,7 @@ Run the focused common test class. Expected: PASS.
 - [x] **Step 7: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/economy common/src/test/java/com/azoth/territory/economy/EconomyBridgeMintTaxTest.java paper/src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java
+git add common/src/main/java/com/guilds/territory/economy common/src/test/java/com/guilds/territory/economy/EconomyBridgeMintTaxTest.java paper/src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java
 git commit -m "feat: route async taxes to governing guilds"
 ```
 
@@ -211,9 +211,9 @@ git commit -m "feat: route async taxes to governing guilds"
 ### Task 5: Plugin Lifecycle and Mint Rail Wiring
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsServices.java`
-- Test: `paper/src/test/java/com/azoth/territory/PluginMintWiringTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/PluginMintWiringTest.java`
 
 **Interfaces:**
 - Plugin creates `MintEconomyRail` only when `economy.mode=MINT` and a trusted Mint binding is available.
@@ -226,7 +226,7 @@ Test default config still wires Vault/simulation, Mint mode fails closed when th
 - [x] **Step 2: Run focused tests and verify RED**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.PluginMintWiringTest
+./gradlew :paper:test --tests com.guilds.territory.PluginMintWiringTest
 ```
 
 Expected: FAIL because Mint wiring does not exist.
@@ -252,7 +252,7 @@ Run the focused test class. Expected: PASS.
 - [x] **Step 7: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/java/org/aincraft/guilds/GuildsServices.java paper/src/test/java/com/azoth/territory/PluginMintWiringTest.java
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/java/org/aincraft/guilds/GuildsServices.java paper/src/test/java/com/guilds/territory/PluginMintWiringTest.java
 git commit -m "feat: wire Mint rail into plugin lifecycle"
 ```
 
@@ -313,7 +313,7 @@ git commit -m "feat: add Mint-backed guild bank commands"
 - Modify: `docs/living-specs/economy.md`
 - Modify: `docs/living-specs/guild-storage.md`
 - Modify: `README.md`
-- Create: `paper/src/test/java/com/azoth/territory/MintGuildBankSmokeTest.java`
+- Create: `paper/src/test/java/com/guilds/territory/MintGuildBankSmokeTest.java`
 
 **Interfaces:**
 - Documentation states Mint account names, async restrictions, configuration, explicit coexistence with SQL `Guild.balance`, and non-goals.
@@ -326,7 +326,7 @@ Exercise: configure a territory governed by guild `g1`, report a sale asynchrono
 - [x] **Step 2: Run focused smoke test and verify RED**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.MintGuildBankSmokeTest
+./gradlew :paper:test --tests com.guilds.territory.MintGuildBankSmokeTest
 ```
 
 Expected: FAIL until all wiring is present.
@@ -349,11 +349,11 @@ Expected: PASS with zero failures.
 ./gradlew :paper:build
 ```
 
-Expected: PASS and produce `paper/build/libs/azoth-territory-1.1.0.jar`.
+Expected: PASS and produce `paper/build/libs/guilds-1.1.0.jar`.
 
 - [x] **Step 6: Commit**
 
 ```bash
-git add docs/living-specs/economy.md docs/living-specs/guild-storage.md README.md paper/src/test/java/com/azoth/territory/MintGuildBankSmokeTest.java
+git add docs/living-specs/economy.md docs/living-specs/guild-storage.md README.md paper/src/test/java/com/guilds/territory/MintGuildBankSmokeTest.java
 git commit -m "docs: document Mint guild treasury behavior"
 ```

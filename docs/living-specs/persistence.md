@@ -1,7 +1,7 @@
 # Persistence — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-08  
+> Last updated: 2026-08-17  
 > Related: `docs/superpowers/specs/2026-08-06-unified-postgres-design.md`
 
 ## Intent
@@ -49,11 +49,16 @@ idempotent on fresh databases.
 | Pool / settings | `common/.../persist` |
 | Territory/economy/influence/standing stores | `common/.../persist` + domain packages |
 | Guilds schema | `paper/.../org.aincraft.guilds.database` |
-| Plugin wiring | `AzothTerritoryPlugin` |
+| Runtime SQL | `common/src/main/resources/dev/mintychochip/{guilds,territory}/sql` via `NamedSql` |
+| Plugin wiring | `GuildsTerritoryPlugin` |
 
 - Prefer JSONB documents where already established (territory, influence state)
   rather than drive-by normalization.
 - Guilds SQL must stay PostgreSQL-compatible (no SQLite-only upsert dialect).
+- Runtime service/store SQL lives as classpath `.sql` files with `:name` placeholders.
+  `NamedSql` rewrites them to prepared statements; a name may repeat and is bound once.
+  Keep dialect-generated upserts in Java. Leave identifier interpolation (`{{table}}`)
+  only for closed-set table/column names.
 - Logging: connection failures should fail enable loudly.
 
 ### Testing
@@ -80,6 +85,7 @@ idempotent on fresh databases.
 - [x] `PostgresReconciliationStore`
 - [x] Guilds on same Postgres with migrations
 - [x] Mandatory DB for plugin runtime paths
+- [x] Classpath `.sql` + named-parameter execution for runtime service/store queries
 
 ### Open on the current surface
 
@@ -111,6 +117,7 @@ Living specs in other domains must not reintroduce file stores.
 | 2026-08-06 | Keep territory JSONB documents | Compatibility; avoid big-bang rewrite |
 | 2026-08-06 | Do not auto-delete legacy files | Operator safety |
 | 2026-08-06 | Remove repository dual-backend seams | One code path |
+| 2026-08-17 | Classpath `.sql` + `NamedSql` named params | Reviewable SQL without an ORM |
 
 ## Open questions
 

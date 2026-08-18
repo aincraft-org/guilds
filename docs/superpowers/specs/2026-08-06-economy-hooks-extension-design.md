@@ -54,7 +54,7 @@ TaxReport reportCraft(
 )
 ```
 
-`grossValue` is the total transaction value supplied by the integration. `outputQuantity` must be positive and is metadata for the report; no price is inferred from `GoodsCatalog`. Crafting integrations call this API from their own `CraftItemEvent` handling. Azoth does not charge a guessed value when no valuation provider exists.
+`grossValue` is the total transaction value supplied by the integration. `outputQuantity` must be positive and is metadata for the report; no price is inferred from `GoodsCatalog`. Crafting integrations call this API from their own `CraftItemEvent` handling. Guilds does not charge a guessed value when no valuation provider exists.
 
 `BukkitEconomyBridge` gains the equivalent `OfflinePlayer` methods. Existing sale behavior and `TaxReport` outcomes remain compatible.
 

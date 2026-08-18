@@ -2,11 +2,11 @@
 
 **Date:** 2026-08-06
 **Status:** Approved (design gate passed; rename workstream approved as separate phase)
-**Scope owner:** Azoth Territory (api / common / paper modules)
+**Scope owner:** Guilds Territory (api / common / paper modules)
 
 ## 1. Motivation
 
-Add a New World–style territory **influence race** to the Azoth Territory
+Add a New World–style territory **influence race** to the Guilds Territory
 plugin: rival guilds accrue influence inside enemy territories through
 activity; at 100% a guild may **declare**, and after a countdown the
 territory **flips** to the challenger. The race is gated on **alliance**
@@ -199,7 +199,7 @@ holds), so recovery always completes, never re-arms, and never double-applies.
 
 ## 7. API surface
 
-`api/src/main/java/com/azoth/territory/influence/` (pure domain, no Bukkit):
+`api/src/main/java/com/guilds/territory/influence/` (pure domain, no Bukkit):
 
 - `enum InfluenceSource { PVP_KILL, PVE_KILL, BLOCK_BREAK, BLOCK_PLACE, CRAFT }`
 - `record InfluenceBar(String guildId, double value)`
@@ -260,7 +260,7 @@ holds), so recovery always completes, never re-arms, and never double-applies.
   - `/territory declare <territory> [confirm]`
   - `/territory declare cancel <territory>`
   - `/territory influence set <territory> <guild> <value>` (admin,
-    permission `azothterritory.admin`)
+    permission `guildsterritory.admin`)
   - `/territory influence reset <territory>` (admin)
 - Plugin lifecycle: construct engine + store in `onEnable` (after
   governance), register listener + tick + commands; flush store in
@@ -332,7 +332,7 @@ System section describing this spec's features. Archived docs under
 
 ## 11. Testing
 
-`common/src/test/java/com/azoth/territory/influence/`:
+`common/src/test/java/com/guilds/territory/influence/`:
 - `InfluenceEngineTest` — eligibility matrix (unowned, same guild, same
   alliance, unaffiliated attacker, unaffiliated owner, cooldown, active
   declaration); per-source accrual values; clamp at cap; defender push-pull

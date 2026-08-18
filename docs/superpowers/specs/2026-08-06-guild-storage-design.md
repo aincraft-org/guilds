@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-06
 **Status:** Draft for review
-**Parent:** `../azothmc/docs/superpowers/plans/2026-08-05-azothmc-sdd-phased-roadmap.md` (P4)
+**Parent:** `../guildsmc/docs/superpowers/plans/2026-08-05-guildsmc-sdd-phased-roadmap.md` (P4)
 
 ## 1. Decision
 
@@ -28,7 +28,7 @@ access policy, and item serialization are not added to that record.
 New World provides personal connected storage sheds and a shared Company
 Treasury for coin, but not a shared company item bank. This design uses the
 Company Treasury's settlement-bound and permissioned access pattern while
-adding the shared item-bank behavior required by AzothMC.
+adding the shared item-bank behavior required by GuildsMC.
 
 The result is New World-inspired rather than a literal copy:
 
@@ -241,5 +241,5 @@ Tests must cover:
 - PostgreSQL restart round trip and idempotent schema initialization.
 
 The broader P4 exit gate remains separate: combat PvP flag/death behavior belongs
-to `azoth`, item semantics belong to `items`, and guild storage must not absorb
+to `guilds`, item semantics belong to `items`, and guild storage must not absorb
 those domains.

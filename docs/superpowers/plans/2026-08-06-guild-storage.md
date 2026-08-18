@@ -27,10 +27,10 @@
 
 | Responsibility | Files |
 |---|---|
-| Shared item/API value types | `api/src/main/java/com/azoth/territory/storage/` |
-| Shared PostgreSQL schema | `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java` |
-| Guild-storage persistence | `common/src/main/java/com/azoth/territory/persist/PostgresGuildStorageStore.java` |
-| Facility lifecycle | `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` |
+| Shared item/API value types | `api/src/main/java/com/guilds/territory/storage/` |
+| Shared PostgreSQL schema | `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java` |
+| Guild-storage persistence | `common/src/main/java/com/guilds/territory/persist/PostgresGuildStorageStore.java` |
+| Facility lifecycle | `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` |
 | Storage authorization/service | `paper/src/main/java/org/aincraft/guilds/services/GuildStorageService.java`, `paper/src/main/java/org/aincraft/guilds/services/impl/GuildStorageServiceImpl.java` |
 | Items-layer Bukkit boundary | `paper/src/main/java/org/aincraft/guilds/storage/GuildStorageItemCodec.java` |
 | Virtual bank UI | `paper/src/main/java/org/aincraft/guilds/storage/GuildStorageGui.java` |
@@ -42,12 +42,12 @@
 ### Task 1: Wire settlement facilities into the PostgreSQL lifecycle
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Test: `paper/src/test/java/com/azoth/territory/PluginFacilityWiringTest.java`
-- Existing contracts: `api/src/main/java/com/azoth/territory/registry/FacilityRegistry.java`, `common/src/main/java/com/azoth/territory/persist/PostgresFacilityStore.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Test: `paper/src/test/java/com/guilds/territory/PluginFacilityWiringTest.java`
+- Existing contracts: `api/src/main/java/com/guilds/territory/registry/FacilityRegistry.java`, `common/src/main/java/com/guilds/territory/persist/PostgresFacilityStore.java`
 
 **Interfaces:**
-- `AzothTerritoryPlugin` produces `FacilityRegistry getFacilityRegistry()` and `PostgresFacilityStore getFacilityStore()`.
+- `GuildsTerritoryPlugin` produces `FacilityRegistry getFacilityRegistry()` and `PostgresFacilityStore getFacilityStore()`.
 - Startup loads facilities after territories and before storage services are registered.
 - Shutdown saves facilities before closing `PostgresDatabase`.
 
@@ -71,7 +71,7 @@ void facilityRegistryIsASeparateLocationDirectory() {
 
 - [ ] **Step 2: Run the focused test and verify the intended failure.**
 
-Run: `./gradlew :paper:test --tests com.azoth.territory.PluginFacilityWiringTest`
+Run: `./gradlew :paper:test --tests com.guilds.territory.PluginFacilityWiringTest`
 
 Expected: failure until the plugin exposes and loads the facility directory.
 
@@ -88,14 +88,14 @@ In `onEnable`, construct `facilityRegistry = new FacilityRegistry(registry)` bef
 
 - [ ] **Step 4: Run focused and root tests.**
 
-Run: `./gradlew :paper:test --tests com.azoth.territory.PluginFacilityWiringTest`
+Run: `./gradlew :paper:test --tests com.guilds.territory.PluginFacilityWiringTest`
 
 Expected: PASS. Then run `./gradlew test`; expected existing and new tests PASS.
 
 - [ ] **Step 5: Commit the lifecycle unit.**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/test/java/com/azoth/territory/PluginFacilityWiringTest.java
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/test/java/com/guilds/territory/PluginFacilityWiringTest.java
 git commit -m "Wire settlement facilities into PostgreSQL lifecycle"
 ```
 
@@ -104,18 +104,18 @@ git commit -m "Wire settlement facilities into PostgreSQL lifecycle"
 ### Task 2: Define opaque storage payload and domain contracts
 
 **Files:**
-- Create: `api/src/main/java/com/azoth/territory/storage/OpaqueItemPayload.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageAddress.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageRank.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageOperation.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageStatus.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageResult.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageOpenResult.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageWithdrawResult.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/StorageTab.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/GuildStoragePolicy.java`
-- Create: `api/src/main/java/com/azoth/territory/storage/GuildStorageSnapshot.java`
-- Test: `api/src/test/java/com/azoth/territory/storage/StorageContractTest.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/OpaqueItemPayload.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageAddress.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageRank.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageOperation.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageStatus.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageResult.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageOpenResult.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageWithdrawResult.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/StorageTab.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/GuildStoragePolicy.java`
+- Create: `api/src/main/java/com/guilds/territory/storage/GuildStorageSnapshot.java`
+- Test: `api/src/test/java/com/guilds/territory/storage/StorageContractTest.java`
 
 **Interfaces:**
 
@@ -183,7 +183,7 @@ public record StorageWithdrawResult(
 
 - [ ] **Step 2: Run the focused API test.**
 
-Run: `./gradlew :api:test --tests com.azoth.territory.storage.StorageContractTest`
+Run: `./gradlew :api:test --tests com.guilds.territory.storage.StorageContractTest`
 
 Expected: compilation or assertion failure before the value types exist.
 
@@ -191,14 +191,14 @@ Expected: compilation or assertion failure before the value types exist.
 
 - [ ] **Step 4: Run focused and root tests.**
 
-Run: `./gradlew :api:test --tests com.azoth.territory.storage.StorageContractTest` and `./gradlew test`.
+Run: `./gradlew :api:test --tests com.guilds.territory.storage.StorageContractTest` and `./gradlew test`.
 
 Expected: PASS.
 
 - [ ] **Step 5: Commit the contract unit.**
 
 ```bash
-git add api/src/main/java/com/azoth/territory/storage api/src/test/java/com/azoth/territory/storage
+git add api/src/main/java/com/guilds/territory/storage api/src/test/java/com/guilds/territory/storage
 git commit -m "Define opaque guild storage contracts"
 ```
 
@@ -207,10 +207,10 @@ git commit -m "Define opaque guild storage contracts"
 ### Task 3: Add idempotent PostgreSQL guild-storage schema and store
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java:17-23`
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresGuildStorageStore.java`
-- Test: `common/src/test/java/com/azoth/territory/persist/PostgresGuildStorageStoreTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/persist/PostgresDatabaseTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java:17-23`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresGuildStorageStore.java`
+- Test: `common/src/test/java/com/guilds/territory/persist/PostgresGuildStorageStoreTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/persist/PostgresDatabaseTest.java`
 
 **Interfaces:**
 
@@ -234,13 +234,13 @@ public final class PostgresGuildStorageStore {
 }
 ```
 
-- [ ] **Step 1: Add PostgreSQL integration tests guarded by `AZOTH_TEST_JDBC_URL`.** Cover fresh schema creation twice, default bank creation, opaque payload plus fingerprint round trip, policy persistence, tab unlock, audit insertion, rollback on duplicate/invalid slot, and concurrent occupied-slot conflict. Tests use the existing `PostgresTestDatabase`/`assumeTrue` conventions; they must not silently substitute H2 or SQLite.
+- [ ] **Step 1: Add PostgreSQL integration tests guarded by `GUILDS_TEST_JDBC_URL`.** Cover fresh schema creation twice, default bank creation, opaque payload plus fingerprint round trip, policy persistence, tab unlock, audit insertion, rollback on duplicate/invalid slot, and concurrent occupied-slot conflict. Tests use the existing `PostgresTestDatabase`/`assumeTrue` conventions; they must not silently substitute H2 or SQLite.
 
 - [ ] **Step 2: Run the focused store tests before implementation.**
 
-Run: `./gradlew :common:test --tests com.azoth.territory.persist.PostgresGuildStorageStoreTest`
+Run: `./gradlew :common:test --tests com.guilds.territory.persist.PostgresGuildStorageStoreTest`
 
-Expected: compile failure because the store/schema do not exist; with no `AZOTH_TEST_JDBC_URL`, integration tests are explicitly skipped rather than falsely passing.
+Expected: compile failure because the store/schema do not exist; with no `GUILDS_TEST_JDBC_URL`, integration tests are explicitly skipped rather than falsely passing.
 
 - [ ] **Step 3: Add the exact idempotent schema.** Extend `PostgresDatabase.COMMON_SCHEMA` with `guild_storage_banks`, `guild_storage_tabs`, `guild_storage_slots` (including `item_fingerprint`), `guild_storage_policies`, and `guild_storage_audit` from the design spec. Add foreign keys from tabs/policies to banks and slots to tabs. Keep the `facilities` table unchanged.
 
@@ -248,14 +248,14 @@ Expected: compile failure because the store/schema do not exist; with no `AZOTH_
 
 - [ ] **Step 5: Run focused and root persistence tests.**
 
-Run: `AZOTH_TEST_JDBC_URL=... ./gradlew :common:test --tests com.azoth.territory.persist.PostgresGuildStorageStoreTest` when a disposable PostgreSQL URL is available, then `./gradlew test`.
+Run: `GUILDS_TEST_JDBC_URL=... ./gradlew :common:test --tests com.guilds.territory.persist.PostgresGuildStorageStoreTest` when a disposable PostgreSQL URL is available, then `./gradlew test`.
 
 Expected: PASS, with the no-environment path reporting skipped integration tests and the configured path exercising real JSONB/transaction behavior.
 
 - [ ] **Step 6: Commit the persistence unit.**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java common/src/main/java/com/azoth/territory/persist/PostgresGuildStorageStore.java common/src/test/java/com/azoth/territory/persist/PostgresGuildStorageStoreTest.java common/src/test/java/com/azoth/territory/persist/PostgresDatabaseTest.java
+git add common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java common/src/main/java/com/guilds/territory/persist/PostgresGuildStorageStore.java common/src/test/java/com/guilds/territory/persist/PostgresGuildStorageStoreTest.java common/src/test/java/com/guilds/territory/persist/PostgresDatabaseTest.java
 git commit -m "Persist guild storage in PostgreSQL"
 ```
 
@@ -378,8 +378,8 @@ git commit -m "Add virtual guild storage UI boundary"
 - Modify: `paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsServices.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/commands/BrigadierCommandRegistry.java`
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Test: `paper/src/test/java/com/azoth/territory/GuildStorageWiringTest.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Test: `paper/src/test/java/com/guilds/territory/GuildStorageWiringTest.java`
 - Test: `paper/src/test/java/org/aincraft/guilds/commands/GuildStorageCommandTest.java`
 - Modify: `paper/src/main/resources/guilds-config.yml` only for storage defaults and permission messages
 
@@ -395,7 +395,7 @@ public void registerGuildStorage(
 ```
 
 `GuildsServices.registerGuildStorage` is idempotent and must be called by
-`AzothTerritoryPlugin` after the facility registry, PostgreSQL stores, guilds
+`GuildsTerritoryPlugin` after the facility registry, PostgreSQL stores, guilds
 services, and governance registry all exist, but before `GuildsServices.enable()`
 registers Brigadier commands and listeners. This follows the existing deferred
 `registerHearthstone(BlockProtection)` lifecycle pattern.
@@ -404,26 +404,26 @@ registers Brigadier commands and listeners. This follows the existing deferred
 
 - [ ] **Step 2: Run focused wiring tests before implementation.**
 
-Run: `./gradlew :paper:test --tests com.azoth.territory.GuildStorageWiringTest --tests org.aincraft.guilds.commands.GuildStorageCommandTest`
+Run: `./gradlew :paper:test --tests com.guilds.territory.GuildStorageWiringTest --tests org.aincraft.guilds.commands.GuildStorageCommandTest`
 
 Expected: compile failure until the command and registration seam exists.
 
 - [ ] **Step 3: Add the command node.** Add a `storage` child to the existing literal `town` command (registered by `GuildBrigadierCommand` and reachable through alias `t`). The command obtains the executing `Player`, converts the current block location to the service location, and opens the GUI. Add a `policy` child with `deposit`, `withdraw`, and `manage` rank arguments; require the service to authorize management before updating the policy.
 
-- [ ] **Step 4: Wire deferred composition.** Add nullable/lazy storage fields to `GuildsServices`, construct the command with a supplier or late-bound service reference, and register `GuildStorageListener` in `registerListeners()` only after `registerGuildStorage` has run. In `AzothTerritoryPlugin.onEnable`, read the configured initial and expansion capacities, construct `PostgresGuildStorageStore(database, initialCapacity, expansionTabCapacity)`, resolve an optional `GuildStorageItemCodec` from the Bukkit services manager, and call `guilds.registerGuildStorage(facilityRegistry, storageStore, governance, codec)` after `BlockProtection`/governance setup and before `enableGuildsSubsystem()`. A missing codec is passed as `null` and fails closed.
+- [ ] **Step 4: Wire deferred composition.** Add nullable/lazy storage fields to `GuildsServices`, construct the command with a supplier or late-bound service reference, and register `GuildStorageListener` in `registerListeners()` only after `registerGuildStorage` has run. In `GuildsTerritoryPlugin.onEnable`, read the configured initial and expansion capacities, construct `PostgresGuildStorageStore(database, initialCapacity, expansionTabCapacity)`, resolve an optional `GuildStorageItemCodec` from the Bukkit services manager, and call `guilds.registerGuildStorage(facilityRegistry, storageStore, governance, codec)` after `BlockProtection`/governance setup and before `enableGuildsSubsystem()`. A missing codec is passed as `null` and fails closed.
 
 - [ ] **Step 5: Add defaults and user-facing messages.** Add `guild-storage.initial-capacity: 54`, `guild-storage.expansion-tab-capacity: 54`, and stable denial/error messages to `guilds-config.yml`. Keep rank thresholds in PostgreSQL policy rows; config values are defaults for newly created banks, not a second source of truth.
 
 - [ ] **Step 6: Run focused and root tests.**
 
-Run: `./gradlew :paper:test --tests com.azoth.territory.GuildStorageWiringTest --tests org.aincraft.guilds.commands.GuildStorageCommandTest`, then `./gradlew test`.
+Run: `./gradlew :paper:test --tests com.guilds.territory.GuildStorageWiringTest --tests org.aincraft.guilds.commands.GuildStorageCommandTest`, then `./gradlew test`.
 
 Expected: PASS.
 
 - [ ] **Step 7: Commit the wiring unit.**
 
 ```bash
-git add paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildStorageBrigadierCommand.java paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java paper/src/main/java/org/aincraft/guilds/GuildsServices.java paper/src/main/java/org/aincraft/guilds/commands/BrigadierCommandRegistry.java paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/resources/guilds-config.yml paper/src/test/java/com/azoth/territory/GuildStorageWiringTest.java paper/src/test/java/org/aincraft/guilds/commands/GuildStorageCommandTest.java
+git add paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildStorageBrigadierCommand.java paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java paper/src/main/java/org/aincraft/guilds/GuildsServices.java paper/src/main/java/org/aincraft/guilds/commands/BrigadierCommandRegistry.java paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/resources/guilds-config.yml paper/src/test/java/com/guilds/territory/GuildStorageWiringTest.java paper/src/test/java/org/aincraft/guilds/commands/GuildStorageCommandTest.java
 git commit -m "Wire guild storage command and lifecycle"
 ```
 
@@ -432,7 +432,7 @@ git commit -m "Wire guild storage command and lifecycle"
 ## Final Verification
 
 - [ ] Run `./gradlew test` with no PostgreSQL URL; deterministic unit tests pass and integration tests explicitly skip.
-- [ ] Run `AZOTH_TEST_JDBC_URL=<disposable-postgres> ./gradlew test`; schema/bootstrap, round-trip, rollback, and restart tests pass against PostgreSQL.
+- [ ] Run `GUILDS_TEST_JDBC_URL=<disposable-postgres> ./gradlew test`; schema/bootstrap, round-trip, rollback, and restart tests pass against PostgreSQL.
 - [ ] Run `./gradlew build`; compilation, tests, quality gates, and shadow artifact complete.
 - [ ] Confirm `git diff --check` is clean and `git status --short` contains no unintended files.
-- [ ] Confirm no changes were made to `SettlementFacility` inventory semantics, physical chest/trophy behavior, `azoth` combat/death logic, or `items` item rules.
+- [ ] Confirm no changes were made to `SettlementFacility` inventory semantics, physical chest/trophy behavior, `guilds` combat/death logic, or `items` item rules.

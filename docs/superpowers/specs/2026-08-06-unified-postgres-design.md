@@ -54,7 +54,7 @@ of truth.
 ## 3. Architecture
 
 ```text
-AzothTerritoryPlugin
+GuildsTerritoryPlugin
         |
         v
 PostgresDatabase (one Hikari pool, mandatory)
@@ -194,7 +194,7 @@ Add or update tests for:
 - PostgreSQL settings with no enabled/fallback flag.
 - Fresh shared schema creation and idempotent reinitialization.
 - Territory, influence, reconciliation, facility, and expense round trips and
-  full-replace behavior against `AZOTH_TEST_JDBC_URL`.
+  full-replace behavior against `GUILDS_TEST_JDBC_URL`.
 - PostgreSQL Guilds migration bootstrap and upgrade checks, including rename
   migrations and all former SQLite metadata/upsert paths.
 - Web API mutation failure: HTTP 500 with unchanged in-memory registry.
@@ -203,5 +203,5 @@ Add or update tests for:
 
 Verification runs the complete Gradle test/build suite. PostgreSQL integration
 checks run against a configured disposable PostgreSQL database when
-`AZOTH_TEST_JDBC_URL` is available; unit tests remain deterministic when it is
+`GUILDS_TEST_JDBC_URL` is available; unit tests remain deterministic when it is
 not.

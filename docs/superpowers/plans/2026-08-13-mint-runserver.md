@@ -22,7 +22,7 @@
 ### Task 1: Add failing runServer configuration tests
 
 **Files:**
-- Modify: `paper/src/test/java/com/azoth/territory/PluginMintWiringTest.java`
+- Modify: `paper/src/test/java/com/guilds/territory/PluginMintWiringTest.java`
 - Test target: `paper/build.gradle.kts`
 
 **Interfaces:**
@@ -73,7 +73,7 @@ Use the existing imports/style; do not add production code yet.
 Run:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.PluginMintWiringTest
+./gradlew :paper:test --tests com.guilds.territory.PluginMintWiringTest
 ```
 
 Expected: the new runServer assertions fail because the current build script has no Mint plugin properties or conditional download.
@@ -138,7 +138,7 @@ The null assertions are safe because the preceding `require` guarantees all-or-n
 Run:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.PluginMintWiringTest
+./gradlew :paper:test --tests com.guilds.territory.PluginMintWiringTest
 ```
 
 Expected: all tests in `PluginMintWiringTest` pass.
@@ -203,7 +203,7 @@ Place this before the existing EULA/database paragraph so the runtime prerequisi
 Run:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.PluginMintWiringTest
+./gradlew :paper:test --tests com.guilds.territory.PluginMintWiringTest
 ```
 
 Expected: PASS.

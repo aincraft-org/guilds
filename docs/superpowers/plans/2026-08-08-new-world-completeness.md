@@ -24,9 +24,9 @@
 
 **Files:**
 - Modify: `build.gradle.kts` — set project version to `1.1.0`.
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` — seed `bonuses.json` before loading it and wire expense persistence seams.
-- Modify: `paper/src/test/java/com/azoth/territory/PluginMetadataTest.java` — assert the packaged standing resource exists.
-- Test: `common/src/test/java/com/azoth/territory/standing/StandingConfigTest.java` — preserve parser/default behavior.
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` — seed `bonuses.json` before loading it and wire expense persistence seams.
+- Modify: `paper/src/test/java/com/guilds/territory/PluginMetadataTest.java` — assert the packaged standing resource exists.
+- Test: `common/src/test/java/com/guilds/territory/standing/StandingConfigTest.java` — preserve parser/default behavior.
 
 **Interfaces:**
 - Produces a fresh-install invariant: if `<data>/bonuses.json` is absent, `saveResource("bonuses.json", false)` creates it; existing files are untouched.
@@ -37,7 +37,7 @@
 Extend `PluginMetadataTest` with a test that opens `bonuses.json` from the test classpath and asserts it is non-null and contains `"version": 1` and `"tiers"`. Run:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.PluginMetadataTest --no-daemon -q
+./gradlew :paper:test --tests com.guilds.territory.PluginMetadataTest --no-daemon -q
 ```
 
 Expected: the new assertion fails only if the resource is not packaged.
@@ -58,7 +58,7 @@ Do not overwrite an existing administrator file.
 - [ ] **Step 3: Run the focused test and metadata build.**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.PluginMetadataTest --no-daemon -q
+./gradlew :paper:test --tests com.guilds.territory.PluginMetadataTest --no-daemon -q
 ./gradlew :paper:processResources :paper:jar --no-daemon -q
 ```
 
@@ -67,7 +67,7 @@ Expected: both commands pass and the processed plugin descriptor contains `versi
 - [ ] **Step 4: Commit.**
 
 ```bash
-git add build.gradle.kts paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/test/java/com/azoth/territory/PluginMetadataTest.java
+git add build.gradle.kts paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/test/java/com/guilds/territory/PluginMetadataTest.java
 git commit -m "fix: seed standing config and cut release version"
 ```
 
@@ -76,9 +76,9 @@ git commit -m "fix: seed standing config and cut release version"
 ### Task 2: Correct harvest event handling
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/standing/HarvestBonusListener.java`.
-- Modify: `paper/src/test/java/com/azoth/territory/standing/HarvestBonusListenerTest.java`.
-- Create: `paper/src/test/java/com/azoth/territory/standing/HarvestDropCalculatorTest.java` if a pure calculator is extracted.
+- Modify: `paper/src/main/java/com/guilds/territory/standing/HarvestBonusListener.java`.
+- Modify: `paper/src/test/java/com/guilds/territory/standing/HarvestBonusListenerTest.java`.
+- Create: `paper/src/test/java/com/guilds/territory/standing/HarvestDropCalculatorTest.java` if a pure calculator is extracted.
 
 - `HarvestBonusListener` remains a Bukkit listener.
 - Block handling uses the player/tool-aware `Block#getDrops(ItemStack, Entity)` overload.
@@ -98,7 +98,7 @@ Add tests that:
 Run:
 
 ```bash
-./gradlew :paper:test --tests 'com.azoth.territory.standing.HarvestBonusListenerTest' --no-daemon -q
+./gradlew :paper:test --tests 'com.guilds.territory.standing.HarvestBonusListenerTest' --no-daemon -q
 ```
 
 Expected: the new tests fail against the current `MONITOR` handlers, player-victim behavior, context-free block drop call, and world-spawn mutation.
@@ -118,7 +118,7 @@ For blocks, obtain the player's main-hand tool and call `block.getDrops(tool, pl
 - [ ] **Step 3: Run the focused and standing tests.**
 
 ```bash
-./gradlew :paper:test --tests 'com.azoth.territory.standing.HarvestBonusListenerTest' --tests 'com.azoth.territory.standing.StandingListenerTest' --no-daemon -q
+./gradlew :paper:test --tests 'com.guilds.territory.standing.HarvestBonusListenerTest' --tests 'com.guilds.territory.standing.StandingListenerTest' --no-daemon -q
 ```
 
 Expected: PASS, with no world drop calls for player victims and context-aware block drops verified.
@@ -126,7 +126,7 @@ Expected: PASS, with no world drop calls for player victims and context-aware bl
 - [ ] **Step 4: Commit.**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/standing/HarvestBonusListener.java paper/src/test/java/com/azoth/territory/standing/HarvestBonusListenerTest.java
+git add paper/src/main/java/com/guilds/territory/standing/HarvestBonusListener.java paper/src/test/java/com/guilds/territory/standing/HarvestBonusListenerTest.java
  git commit -m "fix: make standing harvest drops event-safe"
 ```
 
@@ -135,10 +135,10 @@ git add paper/src/main/java/com/azoth/territory/standing/HarvestBonusListener.ja
 ### Task 3: Persist expense journals across restart
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` — construct `ExpenseLedger` with `PostgresExpenseStore`, load it before economy use, and retain the store for shutdown.
-- Modify: `common/src/main/java/com/azoth/territory/economy/ExpenseLedger.java` only if load/snapshot semantics need a narrow correction.
-- Create: `common/src/test/java/com/azoth/territory/persist/PostgresExpenseStoreTest.java`.
-- Modify: `common/src/test/java/com/azoth/territory/economy/ExpenseLedgerTest.java` if a restart invariant needs a unit assertion.
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` — construct `ExpenseLedger` with `PostgresExpenseStore`, load it before economy use, and retain the store for shutdown.
+- Modify: `common/src/main/java/com/guilds/territory/economy/ExpenseLedger.java` only if load/snapshot semantics need a narrow correction.
+- Create: `common/src/test/java/com/guilds/territory/persist/PostgresExpenseStoreTest.java`.
+- Modify: `common/src/test/java/com/guilds/territory/economy/ExpenseLedgerTest.java` if a restart invariant needs a unit assertion.
 
 **Interfaces:**
 - `PostgresExpenseStore.save(Collection<ExpenseEntry>)` is the durable snapshot sink.
@@ -151,7 +151,7 @@ Create an integration test guarded by `PostgresTestDatabase.open()` that saves o
 Run:
 
 ```bash
-./gradlew :common:test --tests com.azoth.territory.persist.PostgresExpenseStoreTest --no-daemon -q
+./gradlew :common:test --tests com.guilds.territory.persist.PostgresExpenseStoreTest --no-daemon -q
 ```
 
 Expected: the store round-trip passes if the existing store is correct; the restart bridge assertion fails until plugin-style ledger loading is covered. If PostgreSQL is unavailable, the test is skipped by the existing assumption.
@@ -163,16 +163,16 @@ Add `PostgresExpenseStore expenseStore` and `ExpenseLedger expenseLedger` fields
 - [ ] **Step 3: Run economy and integration tests.**
 
 ```bash
-./gradlew :common:test --tests 'com.azoth.territory.economy.*' --tests 'com.azoth.territory.persist.PostgresExpenseStoreTest' --no-daemon -q
-./gradlew :paper:test --tests 'com.azoth.territory.PluginEconomyWiringTest' --tests 'com.azoth.territory.economy.*' --no-daemon -q
+./gradlew :common:test --tests 'com.guilds.territory.economy.*' --tests 'com.guilds.territory.persist.PostgresExpenseStoreTest' --no-daemon -q
+./gradlew :paper:test --tests 'com.guilds.territory.PluginEconomyWiringTest' --tests 'com.guilds.territory.economy.*' --no-daemon -q
 ```
 
-Expected: PASS or PostgreSQL-only tests skipped when `AZOTH_TEST_JDBC_URL` is absent.
+Expected: PASS or PostgreSQL-only tests skipped when `GUILDS_TEST_JDBC_URL` is absent.
 
 - [ ] **Step 4: Commit.**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java common/src/test/java/com/azoth/territory/persist/PostgresExpenseStoreTest.java common/src/test/java/com/azoth/territory/economy/ExpenseLedgerTest.java
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java common/src/test/java/com/guilds/territory/persist/PostgresExpenseStoreTest.java common/src/test/java/com/guilds/territory/economy/ExpenseLedgerTest.java
 git commit -m "fix: persist treasury expense idempotency across restart"
 ```
 
@@ -181,20 +181,20 @@ git commit -m "fix: persist treasury expense idempotency across restart"
 ### Task 4: Add durable recurring territory upkeep
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/upkeep/UpkeepStatus.java`.
-- Create: `common/src/main/java/com/azoth/territory/upkeep/UpkeepState.java`.
-- Create: `common/src/main/java/com/azoth/territory/upkeep/UpkeepConfig.java`.
-- Create: `common/src/main/java/com/azoth/territory/upkeep/UpkeepAssessment.java`.
-- Create: `common/src/main/java/com/azoth/territory/upkeep/UpkeepStore.java`.
-- Create: `common/src/main/java/com/azoth/territory/upkeep/UpkeepEngine.java`.
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresUpkeepStore.java`.
-- Modify: `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java` — create `upkeep_state` table.
+- Create: `common/src/main/java/com/guilds/territory/upkeep/UpkeepStatus.java`.
+- Create: `common/src/main/java/com/guilds/territory/upkeep/UpkeepState.java`.
+- Create: `common/src/main/java/com/guilds/territory/upkeep/UpkeepConfig.java`.
+- Create: `common/src/main/java/com/guilds/territory/upkeep/UpkeepAssessment.java`.
+- Create: `common/src/main/java/com/guilds/territory/upkeep/UpkeepStore.java`.
+- Create: `common/src/main/java/com/guilds/territory/upkeep/UpkeepEngine.java`.
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresUpkeepStore.java`.
+- Modify: `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java` — create `upkeep_state` table.
 - Modify: `paper/src/main/resources/config.yml` — add `upkeep` settings.
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` — construct/recover/tick upkeep.
-- Modify: `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java` — add read-only upkeep status.
-- Create: `common/src/test/java/com/azoth/territory/upkeep/UpkeepEngineTest.java`.
-- Create: `common/src/test/java/com/azoth/territory/persist/PostgresUpkeepStoreTest.java`.
-- Create: `paper/src/test/java/com/azoth/territory/command/TerritoryCommandUpkeepTest.java` if command behavior is not covered by an existing fixture.
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` — construct/recover/tick upkeep.
+- Modify: `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java` — add read-only upkeep status.
+- Create: `common/src/test/java/com/guilds/territory/upkeep/UpkeepEngineTest.java`.
+- Create: `common/src/test/java/com/guilds/territory/persist/PostgresUpkeepStoreTest.java`.
+- Create: `paper/src/test/java/com/guilds/territory/command/TerritoryCommandUpkeepTest.java` if command behavior is not covered by an existing fixture.
 
 **Interfaces:**
 - `UpkeepStore` exposes `load()` and `save(Collection<UpkeepState>)`.
@@ -218,7 +218,7 @@ Use a fake `PaymentRail`/`EconomyBridge` seam only where the existing domain tes
 Run:
 
 ```bash
-./gradlew :common:test --tests com.azoth.territory.upkeep.UpkeepEngineTest --no-daemon -q
+./gradlew :common:test --tests com.guilds.territory.upkeep.UpkeepEngineTest --no-daemon -q
 ```
 
 Expected: compilation failure because the upkeep package does not exist.
@@ -238,14 +238,14 @@ Add the `upkeep_state` table to `PostgresDatabase.COMMON_SCHEMA`, default config
 - [ ] **Step 5: Run focused upkeep/persistence tests.**
 
 ```bash
-./gradlew :common:test --tests 'com.azoth.territory.upkeep.*' --tests 'com.azoth.territory.persist.PostgresUpkeepStoreTest' --no-daemon -q
-./gradlew :paper:test --tests 'com.azoth.territory.command.TerritoryCommandUpkeepTest' --no-daemon -q
+./gradlew :common:test --tests 'com.guilds.territory.upkeep.*' --tests 'com.guilds.territory.persist.PostgresUpkeepStoreTest' --no-daemon -q
+./gradlew :paper:test --tests 'com.guilds.territory.command.TerritoryCommandUpkeepTest' --no-daemon -q
 ```
 
 - [ ] **Step 6: Commit.**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/upkeep common/src/main/java/com/azoth/territory/persist/PostgresUpkeepStore.java common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java common/src/test/java/com/azoth/territory/upkeep common/src/test/java/com/azoth/territory/persist/PostgresUpkeepStoreTest.java paper/src/main/resources/config.yml paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java paper/src/test/java/com/azoth/territory/command/TerritoryCommandUpkeepTest.java
+git add common/src/main/java/com/guilds/territory/upkeep common/src/main/java/com/guilds/territory/persist/PostgresUpkeepStore.java common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java common/src/test/java/com/guilds/territory/upkeep common/src/test/java/com/guilds/territory/persist/PostgresUpkeepStoreTest.java paper/src/main/resources/config.yml paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java paper/src/test/java/com/guilds/territory/command/TerritoryCommandUpkeepTest.java
 git commit -m "feat: add durable territory upkeep"
 ```
 
@@ -254,12 +254,12 @@ git commit -m "feat: add durable territory upkeep"
 ### Task 5: Add influence status HUD and map contest layer
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/influence/InfluenceStatusFormatter.java`.
-- Create: `paper/src/main/java/com/azoth/territory/influence/InfluenceStatusTask.java`.
-- Create: `paper/src/test/java/com/azoth/territory/influence/InfluenceStatusFormatterTest.java`.
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` — schedule/cancel HUD task.
-- Modify: `paper/src/main/java/com/azoth/territory/squaremap/TerritorySquaremapBridge.java` — accept optional influence supplier and render an influence layer.
-- Modify: `paper/src/test/java/com/azoth/territory/squaremap/ChunkOutlinesTest.java` only if style helper coverage belongs there; otherwise create a focused style test.
+- Create: `paper/src/main/java/com/guilds/territory/influence/InfluenceStatusFormatter.java`.
+- Create: `paper/src/main/java/com/guilds/territory/influence/InfluenceStatusTask.java`.
+- Create: `paper/src/test/java/com/guilds/territory/influence/InfluenceStatusFormatterTest.java`.
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` — schedule/cancel HUD task.
+- Modify: `paper/src/main/java/com/guilds/territory/squaremap/TerritorySquaremapBridge.java` — accept optional influence supplier and render an influence layer.
+- Modify: `paper/src/test/java/com/guilds/territory/squaremap/ChunkOutlinesTest.java` only if style helper coverage belongs there; otherwise create a focused style test.
 - Modify: `README.md` — document HUD/map status.
 
 **Interfaces:**
@@ -274,7 +274,7 @@ Cover uncontained locations, a contested territory with sorted bars, a declarabl
 Run:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.influence.InfluenceStatusFormatterTest --no-daemon -q
+./gradlew :paper:test --tests com.guilds.territory.influence.InfluenceStatusFormatterTest --no-daemon -q
 ```
 
 Expected: compilation failure because the formatter does not exist.
@@ -285,19 +285,19 @@ Use a 20-tick repeating task. Resolve player coordinates through `TerritoryRegis
 
 - [ ] **Step 3: Add the map contest layer.**
 
-Register a third `SimpleLayerProvider` named `Azoth Influence`. During refresh, render each territory boundary with a neutral owner stroke when no active race exists, and a contest fill/stroke when bars or a declaration exist. Use the existing escaped tooltip helpers and resolve the leading bar deterministically. Keep all squaremap calls inside the existing soft-dependency guards.
+Register a third `SimpleLayerProvider` named `Guilds Influence`. During refresh, render each territory boundary with a neutral owner stroke when no active race exists, and a contest fill/stroke when bars or a declaration exist. Use the existing escaped tooltip helpers and resolve the leading bar deterministically. Keep all squaremap calls inside the existing soft-dependency guards.
 
 - [ ] **Step 4: Run focused UI/wiring tests and compile.**
 
 ```bash
-./gradlew :paper:test --tests 'com.azoth.territory.influence.*' --tests 'com.azoth.territory.squaremap.*' --no-daemon -q
+./gradlew :paper:test --tests 'com.guilds.territory.influence.*' --tests 'com.guilds.territory.squaremap.*' --no-daemon -q
 ./gradlew :paper:compileJava --no-daemon -q
 ```
 
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/influence/InfluenceStatusFormatter.java paper/src/main/java/com/azoth/territory/influence/InfluenceStatusTask.java paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/java/com/azoth/territory/squaremap/TerritorySquaremapBridge.java paper/src/test/java/com/azoth/territory/influence/InfluenceStatusFormatterTest.java README.md
+git add paper/src/main/java/com/guilds/territory/influence/InfluenceStatusFormatter.java paper/src/main/java/com/guilds/territory/influence/InfluenceStatusTask.java paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/java/com/guilds/territory/squaremap/TerritorySquaremapBridge.java paper/src/test/java/com/guilds/territory/influence/InfluenceStatusFormatterTest.java README.md
 git commit -m "feat: show influence contest status in game and maps"
 ```
 
@@ -348,7 +348,7 @@ In `performGuildUpgrade`, use a transaction that selects the guild level/progres
 - [ ] **Step 5: Run guild focused tests and integration wiring.**
 
 ```bash
-./gradlew :paper:test --tests 'org.aincraft.guilds.services.ResourceServiceImplContributionTest' --tests 'org.aincraft.guilds.services.GuildLevelServiceImplUpgradeTest' --tests 'com.azoth.territory.GuildsIntegrationTest' --no-daemon -q
+./gradlew :paper:test --tests 'org.aincraft.guilds.services.ResourceServiceImplContributionTest' --tests 'org.aincraft.guilds.services.GuildLevelServiceImplUpgradeTest' --tests 'com.guilds.territory.GuildsIntegrationTest' --no-daemon -q
 ```
 
 - [ ] **Step 6: Commit.**
@@ -374,7 +374,7 @@ git commit -m "fix: finalize durable guild upgrade contributions"
 ./gradlew :paper:test --no-daemon -q
 ```
 
-Expected: all tests pass; PostgreSQL integration tests may be skipped only when `AZOTH_TEST_JDBC_URL` is unset.
+Expected: all tests pass; PostgreSQL integration tests may be skipped only when `GUILDS_TEST_JDBC_URL` is unset.
 
 - [ ] **Step 2: Run the application smoke path.**
 
@@ -387,7 +387,7 @@ With PostgreSQL configured and no existing plugin data folder:
 Verify from the server log and live commands:
 
 1. plugin metadata reports `1.1.0`;
-2. `plugins/AzothTerritory/bonuses.json` is created and remains unchanged on restart;
+2. `plugins/GuildsTerritory/bonuses.json` is created and remains unchanged on restart;
 3. `/territory influence <id>` and the HUD report the same contest state;
 4. a due upkeep period charges once and retrying the scheduler does not double-charge;
 5. a failed charge enters grace/suspended state visibly;

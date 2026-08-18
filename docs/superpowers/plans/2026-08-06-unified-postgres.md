@@ -24,11 +24,11 @@
 ### Task 1: Create shared PostgreSQL database owner
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/DatabaseSettings.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/DatabaseSettingsLoader.java`
-- Create: `common/src/test/java/com/azoth/territory/persist/PostgresDatabaseTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/persist/DatabaseSettingsLoaderTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/DatabaseSettings.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/DatabaseSettingsLoader.java`
+- Create: `common/src/test/java/com/guilds/territory/persist/PostgresDatabaseTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/persist/DatabaseSettingsLoaderTest.java`
 
 **Interfaces:**
 - Produces concrete `PostgresDatabase(DatabaseSettings)`, `DataSource dataSource()`, `Connection connection()`, `initializeSchema()`, and `close()` for all later stores.
@@ -36,7 +36,7 @@
 
 - [ ] **Step 1: Write failing settings/schema tests**
 
-Add assertions that settings load without `database.enabled`, reject a blank/unsupported JDBC URL, and that a test PostgreSQL URL can initialize the shared tables when `AZOTH_TEST_JDBC_URL` is set. Gate integration tests with JUnit assumptions so the normal unit suite remains deterministic without PostgreSQL.
+Add assertions that settings load without `database.enabled`, reject a blank/unsupported JDBC URL, and that a test PostgreSQL URL can initialize the shared tables when `GUILDS_TEST_JDBC_URL` is set. Gate integration tests with JUnit assumptions so the normal unit suite remains deterministic without PostgreSQL.
 
 - [ ] **Step 2: Run targeted tests and confirm failure**
 
@@ -60,26 +60,26 @@ Throw `IOException` from construction/schema initialization failures, and make `
 - [ ] **Step 4: Run targeted tests and confirm pass**
 
 Run: `./gradlew :common:test --tests '*DatabaseSettingsLoaderTest' --tests '*PostgresDatabaseTest'`
-Expected: PASS; without `AZOTH_TEST_JDBC_URL`, only non-integration settings tests execute.
+Expected: PASS; without `GUILDS_TEST_JDBC_URL`, only non-integration settings tests execute.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/persist/DatabaseSettings.java common/src/main/java/com/azoth/territory/persist/DatabaseSettingsLoader.java common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java common/src/test/java/com/azoth/territory/persist/DatabaseSettingsLoaderTest.java common/src/test/java/com/azoth/territory/persist/PostgresDatabaseTest.java
+git add common/src/main/java/com/guilds/territory/persist/DatabaseSettings.java common/src/main/java/com/guilds/territory/persist/DatabaseSettingsLoader.java common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java common/src/test/java/com/guilds/territory/persist/DatabaseSettingsLoaderTest.java common/src/test/java/com/guilds/territory/persist/PostgresDatabaseTest.java
 git commit -m "feat: add shared PostgreSQL database owner"
 ```
 
 ### Task 2: Replace territory repository seam with concrete PostgreSQL store
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresTerritoryStore.java`
-- Delete: `common/src/main/java/com/azoth/territory/persist/TerritoryRepository.java`
-- Delete: `common/src/main/java/com/azoth/territory/persist/TerritoryStore.java`
-- Delete: `common/src/main/java/com/azoth/territory/persist/PostgresTerritoryRepository.java`
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java`
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java`
-- Modify: `common/src/test/java/com/azoth/territory/web/TerritoryApiPersistenceTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/persist/PostgresTerritoryRepositoryTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresTerritoryStore.java`
+- Delete: `common/src/main/java/com/guilds/territory/persist/TerritoryRepository.java`
+- Delete: `common/src/main/java/com/guilds/territory/persist/TerritoryStore.java`
+- Delete: `common/src/main/java/com/guilds/territory/persist/PostgresTerritoryRepository.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java`
+- Modify: `common/src/test/java/com/guilds/territory/web/TerritoryApiPersistenceTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/persist/PostgresTerritoryRepositoryTest.java`
 
 **Interfaces:**
 - Produces concrete `PostgresTerritoryStore(PostgresDatabase)`, `loadInto(TerritoryRegistry)`, `save(TerritoryRegistry)`, and `close()`.
@@ -110,28 +110,28 @@ Expected: PASS when integration URL is configured; deterministic web tests pass 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/persist common/src/main/java/com/azoth/territory/web common/src/test/java/com/azoth/territory/web/TerritoryApiPersistenceTest.java common/src/test/java/com/azoth/territory/persist/PostgresTerritoryRepositoryTest.java
+git add common/src/main/java/com/guilds/territory/persist common/src/main/java/com/guilds/territory/web common/src/test/java/com/guilds/territory/web/TerritoryApiPersistenceTest.java common/src/test/java/com/guilds/territory/persist/PostgresTerritoryRepositoryTest.java
 git commit -m "feat: make territory persistence PostgreSQL-only"
 ```
 
 ### Task 3: Move influence and economy auxiliary stores to PostgreSQL
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/influence/PostgresInfluenceStore.java`
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresReconciliationStore.java`
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresFacilityStore.java`
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresExpenseStore.java`
-- Delete: `common/src/main/java/com/azoth/territory/influence/InfluenceStore.java`
-- Delete: `common/src/main/java/com/azoth/territory/persist/ReconciliationStore.java`
-- Delete: `common/src/main/java/com/azoth/territory/persist/FacilityStore.java`
-- Delete: `common/src/main/java/com/azoth/territory/persist/ExpenseStore.java`
-- Modify: `common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java`
-- Modify: `common/src/test/java/com/azoth/territory/influence/InfluenceStoreTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/influence/InfluenceEngineLifecycleTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/influence/InfluenceEngineAccrualTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/persist/ReconciliationStoreTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/persist/FacilityStoreTest.java`
-- Modify: `common/src/test/java/com/azoth/territory/persist/ExpenseStoreTest.java`
+- Create: `common/src/main/java/com/guilds/territory/influence/PostgresInfluenceStore.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresReconciliationStore.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresFacilityStore.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresExpenseStore.java`
+- Delete: `common/src/main/java/com/guilds/territory/influence/InfluenceStore.java`
+- Delete: `common/src/main/java/com/guilds/territory/persist/ReconciliationStore.java`
+- Delete: `common/src/main/java/com/guilds/territory/persist/FacilityStore.java`
+- Delete: `common/src/main/java/com/guilds/territory/persist/ExpenseStore.java`
+- Modify: `common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java`
+- Modify: `common/src/test/java/com/guilds/territory/influence/InfluenceStoreTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/influence/InfluenceEngineLifecycleTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/influence/InfluenceEngineAccrualTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/persist/ReconciliationStoreTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/persist/FacilityStoreTest.java`
+- Modify: `common/src/test/java/com/guilds/territory/persist/ExpenseStoreTest.java`
 
 **Interfaces:**
 - Concrete stores accept `PostgresDatabase`; public behavior methods retain the current checked exceptions and model payloads.
@@ -156,12 +156,12 @@ Use the existing JSON conversion routines as JSONB documents. Reconciliation and
 
 - [ ] **Step 5: Run targeted tests and confirm pass**
 
-Run the same targeted Gradle command with `AZOTH_TEST_JDBC_URL` configured for integration coverage. Expected: PASS with no local JSON files created.
+Run the same targeted Gradle command with `GUILDS_TEST_JDBC_URL` configured for integration coverage. Expected: PASS with no local JSON files created.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/influence common/src/main/java/com/azoth/territory/persist common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java common/src/test/java/com/azoth/territory/influence common/src/test/java/com/azoth/territory/persist
+git add common/src/main/java/com/guilds/territory/influence common/src/main/java/com/guilds/territory/persist common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java common/src/test/java/com/guilds/territory/influence common/src/test/java/com/guilds/territory/persist
 git commit -m "feat: persist auxiliary state in PostgreSQL"
 ```
 
@@ -186,7 +186,7 @@ git commit -m "feat: persist auxiliary state in PostgreSQL"
 
 - [ ] **Step 1: Add fresh/upgrade migration integration tests**
 
-Use `AZOTH_TEST_JDBC_URL` and isolated table names/schema cleanup to assert a fresh `SchemaInitializer` creates every registered table and that a second run is idempotent. Seed legacy guild/town/nation objects and verify both rename migrations complete on PostgreSQL.
+Use `GUILDS_TEST_JDBC_URL` and isolated table names/schema cleanup to assert a fresh `SchemaInitializer` creates every registered table and that a second run is idempotent. Seed legacy guild/town/nation objects and verify both rename migrations complete on PostgreSQL.
 
 - [ ] **Step 2: Run migration tests and confirm failure**
 
@@ -207,7 +207,7 @@ Make `DatabaseConfig` use the shared data source, remove file existence/creation
 
 - [ ] **Step 6: Run migration tests and confirm pass**
 
-Run: `AZOTH_TEST_JDBC_URL=... ./gradlew :paper:test --tests '*PostgresSchemaInitializerTest' --tests '*GuildRenameMigrationTest'`. Expected: PASS and no `jdbc:sqlite:` usage.
+Run: `GUILDS_TEST_JDBC_URL=... ./gradlew :paper:test --tests '*PostgresSchemaInitializerTest' --tests '*GuildRenameMigrationTest'`. Expected: PASS and no `jdbc:sqlite:` usage.
 
 - [ ] **Step 7: Commit**
 
@@ -219,7 +219,7 @@ git commit -m "feat: port Guilds schema migrations to PostgreSQL"
 ### Task 5: Wire one database through the Paper plugin
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsServices.java`
 - Modify: `paper/src/main/resources/config.yml`
 - Modify: `common/build.gradle.kts`
@@ -258,7 +258,7 @@ Run: `./gradlew :paper:test --tests '*GuildsServicesWiringTest' --tests '*Plugin
 - [ ] **Step 7: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/java/org/aincraft/guilds/GuildsServices.java paper/src/main/resources/config.yml common/build.gradle.kts README.md paper/src/test/java
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/java/org/aincraft/guilds/GuildsServices.java paper/src/main/resources/config.yml common/build.gradle.kts README.md paper/src/test/java
 git commit -m "feat: wire the plugin to one PostgreSQL database"
 ```
 
@@ -284,7 +284,7 @@ Delete stale classes, update tests and JavaDocs, and ensure `TerritoryApiHandler
 
 - [ ] **Step 3: Run all tests and build**
 
-Run: `./gradlew test build`. Expected: all unit tests pass; PostgreSQL integration tests are skipped only when `AZOTH_TEST_JDBC_URL` is absent, and all modules compile without SQLite.
+Run: `./gradlew test build`. Expected: all unit tests pass; PostgreSQL integration tests are skipped only when `GUILDS_TEST_JDBC_URL` is absent, and all modules compile without SQLite.
 
 - [ ] **Step 4: Run PostgreSQL integration verification**
 

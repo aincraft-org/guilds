@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship an admin Leaflet map editor at `/editor/` that draws chunk-snapped territories and zones, authenticates via API-token → `AZOTH_SESSION` cookie, saves through existing `PUT`/`DELETE /api/territories*`, and uses squaremap tiles as basemap — without forking squaremap.
+**Goal:** Ship an admin Leaflet map editor at `/editor/` that draws chunk-snapped territories and zones, authenticates via API-token → `GUILDS_SESSION` cookie, saves through existing `PUT`/`DELETE /api/territories*`, and uses squaremap tiles as basemap — without forking squaremap.
 
 **Architecture:** Extend `TerritoryWebServer` with `SessionStore`, session routes, and static `/editor/*` assets. Frontend is vanilla JS modules + Leaflet (CDN pinned). Geometry is chunk-medium; polygons serialize as block coords at `chunk×16`. Domain validation stays on the existing registry path.
 
@@ -26,7 +26,7 @@
 | `common/.../web/static/editor/*` | `index.html`, `css/editor.css`, `js/*.js` |
 | `paper/.../resources/config.yml` | New web keys + comments |
 | `README.md` | Document `/editor/`, tiles, session |
-| Tests under `common/src/test/java/com/azoth/territory/web/` | SessionStore, session auth, static |
+| Tests under `common/src/test/java/com/guilds/territory/web/` | SessionStore, session auth, static |
 
 Tile template (squaremap 1.3.15):  
 `{squaremapTileBaseUrl}/tiles/{worldName}/{z}/{x}_{y}.png`  
@@ -37,13 +37,13 @@ with world folder names like `minecraft_overworld` from squaremap settings. Edit
 ### Task 1: SessionStore
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/web/SessionStore.java`
-- Test: `common/src/test/java/com/azoth/territory/web/SessionStoreTest.java`
+- Create: `common/src/main/java/com/guilds/territory/web/SessionStore.java`
+- Test: `common/src/test/java/com/guilds/territory/web/SessionStoreTest.java`
 
 - [ ] **Step 1: Write failing tests**
 
 ```java
-package com.azoth.territory.web;
+package com.guilds.territory.web;
 
 import org.junit.jupiter.api.Test;
 import java.time.Clock;
@@ -87,13 +87,13 @@ class SessionStoreTest {
 - [ ] **Step 2: Run test — expect FAIL (class missing)**
 
 ```bash
-./gradlew :common:test --tests com.azoth.territory.web.SessionStoreTest
+./gradlew :common:test --tests com.guilds.territory.web.SessionStoreTest
 ```
 
 - [ ] **Step 3: Implement SessionStore**
 
 ```java
-package com.azoth.territory.web;
+package com.guilds.territory.web;
 
 import java.security.SecureRandom;
 import java.time.Clock;
@@ -104,7 +104,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class SessionStore {
-    public static final String COOKIE_NAME = "AZOTH_SESSION";
+    public static final String COOKIE_NAME = "GUILDS_SESSION";
 
     private final String expectedToken;
     private final long ttlSeconds;
@@ -181,7 +181,7 @@ public final class SessionStore {
 - Modify: `TerritoryApiHandler.java`, `HttpResponses.java`, `TerritoryWebServer.java`
 - Test: extend `TerritoryWebServerTest` or new `SessionAuthWebTest.java`
 
-- [ ] **Step 1: Cookie helpers** on `HttpResponses`: parse `Cookie` header for `AZOTH_SESSION`; build `Set-Cookie` with HttpOnly, Path=/, SameSite=Lax, Max-Age, Secure when `proxy.isSecure(exchange)`.
+- [ ] **Step 1: Cookie helpers** on `HttpResponses`: parse `Cookie` header for `GUILDS_SESSION`; build `Set-Cookie` with HttpOnly, Path=/, SameSite=Lax, Max-Age, Secure when `proxy.isSecure(exchange)`.
 - [ ] **Step 2: Construct handler with `SessionStore`** (nullable/empty when no token).
 - [ ] **Step 3: Routes**
   - `POST /api/session` body `{"token":"..."}` → 200 + Set-Cookie or 401
@@ -203,11 +203,11 @@ public final class SessionStore {
 
 **Files:**
 - Create: `StaticFileHandler.java`
-- Create: `common/src/main/resources/com/azoth/territory/web/static/editor/index.html` (minimal shell)
+- Create: `common/src/main/resources/com/guilds/territory/web/static/editor/index.html` (minimal shell)
 - Modify: `TerritoryWebServer` register context `/editor`
 - Test: GET `/editor/` and `/editor/index.html` → 200 HTML
 
-Classpath root: `com/azoth/territory/web/static/editor/`.  
+Classpath root: `com/guilds/territory/web/static/editor/`.  
 Map request path `/editor` or `/editor/` → `index.html`; `/editor/js/api.js` → resource `.../editor/js/api.js`.  
 Reject `..` path segments. Content-Types: html, css, js, svg, map.
 
@@ -217,7 +217,7 @@ Reject `..` path segments. Content-Types: html, css, js, svg, map.
 
 ### Task 5: Editor shell UI (login + load territories)
 
-**Files under** `common/src/main/resources/com/azoth/territory/web/static/editor/`:
+**Files under** `common/src/main/resources/com/guilds/territory/web/static/editor/`:
 - `index.html`, `css/editor.css`
 - `js/api.js`, `js/model.js`, `js/ui.js`, `js/app.js`
 

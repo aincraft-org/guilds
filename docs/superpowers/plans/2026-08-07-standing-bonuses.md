@@ -16,7 +16,7 @@
 - **Eligibility:** an event accrues standing only when the actor's primary guild == the territory's governing guild. Bars are keyed by that owner guild; one bar per territory.
 - **Tier validity:** `StandingConfig` validation: `cap > 0`, source values non-negative, tiers non-empty, first threshold 0, thresholds ascending, multipliers `>= 1.0`; built-in defaults when `bonuses.json` absent; invalid file → subsystem disabled (SEVERE log), never partial state.
 - **Harvest bonus:** multiplies **base drops only** (block drops via `Block.getDrops(hand)` without Fortune — the plugin computes `hand` as empty for the base drop set; mob drops via `EntityDeathEvent.getDrops()`). Fortune/Looting NEVER multiplied. Extra drops added as copies; originals not mutated.
-- **Naming:** package root `com.azoth.territory.standing` everywhere; file `bonuses.json` under the plugin data folder; packaged default in `paper/src/main/resources/bonuses.json`.
+- **Naming:** package root `com.guilds.territory.standing` everywhere; file `bonuses.json` under the plugin data folder; packaged default in `paper/src/main/resources/bonuses.json`.
 - **Repos style:** imperative commit subjects, one logical change per commit. Run `./gradlew test` for common/api, and per-module tests for paper. Do NOT run project-wide static analysis (SpotBugs/PMD/Checkstyle) mid-task — only `./gradlew test` per module, then the full `./gradlew test` once at the end.
 - **Verification:** every task's tests must pass before committing.
 
@@ -25,12 +25,12 @@
 ### Task 1: Standing domain values + `StandingService` API (api module)
 
 **Files:**
-- Create: `api/src/main/java/com/azoth/territory/standing/StandingSource.java`
-- Create: `api/src/main/java/com/azoth/territory/standing/StandingBar.java`
-- Create: `api/src/main/java/com/azoth/territory/standing/TerritoryStandingState.java`
-- Create: `api/src/main/java/com/azoth/territory/standing/StandingTier.java`
-- Create: `api/src/main/java/com/azoth/territory/standing/StandingService.java`
-- Test: `api/src/test/java/com/azoth/territory/standing/StandingValuesTest.java`
+- Create: `api/src/main/java/com/guilds/territory/standing/StandingSource.java`
+- Create: `api/src/main/java/com/guilds/territory/standing/StandingBar.java`
+- Create: `api/src/main/java/com/guilds/territory/standing/TerritoryStandingState.java`
+- Create: `api/src/main/java/com/guilds/territory/standing/StandingTier.java`
+- Create: `api/src/main/java/com/guilds/territory/standing/StandingService.java`
+- Test: `api/src/test/java/com/guilds/territory/standing/StandingValuesTest.java`
 
 **Interfaces:**
 - Produces (later tasks consume):
@@ -49,10 +49,10 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Create `api/src/test/java/com/azoth/territory/standing/StandingValuesTest.java`:
+Create `api/src/test/java/com/guilds/territory/standing/StandingValuesTest.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import org.junit.jupiter.api.Test;
 
@@ -104,15 +104,15 @@ class StandingValuesTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :api:test --tests "com.azoth.territory.standing.StandingValuesTest" -q`
-Expected: FAIL — `package com.azoth.territory.standing does not exist`
+Run: `./gradlew :api:test --tests "com.guilds.territory.standing.StandingValuesTest" -q`
+Expected: FAIL — `package com.guilds.territory.standing does not exist`
 
 - [ ] **Step 3: Create the five value/interface files**
 
-`api/src/main/java/com/azoth/territory/standing/StandingSource.java`:
+`api/src/main/java/com/guilds/territory/standing/StandingSource.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 /** Activity types that accumulate territory standing (spec §4). */
 public enum StandingSource {
@@ -122,20 +122,20 @@ public enum StandingSource {
 }
 ```
 
-`api/src/main/java/com/azoth/territory/standing/StandingBar.java`:
+`api/src/main/java/com/guilds/territory/standing/StandingBar.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 /** Standing value of one guild on one territory. */
 public record StandingBar(String guildId, double value) {
 }
 ```
 
-`api/src/main/java/com/azoth/territory/standing/TerritoryStandingState.java`:
+`api/src/main/java/com/guilds/territory/standing/TerritoryStandingState.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import java.util.List;
 
@@ -148,10 +148,10 @@ public record TerritoryStandingState(
 }
 ```
 
-`api/src/main/java/com/azoth/territory/standing/StandingTier.java`:
+`api/src/main/java/com/guilds/territory/standing/StandingTier.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 /** One development tier: standing threshold + harvest/influence multipliers. */
 public record StandingTier(
@@ -174,10 +174,10 @@ public record StandingTier(
 }
 ```
 
-`api/src/main/java/com/azoth/territory/standing/StandingService.java`:
+`api/src/main/java/com/guilds/territory/standing/StandingService.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import java.util.List;
 import java.util.Optional;
@@ -213,13 +213,13 @@ public interface StandingService {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :api:test --tests "com.azoth.territory.standing.StandingValuesTest" -q`
+Run: `./gradlew :api:test --tests "com.guilds.territory.standing.StandingValuesTest" -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/src/main/java/com/azoth/territory/standing api/src/test/java/com/azoth/territory/standing
+git add api/src/main/java/com/guilds/territory/standing api/src/test/java/com/guilds/territory/standing
 git commit -m "feat: add standing domain values and service API"
 ```
 
@@ -228,10 +228,10 @@ git commit -m "feat: add standing domain values and service API"
 ### Task 2: `StandingConfig` + `bonuses.json` loader (common + paper)
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/standing/StandingConfig.java`
-- Create: `common/src/main/java/com/azoth/territory/standing/StandingConfigLoader.java` (pure-Java, no Bukkit; reads a `Path`)
+- Create: `common/src/main/java/com/guilds/territory/standing/StandingConfig.java`
+- Create: `common/src/main/java/com/guilds/territory/standing/StandingConfigLoader.java` (pure-Java, no Bukkit; reads a `Path`)
 - Create: `paper/src/main/resources/bonuses.json`
-- Test: `common/src/test/java/com/azoth/territory/standing/StandingConfigTest.java`
+- Test: `common/src/test/java/com/guilds/territory/standing/StandingConfigTest.java`
 
 **Interfaces:**
 - Consumes: `StandingSource`, `StandingTier` from Task 1.
@@ -242,10 +242,10 @@ git commit -m "feat: add standing domain values and service API"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `common/src/test/java/com/azoth/territory/standing/StandingConfigTest.java`:
+Create `common/src/test/java/com/guilds/territory/standing/StandingConfigTest.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -343,15 +343,15 @@ class StandingConfigTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :common:test --tests "com.azoth.territory.standing.StandingConfigTest" -q`
-Expected: FAIL — `package com.azoth.territory.standing does not exist`
+Run: `./gradlew :common:test --tests "com.guilds.territory.standing.StandingConfigTest" -q`
+Expected: FAIL — `package com.guilds.territory.standing does not exist`
 
 - [ ] **Step 3: Create `StandingConfig`**
 
-`common/src/main/java/com/azoth/territory/standing/StandingConfig.java`:
+`common/src/main/java/com/guilds/territory/standing/StandingConfig.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import java.util.List;
 import java.util.Objects;
@@ -424,10 +424,10 @@ public record StandingConfig(
 
 - [ ] **Step 4: Create `StandingConfigLoader`**
 
-`common/src/main/java/com/azoth/territory/standing/StandingConfigLoader.java` (pure Java, `Path`-based; reads via `Files.readString`, parses with Gson):
+`common/src/main/java/com/guilds/territory/standing/StandingConfigLoader.java` (pure Java, `Path`-based; reads via `Files.readString`, parses with Gson):
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -517,15 +517,15 @@ public final class StandingConfigLoader {
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `./gradlew :common:test --tests "com.azoth.territory.standing.StandingConfigTest" -q`
+Run: `./gradlew :common:test --tests "com.guilds.territory.standing.StandingConfigTest" -q`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/standing/StandingConfig.java \
-        common/src/main/java/com/azoth/territory/standing/StandingConfigLoader.java \
-        common/src/test/java/com/azoth/territory/standing/StandingConfigTest.java \
+git add common/src/main/java/com/guilds/territory/standing/StandingConfig.java \
+        common/src/main/java/com/guilds/territory/standing/StandingConfigLoader.java \
+        common/src/test/java/com/guilds/territory/standing/StandingConfigTest.java \
         paper/src/main/resources/bonuses.json
 git commit -m "feat: add standing config and bonuses.json loader"
 ```
@@ -535,11 +535,11 @@ git commit -m "feat: add standing config and bonuses.json loader"
 ### Task 3: `PostgresStandingStore` (common)
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java` — **Modify**: add `standing_state` to `COMMON_SCHEMA`.
-- Create: `common/src/main/java/com/azoth/territory/standing/StandingState.java`
-- Create: `common/src/main/java/com/azoth/territory/standing/StandingEntry.java`
-- Create: `common/src/main/java/com/azoth/territory/standing/PostgresStandingStore.java`
-- Test: `common/src/test/java/com/azoth/territory/standing/PostgresStandingStoreTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java` — **Modify**: add `standing_state` to `COMMON_SCHEMA`.
+- Create: `common/src/main/java/com/guilds/territory/standing/StandingState.java`
+- Create: `common/src/main/java/com/guilds/territory/standing/StandingEntry.java`
+- Create: `common/src/main/java/com/guilds/territory/standing/PostgresStandingStore.java`
+- Test: `common/src/test/java/com/guilds/territory/standing/PostgresStandingStoreTest.java`
 
 **Interfaces:**
 - Consumes: nothing new (PostgresDatabase, standing engine will use later).
@@ -550,13 +550,13 @@ git commit -m "feat: add standing config and bonuses.json loader"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `common/src/test/java/com/azoth/territory/standing/PostgresStandingStoreTest.java` (mirrors `PostgresTerritoryStoreTest`, uses `PostgresTestDatabase`):
+Create `common/src/test/java/com/guilds/territory/standing/PostgresStandingStoreTest.java` (mirrors `PostgresTerritoryStoreTest`, uses `PostgresTestDatabase`):
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.persist.PostgresDatabase;
+import com.guilds.territory.PostgresTestDatabase;
+import com.guilds.territory.persist.PostgresDatabase;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -566,14 +566,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class PostgresStandingStoreTest {
-    private static final String TEST_URL = System.getenv("AZOTH_TEST_JDBC_URL");
+    private static final String TEST_URL = System.getenv("GUILDS_TEST_JDBC_URL");
     private static PostgresDatabase database;
     private static PostgresStandingStore store;
 
     @BeforeAll
     static void connect() throws Exception {
         assumeTrue(TEST_URL != null && !TEST_URL.isBlank(),
-                "AZOTH_TEST_JDBC_URL not set — skipping PostgreSQL integration test");
+                "GUILDS_TEST_JDBC_URL not set — skipping PostgreSQL integration test");
         database = PostgresTestDatabase.open();
         store = new PostgresStandingStore(database);
     }
@@ -633,12 +633,12 @@ class PostgresStandingStoreTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `AZOTH_TEST_JDBC_URL=… ./gradlew :common:test --tests "com.azoth.territory.standing.PostgresStandingStoreTest" -q`
-Expected: FAIL — `package com.azoth.territory.standing does not exist` (or table missing if only config created — either way red).
+Run: `GUILDS_TEST_JDBC_URL=… ./gradlew :common:test --tests "com.guilds.territory.standing.PostgresStandingStoreTest" -q`
+Expected: FAIL — `package com.guilds.territory.standing does not exist` (or table missing if only config created — either way red).
 
 - [ ] **Step 3: Add `standing_state` to `COMMON_SCHEMA`**
 
-In `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java`, add one line to `COMMON_SCHEMA`:
+In `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java`, add one line to `COMMON_SCHEMA`:
 
 ```java
 "CREATE TABLE IF NOT EXISTS standing_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)",
@@ -646,10 +646,10 @@ In `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java`, add
 
 - [ ] **Step 4: Create `StandingState` + `StandingEntry`**
 
-`common/src/main/java/com/azoth/territory/standing/StandingState.java`:
+`common/src/main/java/com/guilds/territory/standing/StandingState.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -661,10 +661,10 @@ final class StandingState {
 }
 ```
 
-`common/src/main/java/com/azoth/territory/standing/StandingEntry.java`:
+`common/src/main/java/com/guilds/territory/standing/StandingEntry.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -678,12 +678,12 @@ final class StandingEntry {
 
 - [ ] **Step 5: Create `PostgresStandingStore`**
 
-`common/src/main/java/com/azoth/territory/standing/PostgresStandingStore.java`:
+`common/src/main/java/com/guilds/territory/standing/PostgresStandingStore.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.persist.PostgresDatabase;
+import com.guilds.territory.persist.PostgresDatabase;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -788,15 +788,15 @@ public final class PostgresStandingStore {
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `AZOTH_TEST_JDBC_URL=… ./gradlew :common:test --tests "com.azoth.territory.standing.PostgresStandingStoreTest" -q`
+Run: `GUILDS_TEST_JDBC_URL=… ./gradlew :common:test --tests "com.guilds.territory.standing.PostgresStandingStoreTest" -q`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java \
-        common/src/main/java/com/azoth/territory/standing \
-        common/src/test/java/com/azoth/territory/standing/PostgresStandingStoreTest.java
+git add common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java \
+        common/src/main/java/com/guilds/territory/standing \
+        common/src/test/java/com/guilds/territory/standing/PostgresStandingStoreTest.java
 git commit -m "feat: add postgres standing store"
 ```
 
@@ -805,9 +805,9 @@ git commit -m "feat: add postgres standing store"
 ### Task 4: `StandingEngine` (common, pure domain)
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/standing/StandingEngine.java`
-- Test: `common/src/test/java/com/azoth/territory/standing/StandingEngineAccrualTest.java`
-- Test: `common/src/test/java/com/azoth/territory/standing/StandingEngineTierTest.java`
+- Create: `common/src/main/java/com/guilds/territory/standing/StandingEngine.java`
+- Test: `common/src/test/java/com/guilds/territory/standing/StandingEngineAccrualTest.java`
+- Test: `common/src/test/java/com/guilds/territory/standing/StandingEngineTierTest.java`
 
 **Interfaces:**
 - Consumes: `StandingService`, `StandingConfig`, `StandingState`, `StandingEntry`, `PostgresStandingStore`, `TerritoryRegistry` (via `GovernanceRegistry.territories()`), `GovernanceRegistry`, `GuildBody`.
@@ -823,23 +823,23 @@ git commit -m "feat: add postgres standing store"
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `common/src/test/java/com/azoth/territory/standing/StandingEngineAccrualTest.java`:
+Create `common/src/test/java/com/guilds/territory/standing/StandingEngineAccrualTest.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.permission.FakeGovernanceSource;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.persist.PostgresDatabase;
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.permission.FakeGovernanceSource;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.permission.GuildToggles;
+import com.guilds.territory.persist.PostgresDatabase;
+import com.guilds.territory.PostgresTestDatabase;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -976,21 +976,21 @@ class StandingEngineAccrualTest {
 }
 ```
 
-Create `common/src/test/java/com/azoth/territory/standing/StandingEngineTierTest.java` (tier/multiplier logic — pure, needs `FakeGovernanceSource` + a registered territory; no Postgres needed except construction which takes the store; construct with `PostgresStandingStore` but the engine only uses it on `flush`):
+Create `common/src/test/java/com/guilds/territory/standing/StandingEngineTierTest.java` (tier/multiplier logic — pure, needs `FakeGovernanceSource` + a registered territory; no Postgres needed except construction which takes the store; construct with `PostgresStandingStore` but the engine only uses it on `flush`):
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.permission.FakeGovernanceSource;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.permission.FakeGovernanceSource;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.permission.GuildToggles;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -1098,20 +1098,20 @@ class StandingEngineTierTest {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `./gradlew :common:test --tests "com.azoth.territory.standing.StandingEngine*" -q`
+Run: `./gradlew :common:test --tests "com.guilds.territory.standing.StandingEngine*" -q`
 Expected: FAIL — `cannot find symbol: class StandingEngine`
 
 - [ ] **Step 3: Create `StandingEngine`**
 
-`common/src/main/java/com/azoth/territory/standing/StandingEngine.java`:
+`common/src/main/java/com/guilds/territory/standing/StandingEngine.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.registry.TerritoryRegistry;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -1432,15 +1432,15 @@ Note the `harvestMultiplierFor` reads cleanly (owner → tier multiplier; non-ow
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `./gradlew :common:test --tests "com.azoth.territory.standing.StandingEngine*" -q`
+Run: `./gradlew :common:test --tests "com.guilds.territory.standing.StandingEngine*" -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/standing/StandingEngine.java \
-        common/src/test/java/com/azoth/territory/standing/StandingEngineAccrualTest.java \
-        common/src/test/java/com/azoth/territory/standing/StandingEngineTierTest.java
+git add common/src/main/java/com/guilds/territory/standing/StandingEngine.java \
+        common/src/test/java/com/guilds/territory/standing/StandingEngineAccrualTest.java \
+        common/src/test/java/com/guilds/territory/standing/StandingEngineTierTest.java
 git commit -m "feat: add standing engine with accrual and tier multipliers"
 ```
 
@@ -1449,9 +1449,9 @@ git commit -m "feat: add standing engine with accrual and tier multipliers"
 ### Task 5: Influence accrual multiplier hook (common + paper)
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java`
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Test: `common/src/test/java/com/azoth/territory/influence/InfluenceEngineStandingHookTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Test: `common/src/test/java/com/guilds/territory/influence/InfluenceEngineStandingHookTest.java`
 
 **Interfaces:**
 - Consumes: `StandingService` (from Task 1) — specifically `influenceMultiplierFor(String guildId)`.
@@ -1466,25 +1466,25 @@ git commit -m "feat: add standing engine with accrual and tier multipliers"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `common/src/test/java/com/azoth/territory/influence/InfluenceEngineStandingHookTest.java`:
+Create `common/src/test/java/com/guilds/territory/influence/InfluenceEngineStandingHookTest.java`:
 
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.permission.AllianceBody;
-import com.azoth.territory.permission.FakeGovernanceSource;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.persist.PostgresDatabase;
-import com.azoth.territory.registry.TerritoryRegistry;
-import com.azoth.territory.standing.StandingService;
+import com.guilds.territory.PostgresTestDatabase;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.permission.AllianceBody;
+import com.guilds.territory.permission.FakeGovernanceSource;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.permission.GuildToggles;
+import com.guilds.territory.persist.PostgresDatabase;
+import com.guilds.territory.registry.TerritoryRegistry;
+import com.guilds.territory.standing.StandingService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -1582,7 +1582,7 @@ class InfluenceEngineStandingHookTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :common:test --tests "com.azoth.territory.influence.InfluenceEngineStandingHookTest" -q`
+Run: `./gradlew :common:test --tests "com.guilds.territory.influence.InfluenceEngineStandingHookTest" -q`
 Expected: FAIL — no constructor `InfluenceEngine(..., StandingService)`.
 
 - [ ] **Step 3: Modify `InfluenceEngine`**
@@ -1590,7 +1590,7 @@ Expected: FAIL — no constructor `InfluenceEngine(..., StandingService)`.
 Add a `StandingService` field + overloaded constructor. In `InfluenceEngine.java`:
 
 ```java
-import com.azoth.territory.standing.StandingService;
+import com.guilds.territory.standing.StandingService;
 
     private final StandingService standingService;
     …
@@ -1672,7 +1672,7 @@ Expected: PASS (all influence tests — including `InfluenceEngineAccrualTest`, 
 
 - [ ] **Step 6: Wire into the plugin**
 
-In `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`, in `onEnable`, where the influence engine is constructed, pass the standing engine (created earlier in the same enable path; Task 6 wires standing itself, so at this point create the standing engine before influence):
+In `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`, in `onEnable`, where the influence engine is constructed, pass the standing engine (created earlier in the same enable path; Task 6 wires standing itself, so at this point create the standing engine before influence):
 
 ```java
         // Standing engine (constructed before influence so the influence hook can read it)
@@ -1697,9 +1697,9 @@ In `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`, in `onEn
 - [ ] **Step 7: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java \
-        common/src/test/java/com/azoth/territory/influence/InfluenceEngineStandingHookTest.java \
-        paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java
+git add common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java \
+        common/src/test/java/com/guilds/territory/influence/InfluenceEngineStandingHookTest.java \
+        paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java
 git commit -m "feat: multiply influence accrual by standing development tier"
 ```
 
@@ -1708,11 +1708,11 @@ git commit -m "feat: multiply influence accrual by standing development tier"
 ### Task 6: Paper listeners + plugin wiring (`StandingListener`, `HarvestBonusListener`)
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/standing/StandingListener.java`
-- Create: `paper/src/main/java/com/azoth/territory/standing/HarvestBonusListener.java`
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Test: `paper/src/test/java/com/azoth/territory/standing/StandingListenerTest.java`
-- Test: `paper/src/test/java/com/azoth/territory/standing/HarvestBonusListenerTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/standing/StandingListener.java`
+- Create: `paper/src/main/java/com/guilds/territory/standing/HarvestBonusListener.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Test: `paper/src/test/java/com/guilds/territory/standing/StandingListenerTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/standing/HarvestBonusListenerTest.java`
 
 **Interfaces:**
 - Consumes: `StandingEngine` (accrue), `GovernanceRegistry` (`primaryGuildForMember`), `TerritoryRegistry.resolve`, `GuildBody`.
@@ -1730,15 +1730,15 @@ git commit -m "feat: multiply influence accrual by standing development tier"
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `paper/src/test/java/com/azoth/territory/standing/StandingListenerTest.java` (structural, mirrors `InfluenceListenerTest`):
+Create `paper/src/test/java/com/guilds/territory/standing/StandingListenerTest.java` (structural, mirrors `InfluenceListenerTest`):
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.persist.PostgresDatabase;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.PostgresTestDatabase;
+import com.guilds.territory.persist.PostgresDatabase;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -1788,23 +1788,23 @@ class StandingListenerTest {
 }
 ```
 
-Create `paper/src/test/java/com/azoth/territory/standing/HarvestBonusListenerTest.java` (behavior — uses Mockito to mock Bukkit objects; style mirrors `ProtectionListenerWiringTest` where possible, but this one needs real event objects):
+Create `paper/src/test/java/com/guilds/territory/standing/HarvestBonusListenerTest.java` (behavior — uses Mockito to mock Bukkit objects; style mirrors `ProtectionListenerWiringTest` where possible, but this one needs real event objects):
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.permission.FakeGovernanceSource;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.persist.PostgresDatabase;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.PostgresTestDatabase;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.permission.FakeGovernanceSource;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.permission.GuildToggles;
+import com.guilds.territory.persist.PostgresDatabase;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -1945,19 +1945,19 @@ Note: the `owner` guild body is registered twice in `setUp` (once, then overwrit
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `./gradlew :paper:test --tests "com.azoth.territory.standing.*" -q`
+Run: `./gradlew :paper:test --tests "com.guilds.territory.standing.*" -q`
 Expected: FAIL — classes not found.
 
 - [ ] **Step 3: Create `StandingListener`**
 
-`paper/src/main/java/com/azoth/territory/standing/StandingListener.java`:
+`paper/src/main/java/com/guilds/territory/standing/StandingListener.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.model.LookupResult;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
+import com.guilds.territory.model.LookupResult;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -2036,14 +2036,14 @@ public final class StandingListener implements Listener {
 
 - [ ] **Step 4: Create `HarvestBonusListener`**
 
-`paper/src/main/java/com/azoth/territory/standing/HarvestBonusListener.java`:
+`paper/src/main/java/com/guilds/territory/standing/HarvestBonusListener.java`:
 
 ```java
-package com.azoth.territory.standing;
+package com.guilds.territory.standing;
 
-import com.azoth.territory.model.LookupResult;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
+import com.guilds.territory.model.LookupResult;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -2133,7 +2133,7 @@ public final class HarvestBonusListener implements Listener {
 
 - [ ] **Step 5: Wire into the plugin**
 
-In `AzothTerritoryPlugin.java` `onEnable`, after the influence block and before `TerritoryCommand`, add standing registration:
+In `GuildsTerritoryPlugin.java` `onEnable`, after the influence block and before `TerritoryCommand`, add standing registration:
 
 ```java
         // Standing + harvest bonus subsystem
@@ -2184,15 +2184,15 @@ In `onDisable`, add:
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `./gradlew :paper:test --tests "com.azoth.territory.standing.*" -q`
+Run: `./gradlew :paper:test --tests "com.guilds.territory.standing.*" -q`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/standing \
-        paper/src/test/java/com/azoth/territory/standing \
-        paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java
+git add paper/src/main/java/com/guilds/territory/standing \
+        paper/src/test/java/com/guilds/territory/standing \
+        paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java
 git commit -m "feat: wire standing listeners and harvest bonus drops"
 ```
 
@@ -2201,40 +2201,40 @@ git commit -m "feat: wire standing listeners and harvest bonus drops"
 ### Task 7: `/territory standing` command (paper)
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java`
-- Test: `paper/src/test/java/com/azoth/territory/command/TerritoryCommandStandingTest.java`
+- Modify: `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java`
+- Test: `paper/src/test/java/com/guilds/territory/command/TerritoryCommandStandingTest.java`
 
 **Interfaces:**
 - Consumes: `StandingEngine` (via `plugin.getStandingEngine()` — add getter), `TerritoryStandingState`, `StandingBar`.
 - Produces:
-  - `plugin.getStandingEngine()` — getter added to `AzothTerritoryPlugin` (public).
+  - `plugin.getStandingEngine()` — getter added to `GuildsTerritoryPlugin` (public).
   - `/territory standing [territoryId]` — shows owner, bars, tier readout.
-  - `/territory standing set <territoryId> <guildId> <value>` — admin (requires `azothterritory.admin`).
+  - `/territory standing set <territoryId> <guildId> <value>` — admin (requires `guildsterritory.admin`).
   - `/territory standing reset <territoryId>` — admin.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `paper/src/test/java/com/azoth/territory/command/TerritoryCommandStandingTest.java` (behavioral smoke test with Mockito's `mock(AzothTerritoryPlugin.class)`; real engine built on a test Postgres DB):
+Create `paper/src/test/java/com/guilds/territory/command/TerritoryCommandStandingTest.java` (behavioral smoke test with Mockito's `mock(GuildsTerritoryPlugin.class)`; real engine built on a test Postgres DB):
 
 ```java
-package com.azoth.territory.command;
+package com.guilds.territory.command;
 
-import com.azoth.territory.AzothTerritoryPlugin;
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.permission.FakeGovernanceSource;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.persist.PostgresDatabase;
-import com.azoth.territory.registry.TerritoryRegistry;
-import com.azoth.territory.standing.StandingConfig;
-import com.azoth.territory.standing.StandingEngine;
-import com.azoth.territory.standing.PostgresStandingStore;
+import com.guilds.territory.GuildsTerritoryPlugin;
+import com.guilds.territory.PostgresTestDatabase;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.permission.FakeGovernanceSource;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.permission.GuildToggles;
+import com.guilds.territory.persist.PostgresDatabase;
+import com.guilds.territory.registry.TerritoryRegistry;
+import com.guilds.territory.standing.StandingConfig;
+import com.guilds.territory.standing.StandingEngine;
+import com.guilds.territory.standing.PostgresStandingStore;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -2286,14 +2286,14 @@ class TerritoryCommandStandingTest {
 
     @Test
     void pluginExposesStandingEngine() throws Exception {
-        Method getter = AzothTerritoryPlugin.class.getMethod("getStandingEngine");
+        Method getter = GuildsTerritoryPlugin.class.getMethod("getStandingEngine");
         assertEquals(StandingEngine.class, getter.getReturnType());
     }
 
     @Test
     void commandHandlesStandingWithoutServer() {
-        engine.accrue("everfall", "everfall-town", com.azoth.territory.standing.StandingSource.PVP_KILL);
-        AzothTerritoryPlugin plugin = mock(AzothTerritoryPlugin.class);
+        engine.accrue("everfall", "everfall-town", com.guilds.territory.standing.StandingSource.PVP_KILL);
+        GuildsTerritoryPlugin plugin = mock(GuildsTerritoryPlugin.class);
         when(plugin.getStandingEngine()).thenReturn(engine);
         TerritoryCommand cmd = new TerritoryCommand(plugin);
         CommandSender sender = mock(CommandSender.class);
@@ -2306,8 +2306,8 @@ class TerritoryCommandStandingTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :paper:test --tests "com.azoth.territory.command.TerritoryCommandStandingTest" -q`
-Expected: FAIL — `AzothTerritoryPlugin.getStandingEngine()` missing (mock cannot stub), and `TerritoryCommand` does not handle `standing` yet.
+Run: `./gradlew :paper:test --tests "com.guilds.territory.command.TerritoryCommandStandingTest" -q`
+Expected: FAIL — `GuildsTerritoryPlugin.getStandingEngine()` missing (mock cannot stub), and `TerritoryCommand` does not handle `standing` yet.
 
 In `TerritoryCommand.java`, add handling in `onCommand` for `"standing"`:
 
@@ -2355,7 +2355,7 @@ Implementations (use `plugin.getStandingEngine()`):
     }
 
     private boolean standingAdminSet(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("azothterritory.admin")) {
+        if (!sender.hasPermission("guildsterritory.admin")) {
             sender.sendMessage(Component.text("No permission.", NamedTextColor.RED));
             return true;
         }
@@ -2385,7 +2385,7 @@ Implementations (use `plugin.getStandingEngine()`):
     }
 
     private boolean standingAdminReset(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("azothterritory.admin")) {
+        if (!sender.hasPermission("guildsterritory.admin")) {
             sender.sendMessage(Component.text("No permission.", NamedTextColor.RED));
             return true;
         }
@@ -2407,7 +2407,7 @@ Implementations (use `plugin.getStandingEngine()`):
     }
 ```
 
-Also add the getter to `AzothTerritoryPlugin`:
+Also add the getter to `GuildsTerritoryPlugin`:
 
 ```java
     public StandingEngine getStandingEngine() {
@@ -2419,22 +2419,22 @@ And update tab completion: replace the hard-coded completion for the `standing` 
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `./gradlew :paper:test --tests "com.azoth.territory.command.*" -q`
+Run: `./gradlew :paper:test --tests "com.guilds.territory.command.*" -q`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java \
-        paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java \
-        paper/src/test/java/com/azoth/territory/command/TerritoryCommandStandingTest.java
+git add paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java \
+        paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java \
+        paper/src/test/java/com/guilds/territory/command/TerritoryCommandStandingTest.java
 git commit -m "feat: add /territory standing admin and readout commands"
 ```
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java`
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java`
-- Test: `common/src/test/java/com/azoth/territory/web/StandingWebTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java`
+- Test: `common/src/test/java/com/guilds/territory/web/StandingWebTest.java`
 
 **Interfaces:**
 - Consumes: `StandingService` (via a `Supplier<Optional<StandingService>>` constructor param added to `TerritoryWebServer`).
@@ -2453,15 +2453,15 @@ git commit -m "feat: add /territory standing admin and readout commands"
 
 Design the handler so the standing path is testable without a live server: use the **8-arg** `TerritoryApiHandler` constructor with `null` for everything except the suppliers and log; implement `standingJson()` to use only the standing supplier + Gson. `toStandingJson(TerritoryStandingState)` is a `static` method (mirror `toInfluenceJson`).
 
-`common/src/test/java/com/azoth/territory/web/StandingWebTest.java`:
+`common/src/test/java/com/guilds/territory/web/StandingWebTest.java`:
 
 ```java
-package com.azoth.territory.web;
+package com.guilds.territory.web;
 
-import com.azoth.territory.standing.StandingBar;
-import com.azoth.territory.standing.StandingService;
-import com.azoth.territory.standing.StandingTier;
-import com.azoth.territory.standing.TerritoryStandingState;
+import com.guilds.territory.standing.StandingBar;
+import com.guilds.territory.standing.StandingService;
+import com.guilds.territory.standing.StandingTier;
+import com.guilds.territory.standing.TerritoryStandingState;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -2522,7 +2522,7 @@ class StandingWebTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :common:test --tests "com.azoth.territory.web.StandingWebTest" -q`
+Run: `./gradlew :common:test --tests "com.guilds.territory.web.StandingWebTest" -q`
 Expected: FAIL — no 8-arg constructor / no `standingJson` method.
 
 - [ ] **Step 3: Modify `TerritoryApiHandler`**
@@ -2530,9 +2530,9 @@ Expected: FAIL — no 8-arg constructor / no `standingJson` method.
 Add a standing supplier field + **overloaded 8-arg constructor** (the existing 7-arg delegates with `Optional::empty`), route, and methods (mirror `influence` exactly — the influence supplier is handled as `influenceSupplier == null ? Optional::empty : influenceSupplier`):
 
 ```java
-import com.azoth.territory.standing.StandingService;
-import com.azoth.territory.standing.TerritoryStandingState;
-import com.azoth.territory.standing.StandingBar;
+import com.guilds.territory.standing.StandingService;
+import com.guilds.territory.standing.TerritoryStandingState;
+import com.guilds.territory.standing.StandingBar;
 …
     private final Supplier<Optional<StandingService>> standingSupplier;
     …
@@ -2661,7 +2661,7 @@ Keep the existing 6-arg constructor (delegates to the new 7-arg), add the 7-arg:
         this.store = Objects.requireNonNull(store, "store");
         this.influenceSupplier = influenceSupplier == null ? Optional::empty : influenceSupplier;
         this.standingSupplier = standingSupplier == null ? Optional::empty : standingSupplier;
-        this.log = log == null ? Logger.getLogger("AzothTerritoryWeb") : log;
+        this.log = log == null ? Logger.getLogger("GuildsTerritoryWeb") : log;
     }
 ```
 
@@ -2675,7 +2675,7 @@ Add a field `private final Supplier<Optional<StandingService>> standingSupplier;
 
 - [ ] **Step 5: Update the plugin call-site**
 
-In `AzothTerritoryPlugin.startWebIfEnabled()`:
+In `GuildsTerritoryPlugin.startWebIfEnabled()`:
 
 ```java
             this.webServer = new TerritoryWebServer(
@@ -2697,10 +2697,10 @@ Expected: PASS (existing web tests `InfluenceWebTest`, `TerritoryWebServerTest`,
 - [ ] **Step 7: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java \
-        common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java \
-        common/src/test/java/com/azoth/territory/web/StandingWebTest.java \
-        paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java
+git add common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java \
+        common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java \
+        common/src/test/java/com/guilds/territory/web/StandingWebTest.java \
+        paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java
 git commit -m "feat: expose standing in web API"
 ```
 
@@ -2709,9 +2709,9 @@ git commit -m "feat: expose standing in web API"
 ### Task 8: Web exposure (REST)
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java`
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java`
-- Test: `common/src/test/java/com/azoth/territory/web/StandingWebTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java`
+- Test: `common/src/test/java/com/guilds/territory/web/StandingWebTest.java`
 
 **Interfaces:**
 - Consumes: `StandingService` (via a `Supplier<Optional<StandingService>>` constructor param).
@@ -2719,7 +2719,7 @@ git commit -m "feat: expose standing in web API"
 
 - [ ] **Step 1: Confirm the failing test exists (already written in the current plan state)** — the test file from the earlier Task 8 draft is in place; if the previous edits replaced it, re-apply the `StandingWebTest.java` content from the plan's Task 8 Step 1. Then run:
 
-Run: `./gradlew :common:test --tests "com.azoth.territory.web.StandingWebTest" -q`
+Run: `./gradlew :common:test --tests "com.guilds.territory.web.StandingWebTest" -q`
 Expected: FAIL — no 8-arg constructor / no `standingJson`.
 
 - [ ] **Step 2: Apply the handler + server modifications** (Steps 3–5 of the plan's Task 8: `TerritoryApiHandler` overloaded constructor + methods, `TerritoryWebServer` overloaded constructor + field + `start()` wiring, plugin call-site update).
@@ -2732,10 +2732,10 @@ Expected: PASS (existing web tests + `StandingWebTest` green)
 - [ ] **Step 4: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java \
-        common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java \
-        common/src/test/java/com/azoth/territory/web/StandingWebTest.java \
-        paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java
+git add common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java \
+        common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java \
+        common/src/test/java/com/guilds/territory/web/StandingWebTest.java \
+        paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java
 git commit -m "feat: expose standing in web API"
 ```
 
@@ -2744,7 +2744,7 @@ git commit -m "feat: expose standing in web API"
 ### Task 9: Final integration + full verification
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` (ensure ordering: standing engine before influence; both before web; listeners + flush registered; disable flush)
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` (ensure ordering: standing engine before influence; both before web; listeners + flush registered; disable flush)
 - Modify: `README.md` (document the standing system)
 - Test: none new — run the full suite.
 
@@ -2752,7 +2752,7 @@ git commit -m "feat: expose standing in web API"
 
 - [ ] **Step 1: Verify plugin enable ordering**
 
-In `AzothTerritoryPlugin.onEnable()`, ensure the exact order:
+In `GuildsTerritoryPlugin.onEnable()`, ensure the exact order:
 
 1. Registry + DB load (`store.loadInto`).
 2. `constructGuildsSubsystem()` + `wireTerritoryRegistry`.
@@ -2772,7 +2772,7 @@ Confirm each step's code is present. If any piece is missing, add it now.
 - [ ] **Step 2: Check compile + full test suite**
 
 Run: `./gradlew test -q`
-Expected: PASS — all modules, all tests (api, common, paper; Postgres tests skip when `AZOTH_TEST_JDBC_URL` unset).
+Expected: PASS — all modules, all tests (api, common, paper; Postgres tests skip when `GUILDS_TEST_JDBC_URL` unset).
 
 - [ ] **Step 3: Smoke test with the runServer**
 
@@ -2806,7 +2806,7 @@ on `/api/territories/{id}`. Admin: `/territory standing set|reset`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java README.md
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java README.md
 git commit -m "docs: document territory standing and harvest bonuses"
 ```
 
@@ -2818,4 +2818,4 @@ git commit -m "docs: document territory standing and harvest bonuses"
 - **`StandingPostgresStore` typo** in Task 7 test draft is corrected in the note (class is `PostgresStandingStore`).
 - **Task 7 test** switched from resource-read structural to a behavioral Mockito smoke test.
 - **Task 8** mirrors the influence web JSON shape (read `TerritoryApiHandler`'s existing influence block to copy the Gson idioms exactly).
-- **Spec coverage** check: accrual sources (Task 4), tier table + validation (Task 2), harvest bonus listened (Task 6), influence hook (Task 5), state persistence (Task 3), commands (Task 7), web (Task 8), README (Task 9), acceptance tests embedded in each task. Postgres tests skip when `AZOTH_TEST_JDBC_URL` unset (repo convention).
+- **Spec coverage** check: accrual sources (Task 4), tier table + validation (Task 2), harvest bonus listened (Task 6), influence hook (Task 5), state persistence (Task 3), commands (Task 7), web (Task 8), README (Task 9), acceptance tests embedded in each task. Postgres tests skip when `GUILDS_TEST_JDBC_URL` unset (repo convention).

@@ -5,7 +5,7 @@ Status: Approved (brainstorm)
 
 ## Background
 
-Azoth Territory already has:
+Guilds Territory already has:
 
 - **Public live map** via squaremap (`TerritorySquaremapBridge` layers for
   territories, zones, influence). Display-only; soft dependency.
@@ -107,18 +107,18 @@ Basemap (read-only):
 
 2. **Session API**  
    - `POST /api/session` — body `{ "token": "..." }` → `Set-Cookie:
-     AZOTH_SESSION=<id>; HttpOnly; Path=/; SameSite=Lax` (and `Secure` when
+     GUILDS_SESSION=<id>; HttpOnly; Path=/; SameSite=Lax` (and `Secure` when
      TLS / proxy-secure).  
    - `DELETE /api/session` — clear cookie and store entry.  
    - Mutating and protected routes accept **either** existing token headers
-     **or** a valid `AZOTH_SESSION` cookie (no regression for scripted clients).  
+     **or** a valid `GUILDS_SESSION` cookie (no regression for scripted clients).  
    - If `web.api-token` is empty, auth is off (existing behavior): session
      login is unnecessary; editor may skip the login modal and call the API
      without a cookie.
 
 3. **Static handler**  
    - Serve `/editor/` and `/editor/**` from classpath (e.g.
-     `com/azoth/territory/web/static/editor/`).  
+     `com/guilds/territory/web/static/editor/`).  
    - `index.html` + JS/CSS modules; Leaflet via CDN or vendored assets
      (prefer vendored or pinned CDN documented in README).
 

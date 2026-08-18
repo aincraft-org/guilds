@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Preserve `/territory declare <territoryId> confirm` for players.
-- Add `/territory declare <territoryId> <guildId> <authorityId> confirm` for console, operators, or `azoth.territory.admin`.
+- Add `/territory declare <territoryId> <guildId> <authorityId> confirm` for console, operators, or `guilds.territory.admin`.
 - Never bypass `InfluenceEngine.declare` authority validation.
 - Use the existing countdown and flip task.
 
@@ -20,8 +20,8 @@
 ### Task 1: Admin declaration command
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java`
-- Create: `paper/src/test/java/com/azoth/territory/command/TerritoryCommandDeclareTest.java`
+- Modify: `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java`
+- Create: `paper/src/test/java/com/guilds/territory/command/TerritoryCommandDeclareTest.java`
 
 **Interfaces:**
 - Consumes: `InfluenceEngine.declare(String territoryId, String attackerGuildId, String authorityId, long nowEpochMs)`.
@@ -33,7 +33,7 @@ Test the admin argument shape, permission rejection, and that the existing playe
 
 - [ ] **Step 2: Run the command test**
 
-Run: `./gradlew :paper:test --tests 'com.azoth.territory.command.TerritoryCommandDeclareTest'`
+Run: `./gradlew :paper:test --tests 'com.guilds.territory.command.TerritoryCommandDeclareTest'`
 Expected: FAIL because the admin route does not exist.
 
 - [ ] **Step 3: Implement the minimal route**
@@ -42,7 +42,7 @@ At the start of `declare`, detect exactly five arguments ending in `confirm`, re
 
 - [ ] **Step 4: Run command tests**
 
-Run: `./gradlew :paper:test --tests 'com.azoth.territory.command.TerritoryCommandDeclareTest'`
+Run: `./gradlew :paper:test --tests 'com.guilds.territory.command.TerritoryCommandDeclareTest'`
 Expected: PASS.
 
 - [ ] **Step 5: Commit command and tests**
@@ -52,7 +52,7 @@ Stage only the command and its tests; commit as one behavior unit.
 ### Task 2: Live persisted flip
 
 **Files:**
-- Runtime-only: `paper/run/plugins/AzothTerritory/config.yml`
+- Runtime-only: `paper/run/plugins/GuildsTerritory/config.yml`
 
 **Interfaces:**
 - Consumes: admin declaration form from Task 1.

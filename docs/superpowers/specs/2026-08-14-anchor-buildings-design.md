@@ -91,7 +91,7 @@ Registration validates:
 5. the player belongs to that governing guild and has facility-management authority;
 6. the facility ID and exact coordinate are unused.
 
-Operators holding `azoth.territory.admin` may register facilities in any territory. Ungoverned territory is admin-only.
+Operators holding `guilds.territory.admin` may register facilities in any territory. Ungoverned territory is admin-only.
 
 A failed attempt reports the reason and keeps the session active until cancellation or expiry, except an authorization change or expired session ends it. A successful registration ends the session.
 

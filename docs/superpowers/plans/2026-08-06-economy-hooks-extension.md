@@ -4,7 +4,7 @@
 
 **Goal:** Add persisted trading-post/storage facility hooks, explicitly valued crafting-tax reporting, and idempotent Vault/simulation treasury expenses for upkeep and fortification integrations.
 
-**Architecture:** Keep Azoth as a pure-domain economy kernel. `SettlementFacility`/`FacilityRegistry` describe persisted facility locations without owning inventories; `EconomyBridge` handles sale/craft tax and treasury expense contracts; `PaymentRail` owns all money movement, including a distinct treasury debit. Bukkit/Vault classes adapt external events and persistence, while Vault mode remains fail-closed and simulation remains non-monetary.
+**Architecture:** Keep Guilds as a pure-domain economy kernel. `SettlementFacility`/`FacilityRegistry` describe persisted facility locations without owning inventories; `EconomyBridge` handles sale/craft tax and treasury expense contracts; `PaymentRail` owns all money movement, including a distinct treasury debit. Bukkit/Vault classes adapt external events and persistence, while Vault mode remains fail-closed and simulation remains non-monetary.
 
 **Tech Stack:** Java 21, Gradle Kotlin DSL, Paper 1.21.4 API, VaultAPI 1.7, Gson 2.11.0, JUnit 5, Mockito 5.14.2.
 
@@ -25,10 +25,10 @@
 ### Task 1: Settlement facilities and location registry
 
 **Files:**
-- Create: `src/main/java/com/azoth/territory/model/FacilityType.java`
-- Create: `src/main/java/com/azoth/territory/model/SettlementFacility.java`
-- Create: `src/main/java/com/azoth/territory/registry/FacilityRegistry.java`
-- Test: `src/test/java/com/azoth/territory/registry/FacilityRegistryTest.java`
+- Create: `src/main/java/com/guilds/territory/model/FacilityType.java`
+- Create: `src/main/java/com/guilds/territory/model/SettlementFacility.java`
+- Create: `src/main/java/com/guilds/territory/registry/FacilityRegistry.java`
+- Test: `src/test/java/com/guilds/territory/registry/FacilityRegistryTest.java`
 
 **Interfaces:**
 - `enum FacilityType { TRADING_POST, STORAGE }`.
@@ -59,7 +59,7 @@ void rejectsFacilityOutsideAssignedTerritory() {
 
 - [ ] **Step 2: Run the focused test and verify compilation/failure.**
 
-Run: `./gradlew :test --tests com.azoth.territory.registry.FacilityRegistryTest`
+Run: `./gradlew :test --tests com.guilds.territory.registry.FacilityRegistryTest`
 
 Expected: compilation failure because the facility types/registry do not exist.
 
@@ -69,15 +69,15 @@ Expected: compilation failure because the facility types/registry do not exist.
 
 - [ ] **Step 4: Run focused and root tests.**
 
-Run: `./gradlew :test --tests com.azoth.territory.registry.FacilityRegistryTest`
+Run: `./gradlew :test --tests com.guilds.territory.registry.FacilityRegistryTest`
 
 Expected: all facility tests pass. Then run `./gradlew :test`; expected root suite pass.
 
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add src/main/java/com/azoth/territory/model/FacilityType.java src/main/java/com/azoth/territory/model/SettlementFacility.java src/main/java/com/azoth/territory/registry/FacilityRegistry.java src/test/java/com/azoth/territory/registry/FacilityRegistryTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add persisted settlement facility domain hooks"
+git add src/main/java/com/guilds/territory/model/FacilityType.java src/main/java/com/guilds/territory/model/SettlementFacility.java src/main/java/com/guilds/territory/registry/FacilityRegistry.java src/test/java/com/guilds/territory/registry/FacilityRegistryTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add persisted settlement facility domain hooks"
 ```
 
 ---
@@ -85,8 +85,8 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 2: Persist facility directory
 
 **Files:**
-- Create: `src/main/java/com/azoth/territory/persist/FacilityStore.java`
-- Test: `src/test/java/com/azoth/territory/persist/FacilityStoreTest.java`
+- Create: `src/main/java/com/guilds/territory/persist/FacilityStore.java`
+- Test: `src/test/java/com/guilds/territory/persist/FacilityStoreTest.java`
 
 **Interfaces:**
 - `FacilityStore(Path file)`; `Path file()`; `void save(FacilityRegistry registry)`; `void loadInto(FacilityRegistry registry)`.
@@ -94,7 +94,7 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 
 - [ ] **Step 1: Write failing round-trip/missing-file tests.** Save two facility types, load into a fresh registry, compare records; missing file must leave an empty registry; malformed JSON must throw `IOException` rather than silently accepting partial state.
 
-- [ ] **Step 2: Run `./gradlew :test --tests com.azoth.territory.persist.FacilityStoreTest`; observe the missing-class failure.**
+- [ ] **Step 2: Run `./gradlew :test --tests com.guilds.territory.persist.FacilityStoreTest`; observe the missing-class failure.**
 
 - [ ] **Step 3: Implement manual Gson codec and safe writes.** Follow `TerritoryStore` conventions. Save to `<file>.tmp`, close the writer, then replace the target with `ATOMIC_MOVE` and fall back to `REPLACE_EXISTING` when unsupported. Load into a temporary `FacilityRegistry`, then call `replaceAll` so invalid input does not partially mutate the live registry.
 
@@ -103,8 +103,8 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add src/main/java/com/azoth/territory/persist/FacilityStore.java src/test/java/com/azoth/territory/persist/FacilityStoreTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Persist settlement facility directory"
+git add src/main/java/com/guilds/territory/persist/FacilityStore.java src/test/java/com/guilds/territory/persist/FacilityStoreTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Persist settlement facility directory"
 ```
 
 ---
@@ -112,16 +112,16 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 3: Add treasury debit to payment rails
 
 **Files:**
-- Create: `src/main/java/com/azoth/territory/economy/TreasuryDebitStatus.java`
-- Create: `src/main/java/com/azoth/territory/economy/TreasuryDebitResult.java`
-- Modify: `src/main/java/com/azoth/territory/economy/PaymentRail.java`
-- Modify: `src/main/java/com/azoth/territory/economy/SimulationTreasury.java`
-- Modify: `src/main/java/com/azoth/territory/economy/VaultTreasury.java`
-- Modify: `src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Test: `src/test/java/com/azoth/territory/economy/TreasuryDebitTest.java`
-- Test: `src/test/java/com/azoth/territory/economy/VaultTreasuryTest.java`
-- Modify: `src/test/java/com/azoth/territory/economy/EconomyBridgeDomainTest.java`
-- Modify: `src/test/java/com/azoth/territory/economy/BukkitEconomyBridgeTest.java`
+- Create: `src/main/java/com/guilds/territory/economy/TreasuryDebitStatus.java`
+- Create: `src/main/java/com/guilds/territory/economy/TreasuryDebitResult.java`
+- Modify: `src/main/java/com/guilds/territory/economy/PaymentRail.java`
+- Modify: `src/main/java/com/guilds/territory/economy/SimulationTreasury.java`
+- Modify: `src/main/java/com/guilds/territory/economy/VaultTreasury.java`
+- Modify: `src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Test: `src/test/java/com/guilds/territory/economy/TreasuryDebitTest.java`
+- Test: `src/test/java/com/guilds/territory/economy/VaultTreasuryTest.java`
+- Modify: `src/test/java/com/guilds/territory/economy/EconomyBridgeDomainTest.java`
+- Modify: `src/test/java/com/guilds/territory/economy/BukkitEconomyBridgeTest.java`
 
 **Interfaces:**
 - `enum TreasuryDebitStatus { DEBITED, INSUFFICIENT_FUNDS, VAULT_UNAVAILABLE, INVALID_AMOUNT }`.
@@ -142,7 +142,7 @@ void simulationDebitReducesActiveTreasury() {
 }
 ```
 
-- [ ] **Step 2: Run `./gradlew :test --tests com.azoth.territory.economy.TreasuryDebitTest`; observe missing types/method failure.**
+- [ ] **Step 2: Run `./gradlew :test --tests com.guilds.territory.economy.TreasuryDebitTest`; observe missing types/method failure.**
 
 - [ ] **Step 3: Implement debit result and rails.** Validate positive finite amounts. In Vault, bank lookup failure maps to `VAULT_UNAVAILABLE`; `bankHas` failure maps to `INSUFFICIENT_FUNDS`; successful `bankWithdraw` alone yields `DEBITED`. Null responses are failures and never yield `DEBITED`.
 
@@ -151,8 +151,8 @@ void simulationDebitReducesActiveTreasury() {
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add src/main/java/com/azoth/territory/economy/PaymentRail.java src/main/java/com/azoth/territory/economy/TreasuryDebitStatus.java src/main/java/com/azoth/territory/economy/TreasuryDebitResult.java src/main/java/com/azoth/territory/economy/SimulationTreasury.java src/main/java/com/azoth/territory/economy/VaultTreasury.java src/test/java/com/azoth/territory/economy/TreasuryDebitTest.java src/test/java/com/azoth/territory/economy/VaultTreasuryTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add treasury debit operations to payment rails"
+git add src/main/java/com/guilds/territory/economy/PaymentRail.java src/main/java/com/guilds/territory/economy/TreasuryDebitStatus.java src/main/java/com/guilds/territory/economy/TreasuryDebitResult.java src/main/java/com/guilds/territory/economy/SimulationTreasury.java src/main/java/com/guilds/territory/economy/VaultTreasury.java src/test/java/com/guilds/territory/economy/TreasuryDebitTest.java src/test/java/com/guilds/territory/economy/VaultTreasuryTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add treasury debit operations to payment rails"
 ```
 
 ---
@@ -160,17 +160,17 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 4: Expense journal and idempotent EconomyBridge API
 
 **Files:**
-- Create: `src/main/java/com/azoth/territory/economy/ExpenseKind.java`
-- Create: `src/main/java/com/azoth/territory/economy/ExpenseJournalState.java`
-- Create: `src/main/java/com/azoth/territory/economy/ExpenseOutcome.java`
-- Create: `src/main/java/com/azoth/territory/economy/ExpenseEntry.java`
-- Create: `src/main/java/com/azoth/territory/economy/ExpenseReport.java`
-- Create: `src/main/java/com/azoth/territory/economy/ExpenseLedger.java`
-- Create: `src/main/java/com/azoth/territory/persist/ExpenseStore.java`
-- Modify: `src/main/java/com/azoth/territory/economy/EconomyBridge.java`
-- Test: `src/test/java/com/azoth/territory/economy/ExpenseLedgerTest.java`
-- Test: `src/test/java/com/azoth/territory/persist/ExpenseStoreTest.java`
-- Test: `src/test/java/com/azoth/territory/economy/EconomyBridgeExpenseTest.java`
+- Create: `src/main/java/com/guilds/territory/economy/ExpenseKind.java`
+- Create: `src/main/java/com/guilds/territory/economy/ExpenseJournalState.java`
+- Create: `src/main/java/com/guilds/territory/economy/ExpenseOutcome.java`
+- Create: `src/main/java/com/guilds/territory/economy/ExpenseEntry.java`
+- Create: `src/main/java/com/guilds/territory/economy/ExpenseReport.java`
+- Create: `src/main/java/com/guilds/territory/economy/ExpenseLedger.java`
+- Create: `src/main/java/com/guilds/territory/persist/ExpenseStore.java`
+- Modify: `src/main/java/com/guilds/territory/economy/EconomyBridge.java`
+- Test: `src/test/java/com/guilds/territory/economy/ExpenseLedgerTest.java`
+- Test: `src/test/java/com/guilds/territory/persist/ExpenseStoreTest.java`
+- Test: `src/test/java/com/guilds/territory/economy/EconomyBridgeExpenseTest.java`
 
 **Interfaces:**
 - `ExpenseKind { UPKEEP, FORTIFICATION, OTHER }`.
@@ -209,7 +209,7 @@ void pendingJournalEntryIsNeverRetriedAfterRestart() {
 }
 ```
 
-- [ ] **Step 2: Run `./gradlew :test --tests com.azoth.territory.economy.EconomyBridgeExpenseTest`; observe missing-class failure.**
+- [ ] **Step 2: Run `./gradlew :test --tests com.guilds.territory.economy.EconomyBridgeExpenseTest`; observe missing-class failure.**
 
 - [ ] **Step 3: Implement journal transitions.** Validate territory and assigned government before journaling. Existing `DEBITED` returns `ALREADY_APPLIED`; `PENDING`/`UNKNOWN` returns reconciliation-required. Put `PENDING` through the ledger sink before calling `debitTreasury`; on `DEBITED`, replace with `DEBITED`; on a non-debited rail response, remove the entry. If a sink failure occurs after the rail reports `DEBITED`, retain `PENDING` and return reconciliation-required. Never auto-retry unknown state.
 
@@ -218,8 +218,8 @@ void pendingJournalEntryIsNeverRetriedAfterRestart() {
 - [ ] **Step 5: Run `./gradlew :test` and commit.**
 
 ```bash
-git add src/main/java/com/azoth/territory/economy/ExpenseKind.java src/main/java/com/azoth/territory/economy/ExpenseJournalState.java src/main/java/com/azoth/territory/economy/ExpenseOutcome.java src/main/java/com/azoth/territory/economy/ExpenseEntry.java src/main/java/com/azoth/territory/economy/ExpenseReport.java src/main/java/com/azoth/territory/economy/ExpenseLedger.java src/main/java/com/azoth/territory/persist/ExpenseStore.java src/main/java/com/azoth/territory/economy/EconomyBridge.java src/test/java/com/azoth/territory/economy/ExpenseLedgerTest.java src/test/java/com/azoth/territory/persist/ExpenseStoreTest.java src/test/java/com/azoth/territory/economy/EconomyBridgeExpenseTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add idempotent treasury expense API"
+git add src/main/java/com/guilds/territory/economy/ExpenseKind.java src/main/java/com/guilds/territory/economy/ExpenseJournalState.java src/main/java/com/guilds/territory/economy/ExpenseOutcome.java src/main/java/com/guilds/territory/economy/ExpenseEntry.java src/main/java/com/guilds/territory/economy/ExpenseReport.java src/main/java/com/guilds/territory/economy/ExpenseLedger.java src/main/java/com/guilds/territory/persist/ExpenseStore.java src/main/java/com/guilds/territory/economy/EconomyBridge.java src/test/java/com/guilds/territory/economy/ExpenseLedgerTest.java src/test/java/com/guilds/territory/persist/ExpenseStoreTest.java src/test/java/com/guilds/territory/economy/EconomyBridgeExpenseTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add idempotent treasury expense API"
 ```
 
 ---
@@ -227,11 +227,11 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 5: Sale/craft tax APIs and Bukkit facade
 
 **Files:**
-- Modify: `src/main/java/com/azoth/territory/economy/TaxOutcome.java`
-- Modify: `src/main/java/com/azoth/territory/economy/EconomyBridge.java`
-- Modify: `src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java`
-- Test: `src/test/java/com/azoth/territory/economy/EconomyBridgeCraftTest.java`
-- Modify: `src/test/java/com/azoth/territory/economy/BukkitEconomyBridgeTest.java`
+- Modify: `src/main/java/com/guilds/territory/economy/TaxOutcome.java`
+- Modify: `src/main/java/com/guilds/territory/economy/EconomyBridge.java`
+- Modify: `src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java`
+- Test: `src/test/java/com/guilds/territory/economy/EconomyBridgeCraftTest.java`
+- Modify: `src/test/java/com/guilds/territory/economy/BukkitEconomyBridgeTest.java`
 
 **Interfaces:**
 - Add `TaxOutcome.INVALID_QUANTITY`.
@@ -240,7 +240,7 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 
 - [ ] **Step 1: Write failing tests.** Verify positive quantity delegates through the same PASSED-policy tax path as sale; zero/negative quantity returns `INVALID_QUANTITY` without calling the rail; invalid gross returns `INVALID_AMOUNT`; Bukkit facade passes the player's UUID and null payer remains `PAYER_UNAVAILABLE`.
 
-- [ ] **Step 2: Run `./gradlew :test --tests com.azoth.territory.economy.EconomyBridgeCraftTest`; observe missing method/enum failure.**
+- [ ] **Step 2: Run `./gradlew :test --tests com.guilds.territory.economy.EconomyBridgeCraftTest`; observe missing method/enum failure.**
 
 - [ ] **Step 3: Implement `reportCraft`.** Validate quantity first, then delegate with the explicit total gross value. Do not multiply or price the output; `outputQuantity` is metadata validation only. Add the Bukkit adapter method with identical argument order.
 
@@ -249,8 +249,8 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add src/main/java/com/azoth/territory/economy/TaxOutcome.java src/main/java/com/azoth/territory/economy/EconomyBridge.java src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java src/test/java/com/azoth/territory/economy/EconomyBridgeCraftTest.java src/test/java/com/azoth/territory/economy/BukkitEconomyBridgeTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add explicitly valued crafting tax hooks"
+git add src/main/java/com/guilds/territory/economy/TaxOutcome.java src/main/java/com/guilds/territory/economy/EconomyBridge.java src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java src/test/java/com/guilds/territory/economy/EconomyBridgeCraftTest.java src/test/java/com/guilds/territory/economy/BukkitEconomyBridgeTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add explicitly valued crafting tax hooks"
 ```
 
 ---
@@ -258,8 +258,8 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 6: Wire facilities and expenses into the plugin
 
 **Files:**
-- Modify: `src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Test: `src/test/java/com/azoth/territory/PluginEconomyWiringTest.java`
+- Modify: `src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Test: `src/test/java/com/guilds/territory/PluginEconomyWiringTest.java`
 
 **Interfaces:**
 - Add fields/getters for `FacilityRegistry`, `FacilityStore`, and `ExpenseLedger`/`ExpenseStore` as needed by external integrations.
@@ -276,8 +276,8 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 - [ ] **Step 5: Commit.**
 
 ```bash
-git add src/main/java/com/azoth/territory/AzothTerritoryPlugin.java src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java src/test/java/com/azoth/territory/PluginEconomyWiringTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Wire facility and expense persistence into plugin"
+git add src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java src/test/java/com/guilds/territory/PluginEconomyWiringTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Wire facility and expense persistence into plugin"
 ```
 
 ---
@@ -289,7 +289,7 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 - [ ] **Step 1: Run focused feature suites.**
 
 ```bash
-./gradlew :test --tests com.azoth.territory.registry.FacilityRegistryTest --tests com.azoth.territory.persist.FacilityStoreTest --tests com.azoth.territory.economy.TreasuryDebitTest --tests com.azoth.territory.economy.EconomyBridgeExpenseTest --tests com.azoth.territory.economy.EconomyBridgeCraftTest
+./gradlew :test --tests com.guilds.territory.registry.FacilityRegistryTest --tests com.guilds.territory.persist.FacilityStoreTest --tests com.guilds.territory.economy.TreasuryDebitTest --tests com.guilds.territory.economy.EconomyBridgeExpenseTest --tests com.guilds.territory.economy.EconomyBridgeCraftTest
 ```
 
 Expected: all focused feature tests pass.
@@ -300,12 +300,12 @@ Expected: all focused feature tests pass.
 ./gradlew :build --rerun-tasks
 ```
 
-Expected: `BUILD SUCCESSFUL` for the Azoth root project and the jar contains the updated plugin classes/configuration.
+Expected: `BUILD SUCCESSFUL` for the Guilds root project and the jar contains the updated plugin classes/configuration.
 
 - [ ] **Step 3: Inspect packaged metadata and persistence contracts.**
 
 ```bash
-unzip -p build/libs/azoth-territory-1.0.0-SNAPSHOT.jar plugin.yml
+unzip -p build/libs/guilds-1.0.0-SNAPSHOT.jar plugin.yml
 ```
 
 Verify `softdepend: [Vault]` remains present. Read the final facility/expense/Vault sources and confirm: no Vault player calls occur during treasury debit; `DEBITED` requires bank withdrawal success; PENDING expense entries are not auto-retried; craft taxes require explicit gross value; facility locations are territory-bound.
@@ -318,7 +318,7 @@ Verify `softdepend: [Vault]` remains present. Read the final facility/expense/Va
 
 Guilds sources are merged into the root `src/main/java/org/aincraft/guilds/`
 tree; there is no `:guilds:` subproject (historical `guilds/` tree was removed).
-Only `unzip -p build/libs/azoth-territory-1.0.0-SNAPSHOT.jar plugin.yml` (Step 3)
+Only `unzip -p build/libs/guilds-1.0.0-SNAPSHOT.jar plugin.yml` (Step 3)
 and the root build apply.
 
 - [ ] **Step 5: Commit only any verification-driven fixes.**

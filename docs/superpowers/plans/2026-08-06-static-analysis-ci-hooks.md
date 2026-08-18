@@ -15,7 +15,7 @@
 - Analyzer violations fail the build; do not set `ignoreFailures` to true and do not add a blanket baseline.
 - Keep the existing Java 21 toolchain and test configuration unchanged.
 - Leave all pre-existing persistence and other worktree changes untouched.
-- Use GitHub Actions because `origin` is `https://github.com/mintychochip/azoth-territory.git`.
+- Use GitHub Actions because `origin` is `https://github.com/mintychochip/guilds.git`.
 - The pre-commit hook is opt-in and must not mutate Git configuration merely by cloning the repository.
 
 ---
@@ -172,11 +172,11 @@ Create `config/pmd/pmd.xml` with this complete configuration:
 
 ```xml
 <?xml version="1.0"?>
-<ruleset name="Azoth PMD rules"
+<ruleset name="Guilds PMD rules"
          xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.github.io/pmd-7.0.0/ruleset_xml_schema.xsd">
-    <description>Correctness rules enforced for all Azoth Java modules.</description>
+    <description>Correctness rules enforced for all Guilds Java modules.</description>
     <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
     <rule ref="category/java/errorprone.xml/EmptyFinallyBlock"/>
     <rule ref="category/java/errorprone.xml/EmptyIfStmt"/>
@@ -423,12 +423,12 @@ cd "$tmp_dir/repo"
 python3 - <<'PY'
 from pathlib import Path
 
-path = Path("api/src/main/java/com/azoth/territory/model/Boundary.java")
+path = Path("api/src/main/java/com/guilds/territory/model/Boundary.java")
 text = path.read_text()
 package_end = text.index("\n", text.index("package "))
 path.write_text(text[:package_end + 1] + "import java.util.*;\n" + text[package_end + 1:])
 PY
-git add api/src/main/java/com/azoth/territory/model/Boundary.java
+git add api/src/main/java/com/guilds/territory/model/Boundary.java
 set +e
 ./.githooks/pre-commit
 hook_status=$?

@@ -82,7 +82,7 @@ git commit -m "build: make release version CI-overridable"
 - Modify: `gradle.properties` only if the repository chooses to store the base version there instead of `build.gradle.kts`
 
 **Interfaces:**
-- Consumes: `github.run_number`, `GITHUB_TOKEN`, Gradle `releaseVersion` property, and `paper/build/libs/azoth-territory-<version>.jar`.
+- Consumes: `github.run_number`, `GITHUB_TOKEN`, Gradle `releaseVersion` property, and `paper/build/libs/guilds-<version>.jar`.
 - Produces: a successful build, a `nightly` tag, a non-prerelease `nightly` GitHub release marked latest, and uploaded plugin/source artifacts.
 
 - [ ] **Step 1: Define schedule and permissions**
@@ -121,8 +121,8 @@ Build with:
 Copy or reference the generated artifacts without altering their contents:
 
 ```text
-paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar
-paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar
+paper/build/libs/guilds-${RELEASE_VERSION}.jar
+paper/build/libs/guilds-${RELEASE_VERSION}-sources.jar
 ```
 
 Fail if the expected shadow JAR is absent.
@@ -245,7 +245,7 @@ Do not create a source commit for remote deletion. Record the inventory, confirm
 
 ```bash
 ./gradlew --no-daemon -PreleaseVersion=26.8.13.184 :paper:shadowJar
-test -f paper/build/libs/azoth-territory-26.8.13.184.jar
+test -f paper/build/libs/guilds-26.8.13.184.jar
 ```
 
 - [ ] **Step 3: Verify complete tests**

@@ -17,7 +17,7 @@
 - `STORAGE` remains backward compatible and receives no new inventory behavior.
 - Database commit precedes live-registry mutation for every registration/removal.
 - Building mutations run on the Paper main thread and are serialized by one coordinator.
-- Player management requires the governing guild plus the existing `set_spawn` guild permission; `azoth.territory.admin` is the administrative override.
+- Player management requires the governing guild plus the existing `set_spawn` guild permission; `guilds.territory.admin` is the administrative override.
 - Ungoverned territories are admin-only for management and expose no waystone travel.
 - Initial waystone travel is active-waystone to active-waystone for members of the same governing guild only.
 - Alliance/public travel, tolls, custom placement items, recipes, auctions, stock, shop UI, building levels, and a generic perk catalog are out of scope.
@@ -30,14 +30,14 @@
 
 ### Existing files to modify
 
-- `api/src/main/java/com/azoth/territory/model/FacilityType.java` — add `WAYSTONE`.
-- `api/src/main/java/com/azoth/territory/registry/FacilityRegistry.java` — add type/territory queries and candidate-copy support without weakening validation.
-- `api/src/test/java/com/azoth/territory/registry/FacilityRegistryTest.java` — protect query and candidate-isolation contracts.
-- `common/src/main/java/com/azoth/territory/persist/PostgresFacilityStore.java` — persist a validated facility snapshot rather than requiring the live registry.
-- `common/src/main/java/com/azoth/territory/persist/FacilityStore.java` — new narrow persistence interface used by the coordinator.
-- `common/src/test/java/com/azoth/territory/persist/PostgresFacilityStoreTest.java` — database round-trip for all facility types.
-- `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` — construct, wire, expose, and stop the subsystem.
-- `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java` — delegate `/territory building ...` parsing and tab completion.
+- `api/src/main/java/com/guilds/territory/model/FacilityType.java` — add `WAYSTONE`.
+- `api/src/main/java/com/guilds/territory/registry/FacilityRegistry.java` — add type/territory queries and candidate-copy support without weakening validation.
+- `api/src/test/java/com/guilds/territory/registry/FacilityRegistryTest.java` — protect query and candidate-isolation contracts.
+- `common/src/main/java/com/guilds/territory/persist/PostgresFacilityStore.java` — persist a validated facility snapshot rather than requiring the live registry.
+- `common/src/main/java/com/guilds/territory/persist/FacilityStore.java` — new narrow persistence interface used by the coordinator.
+- `common/src/test/java/com/guilds/territory/persist/PostgresFacilityStoreTest.java` — database round-trip for all facility types.
+- `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` — construct, wire, expose, and stop the subsystem.
+- `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java` — delegate `/territory building ...` parsing and tab completion.
 - `paper/src/main/resources/config.yml` — building anchor, placement, warm-up, and cooldown settings.
 - `paper/src/main/resources/plugin.yml` — command usage and building-management permission documentation.
 - `docs/living-specs/economy.md` — preserve facility-directory boundary and link building behavior to the territory-building surface.
@@ -45,48 +45,48 @@
 
 ### New Paper building package
 
-- `paper/src/main/java/com/azoth/territory/building/BuildingConfig.java` — immutable validated settings.
-- `paper/src/main/java/com/azoth/territory/building/BuildingConfigLoader.java` — Bukkit configuration parser.
-- `paper/src/main/java/com/azoth/territory/building/AnchorStatus.java` — `ACTIVE`, `WORLD_UNAVAILABLE`, `WRONG_MATERIAL`, `OUTSIDE_TERRITORY`.
-- `paper/src/main/java/com/azoth/territory/building/FacilityAnchorValidator.java` — exact-coordinate active-state lookup only.
-- `paper/src/main/java/com/azoth/territory/building/FacilityMutationService.java` — staged save-then-publish registration/removal.
-- `paper/src/main/java/com/azoth/territory/building/BuildingAuthorization.java` — governing-guild membership and `set_spawn` permission boundary.
-- `paper/src/main/java/com/azoth/territory/building/BuildingPlacement.java` — immutable pending placement value.
-- `paper/src/main/java/com/azoth/territory/building/BuildingPlacementSessions.java` — per-player timeout/cancel/consume state.
-- `paper/src/main/java/com/azoth/territory/building/BuildingCommand.java` — create/cancel/list/info/remove behavior.
-- `paper/src/main/java/com/azoth/territory/building/BuildingListener.java` — placement click, anchor interaction, and block-break lifecycle.
-- `paper/src/main/java/com/azoth/territory/building/WaystoneAccess.java` — same-governing-guild reachable-set calculation.
-- `paper/src/main/java/com/azoth/territory/building/SafeLandingResolver.java` — collision-safe candidate selection around an anchor.
-- `paper/src/main/java/com/azoth/territory/building/WaystoneTravelService.java` — warm-up, cancellation, revalidation, teleport, cooldown.
-- `paper/src/main/java/com/azoth/territory/building/WaystoneTravelListener.java` — movement, damage, death, and disconnect cancellation.
-- `paper/src/main/java/com/azoth/territory/building/TradingPostInteractEvent.java` — one cancellable Bukkit integration seam.
+- `paper/src/main/java/com/guilds/territory/building/BuildingConfig.java` — immutable validated settings.
+- `paper/src/main/java/com/guilds/territory/building/BuildingConfigLoader.java` — Bukkit configuration parser.
+- `paper/src/main/java/com/guilds/territory/building/AnchorStatus.java` — `ACTIVE`, `WORLD_UNAVAILABLE`, `WRONG_MATERIAL`, `OUTSIDE_TERRITORY`.
+- `paper/src/main/java/com/guilds/territory/building/FacilityAnchorValidator.java` — exact-coordinate active-state lookup only.
+- `paper/src/main/java/com/guilds/territory/building/FacilityMutationService.java` — staged save-then-publish registration/removal.
+- `paper/src/main/java/com/guilds/territory/building/BuildingAuthorization.java` — governing-guild membership and `set_spawn` permission boundary.
+- `paper/src/main/java/com/guilds/territory/building/BuildingPlacement.java` — immutable pending placement value.
+- `paper/src/main/java/com/guilds/territory/building/BuildingPlacementSessions.java` — per-player timeout/cancel/consume state.
+- `paper/src/main/java/com/guilds/territory/building/BuildingCommand.java` — create/cancel/list/info/remove behavior.
+- `paper/src/main/java/com/guilds/territory/building/BuildingListener.java` — placement click, anchor interaction, and block-break lifecycle.
+- `paper/src/main/java/com/guilds/territory/building/WaystoneAccess.java` — same-governing-guild reachable-set calculation.
+- `paper/src/main/java/com/guilds/territory/building/SafeLandingResolver.java` — collision-safe candidate selection around an anchor.
+- `paper/src/main/java/com/guilds/territory/building/WaystoneTravelService.java` — warm-up, cancellation, revalidation, teleport, cooldown.
+- `paper/src/main/java/com/guilds/territory/building/WaystoneTravelListener.java` — movement, damage, death, and disconnect cancellation.
+- `paper/src/main/java/com/guilds/territory/building/TradingPostInteractEvent.java` — one cancellable Bukkit integration seam.
 
 ### New focused tests
 
-- `paper/src/test/java/com/azoth/territory/building/BuildingConfigLoaderTest.java`
-- `paper/src/test/java/com/azoth/territory/building/FacilityAnchorValidatorTest.java`
-- `paper/src/test/java/com/azoth/territory/building/FacilityMutationServiceTest.java`
-- `paper/src/test/java/com/azoth/territory/building/BuildingAuthorizationTest.java`
-- `paper/src/test/java/com/azoth/territory/building/BuildingPlacementSessionsTest.java`
-- `paper/src/test/java/com/azoth/territory/building/BuildingCommandTest.java`
-- `paper/src/test/java/com/azoth/territory/building/BuildingListenerTest.java`
-- `paper/src/test/java/com/azoth/territory/building/WaystoneAccessTest.java`
-- `paper/src/test/java/com/azoth/territory/building/SafeLandingResolverTest.java`
-- `paper/src/test/java/com/azoth/territory/building/WaystoneTravelServiceTest.java`
-- `paper/src/test/java/com/azoth/territory/building/TradingPostInteractEventTest.java`
-- `paper/src/test/java/com/azoth/territory/building/BuildingLifecycleWiringTest.java`
+- `paper/src/test/java/com/guilds/territory/building/BuildingConfigLoaderTest.java`
+- `paper/src/test/java/com/guilds/territory/building/FacilityAnchorValidatorTest.java`
+- `paper/src/test/java/com/guilds/territory/building/FacilityMutationServiceTest.java`
+- `paper/src/test/java/com/guilds/territory/building/BuildingAuthorizationTest.java`
+- `paper/src/test/java/com/guilds/territory/building/BuildingPlacementSessionsTest.java`
+- `paper/src/test/java/com/guilds/territory/building/BuildingCommandTest.java`
+- `paper/src/test/java/com/guilds/territory/building/BuildingListenerTest.java`
+- `paper/src/test/java/com/guilds/territory/building/WaystoneAccessTest.java`
+- `paper/src/test/java/com/guilds/territory/building/SafeLandingResolverTest.java`
+- `paper/src/test/java/com/guilds/territory/building/WaystoneTravelServiceTest.java`
+- `paper/src/test/java/com/guilds/territory/building/TradingPostInteractEventTest.java`
+- `paper/src/test/java/com/guilds/territory/building/BuildingLifecycleWiringTest.java`
 
 ---
 
 ### Task 1: Facility snapshots and waystone type
 
 **Files:**
-- Modify: `api/src/main/java/com/azoth/territory/model/FacilityType.java`
-- Modify: `api/src/main/java/com/azoth/territory/registry/FacilityRegistry.java`
-- Modify: `api/src/test/java/com/azoth/territory/registry/FacilityRegistryTest.java`
-- Create: `common/src/main/java/com/azoth/territory/persist/FacilityStore.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/PostgresFacilityStore.java`
-- Create: `common/src/test/java/com/azoth/territory/persist/PostgresFacilityStoreTest.java`
+- Modify: `api/src/main/java/com/guilds/territory/model/FacilityType.java`
+- Modify: `api/src/main/java/com/guilds/territory/registry/FacilityRegistry.java`
+- Modify: `api/src/test/java/com/guilds/territory/registry/FacilityRegistryTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/FacilityStore.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/PostgresFacilityStore.java`
+- Create: `common/src/test/java/com/guilds/territory/persist/PostgresFacilityStoreTest.java`
 
 **Interfaces:**
 - Produces: `FacilityType.WAYSTONE`.
@@ -132,7 +132,7 @@ Add a `territoryAt` fixture that creates a non-overlapping territory. Keep every
 Run:
 
 ```bash
-./gradlew :api:test --tests com.azoth.territory.registry.FacilityRegistryTest
+./gradlew :api:test --tests com.guilds.territory.registry.FacilityRegistryTest
 ```
 
 Expected: compilation fails because `WAYSTONE`, `copy()`, and filtered `list(...)` do not exist.
@@ -162,7 +162,7 @@ Do not expose the internal map or add neighboring-block/area queries.
 
 - [ ] **Step 4: Add failing SQL round-trip tests**
 
-Create `PostgresFacilityStoreTest` using `com.azoth.territory.PostgresTestDatabase`. Seed one territory, initialize `FacilityRegistry`, save `WAYSTONE`, `TRADING_POST`, and `STORAGE` records through `save(Collection<SettlementFacility>)`, load into a fresh registry, and assert exact record equality and order. Verify rollback by wrapping the test `Database` so its connection throws on the second insert-batch operation, pre-seeding one row, invoking `save`, and asserting the original row remains after the thrown `IOException`.
+Create `PostgresFacilityStoreTest` using `com.guilds.territory.PostgresTestDatabase`. Seed one territory, initialize `FacilityRegistry`, save `WAYSTONE`, `TRADING_POST`, and `STORAGE` records through `save(Collection<SettlementFacility>)`, load into a fresh registry, and assert exact record equality and order. Verify rollback by wrapping the test `Database` so its connection throws on the second insert-batch operation, pre-seeding one row, invoking `save`, and asserting the original row remains after the thrown `IOException`.
 
 Core assertion:
 
@@ -178,7 +178,7 @@ assertEquals(List.of(waystone, market, storage), reloaded.list());
 Run:
 
 ```bash
-./gradlew :common:test --tests com.azoth.territory.persist.PostgresFacilityStoreTest
+./gradlew :common:test --tests com.guilds.territory.persist.PostgresFacilityStoreTest
 ```
 
 Expected: compilation fails because the collection-based `save` boundary does not exist.
@@ -200,8 +200,8 @@ Make `PostgresFacilityStore implements FacilityStore`. Copy the incoming collect
 Run:
 
 ```bash
-./gradlew :api:test --tests com.azoth.territory.registry.FacilityRegistryTest \
-  :common:test --tests com.azoth.territory.persist.PostgresFacilityStoreTest
+./gradlew :api:test --tests com.guilds.territory.registry.FacilityRegistryTest \
+  :common:test --tests com.guilds.territory.persist.PostgresFacilityStoreTest
 ```
 
 Expected: both test classes pass.
@@ -209,12 +209,12 @@ Expected: both test classes pass.
 - [ ] **Step 8: Commit the facility snapshot contract**
 
 ```bash
-git add api/src/main/java/com/azoth/territory/model/FacilityType.java \
-  api/src/main/java/com/azoth/territory/registry/FacilityRegistry.java \
-  api/src/test/java/com/azoth/territory/registry/FacilityRegistryTest.java \
-  common/src/main/java/com/azoth/territory/persist/FacilityStore.java \
-  common/src/main/java/com/azoth/territory/persist/PostgresFacilityStore.java \
-  common/src/test/java/com/azoth/territory/persist/PostgresFacilityStoreTest.java
+git add api/src/main/java/com/guilds/territory/model/FacilityType.java \
+  api/src/main/java/com/guilds/territory/registry/FacilityRegistry.java \
+  api/src/test/java/com/guilds/territory/registry/FacilityRegistryTest.java \
+  common/src/main/java/com/guilds/territory/persist/FacilityStore.java \
+  common/src/main/java/com/guilds/territory/persist/PostgresFacilityStore.java \
+  common/src/test/java/com/guilds/territory/persist/PostgresFacilityStoreTest.java
 git commit -m "feat: add staged facility snapshot support"
 ```
 
@@ -223,10 +223,10 @@ git commit -m "feat: add staged facility snapshot support"
 ### Task 2: Save-before-publish facility mutations
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/FacilityMutationService.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/FacilityMutationServiceTest.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/PostgresFacilityStore.java` — remove the obsolete `save(FacilityRegistry)` overload after migrating plugin shutdown in Task 11; until then mark the callsite migration in this task by changing plugin shutdown to `save(facilities.list())`.
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/FacilityMutationService.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/FacilityMutationServiceTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/PostgresFacilityStore.java` — remove the obsolete `save(FacilityRegistry)` overload after migrating plugin shutdown in Task 11; until then mark the callsite migration in this task by changing plugin shutdown to `save(facilities.list())`.
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
 
 **Interfaces:**
 - Consumes: `FacilityRegistry.copy()`, `FacilityStore.save(Collection<SettlementFacility>)`.
@@ -265,7 +265,7 @@ Also assert duplicate ID/location exceptions leave both store and live state unc
 - [ ] **Step 2: Run the test and observe the expected compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.FacilityMutationServiceTest
+./gradlew :paper:test --tests com.guilds.territory.building.FacilityMutationServiceTest
 ```
 
 Expected: compilation fails because `FacilityMutationService` does not exist.
@@ -306,8 +306,8 @@ Change `facilityStore.save(facilities)` to `facilityStore.save(facilities.list()
 - [ ] **Step 5: Run focused tests**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.FacilityMutationServiceTest \
-  :common:test --tests com.azoth.territory.persist.PostgresFacilityStoreTest
+./gradlew :paper:test --tests com.guilds.territory.building.FacilityMutationServiceTest \
+  :common:test --tests com.guilds.territory.persist.PostgresFacilityStoreTest
 ```
 
 Expected: both pass, including store-failure/live-state isolation.
@@ -315,10 +315,10 @@ Expected: both pass, including store-failure/live-state isolation.
 - [ ] **Step 6: Commit transaction-safe mutations**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/persist/PostgresFacilityStore.java \
-  paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java \
-  paper/src/main/java/com/azoth/territory/building/FacilityMutationService.java \
-  paper/src/test/java/com/azoth/territory/building/FacilityMutationServiceTest.java
+git add common/src/main/java/com/guilds/territory/persist/PostgresFacilityStore.java \
+  paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java \
+  paper/src/main/java/com/guilds/territory/building/FacilityMutationService.java \
+  paper/src/test/java/com/guilds/territory/building/FacilityMutationServiceTest.java
 git commit -m "feat: publish facilities after durable save"
 ```
 
@@ -327,12 +327,12 @@ git commit -m "feat: publish facilities after durable save"
 ### Task 3: Building configuration and exact-anchor validation
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/BuildingConfig.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/BuildingConfigLoader.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/AnchorStatus.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/FacilityAnchorValidator.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/BuildingConfigLoaderTest.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/FacilityAnchorValidatorTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/BuildingConfig.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/BuildingConfigLoader.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/AnchorStatus.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/FacilityAnchorValidator.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/BuildingConfigLoaderTest.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/FacilityAnchorValidatorTest.java`
 - Modify: `paper/src/main/resources/config.yml`
 
 **Interfaces:**
@@ -358,7 +358,7 @@ assertFalse(config.supports(FacilityType.STORAGE));
 - [ ] **Step 2: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingConfigLoaderTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingConfigLoaderTest
 ```
 
 Expected: missing building configuration types.
@@ -374,7 +374,7 @@ Mock `Server`, `World`, and `Block`. Cover active exact material, unloaded world
 - [ ] **Step 5: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.FacilityAnchorValidatorTest
+./gradlew :paper:test --tests com.guilds.territory.building.FacilityAnchorValidatorTest
 ```
 
 Expected: missing validator types.
@@ -388,8 +388,8 @@ Expected: missing validator types.
 Add the exact `buildings:` YAML from the design. Run:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingConfigLoaderTest \
-  --tests com.azoth.territory.building.FacilityAnchorValidatorTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingConfigLoaderTest \
+  --tests com.guilds.territory.building.FacilityAnchorValidatorTest
 ```
 
 Expected: both pass.
@@ -397,12 +397,12 @@ Expected: both pass.
 - [ ] **Step 8: Commit configuration and anchor state**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/building/BuildingConfig.java \
-  paper/src/main/java/com/azoth/territory/building/BuildingConfigLoader.java \
-  paper/src/main/java/com/azoth/territory/building/AnchorStatus.java \
-  paper/src/main/java/com/azoth/territory/building/FacilityAnchorValidator.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingConfigLoaderTest.java \
-  paper/src/test/java/com/azoth/territory/building/FacilityAnchorValidatorTest.java \
+git add paper/src/main/java/com/guilds/territory/building/BuildingConfig.java \
+  paper/src/main/java/com/guilds/territory/building/BuildingConfigLoader.java \
+  paper/src/main/java/com/guilds/territory/building/AnchorStatus.java \
+  paper/src/main/java/com/guilds/territory/building/FacilityAnchorValidator.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingConfigLoaderTest.java \
+  paper/src/test/java/com/guilds/territory/building/FacilityAnchorValidatorTest.java \
   paper/src/main/resources/config.yml
 git commit -m "feat: validate configured facility anchors"
 ```
@@ -412,11 +412,11 @@ git commit -m "feat: validate configured facility anchors"
 ### Task 4: Building authorization and placement sessions
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/BuildingAuthorization.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/BuildingPlacement.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/BuildingPlacementSessions.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/BuildingAuthorizationTest.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/BuildingPlacementSessionsTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/BuildingAuthorization.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/BuildingPlacement.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/BuildingPlacementSessions.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/BuildingAuthorizationTest.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/BuildingPlacementSessionsTest.java`
 
 **Interfaces:**
 - Produces: `boolean canManage(Player player, Territory territory)`.
@@ -432,7 +432,7 @@ Mock `GuildService`, `PermissionService`, `Guild`, and `Player`. Cover admin ove
 - [ ] **Step 2: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingAuthorizationTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingAuthorizationTest
 ```
 
 Expected: `BuildingAuthorization` is absent.
@@ -460,8 +460,8 @@ Validate IDs with a stable lowercase pattern `[a-z0-9][a-z0-9_-]{0,63}`; trim na
 Run:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingAuthorizationTest \
-  --tests com.azoth.territory.building.BuildingPlacementSessionsTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingAuthorizationTest \
+  --tests com.guilds.territory.building.BuildingPlacementSessionsTest
 ```
 
 Expected: both pass.
@@ -469,11 +469,11 @@ Expected: both pass.
 - [ ] **Step 6: Commit authorization and sessions**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/building/BuildingAuthorization.java \
-  paper/src/main/java/com/azoth/territory/building/BuildingPlacement.java \
-  paper/src/main/java/com/azoth/territory/building/BuildingPlacementSessions.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingAuthorizationTest.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingPlacementSessionsTest.java
+git add paper/src/main/java/com/guilds/territory/building/BuildingAuthorization.java \
+  paper/src/main/java/com/guilds/territory/building/BuildingPlacement.java \
+  paper/src/main/java/com/guilds/territory/building/BuildingPlacementSessions.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingAuthorizationTest.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingPlacementSessionsTest.java
 git commit -m "feat: authorize and track building placement"
 ```
 
@@ -482,25 +482,25 @@ git commit -m "feat: authorize and track building placement"
 ### Task 5: Building management commands
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/BuildingCommand.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/BuildingCommandTest.java`
-- Modify: `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/BuildingCommand.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/BuildingCommandTest.java`
+- Modify: `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java`
 - Modify: `paper/src/main/resources/plugin.yml` — remove the root `territory` permission gate and declare subcommand permissions.
 
 **Interfaces:**
 - Consumes: placement sessions, registry, anchor validator, authorization, and mutation service.
 - Produces: `boolean execute(CommandSender sender, String label, String[] buildingArgs)` where args begin after `building`.
 - Produces: `List<String> complete(CommandSender sender, String[] buildingArgs)`.
-- Command syntax: create/cancel/list/info/remove exactly as approved. The root `/territory` command is reachable by non-op players; each administrative subcommand performs its existing in-handler permission check, while `building` requires `azoth.territory.building.manage` plus domain authorization.
+- Command syntax: create/cancel/list/info/remove exactly as approved. The root `/territory` command is reachable by non-op players; each administrative subcommand performs its existing in-handler permission check, while `building` requires `guilds.territory.building.manage` plus domain authorization.
 
 - [ ] **Step 1: Write command behavior tests**
 
-Cover players-only create/cancel, supported type parsing (`waystone`, `trading_post`), ID/name preservation, list defaulting to current territory, explicit list territory, info active status, authorized removal, unknown ID, persistence failure messaging, and no live mutation on failed removal. Add a root-path test using a non-op player with `azoth.territory.building.manage` but without `azoth.territory.admin`; invoke `/territory building create waystone north` through `TerritoryCommand` and assert the placement session starts. Also assert that the same player remains denied from `govern`, reload/save, and other existing admin operations. Capture Adventure `Component` messages using existing command-test conventions.
+Cover players-only create/cancel, supported type parsing (`waystone`, `trading_post`), ID/name preservation, list defaulting to current territory, explicit list territory, info active status, authorized removal, unknown ID, persistence failure messaging, and no live mutation on failed removal. Add a root-path test using a non-op player with `guilds.territory.building.manage` but without `guilds.territory.admin`; invoke `/territory building create waystone north` through `TerritoryCommand` and assert the placement session starts. Also assert that the same player remains denied from `govern`, reload/save, and other existing admin operations. Capture Adventure `Component` messages using existing command-test conventions.
 
 - [ ] **Step 2: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingCommandTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingCommandTest
 ```
 
 Expected: missing `BuildingCommand`.
@@ -519,21 +519,21 @@ Update the root usage and tab completion. `BuildingCommand.remove` rechecks auth
 
 - [ ] **Step 4: Update plugin metadata**
 
-Remove `permission: azoth.territory.admin` from the root `territory` command in `plugin.yml`; otherwise Bukkit rejects non-admin building managers before `TerritoryCommand` can authorize the subcommand. Add `building` to command usage and declare:
+Remove `permission: guilds.territory.admin` from the root `territory` command in `plugin.yml`; otherwise Bukkit rejects non-admin building managers before `TerritoryCommand` can authorize the subcommand. Add `building` to command usage and declare:
 
 ```yaml
-azoth.territory.building.manage:
+guilds.territory.building.manage:
   description: Register and remove facilities in governed territory
   default: true
 ```
 
-`BuildingCommand.execute` checks this Bukkit node first, then applies governing-guild domain authorization. Every pre-existing administrative path keeps or gains an explicit `azoth.territory.admin`/existing specialized permission check inside `TerritoryCommand`; the Task 5 tests enumerate every root subcommand to prevent permission broadening. Admin remains `azoth.territory.admin`.
+`BuildingCommand.execute` checks this Bukkit node first, then applies governing-guild domain authorization. Every pre-existing administrative path keeps or gains an explicit `guilds.territory.admin`/existing specialized permission check inside `TerritoryCommand`; the Task 5 tests enumerate every root subcommand to prevent permission broadening. Admin remains `guilds.territory.admin`.
 
 - [ ] **Step 5: Run focused command tests**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingCommandTest \
-  --tests com.azoth.territory.command.TerritoryCommandUpkeepTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingCommandTest \
+  --tests com.guilds.territory.command.TerritoryCommandUpkeepTest
 ```
 
 Expected: building tests pass, the non-op root-path test reaches `building`, every administrative subcommand remains denied, and the existing root-command test remains green.
@@ -541,9 +541,9 @@ Expected: building tests pass, the non-op root-path test reaches `building`, eve
 - [ ] **Step 6: Commit the management command surface**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/building/BuildingCommand.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingCommandTest.java \
-  paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java \
+git add paper/src/main/java/com/guilds/territory/building/BuildingCommand.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingCommandTest.java \
+  paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java \
   paper/src/main/resources/plugin.yml
 git commit -m "feat: add territory building commands"
 ```
@@ -553,8 +553,8 @@ git commit -m "feat: add territory building commands"
 ### Task 6: Placement click and protected anchor lifecycle
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/BuildingListener.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/BuildingListenerTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/BuildingListener.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/BuildingListenerTest.java`
 
 **Interfaces:**
 - Consumes: placement sessions, configured materials, registry/territory resolution, authorization, mutation service, anchor validator.
@@ -573,7 +573,7 @@ Register an exact anchor and cover unauthorized break cancellation, authorized d
 - [ ] **Step 3: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingListenerTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingListenerTest
 ```
 
 Expected: listener missing.
@@ -587,7 +587,7 @@ Add environmental handlers only for cancellable events where exact affected bloc
 - [ ] **Step 5: Run listener tests**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingListenerTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingListenerTest
 ```
 
 Expected: all placement and lifecycle contracts pass, including neighboring-block independence.
@@ -595,8 +595,8 @@ Expected: all placement and lifecycle contracts pass, including neighboring-bloc
 - [ ] **Step 6: Commit anchor placement and protection**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/building/BuildingListener.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingListenerTest.java
+git add paper/src/main/java/com/guilds/territory/building/BuildingListener.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingListenerTest.java
 git commit -m "feat: register and protect facility anchors"
 ```
 
@@ -605,8 +605,8 @@ git commit -m "feat: register and protect facility anchors"
 ### Task 7: Pure waystone reachability
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/WaystoneAccess.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/WaystoneAccessTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/WaystoneAccess.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/WaystoneAccessTest.java`
 
 **Interfaces:**
 - Produces: `List<SettlementFacility> reachable(UUID playerId, SettlementFacility origin)`.
@@ -620,7 +620,7 @@ Create territories owned by guild A, guild A again, guild B, and ungoverned. Reg
 - [ ] **Step 2: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.WaystoneAccessTest
+./gradlew :paper:test --tests com.guilds.territory.building.WaystoneAccessTest
 ```
 
 Expected: `WaystoneAccess` missing.
@@ -632,9 +632,9 @@ Resolve the origin territory and governing guild once. Require origin type and a
 - [ ] **Step 4: Run and commit**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.WaystoneAccessTest
-git add paper/src/main/java/com/azoth/territory/building/WaystoneAccess.java \
-  paper/src/test/java/com/azoth/territory/building/WaystoneAccessTest.java
+./gradlew :paper:test --tests com.guilds.territory.building.WaystoneAccessTest
+git add paper/src/main/java/com/guilds/territory/building/WaystoneAccess.java \
+  paper/src/test/java/com/guilds/territory/building/WaystoneAccessTest.java
 git commit -m "feat: resolve reachable guild waystones"
 ```
 
@@ -643,11 +643,11 @@ git commit -m "feat: resolve reachable guild waystones"
 ### Task 8: Safe landing and waystone travel state machine
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/SafeLandingResolver.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/WaystoneTravelService.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/WaystoneTravelListener.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/SafeLandingResolverTest.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/WaystoneTravelServiceTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/SafeLandingResolver.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/WaystoneTravelService.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/WaystoneTravelListener.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/SafeLandingResolverTest.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/WaystoneTravelServiceTest.java`
 
 **Interfaces:**
 - Produces: `Optional<Location> find(SettlementFacility destination)`.
@@ -664,7 +664,7 @@ Mock block passability/liquid/support for each deterministic candidate. Prove to
 Use block centers (`x + 0.5`, `z + 0.5`) and preserve a neutral yaw/pitch. Never call `setType`, `breakNaturally`, or place temporary support.
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.SafeLandingResolverTest
+./gradlew :paper:test --tests com.guilds.territory.building.SafeLandingResolverTest
 ```
 
 Expected: pass.
@@ -687,7 +687,7 @@ For failed teleport, verify cooldown remains zero.
 - [ ] **Step 4: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.WaystoneTravelServiceTest
+./gradlew :paper:test --tests com.guilds.territory.building.WaystoneTravelServiceTest
 ```
 
 Expected: travel types missing.
@@ -703,18 +703,18 @@ Cancel on `PlayerMoveEvent` only when block coordinates/world change; on player 
 - [ ] **Step 7: Run focused tests and commit**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.SafeLandingResolverTest \
-  --tests com.azoth.territory.building.WaystoneTravelServiceTest
+./gradlew :paper:test --tests com.guilds.territory.building.SafeLandingResolverTest \
+  --tests com.guilds.territory.building.WaystoneTravelServiceTest
 ```
 
 Expected: pass.
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/building/SafeLandingResolver.java \
-  paper/src/main/java/com/azoth/territory/building/WaystoneTravelService.java \
-  paper/src/main/java/com/azoth/territory/building/WaystoneTravelListener.java \
-  paper/src/test/java/com/azoth/territory/building/SafeLandingResolverTest.java \
-  paper/src/test/java/com/azoth/territory/building/WaystoneTravelServiceTest.java
+git add paper/src/main/java/com/guilds/territory/building/SafeLandingResolver.java \
+  paper/src/main/java/com/guilds/territory/building/WaystoneTravelService.java \
+  paper/src/main/java/com/guilds/territory/building/WaystoneTravelListener.java \
+  paper/src/test/java/com/guilds/territory/building/SafeLandingResolverTest.java \
+  paper/src/test/java/com/guilds/territory/building/WaystoneTravelServiceTest.java
 git commit -m "feat: add safe waystone travel"
 ```
 
@@ -723,12 +723,12 @@ git commit -m "feat: add safe waystone travel"
 ### Task 9: Waystone selection interaction
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/building/BuildingCommand.java`
-- Modify: `paper/src/main/java/com/azoth/territory/building/BuildingListener.java`
-- Modify: `paper/src/test/java/com/azoth/territory/building/BuildingCommandTest.java`
-- Modify: `paper/src/test/java/com/azoth/territory/building/BuildingListenerTest.java`
-- Create: `paper/src/main/java/com/azoth/territory/building/WaystoneSelections.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/WaystoneSelectionsTest.java`
+- Modify: `paper/src/main/java/com/guilds/territory/building/BuildingCommand.java`
+- Modify: `paper/src/main/java/com/guilds/territory/building/BuildingListener.java`
+- Modify: `paper/src/test/java/com/guilds/territory/building/BuildingCommandTest.java`
+- Modify: `paper/src/test/java/com/guilds/territory/building/BuildingListenerTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/WaystoneSelections.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/WaystoneSelectionsTest.java`
 
 **Interfaces:**
 - Adds command: `/territory building travel <destinationId>` valid only after interacting with an origin waystone.
@@ -742,35 +742,35 @@ Assert active waystone right-click cancels normal interaction, lists only `Wayst
 - [ ] **Step 2: Run and observe failures**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingCommandTest \
-  --tests com.azoth.territory.building.BuildingListenerTest \
-  --tests com.azoth.territory.building.WaystoneSelectionsTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingCommandTest \
+  --tests com.guilds.territory.building.BuildingListenerTest \
+  --tests com.guilds.territory.building.WaystoneSelectionsTest
 ```
 
 Expected: travel interaction assertions fail.
 
 - [ ] **Step 3: Implement selection without a new GUI framework**
 
-Create `paper/src/main/java/com/azoth/territory/building/WaystoneSelections.java` with `select(UUID playerId, String originFacilityId, long nowMillis)`, `Optional<String> origin(UUID playerId, long nowMillis)`, and `clear(UUID playerId)`. Give it the same configured expiry duration as placement sessions. Send name/territory plus clickable components. The command resolves the origin by ID and delegates to `WaystoneTravelService.start`.
+Create `paper/src/main/java/com/guilds/territory/building/WaystoneSelections.java` with `select(UUID playerId, String originFacilityId, long nowMillis)`, `Optional<String> origin(UUID playerId, long nowMillis)`, and `clear(UUID playerId)`. Give it the same configured expiry duration as placement sessions. Send name/territory plus clickable components. The command resolves the origin by ID and delegates to `WaystoneTravelService.start`.
 
 - [ ] **Step 4: Run and commit**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingCommandTest \
-  --tests com.azoth.territory.building.BuildingListenerTest \
-  --tests com.azoth.territory.building.WaystoneSelectionsTest \
-  --tests com.azoth.territory.building.WaystoneTravelServiceTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingCommandTest \
+  --tests com.guilds.territory.building.BuildingListenerTest \
+  --tests com.guilds.territory.building.WaystoneSelectionsTest \
+  --tests com.guilds.territory.building.WaystoneTravelServiceTest
 ```
 
 Expected: pass.
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/building/BuildingCommand.java \
-  paper/src/main/java/com/azoth/territory/building/BuildingListener.java \
-  paper/src/main/java/com/azoth/territory/building/WaystoneSelections.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingCommandTest.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingListenerTest.java \
-  paper/src/test/java/com/azoth/territory/building/WaystoneSelectionsTest.java
+git add paper/src/main/java/com/guilds/territory/building/BuildingCommand.java \
+  paper/src/main/java/com/guilds/territory/building/BuildingListener.java \
+  paper/src/main/java/com/guilds/territory/building/WaystoneSelections.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingCommandTest.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingListenerTest.java \
+  paper/src/test/java/com/guilds/territory/building/WaystoneSelectionsTest.java
 git commit -m "feat: select destinations at waystone anchors"
 ```
 
@@ -779,10 +779,10 @@ git commit -m "feat: select destinations at waystone anchors"
 ### Task 10: Trading-post integration event
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/building/TradingPostInteractEvent.java`
-- Modify: `paper/src/main/java/com/azoth/territory/building/BuildingListener.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/TradingPostInteractEventTest.java`
-- Modify: `paper/src/test/java/com/azoth/territory/building/BuildingListenerTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/building/TradingPostInteractEvent.java`
+- Modify: `paper/src/main/java/com/guilds/territory/building/BuildingListener.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/TradingPostInteractEventTest.java`
+- Modify: `paper/src/test/java/com/guilds/territory/building/BuildingListenerTest.java`
 
 **Interfaces:**
 - Produces cancellable Bukkit event with `Player player()`, `SettlementFacility facility()`, `Territory territory()`, `Optional<String> governingGuildId()`, static `getHandlerList()`, and instance `getHandlers()`.
@@ -795,8 +795,8 @@ Assert constructor null checks, getters, cancellation contract, handler list, on
 - [ ] **Step 2: Run and observe compile failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.TradingPostInteractEventTest \
-  --tests com.azoth.territory.building.BuildingListenerTest
+./gradlew :paper:test --tests com.guilds.territory.building.TradingPostInteractEventTest \
+  --tests com.guilds.territory.building.BuildingListenerTest
 ```
 
 Expected: event type missing.
@@ -808,17 +808,17 @@ Extend `Event` and implement `Cancellable`; do not add a callback registry. List
 - [ ] **Step 4: Run and commit**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.TradingPostInteractEventTest \
-  --tests com.azoth.territory.building.BuildingListenerTest
+./gradlew :paper:test --tests com.guilds.territory.building.TradingPostInteractEventTest \
+  --tests com.guilds.territory.building.BuildingListenerTest
 ```
 
 Expected: pass.
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/building/TradingPostInteractEvent.java \
-  paper/src/main/java/com/azoth/territory/building/BuildingListener.java \
-  paper/src/test/java/com/azoth/territory/building/TradingPostInteractEventTest.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingListenerTest.java
+git add paper/src/main/java/com/guilds/territory/building/TradingPostInteractEvent.java \
+  paper/src/main/java/com/guilds/territory/building/BuildingListener.java \
+  paper/src/test/java/com/guilds/territory/building/TradingPostInteractEventTest.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingListenerTest.java
 git commit -m "feat: expose trading post interaction event"
 ```
 
@@ -827,9 +827,9 @@ git commit -m "feat: expose trading post interaction event"
 ### Task 11: Plugin lifecycle wiring
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Create: `paper/src/test/java/com/azoth/territory/building/BuildingLifecycleWiringTest.java`
-- Modify: `paper/src/test/java/com/azoth/territory/PluginEconomyWiringTest.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Create: `paper/src/test/java/com/guilds/territory/building/BuildingLifecycleWiringTest.java`
+- Modify: `paper/src/test/java/com/guilds/territory/PluginEconomyWiringTest.java`
 
 **Interfaces:**
 - Produces getters for `FacilityRegistry`, `FacilityMutationService`, `BuildingCommand`, and `WaystoneTravelService` required by command/tests/integrators.
@@ -843,8 +843,8 @@ Use reflection/wiring conventions from `PluginEconomyWiringTest`. Assert constru
 - [ ] **Step 2: Run and observe failure**
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.BuildingLifecycleWiringTest \
-  --tests com.azoth.territory.PluginEconomyWiringTest
+./gradlew :paper:test --tests com.guilds.territory.building.BuildingLifecycleWiringTest \
+  --tests com.guilds.territory.PluginEconomyWiringTest
 ```
 
 Expected: missing building lifecycle/getters.
@@ -858,8 +858,8 @@ Expose `getFacilities()` rather than leaking the store. Keep shutdown's snapshot
 - [ ] **Step 4: Run focused wiring and all building tests**
 
 ```bash
-./gradlew :paper:test --tests 'com.azoth.territory.building.*' \
-  --tests com.azoth.territory.PluginEconomyWiringTest
+./gradlew :paper:test --tests 'com.guilds.territory.building.*' \
+  --tests com.guilds.territory.PluginEconomyWiringTest
 ```
 
 Expected: pass.
@@ -867,9 +867,9 @@ Expected: pass.
 - [ ] **Step 5: Commit lifecycle wiring**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java \
-  paper/src/test/java/com/azoth/territory/building/BuildingLifecycleWiringTest.java \
-  paper/src/test/java/com/azoth/territory/PluginEconomyWiringTest.java
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java \
+  paper/src/test/java/com/guilds/territory/building/BuildingLifecycleWiringTest.java \
+  paper/src/test/java/com/guilds/territory/PluginEconomyWiringTest.java
 git commit -m "feat: wire territory building lifecycle"
 ```
 
@@ -895,7 +895,7 @@ Expected: all modules and tests pass. Fix regressions in the atomic commit that 
 
 - [ ] **Step 2: Launch the actual Paper development server**
 
-Use the repository's existing run-server task discovered from `build.gradle.kts` (expected `./gradlew :paper:runServer` or the configured equivalent) through the harness process manager. Connect it to the configured development database. Wait for `AzothTerritory` enable and building-subsystem-ready log output.
+Use the repository's existing run-server task discovered from `build.gradle.kts` (expected `./gradlew :paper:runServer` or the configured equivalent) through the harness process manager. Connect it to the configured development database. Wait for `GuildsTerritory` enable and building-subsystem-ready log output.
 
 - [ ] **Step 3: Exercise the free-form building scenario**
 
@@ -920,7 +920,7 @@ Register a `TRADING_POST` on a configured bell/lectern inside a bank or market s
 Restart the server and confirm both facility records reload. Run the dedicated failure test again:
 
 ```bash
-./gradlew :paper:test --tests com.azoth.territory.building.FacilityMutationServiceTest
+./gradlew :paper:test --tests com.guilds.territory.building.FacilityMutationServiceTest
 ```
 
 Expected: pass, proving failed save leaves live state unchanged. Runtime database sabotage is not required because the integration test deterministically covers this boundary.

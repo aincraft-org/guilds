@@ -52,7 +52,7 @@
 
 - Create: `paper/src/main/java/org/aincraft/guilds/services/MintTransferPort.java`
 - Create: `paper/src/main/java/org/aincraft/guilds/services/MintGuildBankService.java`
-- Create: `paper/src/main/java/com/azoth/territory/economy/GuildBankCapacity.java`
+- Create: `paper/src/main/java/com/guilds/territory/economy/GuildBankCapacity.java`
 - Modify: `paper/src/main/resources/guilds-config.yml`
 - Test: `paper/src/test/java/org/aincraft/guilds/services/MintGuildBankServiceTest.java`
 
@@ -72,11 +72,11 @@
 ### Task 3: Route taxes through the configured capacity-aware service
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/economy/EconomyBridge.java`
-- Modify: `paper/src/main/java/com/azoth/territory/economy/MintEconomyRail.java`
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Test: `common/src/test/java/com/azoth/territory/economy/EconomyBridgeMintTaxTest.java`
-- Test: `paper/src/test/java/com/azoth/territory/economy/MintGuildTaxCapacityTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/economy/EconomyBridge.java`
+- Modify: `paper/src/main/java/com/guilds/territory/economy/MintEconomyRail.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Test: `common/src/test/java/com/guilds/territory/economy/EconomyBridgeMintTaxTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/economy/MintGuildTaxCapacityTest.java`
 
 **Interfaces:**
 - Consumes: configured `AsyncTaxSettlement`, governing `Guild.getId()`, stable event key.
@@ -91,12 +91,12 @@
 ### Task 4: Wire dynamic Mint rail, commands, and guild-bank villager
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsServices.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java`
 - Create: `paper/src/main/java/org/aincraft/guilds/listeners/GuildBankVillagerListener.java`
 - Modify: `paper/src/main/resources/guilds-config.yml`
-- Test: `paper/src/test/java/com/azoth/territory/PluginMintWiringTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/PluginMintWiringTest.java`
 - Test: `paper/src/test/java/org/aincraft/guilds/commands/GuildBankCommandTest.java`
 - Test: `paper/src/test/java/org/aincraft/guilds/listeners/GuildBankVillagerListenerTest.java`
 
@@ -121,14 +121,14 @@
 - Modify: `paper/src/main/resources/config.yml`
 - Modify: `paper/src/main/resources/guilds-config.yml`
 - Modify: `docs/living-specs/economy.md`
-- Add/update: Mint Paper integration profile documentation/configuration for `AzothTerritory`.
+- Add/update: Mint Paper integration profile documentation/configuration for `GuildsTerritory`.
 - Tests: existing API/common/paper suites and a real registered receiver fake-lease integration test.
 
 **Interfaces:**
 - Consumes: all previous tasks.
 - Produces: tested end-to-end guild account lifecycle and tax settlement.
 
-- [ ] **Step 1: Add** Mint integration profile configuration naming `AzothTerritory` with the accepted client/profile/currency scope required by Mint’s `IntegrationProfileConfig`; do not rely only on Azoth’s client-binding setting.
+- [ ] **Step 1: Add** Mint integration profile configuration naming `GuildsTerritory` with the accepted client/profile/currency scope required by Mint’s `IntegrationProfileConfig`; do not rely only on Guilds’s client-binding setting.
 - [ ] **Step 2: Add** an end-to-end fake receiver/service test that registers the receiver, binds a fake lease, opens a player account, deposits to `guild:<Guild.getId()>`, and credits tax from an unenrolled payer while asserting the fake ledger posting.
 - [ ] **Step 3: Run** `./gradlew --no-daemon :api:test :common:test :paper:test :paper:build`; require `BUILD SUCCESSFUL`.
 - [ ] **Step 4: Run** `git diff --check` and inspect every changed file for canonical IDs, timeout handling, no blocking waits, and separation from SQL `Guild.balance`.

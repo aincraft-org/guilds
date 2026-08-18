@@ -26,17 +26,17 @@
 ### Task 1: Strict governance snapshots and land action types
 
 **Files:**
-- Modify: `api/src/main/java/com/azoth/territory/model/Government.java`
-- Modify: `api/src/main/java/com/azoth/territory/model/GovernmentSeat.java`
-- Modify: `api/src/main/java/com/azoth/territory/permission/GuildBody.java`
-- Modify: `api/src/main/java/com/azoth/territory/permission/AllianceBody.java`
-- Modify: `api/src/main/java/com/azoth/territory/permission/MemberPermissions.java`
-- Remove: `api/src/main/java/com/azoth/territory/permission/SovereignAction.java`
-- Create: `api/src/main/java/com/azoth/territory/permission/LandAction.java`
-- Test: `api/src/test/java/com/azoth/territory/model/GovernmentTest.java`
-- Test: `api/src/test/java/com/azoth/territory/model/GovernmentFromRolesTest.java`
-- Test: `api/src/test/java/com/azoth/territory/permission/GuildBodyTest.java`
-- Test: `api/src/test/java/com/azoth/territory/permission/PermissionRulesTest.java`
+- Modify: `api/src/main/java/com/guilds/territory/model/Government.java`
+- Modify: `api/src/main/java/com/guilds/territory/model/GovernmentSeat.java`
+- Modify: `api/src/main/java/com/guilds/territory/permission/GuildBody.java`
+- Modify: `api/src/main/java/com/guilds/territory/permission/AllianceBody.java`
+- Modify: `api/src/main/java/com/guilds/territory/permission/MemberPermissions.java`
+- Remove: `api/src/main/java/com/guilds/territory/permission/SovereignAction.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/LandAction.java`
+- Test: `api/src/test/java/com/guilds/territory/model/GovernmentTest.java`
+- Test: `api/src/test/java/com/guilds/territory/model/GovernmentFromRolesTest.java`
+- Test: `api/src/test/java/com/guilds/territory/permission/GuildBodyTest.java`
+- Test: `api/src/test/java/com/guilds/territory/permission/PermissionRulesTest.java`
 - Migrate: every LSP-reported constructor and enum caller in `api/src`, `common/src`, and `paper/src`
 
 **Interfaces:**
@@ -188,15 +188,15 @@ git commit -m "refactor: derive governance seats from body roles"
 ### Task 2: Typed two-level governance resolution
 
 **Files:**
-- Create: `api/src/main/java/com/azoth/territory/permission/GovernanceContext.java`
-- Create: `api/src/main/java/com/azoth/territory/permission/GovernanceResolutionStatus.java`
-- Create: `api/src/main/java/com/azoth/territory/permission/GovernanceLookup.java`
-- Modify: `api/src/main/java/com/azoth/territory/permission/GovernanceSource.java`
-- Replace/narrow: `api/src/main/java/com/azoth/territory/permission/GoverningBody.java`
-- Modify: `api/src/main/java/com/azoth/territory/model/LookupResult.java`
-- Modify: `common/src/main/java/com/azoth/territory/permission/GovernanceRegistry.java`
-- Test: `common/src/test/java/com/azoth/territory/permission/GovernanceRegistryTest.java`
-- Test fixture: `common/src/test/java/com/azoth/territory/permission/FakeGovernanceSource.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/GovernanceContext.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/GovernanceResolutionStatus.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/GovernanceLookup.java`
+- Modify: `api/src/main/java/com/guilds/territory/permission/GovernanceSource.java`
+- Replace/narrow: `api/src/main/java/com/guilds/territory/permission/GoverningBody.java`
+- Modify: `api/src/main/java/com/guilds/territory/model/LookupResult.java`
+- Modify: `common/src/main/java/com/guilds/territory/permission/GovernanceRegistry.java`
+- Test: `common/src/test/java/com/guilds/territory/permission/GovernanceRegistryTest.java`
+- Test fixture: `common/src/test/java/com/guilds/territory/permission/FakeGovernanceSource.java`
 
 **Interfaces:**
 
@@ -288,13 +288,13 @@ git commit -m "refactor: resolve local and alliance governance explicitly"
 ### Task 3: Scoped policy and influence authority
 
 **Files:**
-- Modify: `api/src/main/java/com/azoth/territory/model/PolicyRules.java`
-- Modify: `common/src/main/java/com/azoth/territory/permission/GovernanceRegistry.java`
-- Modify: `common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java`
-- Modify: `api/src/main/java/com/azoth/territory/influence/InfluenceService.java`
-- Test: `api/src/test/java/com/azoth/territory/model/PolicyRulesTest.java`
-- Test: `common/src/test/java/com/azoth/territory/permission/GovernanceRegistryTest.java`
-- Test: `common/src/test/java/com/azoth/territory/influence/InfluenceEngineLifecycleTest.java`
+- Modify: `api/src/main/java/com/guilds/territory/model/PolicyRules.java`
+- Modify: `common/src/main/java/com/guilds/territory/permission/GovernanceRegistry.java`
+- Modify: `common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java`
+- Modify: `api/src/main/java/com/guilds/territory/influence/InfluenceService.java`
+- Test: `api/src/test/java/com/guilds/territory/model/PolicyRulesTest.java`
+- Test: `common/src/test/java/com/guilds/territory/permission/GovernanceRegistryTest.java`
+- Test: `common/src/test/java/com/guilds/territory/influence/InfluenceEngineLifecycleTest.java`
 
 **Interfaces:**
 - `GovernanceRegistry.policyGovernment(String territoryId)` returns typed collective authority.
@@ -349,20 +349,20 @@ Expected: tests end `BUILD SUCCESSFUL` before commit.
 ### Task 4: One local land permission pipeline
 
 **Files:**
-- Create: `api/src/main/java/com/azoth/territory/permission/LandPermissionRequest.java`
-- Create: `api/src/main/java/com/azoth/territory/permission/LandPermissionResolver.java`
-- Create: `api/src/main/java/com/azoth/territory/permission/PermissionDecision.java`
-- Create: `api/src/main/java/com/azoth/territory/permission/PermissionDecisionReason.java`
-- Create: `common/src/main/java/com/azoth/territory/permission/LandPermissionFacts.java`
-- Create: `common/src/main/java/com/azoth/territory/permission/LandPermissionRules.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/LandPermissionRequest.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/LandPermissionResolver.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/PermissionDecision.java`
+- Create: `api/src/main/java/com/guilds/territory/permission/PermissionDecisionReason.java`
+- Create: `common/src/main/java/com/guilds/territory/permission/LandPermissionFacts.java`
+- Create: `common/src/main/java/com/guilds/territory/permission/LandPermissionRules.java`
 - Create: `paper/src/main/java/org/aincraft/guilds/services/impl/LandPermissionResolverImpl.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/services/PermissionService.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/services/impl/PermissionServiceImpl.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsGovernanceSource.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/commands/brigadier/PermBrigadierCommand.java`
-- Test: create `common/src/test/java/com/azoth/territory/permission/LandPermissionRulesTest.java`
-- Test: revise `common/src/test/java/com/azoth/territory/permission/BlockProtectionTest.java`
-- Test: revise `common/src/test/java/com/azoth/territory/permission/FormPermissionsMatrixSmokeTest.java`
+- Test: create `common/src/test/java/com/guilds/territory/permission/LandPermissionRulesTest.java`
+- Test: revise `common/src/test/java/com/guilds/territory/permission/BlockProtectionTest.java`
+- Test: revise `common/src/test/java/com/guilds/territory/permission/FormPermissionsMatrixSmokeTest.java`
 - Test: revise `paper/src/test/java/org/aincraft/guilds/services/PlotPermissionFormTest.java`
 
 **Interfaces:**
@@ -443,14 +443,14 @@ git commit -m "feat: resolve local land permissions in one pipeline"
 ### Task 5: Paper listener cutover and fail-closed integration
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/listener/ProtectionListener.java`
-- Modify: `paper/src/main/java/com/azoth/territory/listener/InteractionProtectionListener.java`
+- Modify: `paper/src/main/java/com/guilds/territory/listener/ProtectionListener.java`
+- Modify: `paper/src/main/java/com/guilds/territory/listener/InteractionProtectionListener.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/listeners/GuildPublicAccessListener.java`
-- Modify: `common/src/main/java/com/azoth/territory/permission/BlockProtection.java`
+- Modify: `common/src/main/java/com/guilds/territory/permission/BlockProtection.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsServices.java`
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Create test: `paper/src/test/java/com/azoth/territory/permission/LandPermissionListenerTest.java`
-- Test: `paper/src/test/java/com/azoth/territory/GuildsServicesWiringTest.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Create test: `paper/src/test/java/com/guilds/territory/permission/LandPermissionListenerTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/GuildsServicesWiringTest.java`
 
 **Interfaces:**
 - Actor-based listeners depend on `LandPermissionResolver`.
@@ -500,12 +500,12 @@ Expected: `BUILD SUCCESSFUL`; one resolver invocation per event.
 
 **Files:**
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsServices.java`
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/services/impl/PermissionServiceImpl.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/services/impl/GuildServiceImpl.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/services/impl/PlotServiceImpl.java`
 - Create: `paper/src/main/java/org/aincraft/guilds/services/PermissionCache.java`
-- Modify: `common/src/main/java/com/azoth/territory/standing/StandingEngine.java`
+- Modify: `common/src/main/java/com/guilds/territory/standing/StandingEngine.java`
 - Modify fixture: `paper/src/test/java/org/aincraft/guilds/GuildsServiceTestFixture.java`
 - Tests: existing wiring, permission cache, and standing tests
 
@@ -560,11 +560,11 @@ Expected: `BUILD SUCCESSFUL`; no nullable service setter remains.
 - Modify: `paper/src/main/java/org/aincraft/guilds/services/impl/AllianceServiceImpl.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/services/impl/GuildServiceImpl.java`
 - Modify: `paper/src/main/java/org/aincraft/guilds/GuildsGovernanceSource.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/TerritoryJson.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/PostgresTerritoryStore.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/TerritoryJson.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/PostgresTerritoryStore.java`
 - Create test: `paper/src/test/java/org/aincraft/guilds/database/migration/GovernanceInvariantMigrationTest.java`
-- Test: `common/src/test/java/com/azoth/territory/model/GovernmentTerritoryTest.java`
-- Test: `common/src/test/java/com/azoth/territory/persist/PostgresTerritoryStoreTest.java`
+- Test: `common/src/test/java/com/guilds/territory/model/GovernmentTerritoryTest.java`
+- Test: `common/src/test/java/com/guilds/territory/persist/PostgresTerritoryStoreTest.java`
 
 **Interfaces:**
 - Source reads return `GovernanceLookup`, including `Unavailable` on SQL errors.
@@ -617,7 +617,7 @@ Expected: `BUILD SUCCESSFUL`; corrupt data fails with IDs and no silent winner.
 - Modify: `README.md`
 
 **Interfaces:**
-- NullAway/JSpecify covers affected `com.azoth.territory` model/governance packages and the new Paper land resolver package.
+- NullAway/JSpecify covers affected `com.guilds.territory` model/governance packages and the new Paper land resolver package.
 
 - [ ] **Step 1: Verify official NullAway/JSpecify integration**
 
@@ -639,7 +639,7 @@ README must state the federal rule, both democracy electorates, local land table
 ./gradlew :paper:shadowJar
 ```
 
-Expected: every command ends `BUILD SUCCESSFUL`; shadow JAR exists at `paper/build/libs/azoth-territory-1.1.0.jar`.
+Expected: every command ends `BUILD SUCCESSFUL`; shadow JAR exists at `paper/build/libs/guilds-1.1.0.jar`.
 
 - [ ] **Step 5: Run the Paper smoke scenario**
 

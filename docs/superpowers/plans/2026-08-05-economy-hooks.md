@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a New World-style economy to Azoth Territory: a public transaction API (`EconomyBridge`) other plugins call to report sales, sales taxed at rates aggregated from PASSED policy `DecreeEffects`, settled through a `PaymentRail` (Vault-backed by default, simulation mode for dev/test), with durable reconciliation for stranded charges.
+**Goal:** Add a New World-style economy to Guilds Territory: a public transaction API (`EconomyBridge`) other plugins call to report sales, sales taxed at rates aggregated from PASSED policy `DecreeEffects`, settled through a `PaymentRail` (Vault-backed by default, simulation mode for dev/test), with durable reconciliation for stranded charges.
 
-**Architecture:** Pure-domain `com.azoth.territory.economy` package (Bukkit-free) contains `EconomyBridge`, `TaxCalculator`, `TaxReport`/`TaxOutcome`, `PaymentRail`/`SettlementStatus`, and `SimulationTreasury`. Bukkit/Vault wiring (`VaultTreasury`, `BukkitEconomyBridge`, `EconomyConfig`) lives in plugin scope. `DecreeEffects` is attached to `Policy` and threaded through `PolicyRules`/`Territory`/`TerritoryJson`; the `taxRatesFromPolicies` stub is completed. Settlement is a single atomic `PaymentRail.settle(...)` call: withdraw payer → deposit territory bank → compensating refund on deposit failure, sealed `SettlementStatus` results mapped to `TaxOutcome` by the bridge.
+**Architecture:** Pure-domain `com.guilds.territory.economy` package (Bukkit-free) contains `EconomyBridge`, `TaxCalculator`, `TaxReport`/`TaxOutcome`, `PaymentRail`/`SettlementStatus`, and `SimulationTreasury`. Bukkit/Vault wiring (`VaultTreasury`, `BukkitEconomyBridge`, `EconomyConfig`) lives in plugin scope. `DecreeEffects` is attached to `Policy` and threaded through `PolicyRules`/`Territory`/`TerritoryJson`; the `taxRatesFromPolicies` stub is completed. Settlement is a single atomic `PaymentRail.settle(...)` call: withdraw payer → deposit territory bank → compensating refund on deposit failure, sealed `SettlementStatus` results mapped to `TaxOutcome` by the bridge.
 
 **Tech Stack:** Java 21, Gradle (Kotlin DSL), Paper 1.21.4 API, Gson 2.11.0 (compileOnly; testImplementation), JUnit 5, VaultAPI 1.7 (compileOnly, JitPack).
 
 ## Global Constraints
 
 - Java 21 toolchain; confirm `./gradlew build` and `./gradlew test` green per task.
-- All `economy`, `decree`, `model`, `registry`, `persist` source is Bukkit-free (no `org.bukkit.*`, no `net.milkbowl.vault.*`) EXCEPT the explicit wiring classes `VaultTreasury`, `BukkitEconomyBridge`, `EconomyConfig`, `AzothTerritoryPlugin` changes.
+- All `economy`, `decree`, `model`, `registry`, `persist` source is Bukkit-free (no `org.bukkit.*`, no `net.milkbowl.vault.*`) EXCEPT the explicit wiring classes `VaultTreasury`, `BukkitEconomyBridge`, `EconomyConfig`, `GuildsTerritoryPlugin` changes.
 - Vault dependency: `compileOnly("com.github.MilkBowl:VaultAPI:1.7")` from `https://jitpack.io` (verify resolution; fallback `https://nexus.hc.to/content/repositories/pub_releases/`).
 - `plugin.yml` gains `softdepend: [Vault]`.
 - `config.yml` gains:
@@ -22,20 +22,20 @@
 - Immutable domain models with copy-on-write; pure-domain tests must not require Paper/Vault runtime.
 - Money invariant (VAULT mode): a treasury balance never appears without a matched payer charge; `TAXED` iff payer charged AND treasury credited; no net money lost on any failure path.
 - TDD: write the failing test, verify it fails, write the minimal implementation, verify it passes, commit. One atomic commit per task.
-- Commit identity: repo has no commits and no git identity. Use one-shot `git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit ...` (never persist `git config`).
+- Commit identity: repo has no commits and no git identity. Use one-shot `git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit ...` (never persist `git config`).
 
 ---
 
 ### Task 1: Add `DecreeEffects` to `Policy` and thread through `PolicyRules`/`Territory`
 
 **Files:**
-- Modify: `src/main/java/com/azoth/territory/model/Policy.java`
-- Modify: `src/main/java/com/azoth/territory/model/PolicyRules.java`
-- Modify: `src/main/java/com/azoth/territory/model/Territory.java`
-- Test: `src/test/java/com/azoth/territory/model/PolicyEffectsWiringTest.java`
+- Modify: `src/main/java/com/guilds/territory/model/Policy.java`
+- Modify: `src/main/java/com/guilds/territory/model/PolicyRules.java`
+- Modify: `src/main/java/com/guilds/territory/model/Territory.java`
+- Test: `src/test/java/com/guilds/territory/model/PolicyEffectsWiringTest.java`
 
 **Interfaces:**
-- Consumes: `DecreeEffects` (`com.azoth.territory.decree.DecreeEffects`; `empty()`, `ofTax(TaxEffect)`, `taxes()`, `equals`).
+- Consumes: `DecreeEffects` (`com.guilds.territory.decree.DecreeEffects`; `empty()`, `ofTax(TaxEffect)`, `taxes()`, `equals`).
 - Produces:
   - `Policy.effects()` → `DecreeEffects` (never null; default `empty()`).
   - `Policy` full ctor gains trailing param `DecreeEffects effects`.
@@ -46,13 +46,13 @@
   - `castVote`/`decree`/`resolveIfPossible`/`withVote`/`withStatus` PRESERVE `effects` unchanged.
 - Explicitly unchanged: `Government`, `PolicyStatus`, `PolicyVote`, `VoteChoice`, `GovernmentForm`.
 
-- [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/model/PolicyEffectsWiringTest.java`:
+- [ ] **Step 1: Write the failing test** `src/test/java/com/guilds/territory/model/PolicyEffectsWiringTest.java`:
 
 ```java
-package com.azoth.territory.model;
+package com.guilds.territory.model;
 
-import com.azoth.territory.decree.DecreeEffects;
-import com.azoth.territory.decree.TaxEffect;
+import com.guilds.territory.decree.DecreeEffects;
+import com.guilds.territory.decree.TaxEffect;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -125,12 +125,12 @@ class PolicyEffectsWiringTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.model.PolicyEffectsWiringTest`
+Run: `./gradlew test --tests com.guilds.territory.model.PolicyEffectsWiringTest`
 Expected: COMPILATION FAILURE — `PolicyRules.propose(...)` has no 7-arg overload with `DecreeEffects`; `Territory.proposePolicy(...)` has no 6-arg overload; `Policy.effects()` undefined.
 
 - [ ] **Step 3: Add the `effects` field to `Policy`**
 
-In `src/main/java/com/azoth/territory/model/Policy.java`:
+In `src/main/java/com/guilds/territory/model/Policy.java`:
 - Add field `private final DecreeEffects effects;`.
 - Full ctor (9-arg now): add trailing param `DecreeEffects effects`; body sets `this.effects = effects == null ? DecreeEffects.empty() : effects;`.
 - Add 8-arg overload that delegates with `DecreeEffects.empty()`:
@@ -148,11 +148,11 @@ In `src/main/java/com/azoth/territory/model/Policy.java`:
 - `equals`: add `&& effects.equals(that.effects)`.
 - `hashCode`: add `effects` to `Objects.hash(...)`.
 - `toString`: unchanged (do not add effects to the short form).
-- Add import `com.azoth.territory.decree.DecreeEffects`.
+- Add import `com.guilds.territory.decree.DecreeEffects`.
 
 - [ ] **Step 4: Thread effects through `PolicyRules.propose`**
 
-In `src/main/java/com/azoth/territory/model/PolicyRules.java`:
+In `src/main/java/com/guilds/territory/model/PolicyRules.java`:
 - Keep the existing 6-arg `propose` as a delegating overload:
   ```java
   public static Policy propose(
@@ -196,11 +196,11 @@ In `src/main/java/com/azoth/territory/model/PolicyRules.java`:
       );
   }
   ```
-- Add import `com.azoth.territory.decree.DecreeEffects`.
+- Add import `com.guilds.territory.decree.DecreeEffects`.
 
 - [ ] **Step 5: Thread effects through `Territory.proposePolicy`**
 
-In `src/main/java/com/azoth/territory/model/Territory.java`:
+In `src/main/java/com/guilds/territory/model/Territory.java`:
 - Change `proposePolicy` to require effects:
   ```java
   public Territory proposePolicy(
@@ -220,12 +220,12 @@ In `src/main/java/com/azoth/territory/model/Territory.java`:
       return copyWith(zones.values(), government, next.values());
   }
   ```
-- Add import `com.azoth.territory.decree.DecreeEffects`.
+- Add import `com.guilds.territory.decree.DecreeEffects`.
 - Update all other callers of `Territory.proposePolicy` in the repo (grep for `proposePolicy(`) to pass `DecreeEffects.empty()` where they don't need effects.
 
 - [ ] **Step 6: Run test to verify it passes**
 
-Run: `./gradlew test --tests com.azoth.territory.model.PolicyEffectsWiringTest`
+Run: `./gradlew test --tests com.guilds.territory.model.PolicyEffectsWiringTest`
 Expected: PASS (all 6 tests).
 
 - [ ] **Step 7: Run the full unit suite**
@@ -236,8 +236,8 @@ Expected: PASS — existing `PolicyRulesTest`, `PolicyTerritoryPersistTest`, `Po
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/main/java/com/azoth/territory/model/Policy.java src/main/java/com/azoth/territory/model/PolicyRules.java src/main/java/com/azoth/territory/model/Territory.java src/test/java/com/azoth/territory/model/PolicyEffectsWiringTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Attach DecreeEffects to Policy with proposal wiring"
+git add src/main/java/com/guilds/territory/model/Policy.java src/main/java/com/guilds/territory/model/PolicyRules.java src/main/java/com/guilds/territory/model/Territory.java src/test/java/com/guilds/territory/model/PolicyEffectsWiringTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Attach DecreeEffects to Policy with proposal wiring"
 ```
 
 ---
@@ -245,25 +245,25 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 2: Serialize `Policy.effects` in `TerritoryJson`
 
 **Files:**
-- Modify: `src/main/java/com/azoth/territory/persist/TerritoryJson.java`
-- Test: `src/test/java/com/azoth/territory/persist/TerritoryJsonEffectsTest.java`
+- Modify: `src/main/java/com/guilds/territory/persist/TerritoryJson.java`
+- Test: `src/test/java/com/guilds/territory/persist/TerritoryJsonEffectsTest.java`
 
 **Interfaces:**
-- Consumes: `Policy.effects()` (Task 1); `DecreeEffectsCodec.toJson(DecreeEffects)` / `fromJson(JsonObject)` (`com.azoth.territory.decree.DecreeEffectsCodec`).
+- Consumes: `Policy.effects()` (Task 1); `DecreeEffectsCodec.toJson(DecreeEffects)` / `fromJson(JsonObject)` (`com.guilds.territory.decree.DecreeEffectsCodec`).
 - Produces: `policyToJson(Policy)` emits `effects`; `policyFromJson(JsonObject)` reads it, absent → `DecreeEffects.empty()`.
 
-- [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/persist/TerritoryJsonEffectsTest.java`:
+- [ ] **Step 1: Write the failing test** `src/test/java/com/guilds/territory/persist/TerritoryJsonEffectsTest.java`:
 
 ```java
-package com.azoth.territory.persist;
+package com.guilds.territory.persist;
 
-import com.azoth.territory.decree.DecreeEffects;
-import com.azoth.territory.decree.TaxEffect;
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Policy;
-import com.azoth.territory.model.Territory;
+import com.guilds.territory.decree.DecreeEffects;
+import com.guilds.territory.decree.TaxEffect;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Policy;
+import com.guilds.territory.model.Territory;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -315,13 +315,13 @@ class TerritoryJsonEffectsTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.persist.TerritoryJsonEffectsTest`
+Run: `./gradlew test --tests com.guilds.territory.persist.TerritoryJsonEffectsTest`
 Expected: FAIL — `policyToJson` never writes `effects`, so `policyFromJson` returns `empty()` while the first two tests expect `carrotTax()`.
 
 - [ ] **Step 3: Implement effects serialization in `TerritoryJson`**
 
-In `src/main/java/com/azoth/territory/persist/TerritoryJson.java`:
-- Add imports `com.azoth.territory.decree.DecreeEffectsCodec;` and `com.azoth.territory.decree.DecreeEffects;`.
+In `src/main/java/com/guilds/territory/persist/TerritoryJson.java`:
+- Add imports `com.guilds.territory.decree.DecreeEffectsCodec;` and `com.guilds.territory.decree.DecreeEffects;`.
 - In `policyToJson`, after the `votes` array is added:
   ```java
   o.add("effects", DecreeEffectsCodec.toJson(p.effects()));
@@ -336,7 +336,7 @@ In `src/main/java/com/azoth/territory/persist/TerritoryJson.java`:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew test --tests com.azoth.territory.persist.TerritoryJsonEffectsTest`
+Run: `./gradlew test --tests com.guilds.territory.persist.TerritoryJsonEffectsTest`
 Expected: PASS (all 3 tests).
 
 - [ ] **Step 5: Run the full unit suite**
@@ -347,8 +347,8 @@ Expected: PASS — `PolicyTerritoryPersistTest`, `TerritoryStoreTest`, `Territor
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/main/java/com/azoth/territory/persist/TerritoryJson.java src/test/java/com/azoth/territory/persist/TerritoryJsonEffectsTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Serialize Policy effects in TerritoryJson"
+git add src/main/java/com/guilds/territory/persist/TerritoryJson.java src/test/java/com/guilds/territory/persist/TerritoryJsonEffectsTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Serialize Policy effects in TerritoryJson"
 ```
 
 ---
@@ -356,21 +356,21 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 3: Complete `taxRatesFromPolicies` and test the interpreter
 
 **Files:**
-- Modify: `src/main/java/com/azoth/territory/decree/DecreeEffectsInterpreter.java`
-- Test: `src/test/java/com/azoth/territory/decree/DecreeEffectsInterpreterTest.java`
+- Modify: `src/main/java/com/guilds/territory/decree/DecreeEffectsInterpreter.java`
+- Test: `src/test/java/com/guilds/territory/decree/DecreeEffectsInterpreterTest.java`
 
 **Interfaces:**
-- Consumes: `Policy` (`com.azoth.territory.model.Policy`; `status()`, `effects()`), `PolicyStatus.PASSED`, existing `taxRatesByGoodId(DecreeEffects)`.
+- Consumes: `Policy` (`com.guilds.territory.model.Policy`; `status()`, `effects()`), `PolicyStatus.PASSED`, existing `taxRatesByGoodId(DecreeEffects)`.
 - Produces: `taxRatesFromPolicies(Collection<Policy>)` → `Map<String,Double>` merged additively from PASSED policies' effects.
 
-- [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/decree/DecreeEffectsInterpreterTest.java`:
+- [ ] **Step 1: Write the failing test** `src/test/java/com/guilds/territory/decree/DecreeEffectsInterpreterTest.java`:
 
 ```java
-package com.azoth.territory.decree;
+package com.guilds.territory.decree;
 
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Policy;
-import com.azoth.territory.model.PolicyRules;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Policy;
+import com.guilds.territory.model.PolicyRules;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -445,12 +445,12 @@ class DecreeEffectsInterpreterTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.decree.DecreeEffectsInterpreterTest`
+Run: `./gradlew test --tests com.guilds.territory.decree.DecreeEffectsInterpreterTest`
 Expected: FAIL — stub returns `Map.of()` for every case.
 
 - [ ] **Step 3: Complete the stub**
 
-Replace the body of `taxRatesFromPolicies` in `src/main/java/com/azoth/territory/decree/DecreeEffectsInterpreter.java`:
+Replace the body of `taxRatesFromPolicies` in `src/main/java/com/guilds/territory/decree/DecreeEffectsInterpreter.java`:
 ```java
 public static Map<String, Double> taxRatesFromPolicies(Collection<Policy> policies) {
     if (policies == null || policies.isEmpty()) {
@@ -473,7 +473,7 @@ public static Map<String, Double> taxRatesFromPolicies(Collection<Policy> polici
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew test --tests com.azoth.territory.decree.DecreeEffectsInterpreterTest`
+Run: `./gradlew test --tests com.guilds.territory.decree.DecreeEffectsInterpreterTest`
 Expected: PASS (all 6 tests).
 
 - [ ] **Step 5: Run the full unit suite**
@@ -484,8 +484,8 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/main/java/com/azoth/territory/decree/DecreeEffectsInterpreter.java src/test/java/com/azoth/territory/decree/DecreeEffectsInterpreterTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Aggregate tax rates from PASSED policies in DecreeEffectsInterpreter"
+git add src/main/java/com/guilds/territory/decree/DecreeEffectsInterpreter.java src/test/java/com/guilds/territory/decree/DecreeEffectsInterpreterTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Aggregate tax rates from PASSED policies in DecreeEffectsInterpreter"
 ```
 
 ---
@@ -493,9 +493,9 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 4: `TaxCalculator` and `SimulationTreasury`
 
 **Files:**
-- Create: `src/main/java/com/azoth/territory/economy/TaxCalculator.java`
-- Create: `src/main/java/com/azoth/territory/economy/SimulationTreasury.java`
-- Test: `src/test/java/com/azoth/territory/economy/SimulationTreasuryTest.java`
+- Create: `src/main/java/com/guilds/territory/economy/TaxCalculator.java`
+- Create: `src/main/java/com/guilds/territory/economy/SimulationTreasury.java`
+- Test: `src/test/java/com/guilds/territory/economy/SimulationTreasuryTest.java`
 
 **Interfaces:**
 - Consumes: nothing (standalone pure domain).
@@ -508,10 +508,10 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
     - `SimulationTreasury credit(String territoryId, double amount)` (copy-on-write; `IllegalArgumentException` on `amount <= 0`)
     - `SimulationTreasury debit(String territoryId, double amount)` (copy-on-write; `IllegalArgumentException` on `amount <= 0`; unchanged if insufficient — never negative)
 
-- [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/economy/SimulationTreasuryTest.java`:
+- [ ] **Step 1: Write the failing test** `src/test/java/com/guilds/territory/economy/SimulationTreasuryTest.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import org.junit.jupiter.api.Test;
 
@@ -573,13 +573,13 @@ class SimulationTreasuryTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.SimulationTreasuryTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.SimulationTreasuryTest`
 Expected: COMPILATION FAILURE — `TaxCalculator` and `SimulationTreasury` don't exist yet.
 
-- [ ] **Step 3: Implement `TaxCalculator`** — `src/main/java/com/azoth/territory/economy/TaxCalculator.java`:
+- [ ] **Step 3: Implement `TaxCalculator`** — `src/main/java/com/guilds/territory/economy/TaxCalculator.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 /** Pure tax math: tax = gross * ratePercent / 100. */
 public final class TaxCalculator {
@@ -598,10 +598,10 @@ public final class TaxCalculator {
 }
 ```
 
-- [ ] **Step 4: Implement `SimulationTreasury`** — `src/main/java/com/azoth/territory/economy/SimulationTreasury.java`:
+- [ ] **Step 4: Implement `SimulationTreasury`** — `src/main/java/com/guilds/territory/economy/SimulationTreasury.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -669,7 +669,7 @@ public final class SimulationTreasury {
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.SimulationTreasuryTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.SimulationTreasuryTest`
 Expected: PASS (all 7 tests).
 
 - [ ] **Step 6: Run the full unit suite**
@@ -680,8 +680,8 @@ Expected: PASS.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/main/java/com/azoth/territory/economy/TaxCalculator.java src/main/java/com/azoth/territory/economy/SimulationTreasury.java src/test/java/com/azoth/territory/economy/SimulationTreasuryTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add tax math and simulation treasury ledger"
+git add src/main/java/com/guilds/territory/economy/TaxCalculator.java src/main/java/com/guilds/territory/economy/SimulationTreasury.java src/test/java/com/guilds/territory/economy/SimulationTreasuryTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add tax math and simulation treasury ledger"
 ```
 
 ---
@@ -689,13 +689,13 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 5: `PaymentRail`, `SettlementStatus`, and the pure-domain `EconomyBridge`
 
 **Files:**
-- Create: `src/main/java/com/azoth/territory/economy/PaymentRail.java`
-- Create: `src/main/java/com/azoth/territory/economy/SettlementResult.java`
-- Create: `src/main/java/com/azoth/territory/economy/TaxOutcome.java`
-- Create: `src/main/java/com/azoth/territory/economy/TaxReport.java`
-- Create: `src/main/java/com/azoth/territory/economy/EconomyBridge.java`
-- Modify: `src/main/java/com/azoth/territory/economy/SimulationTreasury.java` (implement `PaymentRail.settle(...)`)
-- Test: `src/test/java/com/azoth/territory/economy/EconomyBridgeDomainTest.java`
+- Create: `src/main/java/com/guilds/territory/economy/PaymentRail.java`
+- Create: `src/main/java/com/guilds/territory/economy/SettlementResult.java`
+- Create: `src/main/java/com/guilds/territory/economy/TaxOutcome.java`
+- Create: `src/main/java/com/guilds/territory/economy/TaxReport.java`
+- Create: `src/main/java/com/guilds/territory/economy/EconomyBridge.java`
+- Modify: `src/main/java/com/guilds/territory/economy/SimulationTreasury.java` (implement `PaymentRail.settle(...)`)
+- Test: `src/test/java/com/guilds/territory/economy/EconomyBridgeDomainTest.java`
 
 **Interfaces:**
 - Consumes: `TaxCalculator` (Task 4), `SimulationTreasury` (Task 4), `DecreeEffectsInterpreter.taxRatesFromPolicies`, `TerritoryRegistry.resolve(String,int,int)` → `LookupResult`, `GovernanceRegistry.resolveForTerritory(String)` → `GoverningBody`, `GoverningBody.hasAssignedGovernment()`, `GoodsCatalog.findById(String)` → `Optional<Good>`.
@@ -709,22 +709,22 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
   - `record UnresolvedTransaction(String territoryId, UUID payerUuid, double amount, long timestampEpochMs, String reason) {}`
 - Explicitly unchanged: `NO_GOVERNMENT` semantics — `resolveForTerritory` returns alliance-over-local; `!hasAssignedGovernment()` → NO_GOVERNMENT.
 
-- [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/economy/EconomyBridgeDomainTest.java`:
+- [ ] **Step 1: Write the failing test** `src/test/java/com/guilds/territory/economy/EconomyBridgeDomainTest.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
-import com.azoth.territory.decree.DecreeEffects;
-import com.azoth.territory.decree.GoodsCatalog;
-import com.azoth.territory.decree.TaxEffect;
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.LookupResult;
-import com.azoth.territory.model.PolicyRules;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.decree.DecreeEffects;
+import com.guilds.territory.decree.GoodsCatalog;
+import com.guilds.territory.decree.TaxEffect;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.LookupResult;
+import com.guilds.territory.model.PolicyRules;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -915,13 +915,13 @@ assertEquals(0, rail.settleCalls);
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.EconomyBridgeDomainTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.EconomyBridgeDomainTest`
 Expected: COMPILATION FAILURE — `PaymentRail`, `SettlementResult`, `TaxOutcome`, `TaxReport`, `EconomyBridge` don't exist; `SimulationTreasury` doesn't implement `PaymentRail`.
 
-- [ ] **Step 3: Create `PaymentRail`** — `src/main/java/com/azoth/territory/economy/PaymentRail.java`:
+- [ ] **Step 3: Create `PaymentRail`** — `src/main/java/com/guilds/territory/economy/PaymentRail.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import java.util.UUID;
 
@@ -957,10 +957,10 @@ public interface PaymentRail {
 }
 ```
 
-- [ ] **Step 4: Create `SettlementResult`** — `src/main/java/com/azoth/territory/economy/SettlementResult.java`:
+- [ ] **Step 4: Create `SettlementResult`** — `src/main/java/com/guilds/territory/economy/SettlementResult.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 /** Immutable atomic-settlement outcome; status is the single source of truth. */
 public record SettlementResult(PaymentRail.SettlementStatus status) {
@@ -975,10 +975,10 @@ public record SettlementResult(PaymentRail.SettlementStatus status) {
 }
 ```
 
-- [ ] **Step 5: Create `TaxOutcome`** — `src/main/java/com/azoth/territory/economy/TaxOutcome.java`:
+- [ ] **Step 5: Create `TaxOutcome`** — `src/main/java/com/guilds/territory/economy/TaxOutcome.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 /** Result of a {@code reportSale} call. Pre-transfer outcomes mutate nothing. */
 public enum TaxOutcome {
@@ -997,10 +997,10 @@ public enum TaxOutcome {
 }
 ```
 
-- [ ] **Step 6: Create `TaxReport`** — `src/main/java/com/azoth/territory/economy/TaxReport.java`:
+- [ ] **Step 6: Create `TaxReport`** — `src/main/java/com/guilds/territory/economy/TaxReport.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 /** Immutable outcome of a {@code reportSale} call. */
 public record TaxReport(
@@ -1018,7 +1018,7 @@ public record TaxReport(
 
 - [ ] **Step 7: Make `SimulationTreasury` implement `PaymentRail`**
 
-In `src/main/java/com/azoth/territory/economy/SimulationTreasury.java`:
+In `src/main/java/com/guilds/territory/economy/SimulationTreasury.java`:
 - Change declaration to `public final class SimulationTreasury implements PaymentRail`.
 - Add an internal mutable state field that `settle` updates (keeping the copy-on-write `credit` semantics for Task 4 tests):
   ```java
@@ -1042,17 +1042,17 @@ In `src/main/java/com/azoth/territory/economy/SimulationTreasury.java`:
   ```
   The `credit` call inside `settle` validates `amount` (throws `IllegalArgumentException` on invalid), and the returned instance becomes the active state. Initialize `state` to `this` in the constructor.
 
-- [ ] **Step 8: Create `EconomyBridge`** — `src/main/java/com/azoth/territory/economy/EconomyBridge.java`:
+- [ ] **Step 8: Create `EconomyBridge`** — `src/main/java/com/guilds/territory/economy/EconomyBridge.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
-import com.azoth.territory.decree.DecreeEffectsInterpreter;
-import com.azoth.territory.decree.Good;
-import com.azoth.territory.decree.GoodsCatalog;
-import com.azoth.territory.model.LookupResult;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.decree.DecreeEffectsInterpreter;
+import com.guilds.territory.decree.Good;
+import com.guilds.territory.decree.GoodsCatalog;
+import com.guilds.territory.model.LookupResult;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.registry.TerritoryRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -1061,7 +1061,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Public transaction API: other plugins report sales here; Azoth applies the
+ * Public transaction API: other plugins report sales here; Guilds applies the
  * owning settlement's tax (PASSED policy rates) and settles it through the
  * active {@link PaymentRail}. Pure domain — no Bukkit, no Vault.
  */
@@ -1172,7 +1172,7 @@ Note: `territories.get(territoryId).orElseThrow()` after containment is safe —
 
 - [ ] **Step 9: Run test to verify it passes**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.EconomyBridgeDomainTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.EconomyBridgeDomainTest`
 Expected: PASS (all 13 tests after the `outsideAnyTerritory` fix).
 
 - [ ] **Step 10: Run the full unit suite**
@@ -1183,8 +1183,8 @@ Expected: PASS (including Task 4 `SimulationTreasuryTest` — the refactor keeps
 - [ ] **Step 11: Commit**
 
 ```bash
-git add src/main/java/com/azoth/territory/economy/ src/test/java/com/azoth/territory/economy/EconomyBridgeDomainTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add PaymentRail seam and pure-domain EconomyBridge"
+git add src/main/java/com/guilds/territory/economy/ src/test/java/com/guilds/territory/economy/EconomyBridgeDomainTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add PaymentRail seam and pure-domain EconomyBridge"
 ```
 
 ---
@@ -1195,8 +1195,8 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 - Modify: `build.gradle.kts`
 - Modify: `src/main/resources/plugin.yml`
 - Modify: `src/main/resources/config.yml`
-- Create: `src/main/java/com/azoth/territory/economy/EconomyConfig.java`
-- Test: `src/test/java/com/azoth/territory/economy/EconomyConfigTest.java`
+- Create: `src/main/java/com/guilds/territory/economy/EconomyConfig.java`
+- Test: `src/test/java/com/guilds/territory/economy/EconomyConfigTest.java`
 
 **Interfaces:**
 - Produces: `enum EconomyConfig.Mode { VAULT, SIMULATION }`; `class EconomyConfig { Mode mode(); static EconomyConfig fromBukkit(org.bukkit.configuration.file.FileConfiguration cfg); }`.
@@ -1229,10 +1229,10 @@ economy:
   mode: VAULT
 ```
 
-- [ ] **Step 4: Write the failing test** `src/test/java/com/azoth/territory/economy/EconomyConfigTest.java`:
+- [ ] **Step 4: Write the failing test** `src/test/java/com/guilds/territory/economy/EconomyConfigTest.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
@@ -1267,13 +1267,13 @@ class EconomyConfigTest {
 
 - [ ] **Step 5: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.EconomyConfigTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.EconomyConfigTest`
 Expected: COMPILATION FAILURE — `EconomyConfig` doesn't exist.
 
-- [ ] **Step 6: Implement `EconomyConfig`** — `src/main/java/com/azoth/territory/economy/EconomyConfig.java`:
+- [ ] **Step 6: Implement `EconomyConfig`** — `src/main/java/com/guilds/territory/economy/EconomyConfig.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -1312,7 +1312,7 @@ public final class EconomyConfig {
 
 - [ ] **Step 7: Run test to verify it passes**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.EconomyConfigTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.EconomyConfigTest`
 Expected: PASS (all 3 tests).
 
 - [ ] **Step 8: Run the full unit suite**
@@ -1323,8 +1323,8 @@ Expected: PASS.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add build.gradle.kts src/main/resources/plugin.yml src/main/resources/config.yml src/main/java/com/azoth/territory/economy/EconomyConfig.java src/test/java/com/azoth/territory/economy/EconomyConfigTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add Vault soft-depend and economy mode config"
+git add build.gradle.kts src/main/resources/plugin.yml src/main/resources/config.yml src/main/java/com/guilds/territory/economy/EconomyConfig.java src/test/java/com/guilds/territory/economy/EconomyConfigTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add Vault soft-depend and economy mode config"
 ```
 
 ---
@@ -1332,20 +1332,20 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 ### Task 7: `VaultTreasury` — the Vault `PaymentRail` implementation
 
 **Files:**
-- Create: `src/main/java/com/azoth/territory/economy/VaultTreasury.java`
-- Test: `src/test/java/com/azoth/territory/economy/VaultTreasuryTest.java`
+- Create: `src/main/java/com/guilds/territory/economy/VaultTreasury.java`
+- Test: `src/test/java/com/guilds/territory/economy/VaultTreasuryTest.java`
 
 **Interfaces:**
 - Consumes: `PaymentRail`, `SettlementStatus`, `SettlementResult` (Task 5); `net.milkbowl.vault.economy.Economy` (compileOnly from Task 6).
-- Produces: `class VaultTreasury implements PaymentRail` with ctor `VaultTreasury(Economy economy, java.util.function.Function<UUID, OfflinePlayer> offlinePlayerLookup)`; encapsulates withdraw → deposit → compensating-refund with strict ordering; low-level Vault calls PRIVATE; `int provisionTerritories(Collection<String> territoryIds)` provisions a Vault bank per territory id with the stable Azoth service owner and returns the count of failures.
+- Produces: `class VaultTreasury implements PaymentRail` with ctor `VaultTreasury(Economy economy, java.util.function.Function<UUID, OfflinePlayer> offlinePlayerLookup)`; encapsulates withdraw → deposit → compensating-refund with strict ordering; low-level Vault calls PRIVATE; `int provisionTerritories(Collection<String> territoryIds)` provisions a Vault bank per territory id with the stable Guilds service owner and returns the count of failures.
 - Test plan: Vault `Economy` is a ~30-method interface with several overload families that all return `EconomyResponse` (`withdrawPlayer(OfflinePlayer, double)`, the world-specific overloads, `bankDeposit(String, double)`, `depositPlayer(OfflinePlayer, double)`). Hand-implementing it in the test is error-prone, so **mock it with Mockito** — stub only the methods `VaultTreasury` calls and verify the called methods. `VaultTreasury` takes an injected `Function<UUID, OfflinePlayer>` so tests never touch `Bukkit`.
 
-- [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/economy/VaultTreasuryTest.java`:
+- [ ] **Step 1: Write the failing test** `src/test/java/com/guilds/territory/economy/VaultTreasuryTest.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
-import com.azoth.territory.economy.PaymentRail.SettlementStatus;
+import com.guilds.territory.economy.PaymentRail.SettlementStatus;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.OfflinePlayer;
@@ -1464,11 +1464,11 @@ class VaultTreasuryTest {
         Economy e = mock(Economy.class);
         when(e.hasBankSupport()).thenReturn(true);
         when(e.bankBalance("terr")).thenReturn(fail());  // absent
-        when(e.createBank("terr", "AzothTerritory-Service")).thenReturn(ok(0));
+        when(e.createBank("terr", "GuildsTerritory-Service")).thenReturn(ok(0));
         VaultTreasury v = new VaultTreasury(e, id -> PLAYER);
 
         assertEquals(0, v.provisionTerritories(List.of("terr")));
-        verify(e).createBank("terr", "AzothTerritory-Service");
+        verify(e).createBank("terr", "GuildsTerritory-Service");
     }
 
     @Test
@@ -1498,13 +1498,13 @@ Note: if the compiler reports a missing abstract method on `StubEconomy`, add a 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.VaultTreasuryTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.VaultTreasuryTest`
 Expected: COMPILATION FAILURE — `VaultTreasury` doesn't exist (and possibly the stub needs more overrides; fix the stub until it compiles and the test fails on the missing class).
 
-- [ ] **Step 3: Implement `VaultTreasury`** — `src/main/java/com/azoth/territory/economy/VaultTreasury.java`:
+- [ ] **Step 3: Implement `VaultTreasury`** — `src/main/java/com/guilds/territory/economy/VaultTreasury.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
@@ -1516,7 +1516,7 @@ import java.util.UUID;
 /**
  * Vault-backed {@link PaymentRail}. Territory balances live in Vault bank
  * accounts (bank id = territory id), provisioned at startup by
- * {@link #provisionTerritories(java.util.Collection)} with a stable Azoth
+ * {@link #provisionTerritories(java.util.Collection)} with a stable Guilds
  * service owner (never a sale payer). The payer is charged from their player
  * account. Compensation sequence: ensure bank exists (VAULT_UNAVAILABLE if
  * not) → withdraw payer → deposit bank → on deposit failure refund payer; if
@@ -1525,7 +1525,7 @@ import java.util.UUID;
  */
 public final class VaultTreasury implements PaymentRail {
 
-    private static final String SERVICE_OWNER = "AzothTerritory-Service";
+    private static final String SERVICE_OWNER = "GuildsTerritory-Service";
 
     private final Economy economy;
     private final java.util.function.Function<UUID, OfflinePlayer> offlinePlayerLookup;
@@ -1537,7 +1537,7 @@ public final class VaultTreasury implements PaymentRail {
 
     /**
      * Provision a Vault bank account for each territory id, owned by the stable
-     * Azoth service account. Call once at startup (and after new territories are
+     * Guilds service account. Call once at startup (and after new territories are
      * registered). Idempotent: existing banks are left untouched. Returns the
      * number of territories whose bank could NOT be provisioned.
      */
@@ -1622,7 +1622,7 @@ public final class VaultTreasury implements PaymentRail {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.VaultTreasuryTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.VaultTreasuryTest`
 Expected: PASS (all 8 tests).
 
 - [ ] **Step 5: Run the full unit suite**
@@ -1633,32 +1633,32 @@ Expected: PASS.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/main/java/com/azoth/territory/economy/VaultTreasury.java src/test/java/com/azoth/territory/economy/VaultTreasuryTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Implement Vault-backed PaymentRail with compensation"
+git add src/main/java/com/guilds/territory/economy/VaultTreasury.java src/test/java/com/guilds/territory/economy/VaultTreasuryTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Implement Vault-backed PaymentRail with compensation"
 ```
 
 ---
 
-### Task 8: Wire the economy into `AzothTerritoryPlugin` (incl. `BukkitEconomyBridge`)
+### Task 8: Wire the economy into `GuildsTerritoryPlugin` (incl. `BukkitEconomyBridge`)
 
 **Files:**
-- Modify: `src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Create: `src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java`
-- Test: `src/test/java/com/azoth/territory/economy/BukkitEconomyBridgeTest.java`
-- Test: `src/test/java/com/azoth/territory/PluginEconomyWiringTest.java`
+- Modify: `src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Create: `src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java`
+- Test: `src/test/java/com/guilds/territory/economy/BukkitEconomyBridgeTest.java`
+- Test: `src/test/java/com/guilds/territory/PluginEconomyWiringTest.java`
 
 **Interfaces:**
 - Consumes: `EconomyConfig` (Task 6), `VaultTreasury` (Task 7), `EconomyBridge` (Task 5), `SimulationTreasury` (Task 5), `GovernanceRegistry`, `TerritoryRegistry`, `GoodsCatalog`.
 - Produces:
   - `class BukkitEconomyBridge { TaxReport reportSale(OfflinePlayer payer, String worldId, int blockX, int blockZ, String goodId, double grossAmount); }` — wraps an `EconomyBridge` and delegates with `payer.getUniqueId()`.
-  - `AzothTerritoryPlugin.getEconomyBridge()` → the pure-domain `EconomyBridge`.
-  - `AzothTerritoryPlugin.onEnable()` wires the rail from `EconomyConfig` (see Step 4).
+  - `GuildsTerritoryPlugin.getEconomyBridge()` → the pure-domain `EconomyBridge`.
+  - `GuildsTerritoryPlugin.onEnable()` wires the rail from `EconomyConfig` (see Step 4).
 - Explicitly unchanged: web wiring, protection wiring, `TerritoryCommand`.
 
-- [ ] **Step 1: Write the failing test** `src/test/java/com/azoth/territory/economy/BukkitEconomyBridgeTest.java`:
+- [ ] **Step 1: Write the failing test** `src/test/java/com/guilds/territory/economy/BukkitEconomyBridgeTest.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import org.bukkit.OfflinePlayer;
 import org.junit.jupiter.api.Test;
@@ -1676,10 +1676,10 @@ class BukkitEconomyBridgeTest {
         UUID lastPayer;
 
         CapturingBridge() {
-            super(new com.azoth.territory.registry.TerritoryRegistry(),
-                    new com.azoth.territory.permission.GovernanceRegistry(
-                            new com.azoth.territory.registry.TerritoryRegistry()),
-                    com.azoth.territory.decree.GoodsCatalog.defaultCatalog(),
+            super(new com.guilds.territory.registry.TerritoryRegistry(),
+                    new com.guilds.territory.permission.GovernanceRegistry(
+                            new com.guilds.territory.registry.TerritoryRegistry()),
+                    com.guilds.territory.decree.GoodsCatalog.defaultCatalog(),
                     new RecordingRail(), false);
         }
 
@@ -1722,13 +1722,13 @@ testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.BukkitEconomyBridgeTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.BukkitEconomyBridgeTest`
 Expected: COMPILATION FAILURE — `BukkitEconomyBridge` doesn't exist (add Mockito deps if needed).
 
-- [ ] **Step 3: Implement `BukkitEconomyBridge`** — `src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java`:
+- [ ] **Step 3: Implement `BukkitEconomyBridge`** — `src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java`:
 
 ```java
-package com.azoth.territory.economy;
+package com.guilds.territory.economy;
 
 import org.bukkit.OfflinePlayer;
 
@@ -1759,9 +1759,9 @@ public final class BukkitEconomyBridge {
 }
 ```
 
-- [ ] **Step 4: Wire `AzothTerritoryPlugin`**
+- [ ] **Step 4: Wire `GuildsTerritoryPlugin`**
 
-In `src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`:
+In `src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`:
 - Add fields:
   ```java
   private EconomyBridge economyBridge;
@@ -1822,12 +1822,12 @@ In `src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`:
   public EconomyBridge getEconomyBridge() { return economyBridge; }
   public BukkitEconomyBridge getBukkitEconomyBridge() { return bukkitEconomyBridge; }
   ```
-- Add imports for `com.azoth.territory.economy.*`, `org.bukkit.Bukkit`, `java.util.UUID`.
+- Add imports for `com.guilds.territory.economy.*`, `org.bukkit.Bukkit`, `java.util.UUID`.
 
-- [ ] **Step 5: Add a wiring smoke test** `src/test/java/com/azoth/territory/PluginEconomyWiringTest.java`:
+- [ ] **Step 5: Add a wiring smoke test** `src/test/java/com/guilds/territory/PluginEconomyWiringTest.java`:
 
 ```java
-package com.azoth.territory;
+package com.guilds.territory;
 
 import org.junit.jupiter.api.Test;
 
@@ -1850,7 +1850,7 @@ class PluginEconomyWiringTest {
 
 - [ ] **Step 6: Run tests to verify**
 
-Run: `./gradlew test --tests com.azoth.territory.economy.BukkitEconomyBridgeTest --tests com.azoth.territory.PluginEconomyWiringTest`
+Run: `./gradlew test --tests com.guilds.territory.economy.BukkitEconomyBridgeTest --tests com.guilds.territory.PluginEconomyWiringTest`
 Expected: PASS (both).
 
 - [ ] **Step 7: Run the full unit suite**
@@ -1861,8 +1861,8 @@ Expected: PASS.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/main/java/com/azoth/territory/AzothTerritoryPlugin.java src/main/java/com/azoth/territory/economy/BukkitEconomyBridge.java src/test/java/com/azoth/territory/economy/BukkitEconomyBridgeTest.java src/test/java/com/azoth/territory/PluginEconomyWiringTest.java
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Wire economy bridge into plugin with Vault soft-depend"
+git add src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java src/main/java/com/guilds/territory/economy/BukkitEconomyBridge.java src/test/java/com/guilds/territory/economy/BukkitEconomyBridgeTest.java src/test/java/com/guilds/territory/PluginEconomyWiringTest.java
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Wire economy bridge into plugin with Vault soft-depend"
 ```
 
 ---
@@ -1876,11 +1876,11 @@ git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -
 - [ ] **Step 1: Run the full build**
 
 Run: `./gradlew build`
-Expected: BUILD SUCCESSFUL — `build/libs/azoth-territory-1.0.0-SNAPSHOT.jar` produced; all tests pass; plugin.yml expanded with `softdepend: [Vault]`.
+Expected: BUILD SUCCESSFUL — `build/libs/guilds-1.0.0-SNAPSHOT.jar` produced; all tests pass; plugin.yml expanded with `softdepend: [Vault]`.
 
 - [ ] **Step 2: Inspect the packaged plugin.yml**
 
-Run: `unzip -p build/libs/azoth-territory-1.0.0-SNAPSHOT.jar plugin.yml`
+Run: `unzip -p build/libs/guilds-1.0.0-SNAPSHOT.jar plugin.yml`
 Expected: contains `softdepend: [Vault]` and `api-version: '1.21'`.
 
 - [ ] **Step 3: Confirm the money invariant holds end to end**
@@ -1891,7 +1891,7 @@ Verify by reading the final sources: `EconomyBridge` returns `TAXED` (or `SIMULA
 
 ```bash
 git add docs/superpowers/
-git -c user.name="Azoth" -c user.email="azoth@users.noreply.github.com" commit -m "Add economy hooks implementation plan"
+git -c user.name="Guilds" -c user.email="guilds@users.noreply.github.com" commit -m "Add economy hooks implementation plan"
 ```
 (Only if not already committed in a prior task.)
 

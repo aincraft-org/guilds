@@ -26,7 +26,7 @@
 
 ## File Structure
 
-**Create in `common/src/main/java/com/azoth/territory/invasion/`:**
+**Create in `common/src/main/java/com/guilds/territory/invasion/`:**
 
 - `InvasionStatus.java` — lifecycle enum.
 - `InvasionConfig.java` — validated domain configuration and three wave definitions.
@@ -38,7 +38,7 @@
 - `InvasionStartStatus.java`, `InvasionStartResult.java` — explicit start outcomes.
 - `InvasionEngine.java` — state transitions, concurrency, wave clearing, damage, cancellation, and recovery.
 
-**Create in `paper/src/main/java/com/azoth/territory/invasion/`:**
+**Create in `paper/src/main/java/com/guilds/territory/invasion/`:**
 
 - `InvasionConfigLoader.java` — Bukkit configuration parser and exact validation errors.
 - `GuildInvasionTargetResolver.java` — guild lookup, claimed-plot eligibility, online-resident eligibility, and center resolution.
@@ -50,39 +50,39 @@
 
 **Modify:**
 
-- `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java` — create `invasion_state` JSONB table.
-- `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java` — construct, recover, register, expose, tick, and stop invasion runtime.
-- `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java` — `invasion start|stop|status` command and completions.
-- `paper/src/main/java/com/azoth/territory/listener/ProtectionListener.java` — preserve general protection; no broad spawn-reason relaxation.
+- `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java` — create `invasion_state` JSONB table.
+- `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java` — construct, recover, register, expose, tick, and stop invasion runtime.
+- `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java` — `invasion start|stop|status` command and completions.
+- `paper/src/main/java/com/guilds/territory/listener/ProtectionListener.java` — preserve general protection; no broad spawn-reason relaxation.
 - `paper/src/main/resources/config.yml` — defaults for budget, allowlist, three waves, spawning, bossbar, and inter-wave delay.
 - `paper/src/main/resources/plugin.yml` — permission declaration and usage metadata.
 
 **Tests:**
 
-- `common/src/test/java/com/azoth/territory/invasion/InvasionEngineTest.java`
-- `common/src/test/java/com/azoth/territory/invasion/PostgresInvasionStoreTest.java`
-- `paper/src/test/java/com/azoth/territory/invasion/InvasionConfigLoaderTest.java`
-- `paper/src/test/java/com/azoth/territory/invasion/GuildInvasionTargetResolverTest.java`
-- `paper/src/test/java/com/azoth/territory/invasion/InvasionMobTagsTest.java`
-- `paper/src/test/java/com/azoth/territory/invasion/InvasionListenerTest.java`
-- `paper/src/test/java/com/azoth/territory/invasion/InvasionBossBarsTest.java`
-- `paper/src/test/java/com/azoth/territory/command/TerritoryCommandInvasionTest.java`
+- `common/src/test/java/com/guilds/territory/invasion/InvasionEngineTest.java`
+- `common/src/test/java/com/guilds/territory/invasion/PostgresInvasionStoreTest.java`
+- `paper/src/test/java/com/guilds/territory/invasion/InvasionConfigLoaderTest.java`
+- `paper/src/test/java/com/guilds/territory/invasion/GuildInvasionTargetResolverTest.java`
+- `paper/src/test/java/com/guilds/territory/invasion/InvasionMobTagsTest.java`
+- `paper/src/test/java/com/guilds/territory/invasion/InvasionListenerTest.java`
+- `paper/src/test/java/com/guilds/territory/invasion/InvasionBossBarsTest.java`
+- `paper/src/test/java/com/guilds/territory/command/TerritoryCommandInvasionTest.java`
 
 ---
 
 ### Task 1: Invasion Domain Configuration And Lifecycle
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionStatus.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionConfig.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionRecord.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/GuildDamage.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionState.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionStore.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionStartStatus.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionStartResult.java`
-- Create: `common/src/main/java/com/azoth/territory/invasion/InvasionEngine.java`
-- Test: `common/src/test/java/com/azoth/territory/invasion/InvasionEngineTest.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionStatus.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionConfig.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionRecord.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/GuildDamage.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionState.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionStore.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionStartStatus.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionStartResult.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/InvasionEngine.java`
+- Test: `common/src/test/java/com/guilds/territory/invasion/InvasionEngineTest.java`
 
 **Interfaces:**
 - Consumes: no Paper types; caller supplies validated guild/world/center data and timestamps.
@@ -140,7 +140,7 @@ Expected: all invasion engine tests pass.
 - [ ] **Step 5: Commit the domain unit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/invasion common/src/test/java/com/azoth/territory/invasion/InvasionEngineTest.java
+git add common/src/main/java/com/guilds/territory/invasion common/src/test/java/com/guilds/territory/invasion/InvasionEngineTest.java
 git commit -m "feat: add guild invasion lifecycle engine"
 ```
 
@@ -149,9 +149,9 @@ git commit -m "feat: add guild invasion lifecycle engine"
 ### Task 2: PostgreSQL Invasion Persistence
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/invasion/PostgresInvasionStore.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java:17-24`
-- Test: `common/src/test/java/com/azoth/territory/invasion/PostgresInvasionStoreTest.java`
+- Create: `common/src/main/java/com/guilds/territory/invasion/PostgresInvasionStore.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java:17-24`
+- Test: `common/src/test/java/com/guilds/territory/invasion/PostgresInvasionStoreTest.java`
 
 **Interfaces:**
 - Consumes: `InvasionStore`, `InvasionState`, and `PostgresDatabase`.
@@ -190,7 +190,7 @@ Expected: all selected tests pass.
 - [ ] **Step 5: Commit persistence**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/invasion/PostgresInvasionStore.java common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java common/src/test/java/com/azoth/territory/invasion/PostgresInvasionStoreTest.java
+git add common/src/main/java/com/guilds/territory/invasion/PostgresInvasionStore.java common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java common/src/test/java/com/guilds/territory/invasion/PostgresInvasionStoreTest.java
 git commit -m "feat: persist guild invasion state"
 ```
 
@@ -199,11 +199,11 @@ git commit -m "feat: persist guild invasion state"
 ### Task 3: Paper Configuration And Guild Target Resolution
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/invasion/InvasionConfigLoader.java`
-- Create: `paper/src/main/java/com/azoth/territory/invasion/GuildInvasionTargetResolver.java`
+- Create: `paper/src/main/java/com/guilds/territory/invasion/InvasionConfigLoader.java`
+- Create: `paper/src/main/java/com/guilds/territory/invasion/GuildInvasionTargetResolver.java`
 - Modify: `paper/src/main/resources/config.yml:90`
-- Test: `paper/src/test/java/com/azoth/territory/invasion/InvasionConfigLoaderTest.java`
-- Test: `paper/src/test/java/com/azoth/territory/invasion/GuildInvasionTargetResolverTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/invasion/InvasionConfigLoaderTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/invasion/GuildInvasionTargetResolverTest.java`
 
 **Interfaces:**
 - Consumes: Bukkit `ConfigurationSection`, `GuildService`, `PlotService`, Bukkit worlds/players.
@@ -240,7 +240,7 @@ Expected: all selected tests pass.
 - [ ] **Step 6: Commit configuration and resolution**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/invasion/InvasionConfigLoader.java paper/src/main/java/com/azoth/territory/invasion/GuildInvasionTargetResolver.java paper/src/main/resources/config.yml paper/src/test/java/com/azoth/territory/invasion/InvasionConfigLoaderTest.java paper/src/test/java/com/azoth/territory/invasion/GuildInvasionTargetResolverTest.java
+git add paper/src/main/java/com/guilds/territory/invasion/InvasionConfigLoader.java paper/src/main/java/com/guilds/territory/invasion/GuildInvasionTargetResolver.java paper/src/main/resources/config.yml paper/src/test/java/com/guilds/territory/invasion/InvasionConfigLoaderTest.java paper/src/test/java/com/guilds/territory/invasion/GuildInvasionTargetResolverTest.java
 git commit -m "feat: configure and resolve guild invasion targets"
 ```
 
@@ -249,11 +249,11 @@ git commit -m "feat: configure and resolve guild invasion targets"
 ### Task 4: Tagged Mob Spawning And Bossbar Runtime
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/invasion/InvasionMobTags.java`
-- Create: `paper/src/main/java/com/azoth/territory/invasion/InvasionMobSpawner.java`
-- Create: `paper/src/main/java/com/azoth/territory/invasion/InvasionBossBars.java`
-- Test: `paper/src/test/java/com/azoth/territory/invasion/InvasionMobTagsTest.java`
-- Test: `paper/src/test/java/com/azoth/territory/invasion/InvasionBossBarsTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/invasion/InvasionMobTags.java`
+- Create: `paper/src/main/java/com/guilds/territory/invasion/InvasionMobSpawner.java`
+- Create: `paper/src/main/java/com/guilds/territory/invasion/InvasionBossBars.java`
+- Test: `paper/src/test/java/com/guilds/territory/invasion/InvasionMobTagsTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/invasion/InvasionBossBarsTest.java`
 
 **Interfaces:**
 - Consumes: `InvasionRecord`, current wave definition, target center, online players, and plugin namespaced keys.
@@ -294,7 +294,7 @@ Expected: all selected tests pass.
 - [ ] **Step 7: Commit spawning and UI**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/invasion/InvasionMobTags.java paper/src/main/java/com/azoth/territory/invasion/InvasionMobSpawner.java paper/src/main/java/com/azoth/territory/invasion/InvasionBossBars.java paper/src/test/java/com/azoth/territory/invasion/InvasionMobTagsTest.java paper/src/test/java/com/azoth/territory/invasion/InvasionBossBarsTest.java
+git add paper/src/main/java/com/guilds/territory/invasion/InvasionMobTags.java paper/src/main/java/com/guilds/territory/invasion/InvasionMobSpawner.java paper/src/main/java/com/guilds/territory/invasion/InvasionBossBars.java paper/src/test/java/com/guilds/territory/invasion/InvasionMobTagsTest.java paper/src/test/java/com/guilds/territory/invasion/InvasionBossBarsTest.java
 git commit -m "feat: spawn tagged invasion waves with bossbars"
 ```
 
@@ -303,9 +303,9 @@ git commit -m "feat: spawn tagged invasion waves with bossbars"
 ### Task 5: Guild-Scoped Destruction And Runtime Orchestration
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/invasion/InvasionRuntime.java`
-- Create: `paper/src/main/java/com/azoth/territory/invasion/InvasionListener.java`
-- Test: `paper/src/test/java/com/azoth/territory/invasion/InvasionListenerTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/invasion/InvasionRuntime.java`
+- Create: `paper/src/main/java/com/guilds/territory/invasion/InvasionListener.java`
+- Test: `paper/src/test/java/com/guilds/territory/invasion/InvasionListenerTest.java`
 
 **Interfaces:**
 - Consumes: engine, resolver, spawner, bossbars, `PlotService`, explicit material allowlist, Paper entity/block/player events.
@@ -356,7 +356,7 @@ Expected: all selected tests pass.
 - [ ] **Step 6: Commit runtime and destruction**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/invasion/InvasionRuntime.java paper/src/main/java/com/azoth/territory/invasion/InvasionListener.java paper/src/test/java/com/azoth/territory/invasion/InvasionListenerTest.java
+git add paper/src/main/java/com/guilds/territory/invasion/InvasionRuntime.java paper/src/main/java/com/guilds/territory/invasion/InvasionListener.java paper/src/test/java/com/guilds/territory/invasion/InvasionListenerTest.java
 git commit -m "feat: enforce guild-scoped invasion destruction"
 ```
 
@@ -365,15 +365,15 @@ git commit -m "feat: enforce guild-scoped invasion destruction"
 ### Task 6: Admin Command And Plugin Lifecycle Wiring
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java:91-323,324-381,576-593`
-- Modify: `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java:1-76,515-525`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java:91-323,324-381,576-593`
+- Modify: `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java:1-76,515-525`
 - Modify: `paper/src/main/resources/plugin.yml:10-21`
-- Test: `paper/src/test/java/com/azoth/territory/command/TerritoryCommandInvasionTest.java`
-- Test: `paper/src/test/java/com/azoth/territory/PluginMetadataTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/command/TerritoryCommandInvasionTest.java`
+- Test: `paper/src/test/java/com/guilds/territory/PluginMetadataTest.java`
 
 **Interfaces:**
 - Consumes: `InvasionRuntime.start`, `stop`, `status`, guild names for completion, and plugin enable/disable lifecycle.
-- Produces: the approved `/territory invasion start|stop|status <guild>` operator surface and `AzothTerritoryPlugin.getInvasionRuntime()`.
+- Produces: the approved `/territory invasion start|stop|status <guild>` operator surface and `GuildsTerritoryPlugin.getInvasionRuntime()`.
 
 - [ ] **Step 1: Write failing command tests**
 
@@ -397,7 +397,7 @@ After guild subsystem construction and service availability, load config, create
 
 - [ ] **Step 5: Add command routing and completions**
 
-Add `case "invasion" -> invasion(sender, args);`, permission check, exact action/argument validation, Adventure messages, and completions for `start|stop|status` and guild names. Do not grant access through the broader `azoth.territory.admin` check unless the sender also has the exact invasion node or is op/console.
+Add `case "invasion" -> invasion(sender, args);`, permission check, exact action/argument validation, Adventure messages, and completions for `start|stop|status` and guild names. Do not grant access through the broader `guilds.territory.admin` check unless the sender also has the exact invasion node or is op/console.
 
 - [ ] **Step 6: Run focused tests and confirm GREEN**
 
@@ -410,7 +410,7 @@ Expected: all selected tests pass.
 - [ ] **Step 7: Commit command and lifecycle wiring**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java paper/src/main/resources/plugin.yml paper/src/test/java/com/azoth/territory/command/TerritoryCommandInvasionTest.java paper/src/test/java/com/azoth/territory/PluginMetadataTest.java
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java paper/src/main/resources/plugin.yml paper/src/test/java/com/guilds/territory/command/TerritoryCommandInvasionTest.java paper/src/test/java/com/guilds/territory/PluginMetadataTest.java
 git commit -m "feat: expose admin guild invasion commands"
 ```
 

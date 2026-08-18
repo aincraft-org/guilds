@@ -2,11 +2,11 @@
 
 ## Goal
 
-Integrate the latest `aincraft-org/mint` API into Azoth Territory so taxes settle asynchronously through Mint, with each guild owning a native Mint treasury account that receives taxes and supports controlled balance, deposit, and withdrawal operations.
+Integrate the latest `aincraft-org/mint` API into Guilds Territory so taxes settle asynchronously through Mint, with each guild owning a native Mint treasury account that receives taxes and supports controlled balance, deposit, and withdrawal operations.
 
 ## Context
 
-Azoth Territory currently calculates policy taxes in `common` and settles synchronously through `PaymentRail`. The Paper module provides a Vault-backed rail whose treasury destination is a Vault bank named after the territory. Guilds are already integrated into the same plugin and use SQL-backed services, permissions, commands, and migrations.
+Guilds Territory currently calculates policy taxes in `common` and settles synchronously through `PaymentRail`. The Paper module provides a Vault-backed rail whose treasury destination is a Vault bank named after the territory. Guilds are already integrated into the same plugin and use SQL-backed services, permissions, commands, and migrations.
 
 The current Mint repository is `https://github.com/aincraft-org/mint`, latest inspected commit `cee5b04`. Its published group is `dev.mintychochip.mint`; the API module publishes `mint-api`. The public API is asynchronous and lease-scoped. The relevant primitives are `MintClientReceiver`/`MintClientLease`, `AccountService.ensure(AccountId)`, `LedgerService.balance(AccountId, CurrencyId)`, and `LedgerService.transact(TransactionRequest)`. A transfer is represented by signed `Posting` values in one atomic request. Mint has no bank abstraction; guild banks are namespaced Mint accounts.
 

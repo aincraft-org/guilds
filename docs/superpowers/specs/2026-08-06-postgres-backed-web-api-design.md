@@ -52,7 +52,7 @@ TerritoryApiHandler ──► TerritoryRegistry (in-memory, gameplay)
 
 ## Components (all in `common/`, Paper-free)
 
-### 1. `TerritoryRepository` (interface, `com.azoth.territory.persist`)
+### 1. `TerritoryRepository` (interface, `com.guilds.territory.persist`)
 
 ```java
 public interface TerritoryRepository extends AutoCloseable {
@@ -77,8 +77,8 @@ Bukkit-free config mirroring `WebConfigLoader.fromValues` (flattened
 | `database.enabled` | `false` | use Postgres instead of JSON |
 | `database.host` | `127.0.0.1` | remote host |
 | `database.port` | `5432` | remote port |
-| `database.name` | `azoth_territory` | database name |
-| `database.user` | `azoth` | role |
+| `database.name` | `guilds_territory` | database name |
+| `database.user` | `guilds` | role |
 | `database.password` | `""` | password |
 | `database.ssl` | `false` | require TLS (`sslmode=require`) |
 | `database.pool-size` | `10` | HikariCP max pool size |
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS territories (
   into the plugin JAR by paper's shadowJar (latest 42.7.x on Maven Central as
   of 2026-08-06).
 
-### 5. Plugin wiring (`AzothTerritoryPlugin`)
+### 5. Plugin wiring (`GuildsTerritoryPlugin`)
 
 - Field type `TerritoryStore store` → `TerritoryRepository store`.
 - Enable: build `DatabaseSettings`; if enabled, construct
@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS territories (
 - `DatabaseSettingsLoaderTest` (common): defaults, overrides, jdbc-url
   precedence, ssl flag → `sslmode=require` derivation.
 - `PostgresTerritoryRepositoryTest` (common): integration test gated on
-  `AZOTH_TEST_JDBC_URL` env var (JUnit assumption; skipped when unset) —
+  `GUILDS_TEST_JDBC_URL` env var (JUnit assumption; skipped when unset) —
   schema idempotency, save→load round trip, full-replace semantics on second
   save, close releases the pool.
 - Existing web tests keep using the JSON store through the widened

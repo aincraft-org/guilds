@@ -13,7 +13,7 @@
 - `database.type` values are `postgresql` and `mysql`; default is `postgresql`.
 - MySQL targets standard MySQL 8.x-compatible SQL and must avoid PostgreSQL-only casts and `ON CONFLICT`.
 - Existing PostgreSQL configuration and tests remain compatible.
-- MySQL integration tests skip unless `AZOTH_TEST_MYSQL_JDBC_URL` is set.
+- MySQL integration tests skip unless `GUILDS_TEST_MYSQL_JDBC_URL` is set.
 - Do not overwrite unrelated pre-existing working-tree changes.
 - Commit logical units atomically; push the feature branch, dispatch the existing Nightly Release workflow, and verify its run plus `nightly` release assets.
 
@@ -22,11 +22,11 @@
 ### Task 1: Backend settings and dialect contracts
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/persist/DatabaseType.java`
-- Create: `common/src/main/java/com/azoth/territory/persist/DatabaseDialect.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/DatabaseSettings.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/DatabaseSettingsLoader.java`
-- Test: `common/src/test/java/com/azoth/territory/persist/DatabaseSettingsTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/DatabaseType.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/DatabaseDialect.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/DatabaseSettings.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/DatabaseSettingsLoader.java`
+- Test: `common/src/test/java/com/guilds/territory/persist/DatabaseSettingsTest.java`
 
 **Interfaces:**
 - `DatabaseType` exposes `POSTGRESQL`, `MYSQL`, and `parse(String)`.
@@ -42,10 +42,10 @@
 ### Task 2: Dialect-backed database owner and schema
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/persist/DatabaseDialect.java` implementation classes as needed
-- Create: `common/src/main/java/com/azoth/territory/persist/Database.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/PostgresDatabase.java`
-- Test: `common/src/test/java/com/azoth/territory/persist/DatabaseDialectTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/DatabaseDialect.java` implementation classes as needed
+- Create: `common/src/main/java/com/guilds/territory/persist/Database.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/PostgresDatabase.java`
+- Test: `common/src/test/java/com/guilds/territory/persist/DatabaseDialectTest.java`
 
 **Interfaces:**
 - `Database` exposes `dataSource()`, `connection()`, `initializeSchema()`, `dialect()`, and `close()`.
@@ -61,8 +61,8 @@
 ### Task 3: Migrate durable stores to backend-neutral SQL
 
 **Files:**
-- Modify all durable stores under `common/src/main/java/com/azoth/territory/` currently importing `PostgresDatabase`.
-- Modify: `common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java`, `common/src/main/java/com/azoth/territory/standing/StandingEngine.java`, and web types only if constructor types require migration.
+- Modify all durable stores under `common/src/main/java/com/guilds/territory/` currently importing `PostgresDatabase`.
+- Modify: `common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java`, `common/src/main/java/com/guilds/territory/standing/StandingEngine.java`, and web types only if constructor types require migration.
 - Modify integration test helpers to accept the shared database type.
 - Test: existing persistence tests plus new backend-neutral SQL tests where needed.
 
@@ -79,7 +79,7 @@
 ### Task 4: Wire Paper configuration and package Connector/J
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
 - Modify: `paper/src/main/resources/config.yml`
 - Modify: `common/build.gradle.kts`
 - Modify: `README.md`
@@ -96,11 +96,11 @@
 ### Task 5: Real MySQL integration coverage
 
 **Files:**
-- Create: `common/src/test/java/com/azoth/territory/MySqlTestDatabase.java`
-- Create: `common/src/test/java/com/azoth/territory/persist/MySqlDatabaseIntegrationTest.java`
+- Create: `common/src/test/java/com/guilds/territory/MySqlTestDatabase.java`
+- Create: `common/src/test/java/com/guilds/territory/persist/MySqlDatabaseIntegrationTest.java`
 - Modify: representative store integration tests only if shared helpers require it.
 
-- [ ] Write integration tests for schema initialization and representative territory/invasion save-load round trips using `AZOTH_TEST_MYSQL_JDBC_URL`; skip with an explicit reason when unset.
+- [ ] Write integration tests for schema initialization and representative territory/invasion save-load round trips using `GUILDS_TEST_MYSQL_JDBC_URL`; skip with an explicit reason when unset.
 - [ ] Run with the environment unset; verify clean skips.
 - [ ] If a MySQL service is available, run with the URL and verify real round trips.
 - [ ] Run full `./gradlew test`.

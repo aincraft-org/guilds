@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- All new production code goes in `common/src/main/java/com/azoth/territory/persist/` (Paper-free) or modifies the existing web classes.
+- All new production code goes in `common/src/main/java/com/guilds/territory/persist/` (Paper-free) or modifies the existing web classes.
 - `TerritoryRepository` methods: `void loadInto(TerritoryRegistry registry) throws IOException`, `void save(TerritoryRegistry registry) throws IOException`, `void close()` (no checked throws). SQL errors are wrapped in `IOException`.
 - Config keys are `database.enabled|host|port|name|user|password|ssl|pool-size|jdbc-url`, read from the flattened Bukkit config map (`getValues(true)`), mirroring `WebConfigLoader`.
 - Postgres schema is exactly: `CREATE TABLE IF NOT EXISTS territories (id TEXT PRIMARY KEY, doc JSONB NOT NULL)`.
@@ -26,22 +26,22 @@
 ### Task 1: Repository Seam
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/persist/TerritoryRepository.java`
-- Modify: `common/src/main/java/com/azoth/territory/persist/TerritoryStore.java`
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java`
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/TerritoryRepository.java`
+- Modify: `common/src/main/java/com/guilds/territory/persist/TerritoryStore.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java`
 
 **Interfaces:**
-- Produces: `TerritoryRepository` — implemented by `TerritoryStore` (Task 1) and `PostgresTerritoryRepository` (Task 4); consumed by `TerritoryWebServer`/`TerritoryApiHandler` (Task 1, 2) and `AzothTerritoryPlugin` (Task 5).
+- Produces: `TerritoryRepository` — implemented by `TerritoryStore` (Task 1) and `PostgresTerritoryRepository` (Task 4); consumed by `TerritoryWebServer`/`TerritoryApiHandler` (Task 1, 2) and `GuildsTerritoryPlugin` (Task 5).
 
 - [ ] **Step 1: Create the interface**
 
-`common/src/main/java/com/azoth/territory/persist/TerritoryRepository.java`:
+`common/src/main/java/com/guilds/territory/persist/TerritoryRepository.java`:
 
 ```java
-package com.azoth.territory.persist;
+package com.guilds.territory.persist;
 
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.registry.TerritoryRegistry;
 
 import java.io.IOException;
 
@@ -68,7 +68,7 @@ public interface TerritoryRepository extends AutoCloseable {
 
 - [ ] **Step 2: Make `TerritoryStore` implement it**
 
-In `common/src/main/java/com/azoth/territory/persist/TerritoryStore.java`:
+In `common/src/main/java/com/guilds/territory/persist/TerritoryStore.java`:
 
 1. Change the class declaration to `public final class TerritoryStore implements TerritoryRepository {`
 2. Add before the closing brace:
@@ -82,17 +82,17 @@ In `common/src/main/java/com/azoth/territory/persist/TerritoryStore.java`:
 
 - [ ] **Step 3: Widen the web server's store supplier**
 
-In `common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java`:
+In `common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java`:
 
-1. Replace `import com.azoth.territory.persist.TerritoryStore;` with `import com.azoth.territory.persist.TerritoryRepository;`
+1. Replace `import com.guilds.territory.persist.TerritoryStore;` with `import com.guilds.territory.persist.TerritoryRepository;`
 2. Change the field `private final Supplier<TerritoryStore> storeSupplier;` to `Supplier<TerritoryRepository>`.
 3. Change the constructor parameter `Supplier<TerritoryStore> storeSupplier` to `Supplier<TerritoryRepository>`.
 
 - [ ] **Step 4: Widen the API handler's store supplier**
 
-In `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java`:
+In `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java`:
 
-1. Replace `import com.azoth.territory.persist.TerritoryStore;` with `import com.azoth.territory.persist.TerritoryRepository;`
+1. Replace `import com.guilds.territory.persist.TerritoryStore;` with `import com.guilds.territory.persist.TerritoryRepository;`
 2. Field `private final Supplier<TerritoryStore> storeSupplier;` → `Supplier<TerritoryRepository>`.
 3. Constructor parameter `Supplier<TerritoryStore> storeSupplier` → `Supplier<TerritoryRepository>`.
 4. In `persistQuietly()`: `TerritoryStore store = storeSupplier.get();` → `TerritoryRepository store = storeSupplier.get();`
@@ -105,7 +105,7 @@ Expected: BUILD SUCCESSFUL; all common tests pass (web tests still compile becau
 - [ ] **Step 6: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/persist/TerritoryRepository.java common/src/main/java/com/azoth/territory/persist/TerritoryStore.java common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java
+git add common/src/main/java/com/guilds/territory/persist/TerritoryRepository.java common/src/main/java/com/guilds/territory/persist/TerritoryStore.java common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java
 git commit -m "feat: introduce TerritoryRepository persistence seam"
 ```
 
@@ -114,8 +114,8 @@ git commit -m "feat: introduce TerritoryRepository persistence seam"
 ### Task 2: Commit Storage Before Registry Mutations
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java`
-- Create: `common/src/test/java/com/azoth/territory/web/TerritoryApiPersistenceTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java`
+- Create: `common/src/test/java/com/guilds/territory/web/TerritoryApiPersistenceTest.java`
 
 **Interfaces:**
 - Consumes: `TerritoryRepository` (Task 1).
@@ -123,17 +123,17 @@ git commit -m "feat: introduce TerritoryRepository persistence seam"
 
 - [ ] **Step 1: Write the failing test**
 
-`common/src/test/java/com/azoth/territory/web/TerritoryApiPersistenceTest.java`:
+`common/src/test/java/com/guilds/territory/web/TerritoryApiPersistenceTest.java`:
 
 ```java
-package com.azoth.territory.web;
+package com.guilds.territory.web;
 
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryRepository;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.persist.TerritoryJson;
+import com.guilds.territory.persist.TerritoryRepository;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -264,7 +264,7 @@ Expected: FAIL — `failedPersistOnPutReturns500AndLeavesRegistryUntouched`: the
 
 - [ ] **Step 3: Rewrite the mutation path in the handler**
 
-In `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java`:
+In `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java`:
 
 1. Replace `upsertBody`:
 
@@ -348,7 +348,7 @@ Expected: PASS (both tests). Then run `./gradlew :common:test` — full common s
 - [ ] **Step 5: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java common/src/test/java/com/azoth/territory/web/TerritoryApiPersistenceTest.java
+git add common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java common/src/test/java/com/guilds/territory/web/TerritoryApiPersistenceTest.java
 git commit -m "feat: commit storage before registry mutations in web API"
 ```
 
@@ -357,19 +357,19 @@ git commit -m "feat: commit storage before registry mutations in web API"
 ### Task 3: Database Settings Config
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/persist/DatabaseSettings.java`
-- Create: `common/src/main/java/com/azoth/territory/persist/DatabaseSettingsLoader.java`
-- Create: `common/src/test/java/com/azoth/territory/persist/DatabaseSettingsLoaderTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/DatabaseSettings.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/DatabaseSettingsLoader.java`
+- Create: `common/src/test/java/com/guilds/territory/persist/DatabaseSettingsLoaderTest.java`
 
 **Interfaces:**
-- Produces: `DatabaseSettings` (accessors `enabled()`, `host()`, `port()`, `name()`, `user()`, `password()`, `ssl()`, `poolSize()`, `jdbcUrl()`, static `disabled()`) and `DatabaseSettingsLoader.fromValues(Map<String,Object>)`. Consumed by `PostgresTerritoryRepository` (Task 4) and `AzothTerritoryPlugin` (Task 5).
+- Produces: `DatabaseSettings` (accessors `enabled()`, `host()`, `port()`, `name()`, `user()`, `password()`, `ssl()`, `poolSize()`, `jdbcUrl()`, static `disabled()`) and `DatabaseSettingsLoader.fromValues(Map<String,Object>)`. Consumed by `PostgresTerritoryRepository` (Task 4) and `GuildsTerritoryPlugin` (Task 5).
 
 - [ ] **Step 1: Write the failing test**
 
-`common/src/test/java/com/azoth/territory/persist/DatabaseSettingsLoaderTest.java`:
+`common/src/test/java/com/guilds/territory/persist/DatabaseSettingsLoaderTest.java`:
 
 ```java
-package com.azoth.territory.persist;
+package com.guilds.territory.persist;
 
 import org.junit.jupiter.api.Test;
 
@@ -386,7 +386,7 @@ class DatabaseSettingsLoaderTest {
     void defaultsToDisabledWithDerivedUrl() {
         DatabaseSettings s = DatabaseSettingsLoader.fromValues(new HashMap<>());
         assertFalse(s.enabled());
-        assertEquals("jdbc:postgresql://127.0.0.1:5432/azoth_territory", s.jdbcUrl());
+        assertEquals("jdbc:postgresql://127.0.0.1:5432/guilds_territory", s.jdbcUrl());
         assertEquals(10, s.poolSize());
     }
 
@@ -396,7 +396,7 @@ class DatabaseSettingsLoaderTest {
         cfg.put("database.enabled", true);
         cfg.put("database.host", "db.example.com");
         cfg.put("database.port", 5433);
-        cfg.put("database.name", "azoth");
+        cfg.put("database.name", "guilds");
         cfg.put("database.user", "map");
         cfg.put("database.password", "hunter2");
         cfg.put("database.ssl", true);
@@ -405,12 +405,12 @@ class DatabaseSettingsLoaderTest {
         assertTrue(s.enabled());
         assertEquals("db.example.com", s.host());
         assertEquals(5433, s.port());
-        assertEquals("azoth", s.name());
+        assertEquals("guilds", s.name());
         assertEquals("map", s.user());
         assertEquals("hunter2", s.password());
         assertTrue(s.ssl());
         assertEquals(4, s.poolSize());
-        assertEquals("jdbc:postgresql://db.example.com:5433/azoth?sslmode=require", s.jdbcUrl());
+        assertEquals("jdbc:postgresql://db.example.com:5433/guilds?sslmode=require", s.jdbcUrl());
     }
 
     @Test
@@ -418,9 +418,9 @@ class DatabaseSettingsLoaderTest {
         Map<String, Object> cfg = new HashMap<>();
         cfg.put("database.enabled", true);
         cfg.put("database.jdbc-url",
-                "jdbc:postgresql://cloud.example.com:6543/azoth?sslmode=verify-full");
+                "jdbc:postgresql://cloud.example.com:6543/guilds?sslmode=verify-full");
         DatabaseSettings s = DatabaseSettingsLoader.fromValues(cfg);
-        assertEquals("jdbc:postgresql://cloud.example.com:6543/azoth?sslmode=verify-full", s.jdbcUrl());
+        assertEquals("jdbc:postgresql://cloud.example.com:6543/guilds?sslmode=verify-full", s.jdbcUrl());
     }
 
     @Test
@@ -437,10 +437,10 @@ Expected: FAIL — `DatabaseSettings`/`DatabaseSettingsLoader` do not exist (com
 
 - [ ] **Step 3: Implement settings + loader**
 
-`common/src/main/java/com/azoth/territory/persist/DatabaseSettings.java`:
+`common/src/main/java/com/guilds/territory/persist/DatabaseSettings.java`:
 
 ```java
-package com.azoth.territory.persist;
+package com.guilds.territory.persist;
 
 import java.util.Objects;
 
@@ -484,7 +484,7 @@ public final class DatabaseSettings {
     }
 
     public static DatabaseSettings disabled() {
-        return new DatabaseSettings(false, "127.0.0.1", 5432, "azoth_territory", "azoth",
+        return new DatabaseSettings(false, "127.0.0.1", 5432, "guilds_territory", "guilds",
                 "", false, 10, "");
     }
 
@@ -535,10 +535,10 @@ public final class DatabaseSettings {
 }
 ```
 
-`common/src/main/java/com/azoth/territory/persist/DatabaseSettingsLoader.java`:
+`common/src/main/java/com/guilds/territory/persist/DatabaseSettingsLoader.java`:
 
 ```java
-package com.azoth.territory.persist;
+package com.guilds.territory.persist;
 
 import java.util.Map;
 
@@ -555,8 +555,8 @@ public final class DatabaseSettingsLoader {
         boolean enabled = bool(cfg, "database.enabled", false);
         String host = str(cfg, "database.host", "127.0.0.1");
         int port = intOf(cfg, "database.port", 5432);
-        String name = str(cfg, "database.name", "azoth_territory");
-        String user = str(cfg, "database.user", "azoth");
+        String name = str(cfg, "database.name", "guilds_territory");
+        String user = str(cfg, "database.user", "guilds");
         String password = str(cfg, "database.password", "");
         boolean ssl = bool(cfg, "database.ssl", false);
         int poolSize = intOf(cfg, "database.pool-size", 10);
@@ -599,7 +599,7 @@ Expected: PASS (all four tests).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/persist/DatabaseSettings.java common/src/main/java/com/azoth/territory/persist/DatabaseSettingsLoader.java common/src/test/java/com/azoth/territory/persist/DatabaseSettingsLoaderTest.java
+git add common/src/main/java/com/guilds/territory/persist/DatabaseSettings.java common/src/main/java/com/guilds/territory/persist/DatabaseSettingsLoader.java common/src/test/java/com/guilds/territory/persist/DatabaseSettingsLoaderTest.java
 git commit -m "feat: add database settings config for territory store"
 ```
 
@@ -610,8 +610,8 @@ git commit -m "feat: add database settings config for territory store"
 **Files:**
 - Modify: `common/build.gradle.kts`
 - Modify: `paper/build.gradle.kts`
-- Create: `common/src/main/java/com/azoth/territory/persist/PostgresTerritoryRepository.java`
-- Create: `common/src/test/java/com/azoth/territory/persist/PostgresTerritoryRepositoryTest.java`
+- Create: `common/src/main/java/com/guilds/territory/persist/PostgresTerritoryRepository.java`
+- Create: `common/src/test/java/com/guilds/territory/persist/PostgresTerritoryRepositoryTest.java`
 
 **Interfaces:**
 - Consumes: `TerritoryRepository` (Task 1), `DatabaseSettings` (Task 3).
@@ -632,15 +632,15 @@ In `paper/build.gradle.kts`, remove the line `implementation("com.zaxxer:HikariC
 
 - [ ] **Step 2: Write the failing integration test**
 
-`common/src/test/java/com/azoth/territory/persist/PostgresTerritoryRepositoryTest.java`:
+`common/src/test/java/com/guilds/territory/persist/PostgresTerritoryRepositoryTest.java`:
 
 ```java
-package com.azoth.territory.persist;
+package com.guilds.territory.persist;
 
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -655,22 +655,22 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 /**
  * Integration test against a real PostgreSQL server.
  * <p>
- * Skipped unless {@code AZOTH_TEST_JDBC_URL} is set, e.g.:
+ * Skipped unless {@code GUILDS_TEST_JDBC_URL} is set, e.g.:
  * <pre>
- * AZOTH_TEST_JDBC_URL="jdbc:postgresql://127.0.0.1:5432/azoth_test?user=azoth&password=azoth" \
+ * GUILDS_TEST_JDBC_URL="jdbc:postgresql://127.0.0.1:5432/guilds_test?user=guilds&password=guilds" \
  *   ./gradlew :common:test --tests '*PostgresTerritoryRepositoryTest'
  * </pre>
  * The database must exist and the role must be able to create tables.
  */
 class PostgresTerritoryRepositoryTest {
 
-    private static final String TEST_URL = System.getenv("AZOTH_TEST_JDBC_URL");
+    private static final String TEST_URL = System.getenv("GUILDS_TEST_JDBC_URL");
     private static PostgresTerritoryRepository repo;
 
     @BeforeAll
     static void connect() throws Exception {
         assumeTrue(TEST_URL != null && !TEST_URL.isBlank(),
-                "AZOTH_TEST_JDBC_URL not set — skipping PostgreSQL integration test");
+                "GUILDS_TEST_JDBC_URL not set — skipping PostgreSQL integration test");
         repo = new PostgresTerritoryRepository(new DatabaseSettings(
                 true, "ignored", 5432, "ignored", "ignored", "", false, 5, TEST_URL));
     }
@@ -754,13 +754,13 @@ Expected: FAIL — `PostgresTerritoryRepository` does not exist (compile error).
 
 - [ ] **Step 4: Implement the repository**
 
-`common/src/main/java/com/azoth/territory/persist/PostgresTerritoryRepository.java`:
+`common/src/main/java/com/guilds/territory/persist/PostgresTerritoryRepository.java`:
 
 ```java
-package com.azoth.territory.persist;
+package com.guilds.territory.persist;
 
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonParser;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -797,7 +797,7 @@ public final class PostgresTerritoryRepository implements TerritoryRepository {
      */
     public PostgresTerritoryRepository(DatabaseSettings settings) throws IOException {
         HikariConfig config = new HikariConfig();
-        config.setPoolName("azoth-territory-pg");
+        config.setPoolName("guilds-pg");
         config.setJdbcUrl(settings.jdbcUrl());
         config.setUsername(settings.user());
         config.setPassword(settings.password());
@@ -878,12 +878,12 @@ public final class PostgresTerritoryRepository implements TerritoryRepository {
 - [ ] **Step 5: Run test + full common suite**
 
 Run: `./gradlew :common:test`
-Expected: PASS — integration tests SKIPPED (no `AZOTH_TEST_JDBC_URL`), everything else green. Then `./gradlew :paper:compileJava` — paper still compiles with HikariCP inherited from `:common`.
+Expected: PASS — integration tests SKIPPED (no `GUILDS_TEST_JDBC_URL`), everything else green. Then `./gradlew :paper:compileJava` — paper still compiles with HikariCP inherited from `:common`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add common/build.gradle.kts paper/build.gradle.kts common/src/main/java/com/azoth/territory/persist/PostgresTerritoryRepository.java common/src/test/java/com/azoth/territory/persist/PostgresTerritoryRepositoryTest.java
+git add common/build.gradle.kts paper/build.gradle.kts common/src/main/java/com/guilds/territory/persist/PostgresTerritoryRepository.java common/src/test/java/com/guilds/territory/persist/PostgresTerritoryRepositoryTest.java
 git commit -m "feat: add Postgres-backed territory repository"
 ```
 
@@ -892,25 +892,25 @@ git commit -m "feat: add Postgres-backed territory repository"
 ### Task 5: Plugin Wiring + Config
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
 - Modify: `paper/src/main/resources/config.yml`
 
 **Interfaces:**
-- Consumes: `DatabaseSettings`, `DatabaseSettingsLoader`, `PostgresTerritoryRepository`, `TerritoryRepository`, `TerritoryJson` (all from `com.azoth.territory.persist`).
+- Consumes: `DatabaseSettings`, `DatabaseSettingsLoader`, `PostgresTerritoryRepository`, `TerritoryRepository`, `TerritoryJson` (all from `com.guilds.territory.persist`).
 - Produces: plugin picks the store at enable; `store == null` when Postgres is configured but unreachable; web submodule gated on `store != null`; `getStore()` returns `TerritoryRepository`.
 
 - [ ] **Step 1: Update imports and field**
 
-In `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`:
+In `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`:
 
 1. Add imports:
 
 ```java
-import com.azoth.territory.persist.DatabaseSettings;
-import com.azoth.territory.persist.DatabaseSettingsLoader;
-import com.azoth.territory.persist.PostgresTerritoryRepository;
-import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryRepository;
+import com.guilds.territory.persist.DatabaseSettings;
+import com.guilds.territory.persist.DatabaseSettingsLoader;
+import com.guilds.territory.persist.PostgresTerritoryRepository;
+import com.guilds.territory.persist.TerritoryJson;
+import com.guilds.territory.persist.TerritoryRepository;
 ```
 
 2. Change the field `private TerritoryStore store;` → `private TerritoryRepository store;` (keep the `TerritoryStore` import — still used for the JSON path).
@@ -952,7 +952,7 @@ with:
 
 - [ ] **Step 3: Add store factory + descriptor methods**
 
-Add to `AzothTerritoryPlugin` (near `startWebIfEnabled`):
+Add to `GuildsTerritoryPlugin` (near `startWebIfEnabled`):
 
 ```java
     /**
@@ -1045,26 +1045,26 @@ database:
   enabled: false
   host: 127.0.0.1
   port: 5432
-  name: azoth_territory
-  user: azoth
+  name: guilds_territory
+  user: guilds
   password: ""
   ssl: false
   pool-size: 10
   # Optional full JDBC URL — wins over host/port/name/ssl. Use for cloud
   # Postgres with extra parameters, e.g.
-  # jdbc-url: "jdbc:postgresql://db.example.com:5432/azoth?sslmode=verify-full"
+  # jdbc-url: "jdbc:postgresql://db.example.com:5432/guilds?sslmode=verify-full"
   jdbc-url: ""
 ```
 
 - [ ] **Step 8: Verify**
 
 Run: `./gradlew build`
-Expected: BUILD SUCCESSFUL — full multi-module build with tests green (including the new persistence tests; Postgres integration tests skip without `AZOTH_TEST_JDBC_URL`).
+Expected: BUILD SUCCESSFUL — full multi-module build with tests green (including the new persistence tests; Postgres integration tests skip without `GUILDS_TEST_JDBC_URL`).
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/resources/config.yml
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/resources/config.yml
 git commit -m "feat: wire territory store to remote PostgreSQL"
 ```
 
@@ -1079,10 +1079,10 @@ git commit -m "feat: wire territory store to remote PostgreSQL"
 
 In `README.md`:
 
-1. In the Features list, replace the line `- JSON **save/load** (\`plugins/AzothTerritory/territories.json\`)` with:
+1. In the Features list, replace the line `- JSON **save/load** (\`plugins/GuildsTerritory/territories.json\`)` with:
 
 ```markdown
-- **Persistence**: JSON save/load (`plugins/AzothTerritory/territories.json`) or
+- **Persistence**: JSON save/load (`plugins/GuildsTerritory/territories.json`) or
   **remote PostgreSQL** (`database.enabled: true`) — the map UI and REST API
   serve Postgres-backed data when configured
 ```
@@ -1097,7 +1097,7 @@ Insert a `## Persistence` section after the Web submodule section (before `## Sp
 ```markdown
 ## Persistence
 
-Territories default to `plugins/AzothTerritory/territories.json`. To point the
+Territories default to `plugins/GuildsTerritory/territories.json`. To point the
 web thing at a **remote PostgreSQL** database instead, set `database.enabled:
 true` in `config.yml`:
 
@@ -1106,8 +1106,8 @@ database:
   enabled: true
   host: db.example.com
   port: 5432
-  name: azoth_territory
-  user: azoth
+  name: guilds_territory
+  user: guilds
   password: "…"
   ssl: true
   pool-size: 10

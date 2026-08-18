@@ -265,7 +265,7 @@ Persistence codecs perform legacy normalization before invoking these constructo
 
 ### Static enforcement
 
-Add JSpecify nullness contracts and NullAway enforcement to the affected `com.azoth.territory` governance/model packages and the new Paper resolver package. Intentional optional values are annotated or represented explicitly. This prevents new raw-null collaborators and ambiguous optional contracts from re-entering silently without requiring an unrelated immediate rewrite of every legacy `org.aincraft.guilds` model.
+Add JSpecify nullness contracts and NullAway enforcement to the affected `com.guilds.territory` governance/model packages and the new Paper resolver package. Intentional optional values are annotated or represented explicitly. This prevents new raw-null collaborators and ambiguous optional contracts from re-entering silently without requiring an unrelated immediate rewrite of every legacy `org.aincraft.guilds` model.
 
 ## Persistence and Migration
 

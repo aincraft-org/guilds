@@ -2,12 +2,12 @@
 
 **Date:** 2026-08-05
 **Status:** Approved for implementation (brainstorming complete)
-**Scope:** New World-style settlement economy for Azoth Territory: a public transaction API other plugins report sales into, tax on those sales sourced from PASSED policy decree effects, and a settlement treasury (Vault-backed or simulated).
+**Scope:** New World-style settlement economy for Guilds Territory: a public transaction API other plugins report sales into, tax on those sales sourced from PASSED policy decree effects, and a settlement treasury (Vault-backed or simulated).
 
 ## 1. Goal
 
-Give Azoth Territory an economy layer that:
-1. Exposes a **public transaction API** (`EconomyBridge`) that other plugins call to report a sale; Azoth applies the owning settlement's tax and credits the treasury. This directly answers the user's "develop an API first please."
+Give Guilds Territory an economy layer that:
+1. Exposes a **public transaction API** (`EconomyBridge`) that other plugins call to report a sale; Guilds applies the owning settlement's tax and credits the treasury. This directly answers the user's "develop an API first please."
 2. Sources tax rates from **PASSED policies** carrying structured `DecreeEffects` — completing the existing `// Future:` stub in `DecreeEffectsInterpreter.taxRatesFromPolicies(...)` and wiring `DecreeEffects` onto `Policy`.
 3. Backs the **settlement treasury** with Vault's `Economy` API (soft-depend), with an opt-in non-monetary simulation mode for dev/test.
 
@@ -15,7 +15,7 @@ Out of scope (explicitly): crafting tax, shop-plugin integration, upkeep/fortifi
 
 ## 2. Architecture
 
-New pure-domain package `com.azoth.territory.economy` (Bukkit-free, matching `model`/`decree`/`registry` conventions). Vault/Bukkit wiring lives in `AzothTerritoryPlugin`, `listener`, and the Vault facade.
+New pure-domain package `com.guilds.territory.economy` (Bukkit-free, matching `model`/`decree`/`registry` conventions). Vault/Bukkit wiring lives in `GuildsTerritoryPlugin`, `listener`, and the Vault facade.
 
 ```mermaid
 flowchart LR
@@ -37,16 +37,16 @@ flowchart LR
   - `TaxReport` — immutable outcome record (see §4).
   - `PaymentRail` — the money-movement seam: withdraw from payer, deposit to territory treasury, refund to payer, with compensation outcomes (see §3). This is the interface through which the pure domain realizes §5.
   - `SimulationTreasury` — implements `PaymentRail` as an in-memory, non-monetary ledger.
-- **`AzothTerritoryPlugin` scope (Bukkit/Vault wiring):**
+- **`GuildsTerritoryPlugin` scope (Bukkit/Vault wiring):**
   - `VaultTreasury` — implements `PaymentRail` over Vault's `Economy` bank + player APIs.
   - `EconomyConfig` — loads `economy.mode` from `config.yml`.
-  - `AzothTerritoryPlugin.getEconomyBridge()` — public getter for other plugins.
+  - `GuildsTerritoryPlugin.getEconomyBridge()` — public getter for other plugins.
 
 **Isolation rule:** `economy` package never references Bukkit or Vault. `TaxCalculator`, `SimulationTreasury`, and `EconomyBridge` are unit-tested with no Paper/Vault present. `VaultTreasury` is thin and only tested via the wiring test with a mocked Vault `Economy`.
 
 ## 3. Money movement — `PaymentRail` seam, single source of truth
 
-Exactly **one** `PaymentRail` implementation is active at a time, selected by `economy.mode` (`VAULT` default | `SIMULATION`). Azoth never keeps a ledger *and* a Vault bank both authoritative.
+Exactly **one** `PaymentRail` implementation is active at a time, selected by `economy.mode` (`VAULT` default | `SIMULATION`). Guilds never keeps a ledger *and* a Vault bank both authoritative.
 
 ### `PaymentRail` — the money-movement seam (pure domain)
 
@@ -92,14 +92,14 @@ The rail never returns `SETTLED` unless both legs completed; the bridge never in
 
 ### VAULT mode (default)
 
-- `VaultTreasury` implements `PaymentRail` over Vault's `Economy`. Territory balances live in Vault **bank accounts** (bank id = territory id). Vault is the **sole source of truth**; balances persist via Vault's own storage, so no Azoth disk persistence is needed.
+- `VaultTreasury` implements `PaymentRail` over Vault's `Economy`. Territory balances live in Vault **bank accounts** (bank id = territory id). Vault is the **sole source of truth**; balances persist via Vault's own storage, so no Guilds disk persistence is needed.
 - `reportSale` succeeds only if **both** the payer withdrawal **and** the treasury bank deposit complete. Never returns success on a partial transfer.
-- **Persistence:** on `onEnable`, bank balances are authoritative; balances survive restart through Vault's storage. Azoth writes no economy state to disk.
+- **Persistence:** on `onEnable`, bank balances are authoritative; balances survive restart through Vault's storage. Guilds writes no economy state to disk.
 
 ### SIMULATION mode (dev/test, opt-in)
 
 - `SimulationTreasury` implements `PaymentRail` as an explicitly **non-monetary** in-memory ledger. No real money moves. It is opt-in via `economy.mode: SIMULATION` and logged clearly at startup.
-- No Azoth disk persistence: balances reset on restart (it is virtual money by design). This is a feature, not a gap.
+- No Guilds disk persistence: balances reset on restart (it is virtual money by design). This is a feature, not a gap.
 
 ## 4. Public API
 
@@ -173,7 +173,7 @@ The low-level Vault calls in steps 2–5 are **private to `VaultTreasury`**; no 
 
 ### Reconciliation (durable, admin-visible recovery)
 
-If the step-5 refund fails, the payer has been charged but the treasury has nothing. Azoth records `{ territoryId, payerUuid, amount, timestamp, reason }` into a **reconciliation queue** and logs it at `SEVERE`. The queue is persisted to `<dataFolder>/reconciliation.json` (Gson, already a dependency) so it survives restart. Recovery is admin-visible via `getEconomyBridge().unresolvedTransactions()`; the admin resolves the stranded charge (refund the player) using their Vault tooling. Azoth does not auto-retry or silently swallow the inconsistency.
+If the step-5 refund fails, the payer has been charged but the treasury has nothing. Guilds records `{ territoryId, payerUuid, amount, timestamp, reason }` into a **reconciliation queue** and logs it at `SEVERE`. The queue is persisted to `<dataFolder>/reconciliation.json` (Gson, already a dependency) so it survives restart. Recovery is admin-visible via `getEconomyBridge().unresolvedTransactions()`; the admin resolves the stranded charge (refund the player) using their Vault tooling. Guilds does not auto-retry or silently swallow the inconsistency.
 
 ## 6. Decree wiring — completing the `// Future:` stub
 
@@ -196,7 +196,7 @@ If the step-5 refund fails, the payer has been charged but the treasury has noth
 - Pre-transfer outcomes (`NO_TERRITORY`, `NO_GOVERNMENT`, `NO_TAX`, `UNKNOWN_GOOD`, `INVALID_AMOUNT`, `PAYER_UNAVAILABLE`, `VAULT_UNAVAILABLE`, `INSUFFICIENT_FUNDS`) mutate **nothing** (verified by tests).
 - `SETTLEMENT_FAILED`: payer was charged, treasury deposit failed, payer refunded → net-zero, no money lost.
 - `SETTLEMENT_RECONCILIATION_REQUIRED`: payer charged, deposit failed, refund also failed → durable recovery entry (see §5).
-- `VAULT_UNAVAILABLE`: Vault absent or bank-less. `reportSale` fails cleanly; Azoth still runs (protection, web, governance unaffected).
+- `VAULT_UNAVAILABLE`: Vault absent or bank-less. `reportSale` fails cleanly; Guilds still runs (protection, web, governance unaffected).
 - `SIMULATION` mode: non-monetary by configuration; returns `SIMULATED_TAXED`, never `TAXED`; logged clearly at startup.
 - **No minting:** in VAULT mode a treasury balance never appears without a matched payer charge. Simulation is explicitly virtual and separately gated.
 - Refund failure → `SETTLEMENT_RECONCILIATION_REQUIRED` + durable reconciliation, never a false success.

@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-07
 **Status:** Draft for review (brainstorming)
-**Scope owner:** Azoth Territory (api / common / paper modules)
+**Scope owner:** Guilds Territory (api / common / paper modules)
 
 ## 1. Motivation
 
@@ -122,7 +122,7 @@ Non-goals (explicitly out of scope):
 
 ## 8. API surface
 
-`api/src/main/java/com/azoth/territory/standing/` (pure domain):
+`api/src/main/java/com/guilds/territory/standing/` (pure domain):
 
 - `enum StandingSource { PVP_KILL, PVE_KILL, BLOCK_BREAK }`
 - `record StandingBar(String guildId, double value)`
@@ -173,7 +173,7 @@ that owner guild; there is exactly one bar per territory (the owner's).
   members; multiplies base drops; Fortune/Looting untouched.
 - Influence hook: `InfluenceEngine.accrue(...)` reads
   `standingService.influenceMultiplierFor(guildId)` before adding to the
-  bar (wired at construction in `AzothTerritoryPlugin`).
+  bar (wired at construction in `GuildsTerritoryPlugin`).
 - Commands (extend `TerritoryCommand`):
   - `/territory standing [territory]` — bars, owner, tier readout.
   - `/territory standing set <territory> <guild> <value>` (admin)
@@ -195,7 +195,7 @@ that owner guild; there is exactly one bar per territory (the owner's).
 
 ## 11. Testing
 
-`common/src/test/java/com/azoth/territory/standing/`:
+`common/src/test/java/com/guilds/territory/standing/`:
 - `StandingEngineAccrualTest` — eligibility (unowned territory, outsider,
   non-governing guild), per-source values, clamp at cap, owner-change
   reset.

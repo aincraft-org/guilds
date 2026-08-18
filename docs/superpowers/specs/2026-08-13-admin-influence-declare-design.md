@@ -18,7 +18,7 @@ Add an administrative simulation form:
 /territory declare <territoryId> <guildId> <authorityId> confirm
 ```
 
-The administrative form requires the console, an operator, or `azoth.territory.admin`.
+The administrative form requires the console, an operator, or `guilds.territory.admin`.
 
 ## Authorization and State Flow
 

@@ -25,13 +25,13 @@
 ### Task 1: api — influence contracts
 
 **Files:**
-- Create: `api/src/main/java/com/azoth/territory/influence/InfluenceSource.java`
-- Create: `api/src/main/java/com/azoth/territory/influence/InfluenceBar.java`
-- Create: `api/src/main/java/com/azoth/territory/influence/Declaration.java`
-- Create: `api/src/main/java/com/azoth/territory/influence/TerritoryInfluenceState.java`
-- Create: `api/src/main/java/com/azoth/territory/influence/DeclareStatus.java`
-- Create: `api/src/main/java/com/azoth/territory/influence/DeclareResult.java`
-- Create: `api/src/main/java/com/azoth/territory/influence/InfluenceService.java`
+- Create: `api/src/main/java/com/guilds/territory/influence/InfluenceSource.java`
+- Create: `api/src/main/java/com/guilds/territory/influence/InfluenceBar.java`
+- Create: `api/src/main/java/com/guilds/territory/influence/Declaration.java`
+- Create: `api/src/main/java/com/guilds/territory/influence/TerritoryInfluenceState.java`
+- Create: `api/src/main/java/com/guilds/territory/influence/DeclareStatus.java`
+- Create: `api/src/main/java/com/guilds/territory/influence/DeclareResult.java`
+- Create: `api/src/main/java/com/guilds/territory/influence/InfluenceService.java`
 
 **Interfaces:**
 - Produces: the exact types Tasks 2–8 consume. Signatures below are binding.
@@ -40,7 +40,7 @@
 
 `InfluenceSource.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 /** Activity event types that feed the influence race (spec §4). */
 public enum InfluenceSource {
@@ -54,7 +54,7 @@ public enum InfluenceSource {
 
 `InfluenceBar.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 /** One attacking guild's influence bar on a territory. */
 public record InfluenceBar(String guildId, double value) {
@@ -68,7 +68,7 @@ public record InfluenceBar(String guildId, double value) {
 
 `Declaration.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 /** An active takeover declaration (race is locked while present). */
 public record Declaration(String guildId, long declaredAtEpochMs, long flipAtEpochMs) {
@@ -82,7 +82,7 @@ public record Declaration(String guildId, long declaredAtEpochMs, long flipAtEpo
 
 `TerritoryInfluenceState.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 import java.util.List;
 
@@ -105,7 +105,7 @@ public record TerritoryInfluenceState(
 
 `DeclareStatus.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 /** Outcome of a declare/cancel attempt (spec §7). */
 public enum DeclareStatus {
@@ -123,7 +123,7 @@ public enum DeclareStatus {
 
 `DeclareResult.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 /** Declare/cancel outcome with a human-readable message. */
 public record DeclareResult(DeclareStatus status, String message) {
@@ -151,7 +151,7 @@ public record DeclareResult(DeclareStatus status, String message) {
 
 `InfluenceService.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 import java.util.List;
 import java.util.Optional;
@@ -194,7 +194,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add api/src/main/java/com/azoth/territory/influence
+git add api/src/main/java/com/guilds/territory/influence
 git commit -m "Add influence race contracts to the api module"
 ```
 
@@ -203,12 +203,12 @@ git commit -m "Add influence race contracts to the api module"
 ### Task 2: common — InfluenceConfig, influence state model, InfluenceStore
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/influence/InfluenceConfig.java`
-- Create: `common/src/main/java/com/azoth/territory/influence/InfluenceState.java`
-- Create: `common/src/main/java/com/azoth/territory/influence/TerritoryEntry.java`
-- Create: `common/src/main/java/com/azoth/territory/influence/PendingFlip.java`
-- Create: `common/src/main/java/com/azoth/territory/influence/InfluenceStore.java`
-- Create: `common/src/test/java/com/azoth/territory/influence/InfluenceStoreTest.java`
+- Create: `common/src/main/java/com/guilds/territory/influence/InfluenceConfig.java`
+- Create: `common/src/main/java/com/guilds/territory/influence/InfluenceState.java`
+- Create: `common/src/main/java/com/guilds/territory/influence/TerritoryEntry.java`
+- Create: `common/src/main/java/com/guilds/territory/influence/PendingFlip.java`
+- Create: `common/src/main/java/com/guilds/territory/influence/InfluenceStore.java`
+- Create: `common/src/test/java/com/guilds/territory/influence/InfluenceStoreTest.java`
 
 **Interfaces:**
 - Consumes: api types from Task 1 (`InfluenceBar`, `Declaration`, `InfluenceSource`).
@@ -218,9 +218,9 @@ git commit -m "Add influence race contracts to the api module"
 
 `InfluenceStoreTest.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.influence.InfluenceStore;
+import com.guilds.territory.influence.InfluenceStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -252,7 +252,7 @@ class InfluenceStoreTest {
         entry.cooldownUntilEpochMs = 0L;
         entry.bars.put("rival-guild", 62.5);
         entry.bars.put("other-guild", 100.0);
-        entry.declaration = new com.azoth.territory.influence.Declaration(
+        entry.declaration = new com.guilds.territory.influence.Declaration(
                 "rival-guild", 1780000000000L, 1780086400000L);
         entry.pendingFlip = new PendingFlip(
                 "everfall", "everfall-town", "rival-guild",
@@ -372,14 +372,14 @@ class InfluenceStoreTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.influence.InfluenceStoreTest'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.influence.InfluenceStoreTest'`
 Expected: FAIL — compile errors, none of the types exist.
 
 - [ ] **Step 3: Write the main types**
 
 `InfluenceConfig.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 import java.util.Objects;
 
@@ -454,7 +454,7 @@ public record InfluenceConfig(
 
 `PendingFlip.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 /** Journal marker for an in-flight takeover flip (spec §6). */
 record PendingFlip(
@@ -469,7 +469,7 @@ record PendingFlip(
 
 `TerritoryEntry.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -486,7 +486,7 @@ final class TerritoryEntry {
 
 `InfluenceState.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -500,9 +500,9 @@ final class InfluenceState {
 
 `InfluenceStore.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.influence.Declaration;
+import com.guilds.territory.influence.Declaration;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -687,13 +687,13 @@ Also add `import java.nio.file.Path;` if not already present.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.influence.InfluenceStoreTest'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.influence.InfluenceStoreTest'`
 Expected: PASS (11 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/influence common/src/test/java/com/azoth/territory/influence
+git add common/src/main/java/com/guilds/territory/influence common/src/test/java/com/guilds/territory/influence
 git commit -m "Add influence config, state model, and JSON store"
 ```
 
@@ -702,8 +702,8 @@ git commit -m "Add influence config, state model, and JSON store"
 ### Task 3: common — InfluenceEngine accrual & eligibility
 
 **Files:**
-- Create: `common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java`
-- Create: `common/src/test/java/com/azoth/territory/influence/InfluenceEngineAccrualTest.java`
+- Create: `common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java`
+- Create: `common/src/test/java/com/guilds/territory/influence/InfluenceEngineAccrualTest.java`
 
 **Interfaces:**
 - Consumes: api contracts (Task 1), `InfluenceConfig`/`InfluenceState`/`TerritoryEntry`/`PendingFlip`/`InfluenceStore` (Task 2), `GovernanceRegistry` + `FakeGovernanceSource` (common), `TerritoryRegistry`.
@@ -713,19 +713,19 @@ git commit -m "Add influence config, state model, and JSON store"
 
 `InfluenceEngineAccrualTest.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.permission.AllianceBody;
-import com.azoth.territory.permission.FakeGovernanceSource;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.permission.AllianceBody;
+import com.guilds.territory.permission.FakeGovernanceSource;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.permission.GuildToggles;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -1026,20 +1026,20 @@ class InfluenceEngineAccrualTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.influence.InfluenceEngineAccrualTest'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.influence.InfluenceEngineAccrualTest'`
 Expected: FAIL — `InfluenceEngine` does not exist.
 
 - [ ] **Step 3: Write the engine (accrual part; full class incl. lifecycle methods)**
 
 `InfluenceEngine.java` (complete class — Task 4 adds tests for the lifecycle methods declared here):
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.permission.AllianceBody;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.permission.AllianceBody;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.registry.TerritoryRegistry;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -1296,13 +1296,13 @@ public final class InfluenceEngine implements InfluenceService {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.influence.InfluenceEngineAccrualTest'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.influence.InfluenceEngineAccrualTest'`
 Expected: PASS (15 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java common/src/test/java/com/azoth/territory/influence/InfluenceEngineAccrualTest.java
+git add common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java common/src/test/java/com/guilds/territory/influence/InfluenceEngineAccrualTest.java
 git commit -m "Add influence accrual with alliance eligibility gate"
 ```
 
@@ -1311,8 +1311,8 @@ git commit -m "Add influence accrual with alliance eligibility gate"
 ### Task 4: common — InfluenceEngine declare/flip/journal/recovery
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java` (replace the Task 3 stubs)
-- Create: `common/src/test/java/com/azoth/territory/influence/InfluenceEngineLifecycleTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java` (replace the Task 3 stubs)
+- Create: `common/src/test/java/com/guilds/territory/influence/InfluenceEngineLifecycleTest.java`
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–3. Uses the same test doubles.
@@ -1322,19 +1322,19 @@ git commit -m "Add influence accrual with alliance eligibility gate"
 
 `InfluenceEngineLifecycleTest.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.permission.AllianceBody;
-import com.azoth.territory.permission.FakeGovernanceSource;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.GuildToggles;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Government;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.permission.AllianceBody;
+import com.guilds.territory.permission.FakeGovernanceSource;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
+import com.guilds.territory.permission.GuildToggles;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -1831,7 +1831,7 @@ class InfluenceEngineLifecycleTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.influence.InfluenceEngineLifecycleTest'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.influence.InfluenceEngineLifecycleTest'`
 Expected: FAIL — `UnsupportedOperationException` from the Task 3 stubs.
 
 - [ ] **Step 3: Replace the stubs with the full implementations**
@@ -2253,7 +2253,7 @@ Replace every `throw new UnsupportedOperationException("declared in Task 4");` b
 
 - [ ] **Step 4: Run the lifecycle tests to verify they pass**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.influence.InfluenceEngineLifecycleTest'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.influence.InfluenceEngineLifecycleTest'`
 Expected: PASS (29 tests).
 
 Note: `InfluenceEngine.java` needs `import java.nio.file.Path;` for the `backupCorrupt()` result type in `recover()`.
@@ -2266,7 +2266,7 @@ Expected: BUILD SUCCESSFUL, all tests pass (engine accrual + lifecycle + existin
 - [ ] **Step 6: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java common/src/test/java/com/azoth/territory/influence/InfluenceEngineLifecycleTest.java
+git add common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java common/src/test/java/com/guilds/territory/influence/InfluenceEngineLifecycleTest.java
 git commit -m "Add influence declaration, flip journal, and crash recovery"
 ```
 
@@ -2275,22 +2275,22 @@ git commit -m "Add influence declaration, flip journal, and crash recovery"
 ### Task 5: paper — InfluenceConfigLoader + config.yml block
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/influence/InfluenceConfigLoader.java`
+- Create: `paper/src/main/java/com/guilds/territory/influence/InfluenceConfigLoader.java`
 - Modify: `paper/src/main/resources/config.yml` (append the `influence:` block)
-- Create: `paper/src/test/java/com/azoth/territory/influence/InfluenceConfigLoaderTest.java`
+- Create: `paper/src/test/java/com/guilds/territory/influence/InfluenceConfigLoaderTest.java`
 
 **Interfaces:**
-- Consumes: `com.azoth.territory.influence.InfluenceConfig` (common).
+- Consumes: `com.guilds.territory.influence.InfluenceConfig` (common).
 - Produces: `InfluenceConfigLoader.fromBukkit(FileConfiguration)` used by Task 7 wiring.
 
 - [ ] **Step 1: Write the failing test**
 
 `InfluenceConfigLoaderTest.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.influence.InfluenceConfig;
-import com.azoth.territory.influence.InfluenceConfigLoader;
+import com.guilds.territory.influence.InfluenceConfig;
+import com.guilds.territory.influence.InfluenceConfigLoader;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -2360,14 +2360,14 @@ class InfluenceConfigLoaderTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :paper:test --tests 'com.azoth.territory.influence.InfluenceConfigLoaderTest'`
+Run: `./gradlew :paper:test --tests 'com.guilds.territory.influence.InfluenceConfigLoaderTest'`
 Expected: FAIL — `InfluenceConfigLoader` missing.
 
 - [ ] **Step 3: Write the loader**
 
 `InfluenceConfigLoader.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -2432,13 +2432,13 @@ influence:
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `./gradlew :paper:test --tests 'com.azoth.territory.influence.InfluenceConfigLoaderTest'`
+Run: `./gradlew :paper:test --tests 'com.guilds.territory.influence.InfluenceConfigLoaderTest'`
 Expected: PASS (4 tests).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/influence/InfluenceConfigLoader.java paper/src/main/resources/config.yml paper/src/test/java/com/azoth/territory/influence/InfluenceConfigLoaderTest.java
+git add paper/src/main/java/com/guilds/territory/influence/InfluenceConfigLoader.java paper/src/main/resources/config.yml paper/src/test/java/com/guilds/territory/influence/InfluenceConfigLoaderTest.java
 git commit -m "Add influence config loading from config.yml"
 ```
 
@@ -2447,8 +2447,8 @@ git commit -m "Add influence config loading from config.yml"
 ### Task 6: paper — InfluenceListener
 
 **Files:**
-- Create: `paper/src/main/java/com/azoth/territory/influence/InfluenceListener.java`
-- Create: `paper/src/test/java/com/azoth/territory/influence/InfluenceListenerTest.java`
+- Create: `paper/src/main/java/com/guilds/territory/influence/InfluenceListener.java`
+- Create: `paper/src/test/java/com/guilds/territory/influence/InfluenceListenerTest.java`
 
 **Interfaces:**
 - Consumes: `InfluenceEngine.accrue(...)` (Task 4), `GovernanceRegistry`, api `InfluenceSource`.
@@ -2458,10 +2458,10 @@ git commit -m "Add influence config loading from config.yml"
 
 `InfluenceListenerTest.java` (structural, mirroring `InteractionProtectionListenerTest`):
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.registry.TerritoryRegistry;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -2513,18 +2513,18 @@ class InfluenceListenerTest {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :paper:test --tests 'com.azoth.territory.influence.InfluenceListenerTest'`
+Run: `./gradlew :paper:test --tests 'com.guilds.territory.influence.InfluenceListenerTest'`
 Expected: FAIL — `InfluenceListener` missing.
 
 - [ ] **Step 3: Write the listener**
 
 `InfluenceListener.java`:
 ```java
-package com.azoth.territory.influence;
+package com.guilds.territory.influence;
 
-import com.azoth.territory.model.LookupResult;
-import com.azoth.territory.permission.GovernanceRegistry;
-import com.azoth.territory.permission.GuildBody;
+import com.guilds.territory.model.LookupResult;
+import com.guilds.territory.permission.GovernanceRegistry;
+import com.guilds.territory.permission.GuildBody;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -2626,13 +2626,13 @@ public final class InfluenceListener implements Listener {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `./gradlew :paper:test --tests 'com.azoth.territory.influence.InfluenceListenerTest'`
+Run: `./gradlew :paper:test --tests 'com.guilds.territory.influence.InfluenceListenerTest'`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/influence/InfluenceListener.java paper/src/test/java/com/azoth/territory/influence/InfluenceListenerTest.java
+git add paper/src/main/java/com/guilds/territory/influence/InfluenceListener.java paper/src/test/java/com/guilds/territory/influence/InfluenceListenerTest.java
 git commit -m "Add influence activity listener for pvp pve build and craft events"
 ```
 
@@ -2641,15 +2641,15 @@ git commit -m "Add influence activity listener for pvp pve build and craft event
 ### Task 7: paper — commands + plugin wiring
 
 **Files:**
-- Modify: `paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java`
-- Modify: `paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java`
-- Modify: `paper/src/test/java/com/azoth/territory/PluginMetadataTest.java` (assert config defaults shipped)
+- Modify: `paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java`
+- Modify: `paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java`
+- Modify: `paper/src/test/java/com/guilds/territory/PluginMetadataTest.java` (assert config defaults shipped)
 
 **Interfaces:**
 - Consumes: `InfluenceConfigLoader` (Task 5), `InfluenceListener` (Task 6), `InfluenceEngine` (Task 4), api records.
 - Produces: plugin accessor `getInfluenceEngine()` (nullable when disabled) used by the command; `/territory influence|declare` subcommands.
 
-- [ ] **Step 1: Wire the plugin (AzothTerritoryPlugin.java)**
+- [ ] **Step 1: Wire the plugin (GuildsTerritoryPlugin.java)**
 
 Add fields (next to the existing `blockProtection` field):
 ```java
@@ -2720,14 +2720,14 @@ Add the broadcast helper and accessor (near the other getters):
     }
 ```
 
-Imports to add to `AzothTerritoryPlugin.java`:
+Imports to add to `GuildsTerritoryPlugin.java`:
 ```java
-import com.azoth.territory.influence.InfluenceConfig;
-import com.azoth.territory.influence.InfluenceConfigLoader;
-import com.azoth.territory.influence.InfluenceEngine;
-import com.azoth.territory.influence.InfluenceListener;
-import com.azoth.territory.influence.InfluenceStore;
-import com.azoth.territory.permission.GuildBody;
+import com.guilds.territory.influence.InfluenceConfig;
+import com.guilds.territory.influence.InfluenceConfigLoader;
+import com.guilds.territory.influence.InfluenceEngine;
+import com.guilds.territory.influence.InfluenceListener;
+import com.guilds.territory.influence.InfluenceStore;
+import com.guilds.territory.permission.GuildBody;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import java.util.List;
@@ -2871,8 +2871,8 @@ Add the new methods (before `onTabComplete`):
 
     /** /territory influence set <territoryId> <guildId> <value> | reset <territoryId> */
     private boolean influenceAdmin(CommandSender sender, String[] args) {
-        if (!sender.hasPermission("azoth.territory.admin") && !sender.isOp()) {
-            sender.sendMessage(Component.text("You need 'azoth.territory.admin'.", NamedTextColor.RED));
+        if (!sender.hasPermission("guilds.territory.admin") && !sender.isOp()) {
+            sender.sendMessage(Component.text("You need 'guilds.territory.admin'.", NamedTextColor.RED));
             return true;
         }
         InfluenceEngine engine = engine();
@@ -2934,13 +2934,13 @@ Add the switch case in `onCommand` for the admin subcommand:
 
 Imports to add to `TerritoryCommand.java`:
 ```java
-import com.azoth.territory.influence.DeclareResult;
-import com.azoth.territory.influence.InfluenceBar;
-import com.azoth.territory.influence.InfluenceEngine;
-import com.azoth.territory.influence.TerritoryInfluenceState;
+import com.guilds.territory.influence.DeclareResult;
+import com.guilds.territory.influence.InfluenceBar;
+import com.guilds.territory.influence.InfluenceEngine;
+import com.guilds.territory.influence.TerritoryInfluenceState;
 ```
 
-Add to `AzothTerritoryPlugin` the helper used by the command (the command needs a public guild-name resolver — `resolveGuildName` is private; add a public wrapper):
+Add to `GuildsTerritoryPlugin` the helper used by the command (the command needs a public guild-name resolver — `resolveGuildName` is private; add a public wrapper):
 ```java
     public String resolveGuildNameFor(String guildId) {
         return resolveGuildName(guildId);
@@ -2958,7 +2958,7 @@ and keep the command's `engine.cap()` call.
 
 - [ ] **Step 3: Update PluginMetadataTest**
 
-Read `paper/src/test/java/com/azoth/territory/PluginMetadataTest.java` first. Add one assertion (mirroring its existing style) that the shipped `config.yml` contains `influence:` with `enabled: true`:
+Read `paper/src/test/java/com/guilds/territory/PluginMetadataTest.java` first. Add one assertion (mirroring its existing style) that the shipped `config.yml` contains `influence:` with `enabled: true`:
 ```java
         String yml = new String(
                 getClass().getResourceAsStream("/config.yml").readAllBytes(),
@@ -2975,7 +2975,7 @@ Expected: BUILD SUCCESSFUL, all paper tests pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java paper/src/main/java/com/azoth/territory/command/TerritoryCommand.java paper/src/test/java/com/azoth/territory/PluginMetadataTest.java common/src/main/java/com/azoth/territory/influence/InfluenceEngine.java
+git add paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java paper/src/main/java/com/guilds/territory/command/TerritoryCommand.java paper/src/test/java/com/guilds/territory/PluginMetadataTest.java common/src/main/java/com/guilds/territory/influence/InfluenceEngine.java
 git commit -m "Wire influence engine into plugin enable and territory commands"
 ```
 
@@ -2984,10 +2984,10 @@ git commit -m "Wire influence engine into plugin enable and territory commands"
 ### Task 8: common web — influence in REST payloads
 
 **Files:**
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryWebServer.java` (constructor)
-- Modify: `common/src/main/java/com/azoth/territory/web/TerritoryApiHandler.java` (`/api/influence` + enrichment)
-- Modify: `common/src/test/java/com/azoth/territory/web/TerritoryWebServerTest.java` (constructor call sites)
-- Create: `common/src/test/java/com/azoth/territory/web/InfluenceWebTest.java`
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryWebServer.java` (constructor)
+- Modify: `common/src/main/java/com/guilds/territory/web/TerritoryApiHandler.java` (`/api/influence` + enrichment)
+- Modify: `common/src/test/java/com/guilds/territory/web/TerritoryWebServerTest.java` (constructor call sites)
+- Create: `common/src/test/java/com/guilds/territory/web/InfluenceWebTest.java`
 
 **Interfaces:**
 - Consumes: api `InfluenceService` (Task 1).
@@ -2997,19 +2997,19 @@ git commit -m "Wire influence engine into plugin enable and territory commands"
 
 `InfluenceWebTest.java`:
 ```java
-package com.azoth.territory.web;
+package com.guilds.territory.web;
 
-import com.azoth.territory.influence.Declaration;
-import com.azoth.territory.influence.InfluenceBar;
-import com.azoth.territory.influence.InfluenceService;
-import com.azoth.territory.influence.TerritoryInfluenceState;
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.persist.TerritoryJson;
-import com.azoth.territory.persist.TerritoryStore;
-import com.azoth.territory.registry.TerritoryRegistry;
+import com.guilds.territory.influence.Declaration;
+import com.guilds.territory.influence.InfluenceBar;
+import com.guilds.territory.influence.InfluenceService;
+import com.guilds.territory.influence.TerritoryInfluenceState;
+import com.guilds.territory.model.BlockPos;
+import com.guilds.territory.model.Boundary;
+import com.guilds.territory.model.Territory;
+import com.guilds.territory.model.ZoneType;
+import com.guilds.territory.persist.TerritoryJson;
+import com.guilds.territory.persist.TerritoryStore;
+import com.guilds.territory.registry.TerritoryRegistry;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -3063,17 +3063,17 @@ class InfluenceWebTest {
             }
 
             @Override
-            public com.azoth.territory.influence.DeclareResult declare(
+            public com.guilds.territory.influence.DeclareResult declare(
                     String territoryId, String guildId, String authorityId, long nowEpochMs) {
-                return com.azoth.territory.influence.DeclareResult.error(
-                        com.azoth.territory.influence.DeclareStatus.RACE_ACTIVE, "read-only in web tests");
+                return com.guilds.territory.influence.DeclareResult.error(
+                        com.guilds.territory.influence.DeclareStatus.RACE_ACTIVE, "read-only in web tests");
             }
 
             @Override
-            public com.azoth.territory.influence.DeclareResult cancelDeclaration(
+            public com.guilds.territory.influence.DeclareResult cancelDeclaration(
                     String territoryId, String guildId, String authorityId, long nowEpochMs) {
-                return com.azoth.territory.influence.DeclareResult.error(
-                        com.azoth.territory.influence.DeclareStatus.RACE_ACTIVE, "read-only in web tests");
+                return com.guilds.territory.influence.DeclareResult.error(
+                        com.guilds.territory.influence.DeclareStatus.RACE_ACTIVE, "read-only in web tests");
             }
 
             @Override
@@ -3175,11 +3175,11 @@ class InfluenceWebTest {
 }
 ```
 
-Note: check the real `WebConfig` constructor arity in `common/src/main/java/com/azoth/territory/web/WebConfig.java` and adjust the `new WebConfig(...)` call in `startServer` to match (the test file must compile against the real record; use the same argument list as `TerritoryWebServerTest`).
+Note: check the real `WebConfig` constructor arity in `common/src/main/java/com/guilds/territory/web/WebConfig.java` and adjust the `new WebConfig(...)` call in `startServer` to match (the test file must compile against the real record; use the same argument list as `TerritoryWebServerTest`).
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.web.InfluenceWebTest'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.web.InfluenceWebTest'`
 Expected: FAIL — constructor mismatch.
 
 - [ ] **Step 3: Extend the web server + API handler**
@@ -3253,9 +3253,9 @@ Add the handlers:
 
 Imports to add to `TerritoryApiHandler.java`:
 ```java
-import com.azoth.territory.influence.InfluenceBar;
-import com.azoth.territory.influence.InfluenceService;
-import com.azoth.territory.influence.TerritoryInfluenceState;
+import com.guilds.territory.influence.InfluenceBar;
+import com.guilds.territory.influence.InfluenceService;
+import com.guilds.territory.influence.TerritoryInfluenceState;
 import com.google.gson.JsonArray;
 ```
 (`JsonArray` may already be imported; check.)
@@ -3264,12 +3264,12 @@ Update every existing `TerritoryWebServer` construction in `TerritoryWebServerTe
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `./gradlew :common:test --tests 'com.azoth.territory.web.*'`
+Run: `./gradlew :common:test --tests 'com.guilds.territory.web.*'`
 Expected: PASS (all web tests incl. new InfluenceWebTest).
 
 - [ ] **Step 5: Wire the plugin's web server**
 
-In `AzothTerritoryPlugin.startWebIfEnabled()`, pass the supplier:
+In `GuildsTerritoryPlugin.startWebIfEnabled()`, pass the supplier:
 ```java
             this.webServer = new TerritoryWebServer(
                     webConfig,
@@ -3290,7 +3290,7 @@ Expected: BUILD SUCCESSFUL.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add common/src/main/java/com/azoth/territory/web common/src/test/java/com/azoth/territory/web paper/src/main/java/com/azoth/territory/AzothTerritoryPlugin.java
+git add common/src/main/java/com/guilds/territory/web common/src/test/java/com/guilds/territory/web paper/src/main/java/com/guilds/territory/GuildsTerritoryPlugin.java
 git commit -m "Expose influence race state through the web API"
 ```
 
@@ -3648,7 +3648,7 @@ git commit -m "Rename nation database schema to alliance naming"
 | `commands/brigadier/NationBrigadierCommand.java` | `commands/brigadier/AllianceBrigadierCommand.java` |
 | `listeners/NationListener.java` | `listeners/AllianceListener.java` |
 
-Plus edits: `GuildsGovernanceSource.java`, `GuildsServices.java`, `commands/BrigadierCommandRegistry.java`, `commands/arguments/RoleArgumentType.java`, `commands/brigadier/PlotBrigadierCommand.java`, `models/Permission.java`, `resources/plugin.yml`, `src/test/.../GuildsIntegrationTest.java`, and Javadoc-only touches in `api/src/main/java/com/azoth/territory/permission/{GovernanceSource,AllianceBody}.java` + `api/.../model/Government.java` (lines mentioning "nation").
+Plus edits: `GuildsGovernanceSource.java`, `GuildsServices.java`, `commands/BrigadierCommandRegistry.java`, `commands/arguments/RoleArgumentType.java`, `commands/brigadier/PlotBrigadierCommand.java`, `models/Permission.java`, `resources/plugin.yml`, `src/test/.../GuildsIntegrationTest.java`, and Javadoc-only touches in `api/src/main/java/com/guilds/territory/permission/{GovernanceSource,AllianceBody}.java` + `api/.../model/Government.java` (lines mentioning "nation").
 
 **Rename map (apply mechanically):**
 
@@ -3806,7 +3806,7 @@ New World–style influence contests (config `influence:` block):
   during which no new race may start; all influence resets.
 - `/territory influence [id]` shows bars, declarations, and cooldowns;
   `/territory influence set|reset` are admin operations.
-- State persists in `plugins/AzothTerritory/influence.json` (bars flushed
+- State persists in `plugins/GuildsTerritory/influence.json` (bars flushed
   batched; declarations and flips written atomically). Restart recovery
   revalidates owner/attacker alliances before applying an overdue flip.
 ```
@@ -3838,7 +3838,7 @@ Expected: BUILD SUCCESSFUL — every module's tests pass.
 - [ ] **Step 2: Build the deliverable jar**
 
 Run: `./gradlew build`
-Expected: BUILD SUCCESSFUL; artifact at `paper/build/libs/azoth-territory-1.0.0-SNAPSHOT.jar`.
+Expected: BUILD SUCCESSFUL; artifact at `paper/build/libs/guilds-1.0.0-SNAPSHOT.jar`.
 
 - [ ] **Step 3: Final rename audit**
 
