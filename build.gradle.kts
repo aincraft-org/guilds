@@ -90,6 +90,7 @@ subprojects {
         }
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-releases/")
+        maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://oss.sonatype.org/content/repositories/snapshots")
         maven("https://jitpack.io")
     }
