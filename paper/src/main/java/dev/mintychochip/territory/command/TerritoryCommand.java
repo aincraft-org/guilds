@@ -1,6 +1,6 @@
 package dev.mintychochip.territory.command;
 
-import dev.mintychochip.territory.AzothTerritoryPlugin;
+import dev.mintychochip.guilds.GuildsPlugin;
 import dev.mintychochip.territory.invasion.InvasionRuntime;
 import dev.mintychochip.territory.invasion.InvasionStartResult;
 import dev.mintychochip.territory.invasion.InvasionState;
@@ -39,9 +39,9 @@ import java.util.stream.Collectors;
  * Minimal admin/smoke command: lookup, list, reload.
  */
 public final class TerritoryCommand implements CommandExecutor, TabCompleter {
-    private final AzothTerritoryPlugin plugin;
+    private final GuildsPlugin plugin;
 
-    public TerritoryCommand(AzothTerritoryPlugin plugin) {
+    public TerritoryCommand(GuildsPlugin plugin) {
         this.plugin = plugin;
     }
 
@@ -69,8 +69,8 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
                     ? standingAdmin(sender, args)
                     : standing(sender, args);
             case "invasion" -> invasion(sender, args);
-            case "building" -> plugin.getBuildingCommand() != null
-                    ? plugin.getBuildingCommand().execute(
+            case "building" -> plugin.getTerritoryBuildingCommand() != null
+                    ? plugin.getTerritoryBuildingCommand().execute(
                             sender, label, Arrays.copyOfRange(args, 1, args.length))
                     : buildingUnavailable(sender);
             default -> {
@@ -596,8 +596,8 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
                     .filter(s -> s.startsWith(p)).toList();
         }
         if (args.length >= 2 && "building".equalsIgnoreCase(args[0])
-                && plugin.getBuildingCommand() != null) {
-            return plugin.getBuildingCommand().complete(
+                && plugin.getTerritoryBuildingCommand() != null) {
+            return plugin.getTerritoryBuildingCommand().complete(
                     sender, Arrays.copyOfRange(args, 1, args.length));
         }
         return List.of();

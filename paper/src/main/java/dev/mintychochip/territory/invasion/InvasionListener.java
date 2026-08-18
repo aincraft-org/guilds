@@ -1,7 +1,7 @@
 package dev.mintychochip.territory.invasion;
 
-import org.aincraft.guilds.models.GuildBlock;
-import org.aincraft.guilds.services.PlotService;
+import dev.mintychochip.guilds.models.GuildBlock;
+import dev.mintychochip.guilds.services.PlotService;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;

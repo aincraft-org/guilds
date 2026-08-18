@@ -9,7 +9,7 @@ plugins {
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
-description = "Azoth Territory Paper plugin — Bukkit glue, listeners, commands, and the integrated Guilds subsystem"
+description = "Guilds Paper plugin — Bukkit glue, listeners, commands, and the integrated Guilds subsystem"
 
 dependencies {
     implementation(project(":api"))
@@ -23,10 +23,14 @@ dependencies {
     // Minecraft 26.2 — matches the paper-api version above. compileOnly: the
     // squaremap jar is provided by the server (downloaded by the runServer task).
     compileOnly("xyz.jpenilla:squaremap-api:1.3.15")
+    // MapGUI in-hand claim map. compileOnly: the MapGUI plugin supplies the
+    // classes at runtime (join-classpath in paper-plugin.yml). Do not shade.
+    compileOnly("io.github.flog99:mapgui-api:1.1.0")
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
     testImplementation("io.papermc.paper:paper-api:26.2.build.111-stable")
     testImplementation("xyz.jpenilla:squaremap-api:1.3.15")
+    testImplementation("io.github.flog99:mapgui-api:1.1.0")
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -40,19 +44,19 @@ tasks.processResources {
             "description" to (project.description ?: ""),
     )
     inputs.properties(props)
-    filesMatching("plugin.yml") {
+    filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
         expand(props)
     }
 }
 tasks.named<Jar>("sourcesJar") {
-    archiveBaseName.set("azoth-territory")
+    archiveBaseName.set("guilds")
     archiveVersion.set(project.version.toString())
 }
 
 
 tasks.jar {
     // Thin jar kept for sources/debug; delivery unit is shadowJar
-    archiveBaseName.set("azoth-territory")
+    archiveBaseName.set("guilds")
     archiveClassifier.set("thin")
     manifest {
         attributes(
@@ -63,7 +67,7 @@ tasks.jar {
 }
 
 tasks.shadowJar {
-    archiveBaseName.set("azoth-territory")
+    archiveBaseName.set("guilds")
     archiveClassifier.set("")
     archiveVersion.set(project.version.toString())
     mergeServiceFiles()
@@ -80,7 +84,7 @@ tasks.assemble {
 }
 
 // Local test server: ./gradlew :paper:runServer
-// Boots Paper 26.2 with the azoth-territory shadow jar plus the squaremap
+// Boots Paper 26.2 with the guilds shadow jar plus the squaremap
 // 1.3.15 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
 // serves its live web map on http://localhost:8080 by default.
 val mintPluginOwner = providers.gradleProperty("mintPluginOwner").orNull

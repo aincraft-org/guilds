@@ -2,7 +2,7 @@ plugins {
     `java-library`
 }
 
-description = "Azoth Territory shared implementation — Paper-free persistence, economy, governance logic, and web submodule"
+description = "Guilds shared implementation — Paper-free persistence, economy, governance logic, and web submodule"
 
 dependencies {
     api(project(":api"))
@@ -19,4 +19,5 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.mockito:mockito-core:5.23.0")
 }

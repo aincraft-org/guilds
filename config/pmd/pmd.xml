@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<ruleset name="AzothFocusedRules"
+<ruleset name="GuildsFocusedRules"
          xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://pmd.github.io/pmd-7.26.0/ruleset_xml_schema.xsd">

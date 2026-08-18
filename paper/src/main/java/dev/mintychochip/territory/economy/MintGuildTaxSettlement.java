@@ -1,6 +1,6 @@
 package dev.mintychochip.territory.economy;
 
-import org.aincraft.guilds.services.MintGuildBankService;
+import dev.mintychochip.guilds.services.MintGuildBankService;
 import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.UUID;

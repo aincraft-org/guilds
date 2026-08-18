@@ -26,7 +26,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.logging.Logger;
 
 /** Mint-backed asynchronous economy rail for player and guild accounts. */
-public final class MintEconomyRail implements org.aincraft.guilds.services.MintTransferPort {
+public final class MintEconomyRail implements dev.mintychochip.guilds.services.MintTransferPort {
     private final MintClientLease lease;
     private final CurrencyId currency;
     private final int scale;

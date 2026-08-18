@@ -1,10 +1,10 @@
 package dev.mintychochip.territory.invasion;
 
-import org.aincraft.guilds.models.Guild;
-import org.aincraft.guilds.models.GuildBlock;
-import org.aincraft.guilds.models.Location;
-import org.aincraft.guilds.services.GuildService;
-import org.aincraft.guilds.services.PlotService;
+import dev.mintychochip.guilds.models.Guild;
+import dev.mintychochip.guilds.models.GuildBlock;
+import dev.mintychochip.guilds.models.Location;
+import dev.mintychochip.guilds.services.GuildService;
+import dev.mintychochip.guilds.services.PlotService;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import java.util.List;
