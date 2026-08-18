@@ -166,8 +166,7 @@ Guild level rises automatically when deposited XP meets the next threshold.
 Leftover XP stays on the guild. Skill points equal the new guild level
 (level 2 is two points). Spend those points on one project at a time
 with `/g upgrade start <node>`; `/g upgrade clear` frees the active slot.
-`/g` is an alias for `/guild`. `/techtree` and `/guildlevel upgrade` point at
-`/g upgrade`.
+`/g` is an alias for `/guild`.
 
 ## Mint cash guild banks
 

@@ -89,7 +89,7 @@ violate spatial rules fail closed before persistence.
 - [x] `/territory` lookup, list, reload, save (spatial ops)
 - [x] Optional `governedByGuildId` on territory documents
 - [ ] Free-form physical facilities implemented through one exact anchor block; Paper runtime smoke pending
-- [x] Building commands live on `/guilds building` (guild-owned); `/territory building` points there
+- [x] Building commands live on `/guilds building` (guild-owned)
 - [ ] Active/inactive anchor lifecycle implemented; Paper restoration smoke pending
 - [ ] Same-guild waystone travel implemented; live teleport/protection smoke pending
 - [ ] Trading-post `TradingPostInteractEvent` implemented; live event observation pending

@@ -100,7 +100,7 @@ contracts are durable and transactional where money/items move.
 - [x] Permission service + public access / toggle listeners
 - [x] `GuildsGovernanceSource` for territory governance
 - [x] Level deposit / upgrade progression (XP-only; skill points = guild level)
-- [x] Guild level rises automatically from XP; `/guildlevel upgrade` is a pointer
+- [x] Guild level rises automatically from XP
 - [x] Tech tree projects (one active at a time) / specialization / quest services
 - [x] Guild projects commanded as `/g upgrade` (`/g` aliases `/guild`)
 - [x] Guild contracts service + migration (`GuildContractService`)
@@ -144,6 +144,7 @@ Nation vocabulary is retired in territory docs; command names may still say
 | 2026-08-17 | Buildings commanded under `/guilds building` | Territories are regions; guilds own the anchors inside them |
 | 2026-08-17 | Guild projects use `/g upgrade` | Player-facing name; `/techtree` is a pointer |
 | 2026-08-17 | Guild level auto-advances from XP | `/guildlevel upgrade` deprecated; leftover XP kept |
+| 2026-08-17 | Remove `/techtree`, `/tt`, `/guildlevel upgrade`, `/territory building` | Pointers removed after the new commands landed |
 
 ## Open questions
 
