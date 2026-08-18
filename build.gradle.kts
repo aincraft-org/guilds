@@ -13,7 +13,16 @@ plugins {
 }
 
 group = "com.azoth"
-version = providers.gradleProperty("releaseVersion").orElse("26.8.13").get()
+val releaseVersionPattern =
+    Regex("""\d{2}\.([1-9]|1[0-2])\.([1-9]|[12]\d|3[01])\.[1-9]\d*""")
+val requestedReleaseVersion = (findProperty("releaseVersion") as String?)?.takeIf { it.isNotBlank() }
+if (requestedReleaseVersion != null && !requestedReleaseVersion.matches(releaseVersionPattern)) {
+    throw GradleException(
+        "releaseVersion must match YY.M.D.<positive-run-number> " +
+            "(for example, -PreleaseVersion=26.8.18.1).",
+    )
+}
+version = requestedReleaseVersion ?: "26.8.18.0"
 description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
 
 // Shared configuration for the api / common / paper modules.

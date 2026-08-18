@@ -1,6 +1,8 @@
 name: Nightly Release
 
 on:
+  push:
+    branches: [master]
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
@@ -58,8 +60,8 @@ jobs:
 
       - name: Build and verify
         env:
-          MINT_PACKAGES_ACTOR: ${{ secrets.MINT_PACKAGES_ACTOR || 'mintychochip' }}
-          MINT_PACKAGES_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN }}
+          MINT_PACKAGES_ACTOR: ${{ secrets.MINT_PACKAGES_ACTOR || github.actor }}
+          MINT_PACKAGES_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
         run: ./gradlew --no-daemon -PreleaseVersion="$RELEASE_VERSION" clean test build
 
       - name: Verify release artifacts
@@ -154,7 +156,7 @@ jobs:
               --arg name "Nightly ${RELEASE_VERSION}" \
               --arg target "$COMMIT_SHA" \
               --arg body "Automated nightly build.\n\nCommit: ${COMMIT_SHA}\nWorkflow run: ${RUN_URL}" \
-              '{tag_name:"nightly",target_commitish:$target,name:$name,body:$body,draft:false,prerelease:true,make_latest:"false"}' > "$update_json"
+              '{tag_name:"nightly",target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:"true"}' > "$update_json"
             curl --fail-with-body --silent --show-error -X PATCH "${auth[@]}" -H 'Content-Type: application/json' \
               "${repo_url}/releases/${release_id}" --data-binary "@${update_json}" > "$release_json"
           else
@@ -163,7 +165,7 @@ jobs:
               --arg target "$COMMIT_SHA" \
               --arg name "Nightly ${RELEASE_VERSION}" \
               --arg body "Automated nightly build.\n\nCommit: ${COMMIT_SHA}\nWorkflow run: ${RUN_URL}" \
-              '{tag_name:$tag,target_commitish:$target,name:$name,body:$body,draft:false,prerelease:true,make_latest:"false"}' > "$update_json"
+              '{tag_name:$tag,target_commitish:$target,name:$name,body:$body,draft:false,prerelease:false,make_latest:"true"}' > "$update_json"
             curl --fail-with-body --silent --show-error -X POST "${auth[@]}" -H 'Content-Type: application/json' \
               "${repo_url}/releases" --data-binary "@${update_json}" > "$release_json"
             release_id="$(jq -r '.id' "$release_json")"
@@ -215,7 +217,7 @@ jobs:
           nightly="$(curl --fail-with-body --silent --show-error "${auth[@]}" "${API_ROOT}/repos/${REPOSITORY}/releases/tags/nightly")"
           test "$(jq -r '.tag_name' <<<"$nightly")" = nightly
           test "$(jq -r '.draft' <<<"$nightly")" = false
-          test "$(jq -r '.prerelease' <<<"$nightly")" = true
+          test "$(jq -r '.prerelease' <<<"$nightly")" = false
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar")) != null' <<<"$nightly" > /dev/null
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar")) != null' <<<"$nightly" > /dev/null
           jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar.sha256")) != null' <<<"$nightly" > /dev/null

@@ -2,11 +2,17 @@ name: CI
 
 on:
   push:
+    branches: [master, main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
   packages: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
