@@ -6,17 +6,8 @@ import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.mintychochip.guilds.GuildsPlugin;
-import dev.mintychochip.territory.building.BuildingAuthorization;
-import dev.mintychochip.guilds.commands.brigadier.BuildingCommand;
 import dev.mintychochip.guilds.commands.brigadier.TerritoryBrigadierCommand;
 import dev.mintychochip.guilds.commands.brigadier.TerritoryCommand;
-import dev.mintychochip.territory.building.BuildingConfig;
-import dev.mintychochip.territory.building.BuildingPlacementSessions;
-import dev.mintychochip.territory.building.FacilityAnchorValidator;
-import dev.mintychochip.territory.building.FacilityMutationService;
-import dev.mintychochip.territory.building.WaystoneSelections;
-import dev.mintychochip.territory.building.WaystoneTravelService;
-import dev.mintychochip.territory.model.FacilityType;
 import dev.mintychochip.territory.economy.GoodsCatalog;
 import dev.mintychochip.territory.economy.EconomyBridge;
 import dev.mintychochip.territory.economy.PaymentRail;
@@ -37,9 +28,7 @@ import dev.mintychochip.territory.upkeep.UpkeepStatus;
 import dev.mintychochip.territory.upkeep.UpkeepStore;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -75,7 +64,7 @@ class TerritoryBrigadierCommandTest {
                 "lookup", "here", "list", "reload", "save", "web", "govern",
                 "influence", "declare", "standing", "upkeep", "invasion")),
                 () -> "missing subcommands: " + children);
-        assertTrue(children.contains("building"), "keep a pointer away from /territory building");
+        assertTrue(!children.contains("building"), "buildings belong on /guilds building");
     }
 
     /** Performs the invasion node suggests start stop and status operation. */
@@ -88,42 +77,14 @@ class TerritoryBrigadierCommandTest {
         assertEquals(Set.of("start", "stop", "status"), childNames(invasion));
     }
 
-    /** Influence and declare stay on territory; buildings do not. */
+    /** Influence and declare stay on territory. */
     @Test
-    void influenceDeclareStayOnTerritoryAndBuildingIsARedirectHint() {
-        GuildsPlugin plugin = mock(GuildsPlugin.class);
-        when(plugin.getBuildingCommand()).thenReturn(sampleBuildings());
+    void influenceDeclareStayOnTerritory() {
         LiteralCommandNode<CommandSourceStack> root = new TerritoryBrigadierCommand(
-                new TerritoryCommand(plugin)).buildCommand();
+                new TerritoryCommand(mock(GuildsPlugin.class))).buildCommand();
         assertTrue(childNames(root.getChild("influence")).containsAll(Set.of("set", "reset")));
         assertNotNull(root.getChild("declare").getChild("cancel"));
-        assertTrue(childNames(root.getChild("building")).isEmpty(),
-                "guilds own buildings; /territory building is only a hint");
-    }
-
-    /**
-     * Builds the ing create runs through building brigadier node.
-     * @throws Exception if an error occurs
-     */
-    @Test
-    void buildingCreateRunsThroughBuildingBrigadierNode() throws Exception {
-        BuildingPlacementSessions sessions = new BuildingPlacementSessions(60_000L);
-        BuildingCommand buildings = sampleBuildings(sessions);
-        GuildsPlugin plugin = mock(GuildsPlugin.class);
-        when(plugin.getBuildingCommand()).thenReturn(buildings);
-        Player player = mock(Player.class);
-        UUID playerId = UUID.fromString("00000000-0000-0000-0000-00000000000b");
-        when(player.getUniqueId()).thenReturn(playerId);
-        when(player.hasPermission("guilds.territory.building.manage")).thenReturn(true);
-        CommandSourceStack source = mock(CommandSourceStack.class);
-        when(source.getSender()).thenReturn(player);
-
-        CommandDispatcher<CommandSourceStack> dispatcher = dispatcher(
-                new TerritoryBrigadierCommand(new TerritoryCommand(plugin)));
-        assertEquals(1, dispatcher.execute("territory building create waystone market North Gate", source));
-        assertTrue(sessions.current(playerId, System.currentTimeMillis()).isEmpty(),
-                "territory building must not start a placement session");
-        verify(player, atLeastOnce()).sendMessage(any(Component.class));
+        assertNull(root.getChild("building"));
     }
 
     /**
@@ -181,30 +142,6 @@ class TerritoryBrigadierCommandTest {
                 "lookup", "here", "list", "reload", "save", "web", "govern",
                 "influence", "declare", "standing", "upkeep", "invasion")),
                 () -> "suggestions were " + suggestions);
-    }
-
-    /**
-     * Performs the sample buildings operation.
-     * @return the result
-     */
-    private static BuildingCommand sampleBuildings() {
-        return sampleBuildings(new BuildingPlacementSessions(60_000L));
-    }
-
-    /**
-     * Performs the sample buildings operation.
-     * @param sessions the sessions
-     * @return the result
-     */
-    private static BuildingCommand sampleBuildings(BuildingPlacementSessions sessions) {
-        TerritoryRegistry territories = new TerritoryRegistry();
-        BuildingConfig config = new BuildingConfig(60_000L,
-                Map.of(FacilityType.WAYSTONE, Set.of(Material.LODESTONE),
-                        FacilityType.TRADING_POST, Set.of(Material.BELL)), 100L, 60_000L);
-        return new BuildingCommand(sessions, new FacilityRegistry(territories), territories,
-                mock(FacilityAnchorValidator.class), mock(BuildingAuthorization.class),
-                mock(FacilityMutationService.class), config, new WaystoneSelections(60_000L),
-                mock(WaystoneTravelService.class));
     }
 
     /**

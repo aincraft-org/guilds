@@ -114,23 +114,6 @@ public class TechTreeBrigadierCommand {
     }
 
     /**
-     * Legacy {@code /techtree} pointer at {@code /g upgrade}.
-     * @return the result
-     */
-    public LiteralCommandNode<CommandSourceStack> buildLegacyHint() {
-        return Commands.literal("techtree")
-                .executes(this::hintMoved)
-                .then(Commands.argument("args", StringArgumentType.greedyString())
-                        .executes(this::hintMoved))
-                .build();
-    }
-
-    private int hintMoved(CommandContext<CommandSourceStack> ctx) {
-        ctx.getSource().getSender().sendMessage("§eGuild projects moved. Use /g upgrade.");
-        return Command.SINGLE_SUCCESS;
-    }
-
-    /**
      * Handles the open gui.
      * @param ctx the ctx
      * @return the result

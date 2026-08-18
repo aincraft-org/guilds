@@ -17,7 +17,6 @@ import dev.mintychochip.guilds.commands.brigadier.PlotBrigadierCommand;
 import dev.mintychochip.guilds.commands.brigadier.PlotTypeBrigadierCommand;
 import dev.mintychochip.guilds.commands.brigadier.QuestBrigadierCommand;
 import dev.mintychochip.guilds.commands.brigadier.SpecializationBrigadierCommand;
-import dev.mintychochip.guilds.commands.brigadier.TechTreeBrigadierCommand;
 import dev.mintychochip.guilds.commands.brigadier.GuildBrigadierCommand;
 import dev.mintychochip.guilds.commands.brigadier.GuildBroadcastBrigadierCommand;
 import dev.mintychochip.guilds.commands.brigadier.GuildLevelBrigadierCommand;
@@ -56,8 +55,6 @@ public class BrigadierCommandRegistry {
     private final GuildBroadcastBrigadierCommand guildBroadcastCommand;
     /** The guild perm command. */
     private final GuildPermBrigadierCommand guildPermCommand;
-    /** The tech tree command. */
-    private final TechTreeBrigadierCommand techTreeCommand;
     /** The chat command. */
     private final ChatBrigadierCommand chatCommand;
     /** The alliance command. */
@@ -81,7 +78,6 @@ public class BrigadierCommandRegistry {
      * @param plotTypeCommand the plot type command
      * @param guildBroadcastCommand the guild broadcast command
      * @param guildPermCommand the guild perm command
-     * @param techTreeCommand the tech tree command
      * @param chatCommand the chat command
      * @param allianceCommand the alliance command
      * @param specializationCommand the specialization command
@@ -98,7 +94,6 @@ public class BrigadierCommandRegistry {
                                     PlotTypeBrigadierCommand plotTypeCommand,
                                     GuildBroadcastBrigadierCommand guildBroadcastCommand,
                                     GuildPermBrigadierCommand guildPermCommand,
-                                    TechTreeBrigadierCommand techTreeCommand,
                                     ChatBrigadierCommand chatCommand,
                                     AllianceBrigadierCommand allianceCommand,
                                     SpecializationBrigadierCommand specializationCommand,
@@ -114,7 +109,6 @@ public class BrigadierCommandRegistry {
         this.plotTypeCommand = plotTypeCommand;
         this.guildBroadcastCommand = guildBroadcastCommand;
         this.guildPermCommand = guildPermCommand;
-        this.techTreeCommand = techTreeCommand;
         this.chatCommand = chatCommand;
         this.allianceCommand = allianceCommand;
         this.specializationCommand = specializationCommand;
@@ -182,11 +176,6 @@ public class BrigadierCommandRegistry {
 
             // Register new guild perm command
             commands.register(guildPermCommand.buildCommand());
-
-            commands.register(techTreeCommand.buildLegacyHint());
-            commands.register(Commands.literal("tt")
-                    .redirect(techTreeCommand.buildLegacyHint())
-                    .build());
 
         // Register chat command with aliases
         commands.register(chatCommand.buildCommand());

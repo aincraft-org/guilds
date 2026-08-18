@@ -96,8 +96,6 @@ public class GuildLevelBrigadierCommand {
                         .executes(this::handleDeposit))))
             .then(Commands.literal("bank")
                 .executes(this::handleBank))
-            .then(Commands.literal("upgrade")
-                .executes(this::handleUpgradeDeprecated))
             .then(Commands.literal("contributions")
                 .executes(this::handleContributions))
             .then(Commands.literal("top")
@@ -294,17 +292,6 @@ public class GuildLevelBrigadierCommand {
         }
         player.sendMessage("§7");
         player.sendMessage("§eUse '/guildlevel level' to see upgrade requirements");
-        return Command.SINGLE_SUCCESS;
-    }
-
-    /**
-     * Deprecated: level rises from XP deposits. Projects are /g upgrade.
-     * @param ctx the ctx
-     * @return the result
-     */
-    private int handleUpgradeDeprecated(CommandContext<CommandSourceStack> ctx) {
-        ctx.getSource().getSender().sendMessage(
-                "§eGuild level rises automatically as XP is deposited. Use /g upgrade for projects.");
         return Command.SINGLE_SUCCESS;
     }
 

@@ -122,7 +122,7 @@ class LiveBrigadierCommandTreeTest {
         assertTree("guilds", generalCommand().buildCommand(),
                 "version", "time", "top", "prices", "chat", "universe", "building");
         assertTree("guildlevel", levelCommand().buildCommand(),
-                "level", "deposit", "bank", "upgrade", "contributions", "top");
+                "level", "deposit", "bank", "contributions", "top");
         assertTree("guildsmap", mapCommand().buildCommand(),
                 "help");
         assertTree("perm", permCommand().buildCommand(),
@@ -136,7 +136,7 @@ class LiveBrigadierCommandTreeTest {
         assertTree("quest", questCommand().buildCommand(), "progress", "refresh");
         assertTree("territory", territoryCommand().buildCommand(),
                 "lookup", "here", "list", "reload", "save", "web", "govern",
-                "influence", "declare", "standing", "upkeep", "invasion", "building");
+                "influence", "declare", "standing", "upkeep", "invasion");
 
         assertEquals("plottype", new PlotTypeBrigadierCommand().buildCommand().getLiteral());
         assertTrue(childNames(new PlotTypeBrigadierCommand().buildCommand()).isEmpty());

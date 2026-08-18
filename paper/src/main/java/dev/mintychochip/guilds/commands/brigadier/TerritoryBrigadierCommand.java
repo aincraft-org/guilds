@@ -8,8 +8,6 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 
 /** Paper Brigadier adapter for the territory command behavior. */
@@ -43,11 +41,7 @@ public final class TerritoryBrigadierCommand {
                 .then(declare())
                 .then(upkeep())
                 .then(standing())
-                .then(invasion())
-                .then(Commands.literal("building")
-                        .executes(TerritoryBrigadierCommand::buildingMoved)
-                        .then(Commands.argument("args", StringArgumentType.greedyString())
-                                .executes(TerritoryBrigadierCommand::buildingMoved)));
+                .then(invasion());
         return root.build();
     }
 
@@ -167,13 +161,6 @@ public final class TerritoryBrigadierCommand {
      * @param ctx the ctx
      * @return the result
      */
-    private static int buildingMoved(CommandContext<CommandSourceStack> ctx) {
-        sender(ctx).sendMessage(Component.text(
-                "Guilds own buildings in a region. Use /guilds building <create|cancel|list|info|remove>.",
-                NamedTextColor.YELLOW));
-        return Command.SINGLE_SUCCESS;
-    }
-
     private static CommandSender sender(CommandContext<CommandSourceStack> ctx) {
         return ctx.getSource().getSender();
     }
