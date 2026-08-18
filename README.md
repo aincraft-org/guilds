@@ -162,12 +162,12 @@ Guild residents use `/guildlevel deposit EXPERIENCE <amount>` to contribute XP
 toward the next guild level. Materials are not a level-up requirement. A failed
 database write refunds the inventory items.
 
-Only the guild mayor or a holder of `guilds.admin.guild` may run
-`/guildlevel upgrade`. The upgrade rechecks the locked database row, consumes XP
-progress once, and grants project skill points equal to the new guild level
-(level 2 is two points). Spend those points on one tech-tree project at a time
+Guild level rises automatically when deposited XP meets the next threshold.
+Leftover XP stays on the guild. Skill points equal the new guild level
+(level 2 is two points). Spend those points on one project at a time
 with `/g upgrade start <node>`; `/g upgrade clear` frees the active slot.
-`/g` is an alias for `/guild`. `/techtree` points at `/g upgrade`.
+`/g` is an alias for `/guild`. `/techtree` and `/guildlevel upgrade` point at
+`/g upgrade`.
 
 ## Mint cash guild banks
 
