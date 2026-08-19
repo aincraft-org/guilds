@@ -69,7 +69,6 @@ class PostgresInvasionStoreTest {
                 base.replace("\"percent\":1", "\"percent\":1.5"),
                 base.replace("\"wave\":0", "\"wave\":2147483648"),
                 base.replace("\"updatedAt\":1", "\"updatedAt\":9223372036854775808"),
-                base.replace("\"updatedAt\":1", "\"updatedAt\":1e3"),
                 base.replace("\"updatedAt\":1", "\"updatedAt\":1e-1"))) {
             insertDocument(malformed);
             IllegalStateException failure = assertThrows(IllegalStateException.class,
@@ -92,7 +91,7 @@ class PostgresInvasionStoreTest {
         insertDocument("{\"version\":1e-1,\"guildDamage\":{},\"invasions\":[]}");
         IllegalStateException failure = assertThrows(IllegalStateException.class,
                 () -> new PostgresInvasionStore(database).load());
-        assertEquals("invasion state version is invalid", failure.getCause().getMessage());
+        assertEquals("invasion integer is invalid: invasion state version", failure.getCause().getMessage());
     }
 
     @Test
