@@ -17,4 +17,11 @@ class SqlResourceServiceTest {
                 .contains("UPDATE RESIDENTS"));
     }
 
+    @Test
+    void permissionsSqlLivesOnTheClasspath() {
+        assertTrue(SqlStatements.load("permissions/insert.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO PERMISSIONS"));
+        assertTrue(SqlStatements.load("permissions/select-resident-flags.sql").contains("WHERE context = ?"));
+    }
+
 }

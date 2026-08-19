@@ -7,6 +7,7 @@ import org.aincraft.guilds.territory.model.LookupResult;
 import org.aincraft.guilds.territory.model.Territory;
 import org.aincraft.guilds.territory.registry.TerritoryRegistry;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.models.Permission;
 import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Guild;
@@ -123,7 +124,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Check if permission already exists
-                String checkSql = "SELECT id, permissions_flags FROM permissions WHERE context = ? AND context_id = ? AND target_type = 'resident' AND target_id = ?";
+                String checkSql = SqlStatements.load("permissions/select-resident-flags.sql");
 
                 try (PreparedStatement checkStatement = connection.prepareStatement(checkSql)) {
                     checkStatement.setString(1, context);
@@ -139,7 +140,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                             // Convert string permission to flag and update
                             int newFlags = updatePermissionFlag(currentFlags, permission, value);
 
-                            String updateSql = "UPDATE permissions SET permissions_flags = ?, granted_at = ? WHERE id = ?";
+                            String updateSql = SqlStatements.load("permissions/update-flags-granted-at.sql");
                             try (PreparedStatement updateStatement = connection.prepareStatement(updateSql)) {
                                 updateStatement.setInt(1, newFlags);
                                 updateStatement.setString(2, LocalDateTime.now().format(DATE_FORMATTER));
@@ -149,7 +150,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                             }
                         } else {
                             // Create new permission
-                            String insertSql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                            String insertSql = SqlStatements.load("permissions/insert.sql");
 
                             try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
                                 String permissionId = UUID.randomUUID().toString();
@@ -195,8 +196,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                 // Blank permission clears every row for this resident in the context
                 // (used by setPermissionSet to reset before re-granting).
                 if (permission == null || permission.isBlank()) {
-                    String deleteSql = "DELETE FROM permissions WHERE context = ? AND context_id = ? "
-                            + "AND target_type = 'resident' AND target_id = ?";
+                    String deleteSql = SqlStatements.load("permissions/delete-resident.sql");
                     try (PreparedStatement statement = connection.prepareStatement(deleteSql)) {
                         statement.setString(1, context);
                         statement.setString(2, contextId);
@@ -207,8 +207,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                 }
 
                 // Clear a single named flag; drop the row when no flags remain.
-                String selectSql = "SELECT id, permissions_flags FROM permissions WHERE context = ? "
-                        + "AND context_id = ? AND target_type = 'resident' AND target_id = ?";
+                String selectSql = SqlStatements.load("permissions/select-resident-flags.sql");
                 try (PreparedStatement select = connection.prepareStatement(selectSql)) {
                     select.setString(1, context);
                     select.setString(2, contextId);
@@ -226,13 +225,13 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                         int newFlags = currentFlags & ~flag;
                         if (newFlags == 0) {
                             try (PreparedStatement delete = connection.prepareStatement(
-                                    "DELETE FROM permissions WHERE id = ?")) {
+                                    SqlStatements.load("permissions/delete-by-id.sql"))) {
                                 delete.setString(1, rowId);
                                 changed[0] = delete.executeUpdate() > 0;
                             }
                         } else {
                             try (PreparedStatement update = connection.prepareStatement(
-                                    "UPDATE permissions SET permissions_flags = ? WHERE id = ?")) {
+                                    SqlStatements.load("permissions/update-flags.sql"))) {
                                 update.setInt(1, newFlags);
                                 update.setString(2, rowId);
                                 changed[0] = update.executeUpdate() > 0;
@@ -277,8 +276,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     private List<Permission> loadResidentPermissions(UUID residentUuid, String context, String contextId)
             throws SQLException {
-        String sql = "SELECT id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid " +
-                    "FROM permissions WHERE context = ? AND context_id = ? AND (target_type = 'all' OR (target_type = 'resident' AND target_id = ?))";
+        String sql = SqlStatements.load("permissions/select-for-resident.sql");
 
         List<Permission> permissions = new ArrayList<>();
 
@@ -301,8 +299,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public List<Permission> getContextPermissions(String context, String contextId) {
-        String sql = "SELECT id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid " +
-                    "FROM permissions WHERE context = ? AND context_id = ? ORDER BY target_type, target_id";
+        String sql = SqlStatements.load("permissions/select-by-context.sql");
 
         List<Permission> permissions = new ArrayList<>();
 
@@ -332,14 +329,14 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Delete existing guild permissions
-                String deleteSql = "DELETE FROM permissions WHERE context = 'town' AND context_id = ?";
+                String deleteSql = SqlStatements.load("permissions/delete-town.sql");
                 try (PreparedStatement deleteStatement = connection.prepareStatement(deleteSql)) {
                     deleteStatement.setString(1, guildName);
                     deleteStatement.executeUpdate();
                 }
 
                 // Insert new permissions
-                String insertSql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                String insertSql = SqlStatements.load("permissions/insert.sql");
 
                 try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
                     for (Permission permission : permissions) {
@@ -378,14 +375,14 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Delete existing plot permissions
-                String deleteSql = "DELETE FROM permissions WHERE context = 'plot' AND context_id = ?";
+                String deleteSql = SqlStatements.load("permissions/delete-plot.sql");
                 try (PreparedStatement deleteStatement = connection.prepareStatement(deleteSql)) {
                     deleteStatement.setString(1, plotId.toString());
                     deleteStatement.executeUpdate();
                 }
 
                 // Insert new permissions
-                String insertSql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                String insertSql = SqlStatements.load("permissions/insert.sql");
 
                 try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
                     for (Permission permission : permissions) {
@@ -726,7 +723,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public boolean isGuildMayor(UUID residentUuid, String guildName) {
-        String sql = "SELECT COUNT(*) FROM guilds WHERE name = ? AND mayor_uuid = ?";
+        String sql = SqlStatements.load("permissions/count-mayor.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -749,11 +746,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public boolean isGuildAssistant(UUID residentUuid, String guildName) {
-        String sql = """
-            SELECT COUNT(*) FROM guild_residents tr
-            JOIN guilds t ON tr.guild_id = t.id
-            WHERE t.name = ? AND tr.resident_uuid = ? AND tr.role = 'assistant'
-            """;
+        String sql = SqlStatements.load("permissions/count-assistant.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -776,7 +769,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
 
     @Override
     public boolean ownsPlot(UUID residentUuid, UUID plotId) {
-        String sql = "SELECT COUNT(*) FROM guild_blocks WHERE id = ? AND owner_uuid = ?";
+        String sql = SqlStatements.load("permissions/count-plot-owner.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -802,9 +795,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
      */
     private boolean hasGuildPermission(UUID residentUuid, String permission, String guildName) {
         // Check database for explicit permission grants first
-        String sql = "SELECT permissions_flags FROM permissions WHERE " +
-                    "context = 'town' AND context_id = ? AND " +
-                    "(target_type = 'all' OR (target_type = 'resident' AND target_id = ?))";
+        String sql = SqlStatements.load("permissions/select-town-flags.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -923,8 +914,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
      */
     private boolean hasGlobalPermission(UUID residentUuid, String permission) {
         // Check for admin-level global permissions
-        String sql = "SELECT permissions_flags FROM permissions WHERE " +
-                    "context = 'global' AND target_type = 'resident' AND target_id = ?";
+        String sql = SqlStatements.load("permissions/select-global-flags.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -965,8 +955,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Check if permission already exists
-                String checkSql = "SELECT id, permissions_flags FROM permissions WHERE " +
-                                "context = 'town' AND context_id = ? AND target_type = ? AND target_id = ?";
+                String checkSql = SqlStatements.load("permissions/select-town-target.sql");
 
                 try (PreparedStatement checkStatement = connection.prepareStatement(checkSql)) {
                     checkStatement.setString(1, guildName);
@@ -980,7 +969,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                             int existingFlags = resultSet.getInt("permissions_flags");
                             int newFlags = existingFlags | permissionFlags;
 
-                            String updateSql = "UPDATE permissions SET permissions_flags = ? WHERE id = ?";
+                            String updateSql = SqlStatements.load("permissions/update-flags.sql");
                             try (PreparedStatement updateStatement = connection.prepareStatement(updateSql)) {
                                 updateStatement.setInt(1, newFlags);
                                 updateStatement.setString(2, existingId);
@@ -990,7 +979,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
                             logger.info("Updated guild permissions for " + targetType + " in " + guildName + ": added flags " + permissionFlags);
                         } else {
                             // Insert new permission
-                            String insertSql = "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                            String insertSql = SqlStatements.load("permissions/insert-with-granted-by.sql");
 
                             try (PreparedStatement insertStatement = connection.prepareStatement(insertSql)) {
                                 insertStatement.setString(1, UUID.randomUUID().toString());
@@ -1266,7 +1255,7 @@ public class PermissionServiceImpl implements org.aincraft.guilds.services.Permi
      * Helper method to get resident's guild name
      */
     private String getResidentGuild(UUID residentUuid) {
-        String sql = "SELECT guild_name FROM residents WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/select-guild-name.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
