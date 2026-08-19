@@ -89,7 +89,8 @@ public class DatabaseManager {
             hikari.close();
             plugin.getLogger().info("Guilds test database pool closed.");
         } else {
-            plugin.getLogger().info("Guilds database manager released shared PostgreSQL resources.");
+            plugin.getLogger().info("Guilds database manager released shared "
+                    + databaseConfig.type() + " resources.");
         }
     }
 

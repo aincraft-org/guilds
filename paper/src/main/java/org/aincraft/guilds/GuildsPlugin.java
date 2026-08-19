@@ -152,7 +152,7 @@ public final class GuildsPlugin extends JavaPlugin {
             getLogger().info("Loaded " + registry.size() + " territor(y/ies) from " + settings.type());
         } catch (IOException e) {
             getLogger().log(Level.SEVERE,
-                    "PostgreSQL persistence is mandatory; plugin startup aborted", e);
+                    "SQL persistence is mandatory; plugin startup aborted", e);
             if (database != null) {
                 database.close();
             }
@@ -217,7 +217,7 @@ public final class GuildsPlugin extends JavaPlugin {
             economyBridge.setUnresolvedTransactionSink(entries -> {
                 if (!entries.isEmpty()) {
                     getLogger().log(Level.SEVERE, "Settlement reconciliation required; "
-                            + entries.size() + " unresolved transaction(s) persisted to PostgreSQL");
+                            + entries.size() + " unresolved transaction(s) persisted to SQL");
                 }
                 try {
                     reconciliationStore.save(entries);

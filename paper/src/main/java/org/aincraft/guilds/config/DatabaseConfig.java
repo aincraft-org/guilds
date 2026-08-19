@@ -7,7 +7,7 @@ import javax.sql.DataSource;
 import java.util.Objects;
 
 /**
- * View of the host plugin's shared PostgreSQL data source.
+ * View of the host plugin's shared SQL data source.
  *
  * <p>Guilds does not own a second pool or a database file.</p>
  */
@@ -24,12 +24,16 @@ public final class DatabaseConfig {
         return database.dataSource();
     }
 
+    public org.aincraft.guilds.territory.persist.DatabaseType type() {
+        return database.type();
+    }
+
     public void ensureDatabaseExists() {
-        // PostgreSQL connectivity and common schema are initialized by the host.
+        // Connectivity and common schema are initialized by the host.
     }
 
     public void shutdown() {
         // The host plugin owns and closes the shared pool.
-        plugin.getLogger().info("Guilds released shared PostgreSQL data source.");
+        plugin.getLogger().info("Guilds released shared " + database.type() + " data source.");
     }
 }
