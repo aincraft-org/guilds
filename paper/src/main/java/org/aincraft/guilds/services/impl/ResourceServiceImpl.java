@@ -4,6 +4,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.ResourceContribution;
 import org.aincraft.guilds.models.ResourceType;
 import org.aincraft.guilds.models.Guild;
@@ -545,13 +546,13 @@ public class ResourceServiceImpl implements ResourceService {
     private void creditGuildResources(
             Connection connection, String guildId, ResourceType resourceType, int amount)
             throws SQLException {
-        String sql = """
+        String sql = SqlSupport.upsertSql(connection, """
                 INSERT INTO guild_resources (id, guild_id, resource_type, amount, last_updated)
                 VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT (guild_id, resource_type) DO UPDATE SET
+                """, "guild_id, resource_type", """
                     amount = guild_resources.amount + EXCLUDED.amount,
                     last_updated = EXCLUDED.last_updated
-                """;
+                """);
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, UUID.randomUUID().toString());
             statement.setString(2, guildId);

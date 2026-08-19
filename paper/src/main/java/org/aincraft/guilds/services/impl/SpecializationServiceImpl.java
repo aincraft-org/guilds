@@ -4,6 +4,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildSpecialization;
 import org.aincraft.guilds.services.SpecializationService;
@@ -58,14 +59,14 @@ public class SpecializationServiceImpl implements SpecializationService {
     @Override
     public void setSpecialization(String guildId, GuildSpecialization specialization) {
         databaseManager.executeTransaction(conn -> {
-            String sql = """
+            String sql = SqlSupport.upsertSql(conn, """
                 INSERT INTO guild_specializations
                 (guild_id, specialization, set_at)
                 VALUES (?, ?, ?)
-                ON CONFLICT (guild_id) DO UPDATE SET
+                """, "guild_id", """
                     specialization = EXCLUDED.specialization,
                     set_at = EXCLUDED.set_at
-                """;
+                """);
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, guildId);
                 ps.setString(2, specialization.name());

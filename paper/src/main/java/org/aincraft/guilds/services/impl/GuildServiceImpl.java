@@ -922,22 +922,35 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public double updateGuildBalance(String guildName, double amount) {
-        String sql = "UPDATE guilds SET balance = balance + ? WHERE name = ? RETURNING balance";
+        String updateSql = "UPDATE guilds SET balance = balance + ? WHERE name = ?";
+        String selectSql = "SELECT balance FROM guilds WHERE name = ?";
 
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
-
-            statement.setDouble(1, amount);
-            statement.setString(2, guildName);
-
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    double newBalance = resultSet.getDouble(1);
-                    logger.info("Updated balance for guild " + guildName + ": " + amount + " (new total: " + newBalance + ")");
-                    return newBalance;
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try (PreparedStatement update = connection.prepareStatement(updateSql);
+                 PreparedStatement select = connection.prepareStatement(selectSql)) {
+                update.setDouble(1, amount);
+                update.setString(2, guildName);
+                if (update.executeUpdate() != 1) {
+                    connection.rollback();
+                    return 0;
                 }
+                select.setString(1, guildName);
+                try (ResultSet resultSet = select.executeQuery()) {
+                    if (resultSet.next()) {
+                        double newBalance = resultSet.getDouble(1);
+                        connection.commit();
+                        logger.info("Updated balance for guild " + guildName + ": " + amount + " (new total: " + newBalance + ")");
+                        return newBalance;
+                    }
+                }
+                connection.rollback();
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(true);
             }
-
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Failed to update balance for guild: " + guildName, e);
         }

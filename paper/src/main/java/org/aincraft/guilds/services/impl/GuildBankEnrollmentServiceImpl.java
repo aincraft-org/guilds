@@ -1,6 +1,7 @@
 package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.GuildBankEnrollmentService;
 import org.aincraft.guilds.services.GuildService;
@@ -43,21 +44,19 @@ public class GuildBankEnrollmentServiceImpl implements GuildBankEnrollmentServic
             if (!residentService.residentExists(playerUuid)) return EnrollmentResult.PLAYER_NOT_FOUND;
             if (!guild.getResidents().contains(playerUuid)) return EnrollmentResult.NOT_CURRENT_MEMBER;
             String now = LocalDateTime.now().toString();
-            String sql = """
+            try (Connection connection = databaseManager.getConnection()) {
+                String sql = SqlSupport.upsertSql(connection, """
                 INSERT INTO guild_bank_enrollments (guild_id, player_uuid, active, enrolled_at, updated_at)
                 VALUES (?, ?, TRUE, ?, ?)
-                ON CONFLICT (guild_id, player_uuid) DO UPDATE SET active = TRUE, updated_at = EXCLUDED.updated_at
-                WHERE EXISTS (SELECT 1 FROM guild_residents WHERE guild_id = ? AND resident_uuid = ?)
-                """;
-            try (Connection connection = databaseManager.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setString(1, guild.getId());
-                statement.setString(2, playerUuid.toString());
-                statement.setString(3, now);
-                statement.setString(4, now);
-                statement.setString(5, guild.getId());
-                statement.setString(6, playerUuid.toString());
-                int updated = statement.executeUpdate();
-                return updated == 1 ? EnrollmentResult.OPENED : EnrollmentResult.NOT_CURRENT_MEMBER;
+                """, "guild_id, player_uuid", "active = TRUE, updated_at = EXCLUDED.updated_at");
+                try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                    statement.setString(1, guild.getId());
+                    statement.setString(2, playerUuid.toString());
+                    statement.setString(3, now);
+                    statement.setString(4, now);
+                    int updated = statement.executeUpdate();
+                    return updated > 0 ? EnrollmentResult.OPENED : EnrollmentResult.NOT_CURRENT_MEMBER;
+                }
             } catch (SQLException e) {
                 logger.log(Level.WARNING, "Failed to open guild-bank enrollment", e);
                 return EnrollmentResult.FAILED;

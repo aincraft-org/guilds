@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.model.LevelDefinition;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildLevel;
 import org.aincraft.guilds.models.ResourceType;
@@ -572,12 +573,11 @@ public class GuildLevelServiceImpl implements GuildLevelService {
 
     private void recordLevelBenefits(
             Connection connection, String guildId, GuildLevel level) throws SQLException {
-        String sql = """
+        String sql = SqlSupport.upsertSql(connection, """
                 INSERT INTO guild_level_benefits
                     (id, guild_id, level, benefit_type, benefit_value, unlocked_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (guild_id, level, benefit_type) DO NOTHING
-                """;
+                """, "guild_id, level, benefit_type", null);
         String now = LocalDateTime.now().toString();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             if (level.getClaimLimitBonus() > 0) {
@@ -645,12 +645,13 @@ public class GuildLevelServiceImpl implements GuildLevelService {
                 return;
             }
 
-            String sql = """
+            try (Connection connection = databaseManager.getConnection();
+                 PreparedStatement statement = connection.prepareStatement(SqlSupport.upsertSql(connection, """
                 INSERT INTO guild_levels (
                     level, resource_costs_json, tech_points_reward, claim_limit_bonus,
                     assistant_slots_bonus, daily_income_bonus, unlocked_plot_types, created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (level) DO UPDATE SET
+                """, "level", """
                     resource_costs_json = EXCLUDED.resource_costs_json,
                     tech_points_reward = EXCLUDED.tech_points_reward,
                     claim_limit_bonus = EXCLUDED.claim_limit_bonus,
@@ -658,9 +659,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
                     daily_income_bonus = EXCLUDED.daily_income_bonus,
                     unlocked_plot_types = EXCLUDED.unlocked_plot_types,
                     created_at = EXCLUDED.created_at
-                """;
-            try (Connection connection = databaseManager.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sql)) {
+                """))) {
 
                 String currentTime = LocalDateTime.now().toString();
 

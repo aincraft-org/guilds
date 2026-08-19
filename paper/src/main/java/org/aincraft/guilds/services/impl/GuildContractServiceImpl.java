@@ -276,11 +276,18 @@ public class GuildContractServiceImpl implements GuildContractService {
      * Increment a guild's balance by {@code delta} (negative to debit) and return the new balance.
      */
     private double updateBalance(Connection connection, String guildId, double delta) throws SQLException {
-        String sql = "UPDATE guilds SET balance = balance + ? WHERE id = ? RETURNING balance";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setDouble(1, delta);
-            statement.setString(2, guildId);
-            try (ResultSet resultSet = statement.executeQuery()) {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE guilds SET balance = balance + ? WHERE id = ?")) {
+            update.setDouble(1, delta);
+            update.setString(2, guildId);
+            if (update.executeUpdate() != 1) {
+                throw new SQLException("Guild not found: " + guildId);
+            }
+        }
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT balance FROM guilds WHERE id = ?")) {
+            select.setString(1, guildId);
+            try (ResultSet resultSet = select.executeQuery()) {
                 if (resultSet.next()) {
                     return resultSet.getDouble(1);
                 }

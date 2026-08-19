@@ -2,6 +2,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.aincraft.guilds.projects.GuildProjectRules;
@@ -135,11 +136,10 @@ public class GuildProjectServiceImpl implements GuildProjectService {
         if (!GuildProjectRules.canClear(activeProjectId)) {
             return null;
         }
-        try (PreparedStatement statement = connection.prepareStatement("""
+        try (PreparedStatement statement = connection.prepareStatement(SqlSupport.upsertSql(connection, """
                 INSERT INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
                 VALUES (?, ?, ?)
-                ON CONFLICT (guild_id, node_id) DO UPDATE SET unlocked_at = EXCLUDED.unlocked_at
-                """)) {
+                """, "guild_id, node_id", "unlocked_at = EXCLUDED.unlocked_at"))) {
             statement.setString(1, guildId);
             statement.setString(2, activeProjectId);
             statement.setString(3, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).toString());

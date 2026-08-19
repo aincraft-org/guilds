@@ -5,6 +5,7 @@ package org.aincraft.guilds.services.impl;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.aincraft.guilds.models.Guild;
@@ -65,11 +66,12 @@ public class TechTreeServiceImpl implements TechTreeService {
     public void syncConfigToDatabase() {
         ensureDefinitionsLoaded();
 
-        String sql = """
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(SqlSupport.upsertSql(conn, """
             INSERT INTO tech_tree_nodes
                 (id, name, branch, cost, prerequisites, effects, position_x, position_y)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (id) DO UPDATE SET
+            """, "id", """
                 name = EXCLUDED.name,
                 branch = EXCLUDED.branch,
                 cost = EXCLUDED.cost,
@@ -77,10 +79,7 @@ public class TechTreeServiceImpl implements TechTreeService {
                 effects = EXCLUDED.effects,
                 position_x = EXCLUDED.position_x,
                 position_y = EXCLUDED.position_y
-            """;
-
-        try (Connection conn = databaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+            """))) {
 
             for (TechTreeNode node : nodeDefinitions.values()) {
                 ps.setString(1, node.getId());
@@ -238,14 +237,13 @@ public class TechTreeServiceImpl implements TechTreeService {
     public void saveGuildTechData(Guild guild) {
         // Delete existing unlocks for this guild and re-insert
         String deleteSql = "DELETE FROM guild_unlocked_nodes WHERE guild_id = ?";
-        String insertSql = """
-            INSERT INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT (guild_id, node_id) DO UPDATE SET unlocked_at = EXCLUDED.unlocked_at
-            """;
 
         try (Connection conn = databaseManager.getConnection()) {
             conn.setAutoCommit(false);
+            String insertSql = SqlSupport.upsertSql(conn, """
+            INSERT INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
+            VALUES (?, ?, ?)
+            """, "guild_id, node_id", "unlocked_at = EXCLUDED.unlocked_at");
 
             try (PreparedStatement del = conn.prepareStatement(deleteSql)) {
                 del.setString(1, guild.getId());
