@@ -4,6 +4,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildSpecialization;
@@ -59,11 +60,7 @@ public class SpecializationServiceImpl implements SpecializationService {
     @Override
     public void setSpecialization(String guildId, GuildSpecialization specialization) {
         databaseManager.executeTransaction(conn -> {
-            String sql = SqlSupport.upsertSql(conn, """
-                INSERT INTO guild_specializations
-                (guild_id, specialization, set_at)
-                VALUES (?, ?, ?)
-                """, "guild_id", """
+            String sql = SqlSupport.upsertSql(conn, SqlStatements.load("specializations/insert.sql"), "guild_id", """
                     specialization = EXCLUDED.specialization,
                     set_at = EXCLUDED.set_at
                 """);
@@ -80,7 +77,7 @@ public class SpecializationServiceImpl implements SpecializationService {
     @Override
     public void removeSpecialization(String guildId) {
         databaseManager.executeTransaction(conn -> {
-            String sql = "DELETE FROM guild_specializations WHERE guild_id = ?";
+            String sql = SqlStatements.load("specializations/delete-by-guild.sql");
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setString(1, guildId);
                 ps.executeUpdate();
@@ -113,7 +110,7 @@ public class SpecializationServiceImpl implements SpecializationService {
     }
 
     private void loadFromDatabase() {
-        String sql = "SELECT guild_id, specialization FROM guild_specializations";
+        String sql = SqlStatements.load("specializations/select-all.sql");
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {

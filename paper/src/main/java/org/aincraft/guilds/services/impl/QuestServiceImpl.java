@@ -4,6 +4,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.models.GuildQuest;
 import org.aincraft.guilds.models.GuildQuestType;
 import org.aincraft.guilds.services.QuestService;
@@ -138,7 +139,7 @@ public class QuestServiceImpl implements QuestService {
     }
 
     private void loadQuestsFromDatabase() {
-        String query = "SELECT * FROM guild_quests";
+        String query = SqlStatements.load("quests/select-all.sql");
         databaseManager.executeTransaction(conn -> {
             try (var stmt = conn.prepareStatement(query);
                  var rs = stmt.executeQuery()) {
@@ -154,7 +155,7 @@ public class QuestServiceImpl implements QuestService {
     }
 
     private void saveQuestToDatabase(GuildQuest quest) {
-        String query = "INSERT INTO guild_quests (id, guild_id, quest_type, description, target_amount, current_progress, tech_point_reward, is_active, is_completed, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String query = SqlStatements.load("quests/insert.sql");
         databaseManager.executeTransaction(conn -> {
             try (var stmt = conn.prepareStatement(query)) {
                 serializeToPreparedStatement(stmt, quest);
@@ -164,7 +165,7 @@ public class QuestServiceImpl implements QuestService {
     }
 
     private void updateQuestInDatabase(GuildQuest quest) {
-        String query = "UPDATE guild_quests SET current_progress = ?, is_active = ?, is_completed = ?, completed_at = ? WHERE id = ?";
+        String query = SqlStatements.load("quests/update-progress.sql");
         databaseManager.executeTransaction(conn -> {
             try (var stmt = conn.prepareStatement(query)) {
                 stmt.setInt(1, quest.getCurrentProgress());

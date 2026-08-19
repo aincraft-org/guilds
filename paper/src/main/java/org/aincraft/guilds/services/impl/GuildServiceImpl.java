@@ -4,6 +4,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.territory.model.GovernmentForm;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Location;
 
@@ -69,9 +70,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         return databaseManager.executeTransactionWithResult(connection -> {
             try {
                 // Insert guild
-                String guildSql = "INSERT INTO guilds (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
-                                "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled) " +
-                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                String guildSql = SqlStatements.load("guilds/insert.sql");
 
                 String guildId = UUID.randomUUID().toString();
                 String createdAt = LocalDateTime.now().format(DATE_FORMATTER);
@@ -99,7 +98,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Add mayor as resident
-                String residentSql = "INSERT INTO guild_residents (guild_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
+                String residentSql = SqlStatements.load("guilds/insert-resident.sql");
 
                 try (PreparedStatement statement = connection.prepareStatement(residentSql)) {
                     statement.setString(1, guildId);
@@ -111,7 +110,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Update resident's guild
-                String updateResidentSql = "UPDATE residents SET guild_name = ? WHERE uuid = ?";
+                String updateResidentSql = SqlStatements.load("guilds/update-resident-guild.sql");
 
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
                     statement.setString(1, name);
@@ -157,11 +156,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         return databaseManager.executeTransactionWithResult(connection -> {
             try {
                 // Insert guild with home block and spawn (storing BLOCK coordinates)
-                String guildSql = "INSERT INTO guilds (id, name, mayor_uuid, balance, is_open, created_at, permissions_flags, tax_rates, " +
-                                "home_block_x, home_block_z, home_block_world, " +
-                                "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                                "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled) " +
-                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                String guildSql = SqlStatements.load("guilds/insert-with-home.sql");
 
                 String guildId = UUID.randomUUID().toString();
                 String createdAt = LocalDateTime.now().format(DATE_FORMATTER);
@@ -199,7 +194,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Add mayor as resident
-                String residentSql = "INSERT INTO guild_residents (guild_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
+                String residentSql = SqlStatements.load("guilds/insert-resident.sql");
 
                 try (PreparedStatement statement = connection.prepareStatement(residentSql)) {
                     statement.setString(1, guildId);
@@ -211,7 +206,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Update resident's guild
-                String updateResidentSql = "UPDATE residents SET guild_name = ? WHERE uuid = ?";
+                String updateResidentSql = SqlStatements.load("guilds/update-resident-guild.sql");
 
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
                     statement.setString(1, name);
@@ -248,11 +243,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     public Optional<Guild> getGuild(String name) {
         // Try query with spawn columns first
         try {
-            String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                               "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                               "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
-                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE name = ?";
+            String sqlWithSpawn = SqlStatements.load("guilds/select-by-name.sql");
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -271,10 +262,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             if (e.getMessage().contains("no such column")) {
                 logger.info("Spawn columns not found in getGuild(), using query without spawn columns for guild: " + name);
                 try {
-                    String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                                         "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
-                                         GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE name = ?";
+                    String sqlWithoutSpawn = SqlStatements.load("guilds/select-by-name-without-spawn.sql");
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -306,11 +294,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
         // Try query with spawn columns first
         try {
-            String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                               "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                               "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
-                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
+            String sqlWithSpawn = SqlStatements.load("guilds/select-by-id.sql");
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -332,10 +316,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             if (e.getMessage().contains("no such column")) {
                 logger.info("Spawn columns not found in getGuild(UUID), using query without spawn columns");
                 try {
-                    String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                                         "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
-                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
+                    String sqlWithoutSpawn = SqlStatements.load("guilds/select-by-id-without-spawn.sql");
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -365,11 +346,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     public Optional<Guild> getGuildById(String guildId) {
         // Try query with spawn columns first
         try {
-            String sqlWithSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                               "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                               "is_open, created_at, permissions_flags, tax_rates, " +
-                               "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
-                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
+            String sqlWithSpawn = SqlStatements.load("guilds/select-by-id.sql");
 
             try (Connection connection = dataSource.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sqlWithSpawn)) {
@@ -388,10 +365,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             if (e.getMessage().contains("no such column")) {
                 logger.info("Spawn columns not found in getGuildById(), using query without spawn columns");
                 try {
-                    String sqlWithoutSpawn = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                                         "is_open, created_at, permissions_flags, tax_rates, " +
-                                         "pvp_enabled, fire_enabled, explosions_enabled, mobs_enabled, public_enabled, " +
-                               GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE id = ?";
+                    String sqlWithoutSpawn = SqlStatements.load("guilds/select-by-id-without-spawn.sql");
 
                     try (Connection connection = dataSource.getConnection();
                          PreparedStatement statement = connection.prepareStatement(sqlWithoutSpawn)) {
@@ -419,10 +393,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public Guild updateGuild(Guild guild) {
-        String sql = "UPDATE guilds SET name = ?, mayor_uuid = ?, balance = ?, home_block_x = ?, " +
-                    "home_block_z = ?, home_block_world = ?, spawn_x = ?, spawn_y = ?, spawn_z = ?, " +
-                    "spawn_yaw = ?, spawn_pitch = ?, spawn_world = ?, is_open = ?, permissions_flags = ?, tax_rates = ?, " +
-                    "pvp_enabled = ?, fire_enabled = ?, explosions_enabled = ?, mobs_enabled = ?, public_enabled = ? WHERE id = ?";
+        String sql = SqlStatements.load("guilds/update.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -493,7 +464,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Get guild ID
-                String getIdSql = "SELECT id FROM guilds WHERE name = ?";
+                String getIdSql = SqlStatements.load("guilds/select-id-by-name.sql");
                 String guildId = null;
 
                 try (PreparedStatement statement = connection.prepareStatement(getIdSql)) {
@@ -509,7 +480,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Delete all guild blocks (claims) for this guild
-                String deleteGuildBlocksSql = "DELETE FROM guild_blocks WHERE guild_id = ?";
+                String deleteGuildBlocksSql = SqlStatements.load("guilds/delete-blocks.sql");
                 try (PreparedStatement statement = connection.prepareStatement(deleteGuildBlocksSql)) {
                     statement.setString(1, guildId);
                     int blocksDeleted = statement.executeUpdate();
@@ -517,21 +488,21 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Delete guild residents associations
-                String deleteGuildResidentsSql = "DELETE FROM guild_residents WHERE guild_id = ?";
+                String deleteGuildResidentsSql = SqlStatements.load("guilds/delete-residents.sql");
                 try (PreparedStatement statement = connection.prepareStatement(deleteGuildResidentsSql)) {
                     statement.setString(1, guildId);
                     statement.executeUpdate();
                 }
 
                 // Remove residents from guild
-                String updateResidentsSql = "UPDATE residents SET guild_name = NULL WHERE guild_name = ?";
+                String updateResidentsSql = SqlStatements.load("guilds/clear-resident-guild-name.sql");
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentsSql)) {
                     statement.setString(1, name);
                     statement.executeUpdate();
                 }
 
                 // Delete guild
-                String deleteGuildSql = "DELETE FROM guilds WHERE name = ?";
+                String deleteGuildSql = SqlStatements.load("guilds/delete-by-name.sql");
                 try (PreparedStatement statement = connection.prepareStatement(deleteGuildSql)) {
                     statement.setString(1, name);
                     int rowsDeleted = statement.executeUpdate();
@@ -553,10 +524,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public List<Guild> getAllGuilds() {
-        String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                    "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates, " +
-                    GUILD_PROGRESS_COLUMNS + " FROM guilds ORDER BY name";
+        String sql = SqlStatements.load("guilds/select-all.sql");
         List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -583,17 +551,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     @Override
     public List<Guild> getGuildsByPopulation() {
         // Get guilds with resident counts
-        String sql = """
-            SELECT t.id, t.name, t.mayor_uuid, t.balance, t.home_block_x, t.home_block_z, t.home_block_world,
-                   t.spawn_x, t.spawn_y, t.spawn_z, t.spawn_yaw, t.spawn_pitch, t.spawn_world,
-                   t.is_open, t.created_at, t.permissions_flags, t.tax_rates,
-                   t.guild_level, t.tech_points, t.active_project_id,
-                   COUNT(tr.resident_uuid) as resident_count
-            FROM guilds t
-            LEFT JOIN guild_residents tr ON t.id = tr.guild_id
-            GROUP BY t.id
-            ORDER BY resident_count DESC
-            """;
+        String sql = SqlStatements.load("guilds/select-ranked-by-residents.sql");
 
         List<Guild> guilds = new ArrayList<>();
 
@@ -620,14 +578,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public List<Guild> getGuildsByBalance() {
-        String sql = """
-            SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world,
-                   spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world,
-                   is_open, created_at, permissions_flags, tax_rates,
-                   guild_level, tech_points, active_project_id
-            FROM guilds
-            ORDER BY balance DESC
-            """;
+        String sql = SqlStatements.load("guilds/select-ranked-by-balance.sql");
 
         List<Guild> guilds = new ArrayList<>();
 
@@ -654,7 +605,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public boolean guildExists(String name) {
-        String sql = "SELECT COUNT(*) FROM guilds WHERE name = ?";
+        String sql = SqlStatements.load("guilds/count-by-name.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -676,7 +627,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public GovernmentForm getGovernanceForm(String guildId) {
-        String sql = "SELECT governance_form FROM guilds WHERE id = ?";
+        String sql = SqlStatements.load("guilds/select-governance-form.sql");
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, guildId);
@@ -698,7 +649,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Get guild ID
-                String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+                String getGuildIdSql = SqlStatements.load("guilds/select-id-by-name.sql");
                 String guildId = null;
 
                 try (PreparedStatement statement = connection.prepareStatement(getGuildIdSql)) {
@@ -714,7 +665,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Check if resident already in guild
-                String checkResidentSql = "SELECT COUNT(*) FROM guild_residents WHERE guild_id = ? AND resident_uuid = ?";
+                String checkResidentSql = SqlStatements.load("guilds/count-resident-membership.sql");
                 try (PreparedStatement statement = connection.prepareStatement(checkResidentSql)) {
                     statement.setString(1, guildId);
                     statement.setString(2, residentUuid.toString());
@@ -727,7 +678,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Add resident to guild
-                String insertSql = "INSERT INTO guild_residents (guild_id, resident_uuid, role, joined_at) VALUES (?, ?, ?, ?)";
+                String insertSql = SqlStatements.load("guilds/insert-resident.sql");
                 try (PreparedStatement statement = connection.prepareStatement(insertSql)) {
                     statement.setString(1, guildId);
                     statement.setString(2, residentUuid.toString());
@@ -738,7 +689,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Update resident's guild name
-                String updateResidentSql = "UPDATE residents SET guild_name = ? WHERE uuid = ?";
+                String updateResidentSql = SqlStatements.load("guilds/update-resident-guild.sql");
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
                     statement.setString(1, guildName);
                     statement.setString(2, residentUuid.toString());
@@ -765,7 +716,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Get guild ID
-                String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+                String getGuildIdSql = SqlStatements.load("guilds/select-id-by-name.sql");
                 String guildId = null;
 
                 try (PreparedStatement statement = connection.prepareStatement(getGuildIdSql)) {
@@ -781,7 +732,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Remove resident from guild
-                String deleteSql = "DELETE FROM guild_residents WHERE guild_id = ? AND resident_uuid = ?";
+                String deleteSql = SqlStatements.load("guilds/delete-resident.sql");
                 try (PreparedStatement statement = connection.prepareStatement(deleteSql)) {
                     statement.setString(1, guildId);
                     statement.setString(2, residentUuid.toString());
@@ -790,7 +741,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Update resident's guild name
-                String updateResidentSql = "UPDATE residents SET guild_name = NULL WHERE uuid = ?";
+                String updateResidentSql = SqlStatements.load("guilds/clear-resident-guild-by-uuid.sql");
                 try (PreparedStatement statement = connection.prepareStatement(updateResidentSql)) {
                     statement.setString(1, residentUuid.toString());
 
@@ -816,7 +767,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         databaseManager.executeTransaction(connection -> {
             try {
                 // Update guild's mayor
-                String updateGuildSql = "UPDATE guilds SET mayor_uuid = ? WHERE name = ?";
+                String updateGuildSql = SqlStatements.load("guilds/update-mayor.sql");
                 try (PreparedStatement statement = connection.prepareStatement(updateGuildSql)) {
                     statement.setString(1, mayorUuid.toString());
                     statement.setString(2, guildName);
@@ -830,7 +781,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
                 }
 
                 // Update resident's role in guild
-                String updateRoleSql = "UPDATE guild_residents SET role = 'mayor' WHERE guild_id = (SELECT id FROM guilds WHERE name = ?) AND resident_uuid = ?";
+                String updateRoleSql = SqlStatements.load("guilds/set-role-mayor.sql");
                 try (PreparedStatement statement = connection.prepareStatement(updateRoleSql)) {
                     statement.setString(1, guildName);
                     statement.setString(2, mayorUuid.toString());
@@ -852,7 +803,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public boolean addGuildAssistant(String guildName, UUID assistantUuid) {
-        String sql = "UPDATE guild_residents SET role = 'assistant' WHERE guild_id = (SELECT id FROM guilds WHERE name = ?) AND resident_uuid = ?";
+        String sql = SqlStatements.load("guilds/set-role-assistant.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -876,7 +827,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public boolean removeGuildAssistant(String guildName, UUID assistantUuid) {
-        String sql = "UPDATE guild_residents SET role = 'resident' WHERE guild_id = (SELECT id FROM guilds WHERE name = ?) AND resident_uuid = ?";
+        String sql = SqlStatements.load("guilds/set-role-resident.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -900,7 +851,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public int getGuildResidentCount(String guildName) {
-        String sql = "SELECT COUNT(*) FROM guild_residents WHERE guild_id = (SELECT id FROM guilds WHERE name = ?)";
+        String sql = SqlStatements.load("guilds/count-residents-by-guild-name.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -922,8 +873,8 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public double updateGuildBalance(String guildName, double amount) {
-        String updateSql = "UPDATE guilds SET balance = balance + ? WHERE name = ?";
-        String selectSql = "SELECT balance FROM guilds WHERE name = ?";
+        String updateSql = SqlStatements.load("guilds/add-balance-by-name.sql");
+        String selectSql = SqlStatements.load("guilds/select-balance-by-name.sql");
 
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -960,10 +911,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public List<Guild> getOpenGuilds() {
-        String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                    "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates, " +
-                    GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE is_open = TRUE ORDER BY name";
+        String sql = SqlStatements.load("guilds/select-open.sql");
         List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -989,10 +937,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
 
     @Override
     public List<Guild> searchGuilds(String query) {
-        String sql = "SELECT id, name, mayor_uuid, balance, home_block_x, home_block_z, home_block_world, " +
-                    "spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world, " +
-                    "is_open, created_at, permissions_flags, tax_rates, " +
-                    GUILD_PROGRESS_COLUMNS + " FROM guilds WHERE name LIKE ? ORDER BY name";
+        String sql = SqlStatements.load("guilds/select-search.sql");
         List<Guild> guilds = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -1185,7 +1130,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
      * Load residents for a guild
      */
     private void loadGuildResidents(Connection connection, Guild guild) throws SQLException {
-        String sql = "SELECT resident_uuid, role FROM guild_residents WHERE guild_id = ?";
+        String sql = SqlStatements.load("guilds/select-resident-roles.sql");
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, guild.getId());
@@ -1238,7 +1183,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
             return false;
         }
 
-        String sql = "UPDATE guilds SET spawn_x = ?, spawn_y = ?, spawn_z = ?, spawn_yaw = ?, spawn_pitch = ?, spawn_world = ? WHERE name = ?";
+        String sql = SqlStatements.load("guilds/update-spawn.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1278,7 +1223,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         logger.info("Setting home_block fallback spawn for guild " + guildName + " at location: " + location.toDisplayString());
 
         // Try with home_block_y first
-        String sqlWithY = "UPDATE guilds SET home_block_x = ?, home_block_z = ?, home_block_y = ?, home_block_world = ? WHERE name = ?";
+        String sqlWithY = SqlStatements.load("guilds/update-home-with-y.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sqlWithY)) {
@@ -1324,7 +1269,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     private boolean setHomeBlockAsSpawnFallbackWithoutY(String guildName, Location location) {
         logger.info("Setting home_block fallback WITHOUT Y for guild " + guildName + " at location: " + location.toDisplayString());
 
-        String sql = "UPDATE guilds SET home_block_x = ?, home_block_z = ?, home_block_world = ? WHERE name = ?";
+        String sql = SqlStatements.load("guilds/update-home.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1360,7 +1305,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
     public Optional<Location> getGuildSpawn(String guildName) {
         logger.info("Getting spawn for guild: " + guildName);
 
-        String sql = "SELECT spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, spawn_world FROM guilds WHERE name = ?";
+        String sql = SqlStatements.load("guilds/select-spawn.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1450,7 +1395,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
      */
     private Optional<Location> getHomeBlockAsSpawn(String guildName) {
         // Try with home_block_y first
-        String sqlWithY = "SELECT home_block_x, home_block_y, home_block_z, home_block_world FROM guilds WHERE name = ?";
+        String sqlWithY = SqlStatements.load("guilds/select-home-with-y.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sqlWithY)) {
@@ -1498,7 +1443,7 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
      * Fallback method to use home_block without Y coordinate
      */
     private Optional<Location> getHomeBlockAsSpawnWithoutY(String guildName) {
-        String sql = "SELECT home_block_x, home_block_z, home_block_world FROM guilds WHERE name = ?";
+        String sql = SqlStatements.load("guilds/select-home.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {

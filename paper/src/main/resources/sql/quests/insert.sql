@@ -1,0 +1,1 @@
+INSERT INTO guild_quests (id, guild_id, quest_type, description, target_amount, current_progress, tech_point_reward, is_active, is_completed, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

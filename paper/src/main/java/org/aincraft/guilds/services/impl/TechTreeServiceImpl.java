@@ -5,6 +5,7 @@ package org.aincraft.guilds.services.impl;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
@@ -67,11 +68,7 @@ public class TechTreeServiceImpl implements TechTreeService {
         ensureDefinitionsLoaded();
 
         try (Connection conn = databaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(SqlSupport.upsertSql(conn, """
-            INSERT INTO tech_tree_nodes
-                (id, name, branch, cost, prerequisites, effects, position_x, position_y)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, "id", """
+             PreparedStatement ps = conn.prepareStatement(SqlSupport.upsertSql(conn, SqlStatements.load("tech/insert-node.sql"), "id", """
                 name = EXCLUDED.name,
                 branch = EXCLUDED.branch,
                 cost = EXCLUDED.cost,
@@ -203,7 +200,7 @@ public class TechTreeServiceImpl implements TechTreeService {
 
     @Override
     public void loadGuildTechData(Guild guild) {
-        String sql = "SELECT node_id, unlocked_at FROM guild_unlocked_nodes WHERE guild_id = ?";
+        String sql = SqlStatements.load("tech/select-unlocks.sql");
 
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -236,14 +233,11 @@ public class TechTreeServiceImpl implements TechTreeService {
     @Override
     public void saveGuildTechData(Guild guild) {
         // Delete existing unlocks for this guild and re-insert
-        String deleteSql = "DELETE FROM guild_unlocked_nodes WHERE guild_id = ?";
+        String deleteSql = SqlStatements.load("tech/delete-unlocks.sql");
 
         try (Connection conn = databaseManager.getConnection()) {
             conn.setAutoCommit(false);
-            String insertSql = SqlSupport.upsertSql(conn, """
-            INSERT INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
-            VALUES (?, ?, ?)
-            """, "guild_id, node_id", "unlocked_at = EXCLUDED.unlocked_at");
+            String insertSql = SqlSupport.upsertSql(conn, SqlStatements.load("tech/insert-unlock.sql"), "guild_id, node_id", "unlocked_at = EXCLUDED.unlocked_at");
 
             try (PreparedStatement del = conn.prepareStatement(deleteSql)) {
                 del.setString(1, guild.getId());

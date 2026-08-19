@@ -1,0 +1,1 @@
+UPDATE guilds SET name = ?, mayor_uuid = ?, balance = ?, home_block_x = ?, home_block_z = ?, home_block_world = ?, spawn_x = ?, spawn_y = ?, spawn_z = ?, spawn_yaw = ?, spawn_pitch = ?, spawn_world = ?, is_open = ?, permissions_flags = ?, tax_rates = ?, pvp_enabled = ?, fire_enabled = ?, explosions_enabled = ?, mobs_enabled = ?, public_enabled = ? WHERE id = ?

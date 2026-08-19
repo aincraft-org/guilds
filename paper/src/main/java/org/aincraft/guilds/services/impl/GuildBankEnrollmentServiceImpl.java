@@ -1,6 +1,7 @@
 package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.GuildBankEnrollmentService;
@@ -45,10 +46,7 @@ public class GuildBankEnrollmentServiceImpl implements GuildBankEnrollmentServic
             if (!guild.getResidents().contains(playerUuid)) return EnrollmentResult.NOT_CURRENT_MEMBER;
             String now = LocalDateTime.now().toString();
             try (Connection connection = databaseManager.getConnection()) {
-                String sql = SqlSupport.upsertSql(connection, """
-                INSERT INTO guild_bank_enrollments (guild_id, player_uuid, active, enrolled_at, updated_at)
-                VALUES (?, ?, TRUE, ?, ?)
-                """, "guild_id, player_uuid", "active = TRUE, updated_at = EXCLUDED.updated_at");
+                String sql = SqlSupport.upsertSql(connection, SqlStatements.load("bank/upsert-enrollment.sql"), "guild_id, player_uuid", "active = TRUE, updated_at = EXCLUDED.updated_at");
                 try (PreparedStatement statement = connection.prepareStatement(sql)) {
                     statement.setString(1, guild.getId());
                     statement.setString(2, playerUuid.toString());
@@ -70,7 +68,7 @@ public class GuildBankEnrollmentServiceImpl implements GuildBankEnrollmentServic
             if (playerUuid == null || guildId == null) return false;
             Guild guild = guildService.getGuildById(guildId).orElse(null);
             if (guild == null || !guild.getResidents().contains(playerUuid)) return false;
-            String sql = "SELECT active FROM guild_bank_enrollments WHERE guild_id = ? AND player_uuid = ?";
+            String sql = SqlStatements.load("bank/select-active.sql");
             try (Connection connection = databaseManager.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, guild.getId());
                 statement.setString(2, playerUuid.toString());
@@ -93,7 +91,7 @@ public class GuildBankEnrollmentServiceImpl implements GuildBankEnrollmentServic
     public CompletionStage<Integer> deactivateForGuild(String guildId) {
         return CompletableFuture.supplyAsync(() -> {
             if (guildId == null) return 0;
-            String sql = "UPDATE guild_bank_enrollments SET active = FALSE, updated_at = ? WHERE guild_id = ? AND active = TRUE";
+            String sql = SqlStatements.load("bank/deactivate-guild.sql");
             try (Connection connection = databaseManager.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, LocalDateTime.now().toString());
                 statement.setString(2, guildId);
@@ -107,7 +105,7 @@ public class GuildBankEnrollmentServiceImpl implements GuildBankEnrollmentServic
 
     private boolean updateActive(UUID playerUuid, String guildId) {
         if (playerUuid == null || guildId == null) return false;
-        String sql = "UPDATE guild_bank_enrollments SET active = FALSE, updated_at = ? WHERE guild_id = ? AND player_uuid = ? AND active = TRUE";
+        String sql = SqlStatements.load("bank/deactivate-player.sql");
         try (Connection connection = databaseManager.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, LocalDateTime.now().toString());
             statement.setString(2, guildId);
