@@ -471,13 +471,15 @@ upkeep:
 
 ## Persistence
 
-All durable plugin state is stored in one shared PostgreSQL database and one
-HikariCP pool. Territory, influence, standing, reconciliation, facility, expense, and
-Guilds data are initialized in PostgreSQL; there are no JSON, SQLite, or
-per-store fallback backends.
+All durable plugin state is stored in one shared SQL database and one
+HikariCP pool. PostgreSQL is the default; MySQL 8.x is selectable with
+`database.type: mysql` (port `3306`). Territory, influence, standing,
+reconciliation, facility, expense, and Guilds data share that pool; there
+are no JSON, SQLite, or per-store fallback backends.
 
 ```yaml
 database:
+  type: postgresql
   host: db.example.com
   port: 5432
   name: azoth_territory
@@ -490,7 +492,7 @@ database:
 ```
 
 The database must exist and the configured role must be able to create tables.
-The plugin initializes the schema at startup and disables itself if PostgreSQL
-is unreachable. API mutations (`PUT`/`DELETE`) commit to PostgreSQL before
-updating the in-memory registry, so a failed save returns HTTP 500 and leaves
-the served data unchanged.
+The plugin initializes the schema at startup and disables itself if the
+configured SQL database is unreachable. API mutations (`PUT`/`DELETE`) commit
+to SQL before updating the in-memory registry, so a failed save returns HTTP
+500 and leaves the served data unchanged.
