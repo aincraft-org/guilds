@@ -1,7 +1,7 @@
 # Guilds — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-16  
+> Last updated: 2026-08-19  
 > Related: archived docs under `docs/archived-guilds/docs/`;  
 > `docs/superpowers/specs/2026-08-07-guild-contracts-design.md`
 
@@ -11,7 +11,7 @@ Provide the **player organization layer**: guilds (guilds) and alliances, with
 plots, residents, roles/permissions, chat, progression (levels, resources, tech
 tree, specializations, quests), and service APIs that feed **governance**.
 
-Ships **in the same Paper plugin JAR** as Azoth Territory — one main class,
+Ships **in the same Paper plugin JAR** as Guilds — one main class,
 shared PostgreSQL, composition root `GuildsServices` / `GuildsGovernanceSource`.
 
 Success looks like: players run guilds through Brigadier commands; territory
@@ -61,7 +61,7 @@ contracts are durable and transactional where money/items move.
 | Commands | `paper/.../org.aincraft.guilds.commands` |
 | DB / migrations | `paper/.../org.aincraft.guilds.database` |
 | Governance bridge | `GuildsGovernanceSource` |
-| Composition | `GuildsServices` from `AzothTerritoryPlugin` |
+| Composition | `GuildsServices` from `GuildsPlugin` |
 
 - Prefer service interfaces for contracts/levels so territory domain stays free of guild SQL.
 - When changing form or permission defaults, update **governance** living spec and form matrices together.
@@ -92,7 +92,7 @@ contracts are durable and transactional where money/items move.
 - [x] Level deposit / upgrade progression (XP-only; skill points = guild level)
 - [x] Tech tree projects (one active at a time) / specialization / quest services
 - [x] Guild contracts service + migration (`GuildContractService`)
-- [x] Integrated enable path from `AzothTerritoryPlugin`
+- [x] Integrated enable path from `GuildsPlugin`
 
 ### Open on the current surface
 
@@ -122,7 +122,8 @@ Nation vocabulary is retired in territory docs; command names may still say
 
 | Date | Decision | Why |
 |------|----------|-----|
-| (merge) | Guilds live inside azoth-territory Paper module | Single deployable; shared DB and governance |
+| (merge) | Guilds live inside the Paper plugin | Single deployable; shared DB and governance |
+| 2026-08-19 | Plugin identity is Guilds, not Azoth Territory | One Paper name, jar, package root, and data folder |
 | (core) | Guilds + alliances replace nation vocabulary in domain | Clearer federal model |
 | 2026-08-07 | Contracts as service API first | Escrow correctness before UX |
 | 2026-08-06+ | Postgres only for guilds schema | Unified persistence |

@@ -20,7 +20,7 @@ import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.GuildsConfig;
 import org.aincraft.guilds.database.DatabaseManager;
-import com.azoth.territory.persist.Database;
+import org.aincraft.guilds.territory.persist.Database;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
 import org.aincraft.guilds.gui.TechTreeGUI;
 import org.aincraft.guilds.listeners.AllianceListener;
@@ -72,8 +72,8 @@ import org.aincraft.guilds.services.impl.GuildToggleServiceImpl;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
-import com.azoth.territory.economy.GuildBankCapacity;
-import com.azoth.territory.economy.MintEconomyRail;
+import org.aincraft.guilds.territory.economy.GuildBankCapacity;
+import org.aincraft.guilds.territory.economy.MintEconomyRail;
 
 import java.io.File;
 import java.io.IOException;
@@ -85,7 +85,7 @@ import java.util.logging.Logger;
 
 /**
  * Manual composition root and lifecycle owner for the Guilds subsystem, hosted
- * directly by the single Azoth Territory {@link JavaPlugin}. There is no second
+ * directly by the single Guilds {@link JavaPlugin}. There is no second
  * plugin identity: the host owns commands, listeners, data folder, and config.
  *
  * <p>Plain constructor wiring replaces the former Guice {@code GuildsModule}: every
@@ -231,7 +231,7 @@ public class GuildsServices {
         // Listeners
         playerMovementListener = new PlayerMovementListener(plugin, plotService, guildService,
                 residentService, plotTypeHandlerManager, plotTypeRegistry,
-                ((com.azoth.territory.AzothTerritoryPlugin) plugin).getRegistry());
+                ((org.aincraft.guilds.GuildsPlugin) plugin).getRegistry());
         guildToggleListener = new GuildToggleListener(plugin, permissionService);
         guildPublicAccessListener = new GuildPublicAccessListener(plugin, permissionService, residentService);
         guildBroadcastListener = new GuildBroadcastListener(plugin, broadcastService, residentService,
@@ -392,7 +392,7 @@ public class GuildsServices {
      * Lazily construct and register the hearthstone teleport service/listener
      * once the canonical {@link BlockProtection} is available.
      */
-    public void registerHearthstone(com.azoth.territory.permission.BlockProtection blockProtection) {
+    public void registerHearthstone(org.aincraft.guilds.territory.permission.BlockProtection blockProtection) {
         if (blockProtection == null || hearthstoneService != null) {
             return;
         }
@@ -546,7 +546,7 @@ public class GuildsServices {
      * territory chunks that have no plot rows (late-bound from the host
      * plugin, which owns the territory registry).
      */
-    public void wireTerritoryRegistry(com.azoth.territory.registry.TerritoryRegistry registry) {
+    public void wireTerritoryRegistry(org.aincraft.guilds.territory.registry.TerritoryRegistry registry) {
         if (permissionService instanceof PermissionServiceImpl impl) {
             impl.setTerritoryRegistry(registry);
         }

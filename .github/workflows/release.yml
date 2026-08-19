@@ -74,8 +74,8 @@ jobs:
           STABLE_VERSION: ${{ inputs.stable_version }}
         run: |
           set -euo pipefail
-          plugin="paper/build/libs/azoth-territory-${STABLE_VERSION}.jar"
-          sources="paper/build/libs/azoth-territory-${STABLE_VERSION}-sources.jar"
+          plugin="paper/build/libs/guilds-${STABLE_VERSION}.jar"
+          sources="paper/build/libs/guilds-${STABLE_VERSION}-sources.jar"
           test -s "${plugin}"
           test -s "${sources}"
           sha256sum "${plugin}" > "${plugin}.sha256"
@@ -88,12 +88,12 @@ jobs:
           STABLE_VERSION: ${{ inputs.stable_version }}
         run: |
           set -euo pipefail
-          plugin="paper/build/libs/azoth-territory-${STABLE_VERSION}.jar"
-          sources="paper/build/libs/azoth-territory-${STABLE_VERSION}-sources.jar"
+          plugin="paper/build/libs/guilds-${STABLE_VERSION}.jar"
+          sources="paper/build/libs/guilds-${STABLE_VERSION}-sources.jar"
           notes="$(mktemp)"
           trap 'rm -f "${notes}"' EXIT
           cat > "${notes}" <<NOTES
-          ## Azoth Territory ${STABLE_VERSION}
+          ## Guilds ${STABLE_VERSION}
 
           Stable release built from commit \`${GITHUB_SHA}\`.
 
@@ -105,6 +105,6 @@ jobs:
             "${sources}" "${sources}.sha256" \
             --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
-            --title "Azoth Territory ${STABLE_VERSION}" \
+            --title "Guilds ${STABLE_VERSION}" \
             --notes-file "${notes}" \
             --latest

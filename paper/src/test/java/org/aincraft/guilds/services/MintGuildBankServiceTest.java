@@ -1,7 +1,7 @@
 package org.aincraft.guilds.services;
 
-import com.azoth.territory.economy.GuildBankCapacity;
-import com.azoth.territory.economy.MintOperationResult;
+import org.aincraft.guilds.territory.economy.GuildBankCapacity;
+import org.aincraft.guilds.territory.economy.MintOperationResult;
 import org.aincraft.guilds.models.Guild;
 import org.junit.jupiter.api.Test;
 

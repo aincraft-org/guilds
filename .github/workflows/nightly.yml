@@ -68,16 +68,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar"
-          test -f "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar"
+          test -f "paper/build/libs/guilds-${RELEASE_VERSION}.jar"
+          test -f "paper/build/libs/guilds-${RELEASE_VERSION}-sources.jar"
 
       - name: Compute artifact checksums
         shell: bash
         run: |
           set -euo pipefail
           for artifact in \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar" \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar"; do
+            "paper/build/libs/guilds-${RELEASE_VERSION}.jar" \
+            "paper/build/libs/guilds-${RELEASE_VERSION}-sources.jar"; do
             sha256sum "$artifact" > "$artifact.sha256"
           done
 
@@ -86,8 +86,8 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
-            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}.jar
-            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}-sources.jar
+            paper/build/libs/guilds-${{ env.RELEASE_VERSION }}.jar
+            paper/build/libs/guilds-${{ env.RELEASE_VERSION }}-sources.jar
 
       - name: Normalize provenance bundle
         shell: bash
@@ -95,17 +95,17 @@ jobs:
           set -euo pipefail
           bundle="${{ steps.attest.outputs.bundle-path }}"
           test -s "$bundle"
-          cp "$bundle" "paper/build/libs/azoth-territory-${RELEASE_VERSION}.provenance.jsonl"
+          cp "$bundle" "paper/build/libs/guilds-${RELEASE_VERSION}.provenance.jsonl"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nightly-${{ env.RELEASE_VERSION }}
           path: |
-            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}.jar
-            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}-sources.jar
+            paper/build/libs/guilds-${{ env.RELEASE_VERSION }}.jar
+            paper/build/libs/guilds-${{ env.RELEASE_VERSION }}-sources.jar
             paper/build/libs/*.sha256
-            paper/build/libs/azoth-territory-${{ env.RELEASE_VERSION }}.provenance.jsonl
+            paper/build/libs/guilds-${{ env.RELEASE_VERSION }}.provenance.jsonl
           retention-days: 1
           if-no-files-found: error
 
@@ -187,11 +187,11 @@ jobs:
           upload_url="$(jq -r '.upload_url' "$release_json" | sed 's/{?name,label}//')"
           test -n "$upload_url"
           for artifact in \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar" \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar" \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.jar.sha256" \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}-sources.jar.sha256" \
-            "paper/build/libs/azoth-territory-${RELEASE_VERSION}.provenance.jsonl"; do
+            "paper/build/libs/guilds-${RELEASE_VERSION}.jar" \
+            "paper/build/libs/guilds-${RELEASE_VERSION}-sources.jar" \
+            "paper/build/libs/guilds-${RELEASE_VERSION}.jar.sha256" \
+            "paper/build/libs/guilds-${RELEASE_VERSION}-sources.jar.sha256" \
+            "paper/build/libs/guilds-${RELEASE_VERSION}.provenance.jsonl"; do
             content_type="application/octet-stream"
             case "$artifact" in
               *.jar) content_type="application/java-archive" ;;
@@ -218,8 +218,8 @@ jobs:
           test "$(jq -r '.tag_name' <<<"$nightly")" = nightly
           test "$(jq -r '.draft' <<<"$nightly")" = false
           test "$(jq -r '.prerelease' <<<"$nightly")" = false
-          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar")) != null' <<<"$nightly" > /dev/null
-          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar")) != null' <<<"$nightly" > /dev/null
-          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".jar.sha256")) != null' <<<"$nightly" > /dev/null
-          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + "-sources.jar.sha256")) != null' <<<"$nightly" > /dev/null
-          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("azoth-territory-" + $version + ".provenance.jsonl")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("guilds-" + $version + ".jar")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("guilds-" + $version + "-sources.jar")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("guilds-" + $version + ".jar.sha256")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("guilds-" + $version + "-sources.jar.sha256")) != null' <<<"$nightly" > /dev/null
+          jq -e --arg version "$RELEASE_VERSION" '.assets | map(.name) | index(("guilds-" + $version + ".provenance.jsonl")) != null' <<<"$nightly" > /dev/null

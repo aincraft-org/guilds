@@ -1,9 +1,9 @@
 package org.aincraft.guilds.listeners;
 
 
-import com.azoth.territory.listener.TerritoryTransitionTitleFormatter;
-import com.azoth.territory.model.LookupResult;
-import com.azoth.territory.registry.TerritoryRegistry;
+import org.aincraft.guilds.territory.listener.TerritoryTransitionTitleFormatter;
+import org.aincraft.guilds.territory.model.LookupResult;
+import org.aincraft.guilds.territory.registry.TerritoryRegistry;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -227,7 +227,7 @@ public class PlayerMovementListener implements Listener {
     }
 
     private record TerritoryLocation(String territoryId, String territoryName,
-                                     com.azoth.territory.model.ZoneType zoneType) {
+                                     org.aincraft.guilds.territory.model.ZoneType zoneType) {
         private static final TerritoryLocation OUTSIDE = new TerritoryLocation(null, null, null);
 
         private boolean contained() {

@@ -49,7 +49,7 @@ idempotent on fresh databases.
 | Pool / settings | `common/.../persist` |
 | Territory/economy/influence/standing stores | `common/.../persist` + domain packages |
 | Guilds schema | `paper/.../org.aincraft.guilds.database` |
-| Plugin wiring | `AzothTerritoryPlugin` |
+| Plugin wiring | `GuildsPlugin` |
 
 - Prefer JSONB documents where already established (territory, influence state)
   rather than drive-by normalization.

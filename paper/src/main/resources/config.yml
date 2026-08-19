@@ -1,4 +1,4 @@
-# Azoth Territory configuration
+# Guilds configuration
 
 # Embedded web submodule (REST API only; the map is served by squaremap).
 # Typical production: leave tls.enabled=false and terminate HTTPS on nginx/Caddy,
@@ -34,9 +34,9 @@ database:
   # Override only with a driver-supported mode; remote fallback modes are rejected.
   # ssl-mode: verify-full
   # PostgreSQL only: PEM root CA used as the `sslrootcert` driver property.
-  # ssl-ca-cert: /etc/azoth/postgres-ca.crt
+  # ssl-ca-cert: /etc/guilds/postgres-ca.crt
   # MySQL only: JKS or PKCS12 trust store; do not provide a PEM file here.
-  # ssl-trust-store: /etc/azoth/mysql-truststore.p12
+  # ssl-trust-store: /etc/guilds/mysql-truststore.p12
   # ssl-trust-store-password: ""
   # ssl-trust-store-type: PKCS12
   pool-size: 10
@@ -53,7 +53,7 @@ economy:
   mode: SIMULATION
   mint:
     currency: coins
-    client-binding: AzothTerritory
+    client-binding: Guilds
     scale: 2
 
 # Recurring treasury upkeep for governed territories.

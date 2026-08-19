@@ -1,7 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.persist.PostgresDatabase;
+import org.aincraft.guilds.territory.PostgresTestDatabase;
+import org.aincraft.guilds.territory.persist.PostgresDatabase;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

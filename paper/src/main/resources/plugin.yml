@@ -1,26 +1,26 @@
-name: AzothTerritory
+name: Guilds
 version: ${version}
-main: com.azoth.territory.AzothTerritoryPlugin
+main: org.aincraft.guilds.GuildsPlugin
 api-version: '26.2'
 description: ${description}
-author: Azoth
-website: https://github.com/azoth/azoth-territory
+author: Aincraft
+website: https://github.com/aincraft-org/territories
 load: POSTWORLD
 softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap]
 commands:
   territory:
     description: Inspect territory and zone at a location
     usage: /territory [lookup|list|building|reload|invasion]
-    aliases: [azterritory, at]
+    aliases: [gterritory]
 # Guilds commands are registered dynamically via Paper Brigadier lifecycle
 permissions:
-  azoth.territory.admin:
+  guilds.territory.admin:
     description: Administer and inspect territories
     default: op
-  azoth.territory.building.manage:
+  guilds.territory.building.manage:
     description: Register and remove facilities in governed territory
     default: true
-  territory.admin.invasion:
+  guilds.territory.invasion:
     description: Start, stop, and inspect guild mob invasions
     default: op
 

@@ -1,6 +1,6 @@
 package org.aincraft.guilds.services.impl;
 
-import com.azoth.territory.permission.BlockProtection;
+import org.aincraft.guilds.territory.permission.BlockProtection;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Location;
 import org.aincraft.guilds.services.GuildService;

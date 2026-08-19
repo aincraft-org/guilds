@@ -48,7 +48,7 @@ safe for real deployments; token auth on mutating routes.
 |-------|----------|
 | Server / config | `common/.../web` |
 | Handler | `TerritoryApiHandler` |
-| Plugin start/stop | `AzothTerritoryPlugin` |
+| Plugin start/stop | `GuildsPlugin` |
 | Config | `web.*` in plugin config |
 
 - Prefer small JSON contracts stable for squaremap bridge consumers and future editor.

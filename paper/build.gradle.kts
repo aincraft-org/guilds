@@ -9,7 +9,7 @@ plugins {
     id("xyz.jpenilla.run-paper") version "3.0.2"
 }
 
-description = "Azoth Territory Paper plugin — Bukkit glue, listeners, commands, and the integrated Guilds subsystem"
+description = "Guilds Paper plugin — Bukkit glue, listeners, commands, and the integrated Guilds subsystem"
 
 dependencies {
     implementation(project(":api"))
@@ -45,14 +45,14 @@ tasks.processResources {
     }
 }
 tasks.named<Jar>("sourcesJar") {
-    archiveBaseName.set("azoth-territory")
+    archiveBaseName.set("guilds")
     archiveVersion.set(project.version.toString())
 }
 
 
 tasks.jar {
     // Thin jar kept for sources/debug; delivery unit is shadowJar
-    archiveBaseName.set("azoth-territory")
+    archiveBaseName.set("guilds")
     archiveClassifier.set("thin")
     manifest {
         attributes(
@@ -63,7 +63,7 @@ tasks.jar {
 }
 
 tasks.shadowJar {
-    archiveBaseName.set("azoth-territory")
+    archiveBaseName.set("guilds")
     archiveClassifier.set("")
     archiveVersion.set(project.version.toString())
     mergeServiceFiles()
@@ -80,7 +80,7 @@ tasks.assemble {
 }
 
 // Local test server: ./gradlew :paper:runServer
-// Boots Paper 26.2 with the azoth-territory shadow jar plus the squaremap
+// Boots Paper 26.2 with the guilds shadow jar plus the squaremap
 // 1.3.15 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
 // serves its live web map on http://localhost:8080 by default.
 val mintPluginOwner = providers.gradleProperty("mintPluginOwner").orNull

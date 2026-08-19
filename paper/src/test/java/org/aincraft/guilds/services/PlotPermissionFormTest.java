@@ -1,11 +1,11 @@
 package org.aincraft.guilds.services;
 
-import com.azoth.territory.model.BlockPos;
-import com.azoth.territory.model.Boundary;
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.Territory;
-import com.azoth.territory.model.ZoneType;
-import com.azoth.territory.registry.TerritoryRegistry;
+import org.aincraft.guilds.territory.model.BlockPos;
+import org.aincraft.guilds.territory.model.Boundary;
+import org.aincraft.guilds.territory.model.Government;
+import org.aincraft.guilds.territory.model.Territory;
+import org.aincraft.guilds.territory.model.ZoneType;
+import org.aincraft.guilds.territory.registry.TerritoryRegistry;
 import org.aincraft.guilds.GuildsServiceTestFixture;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildBlock;

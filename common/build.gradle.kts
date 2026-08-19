@@ -2,7 +2,7 @@ plugins {
     `java-library`
 }
 
-description = "Azoth Territory shared implementation — Paper-free persistence, economy, governance logic, and web submodule"
+description = "Guilds shared implementation — Paper-free persistence, economy, governance logic, and web submodule"
 
 dependencies {
     api(project(":api"))

@@ -1,8 +1,8 @@
 # Economy — Living Spec
 
 > Status: active
-> Last updated: 2026-08-12
-> Owners: azoth-territory
+> Last updated: 2026-08-19
+> Owners: guilds
 > Index: [README.md](./README.md)
 >
 > Related one-shot designs (historical; this catalog is authoritative for intent going forward):
@@ -15,7 +15,7 @@
 
 ## Intent
 
-Azoth Territory owns a **settlement economy kernel**: other plugins report taxable commerce and schedule treasury expenses; Azoth resolves *where* the activity happened, *who* governs that land, *what rate* PASSED policy decrees impose, and *how* money moves — without becoming a shop, auction house, or inventory system.
+Guilds owns a **settlement economy kernel**: other plugins report taxable commerce and schedule treasury expenses; Guilds resolves *where* the activity happened, *who* governs that land, *what rate* PASSED policy decrees impose, and *how* money moves — without becoming a shop, auction house, or inventory system.
 
 Success looks like:
 
@@ -53,7 +53,7 @@ Success looks like:
 Settled law for this domain (plain bullets — do not “checkbox” these):
 
 1. **Single money seam.** All real transfers go through `PaymentRail` (`settle` for payer→treasury tax; `debitTreasury` for treasury→sink expenses). No ad-hoc Vault calls from bridge callers.
-2. **One active rail.** Exactly one of VAULT or SIMULATION is authoritative; never dual-write “Azoth ledger + Vault bank” as both truths for balances.
+2. **One active rail.** Exactly one of VAULT or SIMULATION is authoritative; never dual-write “Guilds ledger + Vault bank” as both truths for balances.
 3. **TAXED means both legs done.** `TaxOutcome.TAXED` only when payer was charged *and* treasury credited. Partial failures are net-zero (`SETTLEMENT_FAILED`) or durable unknown (`SETTLEMENT_RECONCILIATION_REQUIRED`) — never silent success.
 4. **Pre-transfer outcomes mutate nothing.** `NO_TERRITORY`, `NO_GOVERNMENT`, `NO_TAX`, `UNKNOWN_GOOD`, `INVALID_AMOUNT` / quantity, `PAYER_UNAVAILABLE`, `VAULT_UNAVAILABLE`, `INSUFFICIENT_FUNDS` leave balances unchanged.
 5. **Tax only from PASSED policies.** Proposed/rejected policies contribute no rates; rates merge additively via `DecreeEffectsInterpreter.taxRatesFromPolicies`.
@@ -191,7 +191,7 @@ Parked; promote to Next/Current before implementing.
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-08-05 | Public `EconomyBridge` first; shops remain external | Keep Azoth a tax/treasury kernel, not a commerce plugin |
+| 2026-08-05 | Public `EconomyBridge` first; shops remain external | Keep Guilds a tax/treasury kernel, not a commerce plugin |
 | 2026-08-05 | Tax rates from PASSED `DecreeEffects` only | Politics owns rates; avoids hard-coded tax tables fighting governance |
 | 2026-08-05 | Single `PaymentRail.settle` encapsulating withdraw→deposit→refund | Callers cannot misorder partial Vault APIs; money invariants stay in one place |
 | 2026-08-05 | VAULT default, SIMULATION opt-in non-monetary | Production fail-closed on real money; tests/dev without Vault |

@@ -1095,7 +1095,7 @@ public class GuildBrigadierCommand {
         }
 
         UUID playerUuid = player.getUniqueId();
-        com.azoth.territory.model.GovernmentForm form = GovernmentFormArgumentType.getForm(ctx, "form");
+        org.aincraft.guilds.territory.model.GovernmentForm form = GovernmentFormArgumentType.getForm(ctx, "form");
 
         var residentOpt = residentService.getResident(playerUuid);
         if (residentOpt.isEmpty() || !residentOpt.get().hasGuild()) {

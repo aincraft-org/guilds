@@ -1,4 +1,4 @@
-# Azoth Territory
+# Guilds
 
 Paper plugin for large map **territories** with nested **Wilderness** and **Claimable** zones — inspired by New World / LokaMC style regions. It also supports administrator-triggered guild mob invasions scoped to guild claims; invasions are not scheduled automatically.
 
@@ -38,7 +38,7 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 
 Multi-module Gradle layout (`api` / `common` / `paper`):
 
-- **`api/`** — public API: value models (`com.azoth.territory.model`), decree
+- **`api/`** — public API: value models (`org.aincraft.guilds.territory.model`), decree
   effects (`…decree`), registries (`…registry`), and contracts
   (`…permission` / `…economy` interfaces and DTOs). Pure Java; no Bukkit types.
 - **`common/`** — Paper-free shared implementation: persistence
@@ -50,7 +50,7 @@ Multi-module Gradle layout (`api` / `common` / `paper`):
   `guilds-config.yml` / `techtree.yml`).
 
 Produces the single Paper plugin JAR:
-`paper/build/libs/azoth-territory-1.1.0.jar`
+`paper/build/libs/guilds-26.8.18.0.jar`
 (shadow/fat jar with Guilds runtime libraries: HikariCP, PostgreSQL, Caffeine).
 
 ```bash
@@ -81,18 +81,18 @@ path unchanged.
 ```
 
 The `runServer` task (run-paper 3.0.2) downloads Paper **26.2**, loads the
-azoth-territory shadow jar, and runs it in `paper/run/`. It also auto-downloads
+guilds shadow jar, and runs it in `paper/run/`. It also auto-downloads
 the **squaremap 1.3.15** Paper jar (the release that targets MC 26.2, pinned
 to the GitHub `v1.3.15` asset) so the live map is available out of the box at
 `http://localhost:8080`.
 
 Territory/zone/influence boundaries are rendered as squaremap layers by the
-in-plugin bridge (`com.azoth.territory.squaremap.TerritorySquaremapBridge`):
+in-plugin bridge (`org.aincraft.guilds.territory.squaremap.TerritorySquaremapBridge`):
 
-- **Azoth Territories** layer — polygon outlines per territory
-- **Azoth Zones** layer — zone fills coloured by type (green WILDERNESS /
+- **Guilds Territories** layer — polygon outlines per territory
+- **Guilds Zones** layer — zone fills coloured by type (green WILDERNESS /
   yellow CLAIMABLE) with name tooltips
-- **Azoth Influence** layer — neutral territory strokes, or red contest
+- **Guilds Influence** layer — neutral territory strokes, or red contest
   fills/strokes with owner and leading-attacker tooltips while a race is active
 
 The bridge refreshes every 5 seconds, so boundaries created via the REST API,
@@ -106,7 +106,7 @@ warning and all map layers are skipped.
 Open `http://localhost:8765/editor/` (same host/port as the territory web
 submodule). Features:
 
-- Login with `web.api-token` → HttpOnly `AZOTH_SESSION` cookie
+- Login with `web.api-token` → HttpOnly `GUILDS_SESSION` cookie
   (`POST /api/session`; TTL from `web.session-ttl-seconds`)
 - Leaflet basemap from squaremap tiles (`web.squaremap-tile-base-url`, default
   `http://localhost:8080` → tiles at
@@ -118,7 +118,7 @@ Public squaremap stays view-only; no squaremap fork required.
 
 Accept the EULA on first run (`paper/run/eula.txt`). The plugin requires the
 shared PostgreSQL database (see "Persistence" below) — point `database.*` in
-`paper/run/plugins/AzothTerritory/config.yml` at a reachable instance.
+`paper/run/plugins/Guilds/config.yml` at a reachable instance.
 
 ### Local pre-commit checks
 
@@ -139,9 +139,8 @@ git config --local --unset core.hooksPath
 ### Integrated Guilds subsystem
 
 Guilds production sources live under the `paper/` module tree
-(`paper/src/main/java/org/aincraft/guilds/`) and ship in the **same** plugin
-artifact as Azoth Territory. There is one `plugin.yml`, one main class
-(`com.azoth.territory.AzothTerritoryPlugin`), and that main enables both
+(`paper/src/main/java/org/aincraft/guilds/`). There is one `plugin.yml`, one
+main class (`org.aincraft.guilds.GuildsPlugin`), and that main enables both
 territory behavior and the guilds subsystem (commands via Paper Brigadier,
 listeners, plain constructor-wired services via the `GuildsServices`
 composition root).
@@ -369,7 +368,7 @@ if (r.isContained()) {
 }
 ```
 
-Domain packages under `com.azoth.territory.model` / `registry` / `persist` are free of Bukkit types for unit testing. The web package (`com.azoth.territory.web`) uses only the JDK HTTP server + domain types (plus Gson).
+Domain packages under `org.aincraft.guilds.territory.model` / `registry` / `persist` are free of Bukkit types for unit testing. The web package (`org.aincraft.guilds.territory.web`) uses only the JDK HTTP server + domain types (plus Gson).
 
 ## Web submodule
 
@@ -380,7 +379,7 @@ Enabled by default on port **8765** (`config.yml` → `web`).
 | GET | `/editor/` | Admin map editor (static UI) |
 | GET | `/api/health` | Liveness + territory count |
 | GET | `/api/meta` | Public origin, scheme, proxy/TLS flags, tile base URL |
-| POST | `/api/session` | Exchange API token for `AZOTH_SESSION` cookie |
+| POST | `/api/session` | Exchange API token for `GUILDS_SESSION` cookie |
 | DELETE | `/api/session` | Logout (clear session cookie) |
 | GET | `/api/territories` | Full registry JSON |
 | GET | `/api/territories/{id}` | One territory |

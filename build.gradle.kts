@@ -12,7 +12,7 @@ plugins {
     id("com.github.spotbugs") version "6.5.10" apply false
 }
 
-group = "com.azoth"
+group = "org.aincraft"
 val releaseVersionPattern =
     Regex("""\d{2}\.([1-9]|1[0-2])\.([1-9]|[12]\d|3[01])\.[1-9]\d*""")
 val requestedReleaseVersion = (findProperty("releaseVersion") as String?)?.takeIf { it.isNotBlank() }
@@ -23,7 +23,7 @@ if (requestedReleaseVersion != null && !requestedReleaseVersion.matches(releaseV
     )
 }
 version = requestedReleaseVersion ?: "26.8.18.0"
-description = "Azoth Territory — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
+description = "Guilds — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
 
 // Shared configuration for the api / common / paper modules.
 // Delivery unit stays the single shadowed Paper plugin JAR built by :paper.

@@ -1,7 +1,7 @@
 package org.aincraft.guilds;
 
-import com.azoth.territory.PostgresTestDatabase;
-import com.azoth.territory.persist.PostgresDatabase;
+import org.aincraft.guilds.territory.PostgresTestDatabase;
+import org.aincraft.guilds.territory.persist.PostgresDatabase;
 import org.aincraft.guilds.config.DatabaseConfig;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.database.migration.SchemaInitializer;
@@ -32,7 +32,7 @@ import static org.mockito.Mockito.when;
 /**
  * Test fixture: real PostgreSQL-backed guilds services wired exactly like the
  * {@link GuildsServices} composition root, against the shared integration
- * database configured by {@code AZOTH_TEST_JDBC_URL}.
+ * database configured by {@code GUILDS_TEST_JDBC_URL}.
  */
 public final class GuildsServiceTestFixture {
 

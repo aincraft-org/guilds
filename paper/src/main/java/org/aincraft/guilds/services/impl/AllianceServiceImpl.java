@@ -2,7 +2,7 @@ package org.aincraft.guilds.services.impl;
 
 
 
-import com.azoth.territory.model.GovernmentForm;
+import org.aincraft.guilds.territory.model.GovernmentForm;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Alliance;

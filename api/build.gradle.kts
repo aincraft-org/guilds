@@ -2,7 +2,7 @@ plugins {
     `java-library`
 }
 
-description = "Azoth Territory public API — value models, decree effects, registries, and contracts"
+description = "Guilds public API — value models, decree effects, registries, and contracts"
 
 dependencies {
     // Serialization of decree effects (DecreeEffectsCodec); implementation-scope only,

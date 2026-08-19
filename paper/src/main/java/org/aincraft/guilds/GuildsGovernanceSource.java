@@ -1,13 +1,13 @@
 package org.aincraft.guilds;
 
-import com.azoth.territory.model.Government;
-import com.azoth.territory.model.GovernmentForm;
-import com.azoth.territory.permission.AllianceBody;
-import com.azoth.territory.permission.GovernanceSource;
-import com.azoth.territory.permission.GuildBody;
-import com.azoth.territory.permission.MemberPermissions;
-import com.azoth.territory.permission.SovereignAction;
-import com.azoth.territory.permission.GuildToggles;
+import org.aincraft.guilds.territory.model.Government;
+import org.aincraft.guilds.territory.model.GovernmentForm;
+import org.aincraft.guilds.territory.permission.AllianceBody;
+import org.aincraft.guilds.territory.permission.GovernanceSource;
+import org.aincraft.guilds.territory.permission.GuildBody;
+import org.aincraft.guilds.territory.permission.MemberPermissions;
+import org.aincraft.guilds.territory.permission.SovereignAction;
+import org.aincraft.guilds.territory.permission.GuildToggles;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Guild;
