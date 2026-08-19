@@ -40,6 +40,18 @@ class SqlSupportTest {
     }
 
     @Test
+    void mysqlStringAggUsesGroupConcat() {
+        assertEquals("GROUP_CONCAT(DISTINCT nm.guild_id SEPARATOR ',')",
+                SqlSupport.stringAggDistinct(true, "nm.guild_id", ","));
+    }
+
+    @Test
+    void postgresStringAggKeepsStringAgg() {
+        assertEquals("STRING_AGG(DISTINCT nm.guild_id, ',')",
+                SqlSupport.stringAggDistinct(false, "nm.guild_id", ","));
+    }
+
+    @Test
     void mysqlIdTypeRewritesKeyedTextColumns() {
         String mysql = SqlSupport.withIdType(true,
                 "CREATE TABLE residents (uuid TEXT PRIMARY KEY, name TEXT NOT NULL, notes TEXT, status TEXT NOT NULL DEFAULT 'OPEN')");

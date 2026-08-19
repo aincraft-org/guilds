@@ -68,6 +68,15 @@ public final class SqlSupport {
         return out.toString();
     }
 
+    public static String stringAggDistinct(boolean mysql, String expression, String separator) {
+        Objects.requireNonNull(expression, "expression");
+        Objects.requireNonNull(separator, "separator");
+        if (mysql) {
+            return "GROUP_CONCAT(DISTINCT " + expression + " SEPARATOR '" + separator + "')";
+        }
+        return "STRING_AGG(DISTINCT " + expression + ", '" + separator + "')";
+    }
+
     public static String upsertSql(boolean mysql, String insert, String conflictColumns, String updates) {
         Objects.requireNonNull(insert, "insert");
         if (mysql) {

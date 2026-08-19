@@ -5,6 +5,7 @@ package org.aincraft.guilds.services.impl;
 import org.aincraft.guilds.territory.model.GovernmentForm;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.AllianceService;
@@ -60,29 +61,32 @@ public class AllianceServiceImpl implements AllianceService {
     }
 
     private void loadAllAlliances() {
-        String sql = """
-            SELECT n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at,
-                   STRING_AGG(DISTINCT nm.guild_id, ',') as member_guilds,
-                   STRING_AGG(DISTINCT nmin.player_uuid, ',') as ministers,
-                   STRING_AGG(DISTINCT nr.other_alliance, ',') as relations,
-                   STRING_AGG(DISTINCT nr.relation_type, ',') as relation_types
-            FROM alliances n
-            LEFT JOIN alliance_members nm ON n.id = nm.alliance_id
-            LEFT JOIN alliance_ministers nmin ON n.id = nmin.alliance_id
-            LEFT JOIN alliance_relations nr ON n.id = nr.alliance_id
-            GROUP BY n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at
-            """;
-
-        try (Connection connection = dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql);
-             ResultSet resultSet = statement.executeQuery()) {
-
-            while (resultSet.next()) {
-                Alliance alliance = loadAllianceFromResult(resultSet);
-                alliancesById.put(alliance.getId(), alliance);
-                alliancesByName.put(alliance.getName().toLowerCase(), alliance);
+        try (Connection connection = dataSource.getConnection()) {
+            boolean mysql = SqlSupport.mysql(connection);
+            String sql = """
+                SELECT n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at,
+                       %s as member_guilds,
+                       %s as ministers,
+                       %s as relations,
+                       %s as relation_types
+                FROM alliances n
+                LEFT JOIN alliance_members nm ON n.id = nm.alliance_id
+                LEFT JOIN alliance_ministers nmin ON n.id = nmin.alliance_id
+                LEFT JOIN alliance_relations nr ON n.id = nr.alliance_id
+                GROUP BY n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at
+                """.formatted(
+                    SqlSupport.stringAggDistinct(mysql, "nm.guild_id", ","),
+                    SqlSupport.stringAggDistinct(mysql, "nmin.player_uuid", ","),
+                    SqlSupport.stringAggDistinct(mysql, "nr.other_alliance", ","),
+                    SqlSupport.stringAggDistinct(mysql, "nr.relation_type", ","));
+            try (PreparedStatement statement = connection.prepareStatement(sql);
+                 ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    Alliance alliance = loadAllianceFromResult(resultSet);
+                    alliancesById.put(alliance.getId(), alliance);
+                    alliancesByName.put(alliance.getName().toLowerCase(), alliance);
+                }
             }
-
             logger.info("Loaded " + alliancesById.size() + " alliances from database");
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Failed to load alliances from database", e);
