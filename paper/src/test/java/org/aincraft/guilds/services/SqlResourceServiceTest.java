@@ -55,4 +55,11 @@ class SqlResourceServiceTest {
                 .contains("INSERT INTO GUILD_LEVEL_BENEFITS"));
     }
 
+    @Test
+    void projectsSqlLivesOnTheClasspath() {
+        assertTrue(SqlStatements.load("projects/insert.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO GUILD_UNLOCKED_NODES"));
+        assertTrue(SqlStatements.load("projects/select-unlocked.sql").contains("WHERE guild_id = ?"));
+    }
+
 }

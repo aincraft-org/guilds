@@ -2,6 +2,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.TechTreeNode;
@@ -72,7 +73,7 @@ public class GuildProjectServiceImpl implements GuildProjectService {
         int unspent;
         String activeProjectId;
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT tech_points, active_project_id FROM guilds WHERE id = ? FOR UPDATE")) {
+                SqlStatements.load("projects/select-guild-for-start.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
@@ -90,7 +91,7 @@ public class GuildProjectServiceImpl implements GuildProjectService {
         }
         int remaining = GuildProjectRules.unspentAfterStart(unspent, node.getCost());
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE guilds SET tech_points = ?, active_project_id = ? WHERE id = ?")) {
+                SqlStatements.load("projects/update-start.sql"))) {
             statement.setInt(1, remaining);
             statement.setString(2, node.getId());
             statement.setString(3, guildId);
@@ -124,7 +125,7 @@ public class GuildProjectServiceImpl implements GuildProjectService {
     private String completeInTransaction(Connection connection, String guildId) throws SQLException {
         String activeProjectId;
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT active_project_id FROM guilds WHERE id = ? FOR UPDATE")) {
+                SqlStatements.load("projects/select-active-for-update.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
@@ -136,17 +137,15 @@ public class GuildProjectServiceImpl implements GuildProjectService {
         if (!GuildProjectRules.canClear(activeProjectId)) {
             return null;
         }
-        try (PreparedStatement statement = connection.prepareStatement(SqlSupport.upsertSql(connection, """
-                INSERT INTO guild_unlocked_nodes (guild_id, node_id, unlocked_at)
-                VALUES (?, ?, ?)
-                """, "guild_id, node_id", "unlocked_at = EXCLUDED.unlocked_at"))) {
+        try (PreparedStatement statement = connection.prepareStatement(SqlSupport.upsertSql(connection,
+                SqlStatements.load("projects/insert.sql"), "guild_id, node_id", "unlocked_at = EXCLUDED.unlocked_at"))) {
             statement.setString(1, guildId);
             statement.setString(2, activeProjectId);
             statement.setString(3, java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).toString());
             statement.executeUpdate();
         }
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE guilds SET active_project_id = NULL WHERE id = ?")) {
+                SqlStatements.load("projects/clear-active.sql"))) {
             statement.setString(1, guildId);
             if (statement.executeUpdate() != 1) {
                 throw new SQLException("Guild project complete updated no row");
@@ -177,7 +176,7 @@ public class GuildProjectServiceImpl implements GuildProjectService {
     private Boolean clearInTransaction(Connection connection, String guildId) throws SQLException {
         String activeProjectId;
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT active_project_id FROM guilds WHERE id = ? FOR UPDATE")) {
+                SqlStatements.load("projects/select-active-for-update.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
@@ -190,7 +189,7 @@ public class GuildProjectServiceImpl implements GuildProjectService {
             return false;
         }
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE guilds SET active_project_id = NULL WHERE id = ?")) {
+                SqlStatements.load("projects/clear-active.sql"))) {
             statement.setString(1, guildId);
             return statement.executeUpdate() == 1;
         }
@@ -206,7 +205,7 @@ public class GuildProjectServiceImpl implements GuildProjectService {
         }
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT active_project_id FROM guilds WHERE id = ?")) {
+                     SqlStatements.load("projects/select-active.sql"))) {
             statement.setString(1, guild.getId());
             try (ResultSet result = statement.executeQuery()) {
                 if (result.next()) {
@@ -239,7 +238,7 @@ public class GuildProjectServiceImpl implements GuildProjectService {
     private static Set<String> loadUnlockedNodes(Connection connection, String guildId) throws SQLException {
         Set<String> unlocked = new HashSet<>();
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT node_id FROM guild_unlocked_nodes WHERE guild_id = ?")) {
+                SqlStatements.load("projects/select-unlocked.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
