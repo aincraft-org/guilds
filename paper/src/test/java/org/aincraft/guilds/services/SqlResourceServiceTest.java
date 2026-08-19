@@ -24,4 +24,11 @@ class SqlResourceServiceTest {
         assertTrue(SqlStatements.load("permissions/select-resident-flags.sql").contains("WHERE context = ?"));
     }
 
+    @Test
+    void alliancesSqlLivesOnTheClasspath() {
+        assertTrue(SqlStatements.load("alliances/insert.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO ALLIANCES"));
+        assertTrue(SqlStatements.load("alliances/select-all.sql").contains("{membersAgg}"));
+    }
+
 }

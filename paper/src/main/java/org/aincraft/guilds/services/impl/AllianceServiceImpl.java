@@ -5,6 +5,7 @@ package org.aincraft.guilds.services.impl;
 import org.aincraft.guilds.territory.model.GovernmentForm;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Guild;
@@ -63,22 +64,11 @@ public class AllianceServiceImpl implements AllianceService {
     private void loadAllAlliances() {
         try (Connection connection = dataSource.getConnection()) {
             boolean mysql = SqlSupport.mysql(connection);
-            String sql = """
-                SELECT n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at,
-                       %s as member_guilds,
-                       %s as ministers,
-                       %s as relations,
-                       %s as relation_types
-                FROM alliances n
-                LEFT JOIN alliance_members nm ON n.id = nm.alliance_id
-                LEFT JOIN alliance_ministers nmin ON n.id = nmin.alliance_id
-                LEFT JOIN alliance_relations nr ON n.id = nr.alliance_id
-                GROUP BY n.id, n.name, n.capital_guild_id, n.king_uuid, n.tax_rate, n.is_open, n.created_at
-                """.formatted(
-                    SqlSupport.stringAggDistinct(mysql, "nm.guild_id", ","),
-                    SqlSupport.stringAggDistinct(mysql, "nmin.player_uuid", ","),
-                    SqlSupport.stringAggDistinct(mysql, "nr.other_alliance", ","),
-                    SqlSupport.stringAggDistinct(mysql, "nr.relation_type", ","));
+            String sql = SqlStatements.load("alliances/select-all.sql", Map.of(
+                    "membersAgg", SqlSupport.stringAggDistinct(mysql, "nm.guild_id", ","),
+                    "ministersAgg", SqlSupport.stringAggDistinct(mysql, "nmin.player_uuid", ","),
+                    "relationsAgg", SqlSupport.stringAggDistinct(mysql, "nr.other_alliance", ","),
+                    "relationTypesAgg", SqlSupport.stringAggDistinct(mysql, "nr.relation_type", ",")));
             try (PreparedStatement statement = connection.prepareStatement(sql);
                  ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
@@ -172,10 +162,7 @@ public class AllianceServiceImpl implements AllianceService {
         databaseManager.executeTransaction(connection -> {
 
             // Insert alliance
-            String allianceSql = """
-                INSERT INTO alliances (id, name, capital_guild_id, king_uuid, tax_rate, is_open, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """;
+            String allianceSql = SqlStatements.load("alliances/insert.sql");
 
             try (PreparedStatement statement = connection.prepareStatement(allianceSql)) {
                 statement.setString(1, alliance.getId());
@@ -189,7 +176,7 @@ public class AllianceServiceImpl implements AllianceService {
             }
 
             // Add capital guild as member
-            String memberSql = "INSERT INTO alliance_members (alliance_id, guild_id) VALUES (?, ?)";
+            String memberSql = SqlStatements.load("alliances/insert-member.sql");
             try (PreparedStatement statement = connection.prepareStatement(memberSql)) {
                 statement.setString(1, alliance.getId());
                 statement.setString(2, alliance.getCapitalGuildId());
@@ -215,7 +202,7 @@ public class AllianceServiceImpl implements AllianceService {
 
         databaseManager.executeTransaction(connection -> {
             // Delete relations first
-            String deleteRelationsSql = "DELETE FROM alliance_relations WHERE alliance_id = ? OR other_alliance = ?";
+            String deleteRelationsSql = SqlStatements.load("alliances/delete-relations.sql");
             try (PreparedStatement statement = connection.prepareStatement(deleteRelationsSql)) {
                 statement.setString(1, alliance.getId());
                 statement.setString(2, alliance.getName());
@@ -223,21 +210,21 @@ public class AllianceServiceImpl implements AllianceService {
             }
 
             // Delete ministers
-            String deleteMinistersSql = "DELETE FROM alliance_ministers WHERE alliance_id = ?";
+            String deleteMinistersSql = SqlStatements.load("alliances/delete-ministers.sql");
             try (PreparedStatement statement = connection.prepareStatement(deleteMinistersSql)) {
                 statement.setString(1, alliance.getId());
                 statement.executeUpdate();
             }
 
             // Delete members
-            String deleteMembersSql = "DELETE FROM alliance_members WHERE alliance_id = ?";
+            String deleteMembersSql = SqlStatements.load("alliances/delete-members.sql");
             try (PreparedStatement statement = connection.prepareStatement(deleteMembersSql)) {
                 statement.setString(1, alliance.getId());
                 statement.executeUpdate();
             }
 
             // Delete alliance
-            String deleteAllianceSql = "DELETE FROM alliances WHERE id = ?";
+            String deleteAllianceSql = SqlStatements.load("alliances/delete-by-id.sql");
             try (PreparedStatement statement = connection.prepareStatement(deleteAllianceSql)) {
                 statement.setString(1, alliance.getId());
                 statement.executeUpdate();
@@ -253,7 +240,7 @@ public class AllianceServiceImpl implements AllianceService {
 
     @Override
     public GovernmentForm getGovernanceForm(String allianceId) {
-        String sql = "SELECT governance_form FROM alliances WHERE id = ?";
+        String sql = SqlStatements.load("alliances/select-governance-form.sql");
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, allianceId);
@@ -271,7 +258,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void addGuild(Alliance alliance, String guildId) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "INSERT INTO alliance_members (alliance_id, guild_id) VALUES (?, ?)";
+            String sql = SqlStatements.load("alliances/insert-member.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, alliance.getId());
                 statement.setString(2, guildId);
@@ -289,7 +276,7 @@ public class AllianceServiceImpl implements AllianceService {
         }
 
         databaseManager.executeTransaction(connection -> {
-            String sql = "DELETE FROM alliance_members WHERE alliance_id = ? AND guild_id = ?";
+            String sql = SqlStatements.load("alliances/delete-member.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, alliance.getId());
                 statement.setString(2, guildId);
@@ -303,7 +290,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void setKing(Alliance alliance, UUID newKing) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "UPDATE alliances SET king_uuid = ? WHERE id = ?";
+            String sql = SqlStatements.load("alliances/update-king.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, newKing.toString());
                 statement.setString(2, alliance.getId());
@@ -317,7 +304,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void addMinister(Alliance alliance, UUID minister) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "INSERT INTO alliance_ministers (alliance_id, player_uuid) VALUES (?, ?)";
+            String sql = SqlStatements.load("alliances/insert-minister.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, alliance.getId());
                 statement.setString(2, minister.toString());
@@ -331,7 +318,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void removeMinister(Alliance alliance, UUID minister) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "DELETE FROM alliance_ministers WHERE alliance_id = ? AND player_uuid = ?";
+            String sql = SqlStatements.load("alliances/delete-minister.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, alliance.getId());
                 statement.setString(2, minister.toString());
@@ -345,7 +332,7 @@ public class AllianceServiceImpl implements AllianceService {
     private void updateAllianceRelation(Alliance alliance, String otherAlliance, String relationType, boolean isAdding) {
         databaseManager.executeTransaction(connection -> {
             if (isAdding) {
-                String sql = "INSERT INTO alliance_relations (alliance_id, other_alliance, relation_type) VALUES (?, ?, ?)";
+                String sql = SqlStatements.load("alliances/insert-relation.sql");
                 try (PreparedStatement statement = connection.prepareStatement(sql)) {
                     statement.setString(1, alliance.getId());
                     statement.setString(2, otherAlliance);
@@ -353,7 +340,7 @@ public class AllianceServiceImpl implements AllianceService {
                     statement.executeUpdate();
                 }
             } else {
-                String sql = "DELETE FROM alliance_relations WHERE alliance_id = ? AND other_alliance = ? AND relation_type = ?";
+                String sql = SqlStatements.load("alliances/delete-relation.sql");
                 try (PreparedStatement statement = connection.prepareStatement(sql)) {
                     statement.setString(1, alliance.getId());
                     statement.setString(2, otherAlliance);
@@ -401,7 +388,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void setTaxRate(Alliance alliance, double rate) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "UPDATE alliances SET tax_rate = ? WHERE id = ?";
+            String sql = SqlStatements.load("alliances/update-tax-rate.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setDouble(1, rate);
                 statement.setString(2, alliance.getId());
@@ -415,7 +402,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void setOpen(Alliance alliance, boolean open) {
         databaseManager.executeTransaction(connection -> {
-            String sql = "UPDATE alliances SET is_open = ? WHERE id = ?";
+            String sql = SqlStatements.load("alliances/update-open.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setBoolean(1, open);
                 statement.setString(2, alliance.getId());
@@ -429,11 +416,7 @@ public class AllianceServiceImpl implements AllianceService {
     @Override
     public void updateAlliance(Alliance alliance) {
         databaseManager.executeTransaction(connection -> {
-            String sql = """
-                UPDATE alliances
-                SET name = ?, capital_guild_id = ?, king_uuid = ?, tax_rate = ?, is_open = ?
-                WHERE id = ?
-                """;
+            String sql = SqlStatements.load("alliances/update.sql");
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 statement.setString(1, alliance.getName());
                 statement.setString(2, alliance.getCapitalGuildId());
