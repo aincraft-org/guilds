@@ -1,0 +1,1 @@
+-- Widen is a guarded Java hook: see AlterResidentLastOnlineMigration.

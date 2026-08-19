@@ -1,0 +1,8 @@
+-- +include territory/create-mysql.sql
+-- +include influence/create-mysql.sql
+-- +include standing/create-mysql.sql
+-- +include reconciliation/create-mysql.sql
+-- +include facility/create-mysql.sql
+-- +include expense/create-mysql.sql
+-- +include upkeep/create-mysql.sql
+-- +include invasion/create-mysql.sql

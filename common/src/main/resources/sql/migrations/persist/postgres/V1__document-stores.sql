@@ -1,0 +1,8 @@
+-- +include territory/create-postgres.sql
+-- +include influence/create-postgres.sql
+-- +include standing/create-postgres.sql
+-- +include reconciliation/create-postgres.sql
+-- +include facility/create-postgres.sql
+-- +include expense/create-postgres.sql
+-- +include upkeep/create-postgres.sql
+-- +include invasion/create-postgres.sql

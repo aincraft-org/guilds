@@ -1,0 +1,2 @@
+-- +add-string-column guilds.active_project_id
+-- +set-default guilds tech_points 1
