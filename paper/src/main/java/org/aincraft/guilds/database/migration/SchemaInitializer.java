@@ -3,6 +3,7 @@ package org.aincraft.guilds.database.migration;
 import org.aincraft.guilds.territory.persist.DatabaseType;
 import org.aincraft.guilds.territory.persist.SqlMigrationHook;
 import org.aincraft.guilds.territory.persist.SqlMigrationRunner;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -52,7 +53,7 @@ public class SchemaInitializer {
     }
 
     public boolean isMigrationApplied(Connection connection, int version) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM schema_migrations WHERE version = ?";
+        String sql = SqlStatements.load("migrations/select-schema-version.sql");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, version);
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -63,7 +64,7 @@ public class SchemaInitializer {
 
     public List<MigrationInfo> getAppliedMigrations(Connection connection) throws SQLException {
         List<MigrationInfo> appliedMigrations = new ArrayList<>();
-        String sql = "SELECT version, description, applied_at, checksum FROM schema_migrations ORDER BY version";
+        String sql = SqlStatements.load("migrations/select-applied-schema-migrations.sql");
         try (Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
             while (resultSet.next()) {

@@ -29,24 +29,7 @@ public class AddEconomyMigration implements DatabaseMigration {
 
     @Override
     public void migrate(Connection connection) throws SQLException {
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute(SqlSupport.withIdType(connection, """
-                CREATE TABLE IF NOT EXISTS economy_transactions (
-                    id TEXT PRIMARY KEY,
-                    guild_id TEXT,
-                    player_uuid TEXT,
-                    type TEXT NOT NULL,
-                    amount REAL NOT NULL,
-                    description TEXT,
-                    timestamp TEXT NOT NULL
-                )
-            """));
-
-            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_guild", "economy_transactions", "guild_id");
-            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_player", "economy_transactions", "player_uuid");
-            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_type", "economy_transactions", "type");
-            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_timestamp", "economy_transactions", "timestamp");
-        }
+        org.aincraft.guilds.territory.persist.SqlScripts.apply(connection, "migrations/guilds/V10__economy.sql");
     }
 
     @Override

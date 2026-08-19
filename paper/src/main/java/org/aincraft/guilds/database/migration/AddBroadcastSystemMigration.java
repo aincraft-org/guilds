@@ -37,61 +37,7 @@ public class AddBroadcastSystemMigration implements DatabaseMigration {
      * Execute the migration to create broadcast tables
      */
     public void migrate(Connection connection) throws SQLException {
-        Statement statement = null;
-
-        try {
-            statement = connection.createStatement();
-
-            // Create broadcast_messages table
-            statement.execute(SqlSupport.withIdType(connection, """
-                CREATE TABLE IF NOT EXISTS broadcast_messages (
-                    id TEXT PRIMARY KEY,
-                    guild_id TEXT NOT NULL,
-                    message_type TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    sender_uuid TEXT NOT NULL,
-                    sender_name TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    expires_at TEXT,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    priority INTEGER DEFAULT 1,
-                    target_audience TEXT DEFAULT 'all',
-                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
-                )
-            """));
-
-            // Create broadcast_read_status table to track which residents have read which messages
-            statement.execute(SqlSupport.withIdType(connection, """
-                CREATE TABLE IF NOT EXISTS broadcast_read_status (
-                    id TEXT PRIMARY KEY,
-                    broadcast_id TEXT NOT NULL,
-                    resident_uuid TEXT NOT NULL,
-                    read_at TEXT NOT NULL,
-                    FOREIGN KEY (broadcast_id) REFERENCES broadcast_messages(id) ON DELETE CASCADE,
-                    FOREIGN KEY (resident_uuid) REFERENCES residents(uuid) ON DELETE CASCADE,
-                    UNIQUE(broadcast_id, resident_uuid)
-                )
-            """));
-
-            // Create indexes for performance
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_messages_guild", "broadcast_messages", "guild_id");
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_messages_type", "broadcast_messages", "message_type");
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_messages_active", "broadcast_messages", "is_active");
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_messages_priority", "broadcast_messages", "priority");
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_messages_expires", "broadcast_messages", "expires_at");
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_messages_audience", "broadcast_messages", "target_audience");
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_read_status_broadcast", "broadcast_read_status", "broadcast_id");
-            SqlSupport.createIndexIfAbsent(connection, "idx_broadcast_read_status_resident", "broadcast_read_status", "resident_uuid");
-
-            // Insert some default broadcast templates for existing guilds
-            insertDefaultBroadcastTemplates(statement);
-
-        } finally {
-            if (statement != null) {
-                statement.close();
-            }
-        }
+        org.aincraft.guilds.territory.persist.SqlScripts.apply(connection, "migrations/guilds/V8__broadcasts.sql");
     }
 
     /**

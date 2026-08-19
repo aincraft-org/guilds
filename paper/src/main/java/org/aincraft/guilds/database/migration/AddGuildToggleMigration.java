@@ -35,34 +35,7 @@ public class AddGuildToggleMigration implements DatabaseMigration {
      * Execute the migration to add guild toggle columns
      */
     public void migrate(Connection connection) throws SQLException {
-        Statement statement = null;
-
-        try {
-            statement = connection.createStatement();
-
-            // Add guild toggle columns
-            statement.execute("ALTER TABLE guilds ADD COLUMN pvp_enabled BOOLEAN DEFAULT FALSE");
-            statement.execute("ALTER TABLE guilds ADD COLUMN fire_enabled BOOLEAN DEFAULT FALSE");
-            statement.execute("ALTER TABLE guilds ADD COLUMN explosions_enabled BOOLEAN DEFAULT FALSE");
-            statement.execute("ALTER TABLE guilds ADD COLUMN mobs_enabled BOOLEAN DEFAULT TRUE");
-            statement.execute("ALTER TABLE guilds ADD COLUMN public_enabled BOOLEAN DEFAULT FALSE");
-
-            // Update existing guilds with default values
-            statement.execute(
-                "UPDATE guilds SET " +
-                "pvp_enabled = FALSE, " +
-                "fire_enabled = FALSE, " +
-                "explosions_enabled = FALSE, " +
-                "mobs_enabled = TRUE, " +
-                "public_enabled = FALSE " +
-                "WHERE pvp_enabled IS NULL"
-            );
-
-        } finally {
-            if (statement != null) {
-                statement.close();
-            }
-        }
+        org.aincraft.guilds.territory.persist.SqlScripts.apply(connection, "migrations/guilds/V6__toggles.sql");
     }
 
     /**
@@ -116,54 +89,7 @@ public class AddGuildToggleMigration implements DatabaseMigration {
         }
     }
 
-    /**
-     * Rollback this migration (remove guild toggle columns)
-     * Note: This is a destructive operation and should be used with caution
-     */
-    public void rollback(Connection connection) throws SQLException {
-        Statement statement = null;
 
-        try {
-            statement = connection.createStatement();
-
-            // Remove guild toggle columns if they exist
-            // Use IF EXISTS for databases that support it, or ignore errors
-            try {
-                statement.execute("ALTER TABLE guilds DROP COLUMN pvp_enabled");
-            } catch (SQLException e) {
-                // Column might not exist, ignore
-            }
-
-            try {
-                statement.execute("ALTER TABLE guilds DROP COLUMN fire_enabled");
-            } catch (SQLException e) {
-                // Column might not exist, ignore
-            }
-
-            try {
-                statement.execute("ALTER TABLE guilds DROP COLUMN explosions_enabled");
-            } catch (SQLException e) {
-                // Column might not exist, ignore
-            }
-
-            try {
-                statement.execute("ALTER TABLE guilds DROP COLUMN mobs_enabled");
-            } catch (SQLException e) {
-                // Column might not exist, ignore
-            }
-
-            try {
-                statement.execute("ALTER TABLE guilds DROP COLUMN public_enabled");
-            } catch (SQLException e) {
-                // Column might not exist, ignore
-            }
-
-        } finally {
-            if (statement != null) {
-                statement.close();
-            }
-        }
-    }
 
     /**
      * Validate the migration was applied correctly

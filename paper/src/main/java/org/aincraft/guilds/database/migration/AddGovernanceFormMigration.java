@@ -34,13 +34,7 @@ public class AddGovernanceFormMigration implements DatabaseMigration {
 
     @Override
     public void migrate(Connection connection) throws SQLException {
-        String definition = SqlSupport.mysql(connection)
-                ? "VARCHAR(255) NOT NULL DEFAULT 'MONARCHY'"
-                : "TEXT NOT NULL DEFAULT 'MONARCHY'";
-        SqlSupport.addColumnIfAbsent(connection, "guilds", "governance_form", definition);
-        if (SqlSupport.tableExists(connection, "nations")) {
-            SqlSupport.addColumnIfAbsent(connection, "nations", "governance_form", definition);
-        }
+        org.aincraft.guilds.territory.persist.SqlScripts.apply(connection, "migrations/guilds/V15__governance-form.sql");
     }
 
     @Override

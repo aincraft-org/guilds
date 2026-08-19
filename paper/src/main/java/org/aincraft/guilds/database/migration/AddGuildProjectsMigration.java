@@ -24,9 +24,7 @@ public class AddGuildProjectsMigration implements DatabaseMigration {
 
     @Override
     public void migrate(Connection connection) throws SQLException {
-        SqlSupport.addColumnIfAbsent(connection, "guilds", "active_project_id",
-                SqlSupport.stringType(SqlSupport.mysql(connection)));
-        SqlSupport.setColumnDefault(connection, "guilds", "tech_points", "1");
+        org.aincraft.guilds.territory.persist.SqlScripts.apply(connection, "migrations/guilds/V22__projects.sql");
     }
 
     @Override

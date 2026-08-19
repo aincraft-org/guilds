@@ -29,20 +29,7 @@ public class AddSpecializationMigration implements DatabaseMigration {
 
     @Override
     public void migrate(Connection connection) throws SQLException {
-        try (Statement stmt = connection.createStatement()) {
-            // Guild specializations table
-            stmt.execute(SqlSupport.withIdType(connection, """
-                CREATE TABLE IF NOT EXISTS guild_specializations (
-                    guild_id TEXT PRIMARY KEY,
-                    specialization TEXT NOT NULL,
-                    set_at TEXT NOT NULL,
-                    FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
-                )
-                """));
-
-            // Index
-            SqlSupport.createIndexIfAbsent(connection, "idx_guild_specialization", "guild_specializations", "specialization");
-        }
+        org.aincraft.guilds.territory.persist.SqlScripts.apply(connection, "migrations/guilds/V12__specializations.sql");
     }
 
     @Override
