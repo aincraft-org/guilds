@@ -47,4 +47,12 @@ class SqlResourceServiceTest {
                 .contains("INSERT INTO RESOURCE_CONTRIBUTIONS"));
     }
 
+    @Test
+    void levelsSqlLivesOnTheClasspath() {
+        assertTrue(SqlStatements.load("levels/insert.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO GUILD_LEVELS"));
+        assertTrue(SqlStatements.load("levels/insert-benefit.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO GUILD_LEVEL_BENEFITS"));
+    }
+
 }

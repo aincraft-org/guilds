@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.model.LevelDefinition;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildLevel;
@@ -190,7 +191,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         int currentTechPoints;
         String progressJson;
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT guild_level, tech_points, upgrade_progress FROM guilds WHERE id = ? FOR UPDATE")) {
+                SqlStatements.load("levels/select-guild-for-update.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
@@ -220,11 +221,8 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         int newTechPoints = GuildSkillPoints.unspentAfterLevelChange(
                 currentTechPoints, currentLevel, newLevel);
         int pointsEarned = newTechPoints - currentTechPoints;
-        try (PreparedStatement statement = connection.prepareStatement("""
-                UPDATE guilds
-                   SET guild_level = ?, tech_points = ?, upgrade_progress = '{}'
-                 WHERE id = ? AND guild_level = ?
-                """)) {
+        try (PreparedStatement statement = connection.prepareStatement(
+                SqlStatements.load("levels/update-after-upgrade.sql"))) {
             statement.setInt(1, newLevel);
             statement.setInt(2, newTechPoints);
             statement.setString(3, guildId);
@@ -245,7 +243,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
         }
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT upgrade_progress FROM guilds WHERE id = ?")) {
+                     SqlStatements.load("levels/select-upgrade-progress.sql"))) {
             statement.setString(1, guild.getId());
             try (ResultSet result = statement.executeQuery()) {
                 if (result.next()) {
@@ -351,7 +349,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
 
         try {
             // Load level data from database and sync with guild object
-            String sql = "SELECT guild_level, tech_points, upgrade_progress FROM guilds WHERE id = ?";
+            String sql = SqlStatements.load("levels/select-guild-level-data.sql");
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -386,7 +384,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
     @Override
     public void resetAllGuildLevelData() {
         try {
-            String sql = "UPDATE guilds SET guild_level = 1, tech_points = 0, upgrade_progress = '{}'";
+            String sql = SqlStatements.load("levels/reset-all.sql");
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -423,7 +421,7 @@ public class GuildLevelServiceImpl implements GuildLevelService {
      */
     private void loadGuildLevelsFromDatabase() throws SQLException {
         levelCache.clear();
-        String sql = "SELECT * FROM guild_levels ORDER BY level";
+        String sql = SqlStatements.load("levels/select-all.sql");
 
         try (Connection connection = databaseManager.getConnection();
              Statement statement = connection.createStatement();
@@ -573,11 +571,8 @@ public class GuildLevelServiceImpl implements GuildLevelService {
 
     private void recordLevelBenefits(
             Connection connection, String guildId, GuildLevel level) throws SQLException {
-        String sql = SqlSupport.upsertSql(connection, """
-                INSERT INTO guild_level_benefits
-                    (id, guild_id, level, benefit_type, benefit_value, unlocked_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """, "guild_id, level, benefit_type", null);
+        String sql = SqlSupport.upsertSql(connection, SqlStatements.load("levels/insert-benefit.sql"),
+                "guild_id, level, benefit_type", null);
         String now = LocalDateTime.now().toString();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             if (level.getClaimLimitBonus() > 0) {
@@ -646,12 +641,8 @@ public class GuildLevelServiceImpl implements GuildLevelService {
             }
 
             try (Connection connection = databaseManager.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(SqlSupport.upsertSql(connection, """
-                INSERT INTO guild_levels (
-                    level, resource_costs_json, tech_points_reward, claim_limit_bonus,
-                    assistant_slots_bonus, daily_income_bonus, unlocked_plot_types, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, "level", """
+                 PreparedStatement statement = connection.prepareStatement(SqlSupport.upsertSql(connection,
+                         SqlStatements.load("levels/insert.sql"), "level", """
                     resource_costs_json = EXCLUDED.resource_costs_json,
                     tech_points_reward = EXCLUDED.tech_points_reward,
                     claim_limit_bonus = EXCLUDED.claim_limit_bonus,
