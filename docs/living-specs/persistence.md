@@ -52,17 +52,21 @@ idempotent on fresh databases on both backends.
 
 | Piece | Location |
 |-------|----------|
-| Pool / settings / dialect | `common/.../persist` (`DatabaseFactory`, `DatabaseDialect`) |
+| Pool / settings / dialect | `HikariDatabase` via `DatabaseFactory` |
 | Shared SQL helpers | `SqlSupport` (upsert, TEXT→VARCHAR, catalog, indexes) |
+| Versioned SQL | `common/src/main/resources/sql/migrations/{track}` |
 | Territory/economy/influence/standing stores | `common/.../persist` + domain packages |
 | Guilds schema | `paper/.../org.aincraft.guilds.database` |
 | Plugin wiring | `GuildsPlugin` |
 
 - Territory document stores use `DatabaseDialect` (`JSONB`/`ON CONFLICT` vs
   `JSON`/`ON DUPLICATE KEY UPDATE`).
-- Guilds relational SQL goes through `SqlSupport` so migrations and services
-  stay portable. Do not add PostgreSQL-only `ON CONFLICT`, `RETURNING`,
-  `BYTEA`, or `CREATE INDEX IF NOT EXISTS` in new Guilds SQL.
+- Schema changes live in versioned SQL files
+  (`V{n}__{slug}.sql` + `manifest`). Java only runs guarded hooks (renames,
+  seeds). `SqlMigrationRunner` records checksums in `sql_schema_migrations`.
+- Guilds relational SQL goes through `SqlSupport` so migrations stay portable.
+  Do not add PostgreSQL-only `ON CONFLICT`, `RETURNING`, `BYTEA`, or
+  `CREATE INDEX IF NOT EXISTS` in new Guilds SQL.
 - Prefer JSON documents where already established (territory, influence state)
   rather than drive-by normalization.
 - Logging: connection failures should fail enable loudly and name the selected
@@ -94,6 +98,8 @@ idempotent on fresh databases on both backends.
 - [x] Guilds on the same SQL database with portable migrations
 - [x] Mandatory DB for plugin runtime paths
 - [x] `SqlSupport` helpers for upsert, identifier types, and catalog checks
+- [x] Single `HikariDatabase` pool owner
+- [x] Versioned SQL resources for persist + Guilds schema (`sql/migrations/`)
 
 ### Open on the current surface
 
@@ -127,6 +133,7 @@ domains must not reintroduce file stores.
 | 2026-08-06 | Do not auto-delete legacy files | Operator safety |
 | 2026-08-06 | Remove repository dual-backend seams | One code path |
 | 2026-08-19 | MySQL 8.x selectable; PostgreSQL remains default | Managed hosts (PebbleHost) expose MySQL, not Postgres |
+| 2026-08-19 | Versioned SQL resources + one Hikari pool | Keep SQL out of Java; schema history is files + checksums |
 
 ## Open questions
 
