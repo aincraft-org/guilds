@@ -3,8 +3,13 @@ package org.aincraft.guilds.services;
 import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Locale;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SqlResourceServiceTest {
@@ -67,6 +72,19 @@ class SqlResourceServiceTest {
         assertTrue(SqlStatements.load("contracts/insert.sql").toUpperCase(Locale.ROOT)
                 .contains("INSERT INTO GUILD_CONTRACTS"));
         assertTrue(SqlStatements.load("contracts/select-by-id.sql").contains("WHERE id = ?"));
+    }
+
+    @Test
+    void serviceImplsDoNotEmbedInsertOrCreateTable() throws Exception {
+        Path dir = Path.of("src/main/java/org/aincraft/guilds/services/impl");
+        try (Stream<Path> files = Files.list(dir)) {
+            for (Path file : files.filter(path -> path.getFileName().toString().endsWith("ServiceImpl.java")).toList()) {
+                String source = Files.readString(file, StandardCharsets.UTF_8);
+                String name = file.getFileName().toString();
+                assertFalse(source.contains("INSERT INTO"), name + " still embeds INSERT INTO");
+                assertFalse(source.contains("CREATE TABLE"), name + " still embeds CREATE TABLE");
+            }
+        }
     }
 
 }
