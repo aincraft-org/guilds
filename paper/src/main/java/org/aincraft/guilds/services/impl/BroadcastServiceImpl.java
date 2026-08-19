@@ -3,6 +3,7 @@ package org.aincraft.guilds.services.impl;
 
 
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.models.BroadcastMessage;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.services.BroadcastService;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -63,8 +65,7 @@ public class BroadcastServiceImpl implements BroadcastService {
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "INSERT INTO broadcast_messages (id, guild_id, message_type, title, content, sender_uuid, sender_name, " +
-                 "created_at, expires_at, is_active, priority, target_audience) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                 SqlStatements.load("broadcasts/insert.sql"))) {
 
             statement.setString(1, broadcast.getId());
             statement.setString(2, broadcast.getGuildId());
@@ -94,7 +95,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     public Optional<BroadcastMessage> getBroadcast(String broadcastId) {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE id = ?")) {
+                 SqlStatements.load("broadcasts/select-by-id.sql"))) {
 
             statement.setString(1, broadcastId);
 
@@ -117,9 +118,7 @@ public class BroadcastServiceImpl implements BroadcastService {
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND is_active = TRUE " +
-                 "AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
-                 "ORDER BY priority DESC, created_at DESC")) {
+                 SqlStatements.load("broadcasts/select-active.sql"))) {
 
             statement.setString(1, guildId);
 
@@ -142,7 +141,7 @@ public class BroadcastServiceImpl implements BroadcastService {
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE guild_id = ? ORDER BY created_at DESC")) {
+                 SqlStatements.load("broadcasts/select-by-guild.sql"))) {
 
             statement.setString(1, guildId);
 
@@ -165,9 +164,7 @@ public class BroadcastServiceImpl implements BroadcastService {
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND target_audience = ? " +
-                 "AND is_active = TRUE AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
-                 "ORDER BY priority DESC, created_at DESC")) {
+                 SqlStatements.load("broadcasts/select-by-audience.sql"))) {
 
             statement.setString(1, guildId);
             statement.setString(2, audience);
@@ -191,9 +188,7 @@ public class BroadcastServiceImpl implements BroadcastService {
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND message_type = ? " +
-                 "AND is_active = TRUE AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
-                 "ORDER BY priority DESC, created_at DESC")) {
+                 SqlStatements.load("broadcasts/select-by-type.sql"))) {
 
             statement.setString(1, guildId);
             statement.setString(2, messageType);
@@ -218,12 +213,11 @@ public class BroadcastServiceImpl implements BroadcastService {
         // Get broadcasts for all audiences, then filter by role
         List<String> targetAudiences = Arrays.asList(BroadcastMessage.Audience.ALL, playerRole);
 
+        String audiencePlaceholders = String.join(",", Collections.nCopies(targetAudiences.size(), "?"));
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT * FROM broadcast_messages WHERE guild_id = ? AND target_audience IN (" +
-                 String.join(",", Collections.nCopies(targetAudiences.size(), "?")) +
-                 ") AND is_active = TRUE AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) " +
-                 "ORDER BY priority DESC, created_at DESC")) {
+                 SqlStatements.load("broadcasts/select-for-player.sql",
+                         Map.of("audiencePlaceholders", audiencePlaceholders)))) {
 
             statement.setString(1, guildId);
             for (int i = 0; i < targetAudiences.size(); i++) {
@@ -247,8 +241,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     public boolean updateBroadcast(BroadcastMessage broadcast) {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "UPDATE broadcast_messages SET title = ?, content = ?, expires_at = ?, " +
-                 "is_active = ?, priority = ?, target_audience = ? WHERE id = ?")) {
+                 SqlStatements.load("broadcasts/update.sql"))) {
 
             statement.setString(1, broadcast.getTitle());
             statement.setString(2, broadcast.getContent());
@@ -275,7 +268,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     public boolean archiveBroadcast(String broadcastId) {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "UPDATE broadcast_messages SET is_active = FALSE WHERE id = ?")) {
+                 SqlStatements.load("broadcasts/archive.sql"))) {
 
             statement.setString(1, broadcastId);
 
@@ -296,7 +289,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     public boolean deleteBroadcast(String broadcastId) {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "DELETE FROM broadcast_messages WHERE id = ?")) {
+                 SqlStatements.load("broadcasts/delete-by-id.sql"))) {
 
             statement.setString(1, broadcastId);
 
@@ -351,11 +344,11 @@ public class BroadcastServiceImpl implements BroadcastService {
     public int cleanupExpiredBroadcasts(String guildId) {
         int cleanedCount = 0;
 
+        String sql = guildId != null
+                ? SqlStatements.load("broadcasts/cleanup-expired-by-guild.sql")
+                : SqlStatements.load("broadcasts/cleanup-expired.sql");
         try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement(
-                 "UPDATE broadcast_messages SET is_active = FALSE " +
-                 "WHERE is_active = TRUE AND expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP" +
-                 (guildId != null ? " AND guild_id = ?" : ""))) {
+             PreparedStatement statement = connection.prepareStatement(sql)) {
 
             if (guildId != null) {
                 statement.setString(1, guildId);
@@ -378,16 +371,7 @@ public class BroadcastServiceImpl implements BroadcastService {
     public BroadcastStatistics getBroadcastStatistics(String guildId) {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                 "SELECT COUNT(*) as total, " +
-                 "SUM(CASE WHEN is_active = TRUE AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP) THEN 1 ELSE 0 END) as active, " +
-                 "SUM(CASE WHEN is_active = TRUE AND expires_at IS NOT NULL AND expires_at <= CURRENT_TIMESTAMP THEN 1 ELSE 0 END) as expired, " +
-                 "SUM(CASE WHEN message_type = 'announcement' THEN 1 ELSE 0 END) as announcements, " +
-                 "SUM(CASE WHEN message_type = 'alert' THEN 1 ELSE 0 END) as alerts, " +
-                 "SUM(CASE WHEN message_type = 'welcome' THEN 1 ELSE 0 END) as welcome, " +
-                 "MAX(created_at) as last_broadcast, " +
-                 "message_type as most_active_type " +
-                 "FROM broadcast_messages WHERE guild_id = ? " +
-                 "GROUP BY message_type ORDER BY COUNT(*) DESC LIMIT 1")) {
+                 SqlStatements.load("broadcasts/select-statistics.sql"))) {
 
             statement.setString(1, guildId);
 

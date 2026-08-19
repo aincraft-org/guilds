@@ -1,0 +1,1 @@
+SELECT * FROM broadcast_messages WHERE guild_id = ? ORDER BY created_at DESC

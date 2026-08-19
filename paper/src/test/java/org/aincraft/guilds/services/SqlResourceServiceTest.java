@@ -31,4 +31,12 @@ class SqlResourceServiceTest {
         assertTrue(SqlStatements.load("alliances/select-all.sql").contains("{membersAgg}"));
     }
 
+    @Test
+    void broadcastsSqlLivesOnTheClasspath() {
+        assertTrue(SqlStatements.load("broadcasts/insert.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO BROADCAST_MESSAGES"));
+        assertTrue(SqlStatements.load("broadcasts/select-for-player.sql")
+                .contains("IN ({audiencePlaceholders})"));
+    }
+
 }
