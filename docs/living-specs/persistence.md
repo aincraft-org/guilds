@@ -100,6 +100,7 @@ idempotent on fresh databases on both backends.
 - [x] `SqlSupport` helpers for upsert, identifier types, and catalog checks
 - [x] Single `HikariDatabase` pool owner
 - [x] Versioned SQL resources for persist + Guilds schema (`sql/migrations/`)
+- [x] Guilds service DML loaded from `paper/src/main/resources/sql/` via `SqlStatements`
 
 ### Open on the current surface
 
@@ -134,6 +135,7 @@ domains must not reintroduce file stores.
 | 2026-08-06 | Remove repository dual-backend seams | One code path |
 | 2026-08-19 | MySQL 8.x selectable; PostgreSQL remains default | Managed hosts (PebbleHost) expose MySQL, not Postgres |
 | 2026-08-19 | Versioned SQL resources + one Hikari pool | Keep SQL out of Java; schema history is files + checksums |
+| 2026-08-19 | Guilds service queries as classpath SQL | Match extras/mint: one `?` statement per file under `/sql` |
 
 ## Open questions
 
