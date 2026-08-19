@@ -15,9 +15,21 @@ public final class PostgresTestDatabase {
         String url = System.getenv("GUILDS_TEST_JDBC_URL");
         assumeTrue(url != null && !url.isBlank(),
                 "GUILDS_TEST_JDBC_URL not set — skipping PostgreSQL integration test");
-        PostgresDatabase database = new PostgresDatabase(new DatabaseSettings(
-                "ignored", 5432, "ignored", "ignored", "", false, 5, url));
+        PostgresDatabase database = new PostgresDatabase(settings(url));
         database.initializeSchema();
         return database;
+    }
+
+    public static DatabaseSettings settings(String jdbcUrl) {
+        return new DatabaseSettings(
+                "127.0.0.1", 5432, "azoth_territory",
+                envOr("GUILDS_TEST_JDBC_USER", "azoth"),
+                envOr("GUILDS_TEST_JDBC_PASSWORD", "azoth"),
+                false, 5, jdbcUrl);
+    }
+
+    private static String envOr(String name, String fallback) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? fallback : value;
     }
 }

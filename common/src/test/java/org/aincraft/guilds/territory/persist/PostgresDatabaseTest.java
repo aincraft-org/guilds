@@ -1,5 +1,6 @@
 package org.aincraft.guilds.territory.persist;
 
+import org.aincraft.guilds.territory.PostgresTestDatabase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -20,8 +21,7 @@ class PostgresDatabaseTest {
         String url = System.getenv("GUILDS_TEST_JDBC_URL");
         assumeTrue(url != null && !url.isBlank(),
                 "GUILDS_TEST_JDBC_URL not set — skipping PostgreSQL integration test");
-        database = new PostgresDatabase(new DatabaseSettings(
-                "ignored", 5432, "ignored", "ignored", "", false, 5, url));
+        database = new PostgresDatabase(PostgresTestDatabase.settings(url));
         database.initializeSchema();
     }
 }

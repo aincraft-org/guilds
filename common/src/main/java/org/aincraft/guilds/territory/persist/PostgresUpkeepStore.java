@@ -50,8 +50,7 @@ public final class PostgresUpkeepStore implements UpkeepStore {
 
         try (Connection connection = database.connection();
              PreparedStatement statement = connection.prepareStatement(database.dialect().singletonUpsertSql("upkeep_state", "id"))) {
-            statement.setInt(1, 1);
-            statement.setString(2, gson.toJson(root));
+            statement.setString(1, gson.toJson(root));
             statement.executeUpdate();
         } catch (SQLException | RuntimeException e) {
             throw new IOException("Failed to save upkeep state to PostgreSQL", e);

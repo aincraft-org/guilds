@@ -33,8 +33,7 @@ public final class PostgresInfluenceStore {
         root.add("territories", territories);
         try (Connection c = database.connection();
              PreparedStatement ps = c.prepareStatement(database.dialect().singletonUpsertSql("influence_state", "id"))) {
-            ps.setInt(1, 1);
-            ps.setString(2, new GsonBuilder().create().toJson(root));
+            ps.setString(1, new GsonBuilder().create().toJson(root));
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new IOException("Failed to save influence state to PostgreSQL", e);
