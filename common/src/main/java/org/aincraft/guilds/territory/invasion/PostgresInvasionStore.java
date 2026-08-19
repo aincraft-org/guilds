@@ -1,6 +1,7 @@
 package org.aincraft.guilds.territory.invasion;
 
 import org.aincraft.guilds.territory.persist.Database;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -24,6 +25,7 @@ import java.util.UUID;
 /** PostgreSQL JSONB snapshot store for the singleton invasion state. */
 public final class PostgresInvasionStore implements InvasionStore {
     private static final int VERSION = 1;
+    private static final String SELECT_SQL = SqlStatements.load("invasion/select.sql");
     private final Database database;
     private final Gson gson = new Gson();
 
@@ -77,7 +79,7 @@ public final class PostgresInvasionStore implements InvasionStore {
 
     private List<InvasionRecord> loadChecked() throws IOException {
         try (Connection connection = database.connection();
-             PreparedStatement statement = connection.prepareStatement("SELECT doc FROM invasion_state WHERE id = 1");
+             PreparedStatement statement = connection.prepareStatement(SELECT_SQL);
              ResultSet results = statement.executeQuery()) {
             if (!results.next()) return List.of();
             try {

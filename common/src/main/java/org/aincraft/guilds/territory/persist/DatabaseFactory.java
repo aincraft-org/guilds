@@ -47,7 +47,7 @@ public final class DatabaseFactory {
             config.setIdleTimeout(300_000);
             config.setMaxLifetime(600_000);
             config.setConnectionTimeout(30_000);
-            config.setConnectionTestQuery("SELECT 1");
+            config.setConnectionTestQuery(SqlStatements.load("support/connection-test.sql"));
             settings.dataSourceProperties().forEach((k, v) -> config.addDataSourceProperty((String) k, v));
             try {
                 this.dataSource = new HikariDataSource(config);

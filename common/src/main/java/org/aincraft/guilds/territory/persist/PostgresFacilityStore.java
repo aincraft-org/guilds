@@ -19,6 +19,8 @@ import java.util.List;
 
 /** PostgreSQL persistence for settlement facility metadata. */
 public final class PostgresFacilityStore implements FacilityStore {
+    private static final String SELECT_SQL = SqlStatements.load("facility/select.sql");
+    private static final String DELETE_SQL = SqlStatements.load("facility/delete.sql");
     private final Database database;
     private final Gson gson = new Gson();
 
@@ -32,7 +34,7 @@ public final class PostgresFacilityStore implements FacilityStore {
         try (Connection c = database.connection()) {
             c.setAutoCommit(false);
             try {
-                try (PreparedStatement clear = c.prepareStatement("DELETE FROM facilities")) {
+                try (PreparedStatement clear = c.prepareStatement(DELETE_SQL)) {
                     clear.executeUpdate();
                 }
                 try (PreparedStatement insert = c.prepareStatement(
@@ -57,7 +59,7 @@ public final class PostgresFacilityStore implements FacilityStore {
     public void loadInto(FacilityRegistry registry) throws IOException {
         List<SettlementFacility> loaded = new ArrayList<>();
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM facilities ORDER BY id");
+             PreparedStatement ps = c.prepareStatement(SELECT_SQL);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 JsonElement parsed = JsonParser.parseString(rs.getString("doc"));

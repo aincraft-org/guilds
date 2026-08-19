@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS {schema}.upkeep_state (id INT PRIMARY KEY, doc JSON NOT NULL)

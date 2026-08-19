@@ -1,6 +1,7 @@
 package org.aincraft.guilds.territory.standing;
 
 import org.aincraft.guilds.territory.persist.Database;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 /** PostgreSQL persistence for standing state (single doc row, mirrors influence). */
 public final class PostgresStandingStore {
+    private static final String SELECT_SQL = SqlStatements.load("standing/select.sql");
     private final Database database;
 
     public PostgresStandingStore(Database database) {
@@ -41,7 +43,7 @@ public final class PostgresStandingStore {
 
     public StandingState load() throws IOException {
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM standing_state WHERE id = 1");
+             PreparedStatement ps = c.prepareStatement(SELECT_SQL);
              ResultSet rs = ps.executeQuery()) {
             if (!rs.next()) {
                 return new StandingState();

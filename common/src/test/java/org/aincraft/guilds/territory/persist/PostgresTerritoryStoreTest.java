@@ -1,5 +1,7 @@
 package org.aincraft.guilds.territory.persist;
 
+import com.zaxxer.hikari.HikariDataSource;
+import org.aincraft.guilds.territory.PostgresTestDatabase;
 import org.aincraft.guilds.territory.model.BlockPos;
 import org.aincraft.guilds.territory.model.Boundary;
 import org.aincraft.guilds.territory.model.Territory;
@@ -8,28 +10,24 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Connection;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Integration test against a real PostgreSQL server.
  */
 class PostgresTerritoryStoreTest {
-    private static final String TEST_URL = System.getenv("GUILDS_TEST_JDBC_URL");
     private static PostgresDatabase database;
     private static PostgresTerritoryStore store;
 
     @BeforeAll
     static void connect() throws Exception {
-        assumeTrue(TEST_URL != null && !TEST_URL.isBlank(),
-                "GUILDS_TEST_JDBC_URL not set — skipping PostgreSQL integration test");
-        database = new PostgresDatabase(new DatabaseSettings(
-                "ignored", 5432, "ignored", "ignored", "", false, 5, TEST_URL));
-        database.initializeSchema();
+        database = PostgresTestDatabase.open();
         store = new PostgresTerritoryStore(database);
     }
 
@@ -42,6 +40,14 @@ class PostgresTerritoryStoreTest {
 
     @Test
     void saveLoadRoundTrip() throws Exception {
+        HikariDataSource dataSource = assertInstanceOf(HikariDataSource.class, database.dataSource());
+        try (Connection connection = dataSource.getConnection()) {
+            assertTrue(connection.isValid(5));
+        }
+        assertEquals("SELECT doc FROM territories ORDER BY id",
+                SqlStatements.load("territory/select.sql"));
+        assertEquals("DELETE FROM territories", SqlStatements.load("territory/delete.sql"));
+
         TerritoryRegistry registry = new TerritoryRegistry();
         registry.register(new Territory("everfall", "Everfall", "world",
                 Boundary.ofPolygon(List.of(

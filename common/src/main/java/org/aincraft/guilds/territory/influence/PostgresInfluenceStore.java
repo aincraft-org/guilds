@@ -1,6 +1,7 @@
 package org.aincraft.guilds.territory.influence;
 
 import org.aincraft.guilds.territory.persist.Database;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 /** PostgreSQL persistence for influence race state. */
 public final class PostgresInfluenceStore {
+    private static final String SELECT_SQL = SqlStatements.load("influence/select.sql");
     private final Database database;
 
     public PostgresInfluenceStore(Database database) {
@@ -41,7 +43,7 @@ public final class PostgresInfluenceStore {
 
     public InfluenceState load() throws IOException {
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM influence_state WHERE id = 1");
+             PreparedStatement ps = c.prepareStatement(SELECT_SQL);
              ResultSet rs = ps.executeQuery()) {
             if (!rs.next()) {
                 return new InfluenceState();

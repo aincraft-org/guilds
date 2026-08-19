@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS {schema}.standing_state (id INT PRIMARY KEY, doc JSON NOT NULL)

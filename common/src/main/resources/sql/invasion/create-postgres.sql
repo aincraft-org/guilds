@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS {schema}.invasion_state (id INTEGER PRIMARY KEY CHECK (id = 1), doc JSONB NOT NULL)

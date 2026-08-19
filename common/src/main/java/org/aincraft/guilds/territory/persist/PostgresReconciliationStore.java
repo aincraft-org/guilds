@@ -20,6 +20,7 @@ import java.util.UUID;
 /** PostgreSQL persistence for settlement reconciliation entries. */
 public final class PostgresReconciliationStore {
     private static final String KEY = "state";
+    private static final String SELECT_SQL = SqlStatements.load("reconciliation/select.sql");
     private final Database database;
     private final Gson gson = new Gson();
 
@@ -49,8 +50,7 @@ public final class PostgresReconciliationStore {
 
     public List<EconomyBridge.UnresolvedTransaction> load() throws IOException {
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement(
-                     "SELECT doc FROM reconciliation_entries WHERE idempotency_key = ?")) {
+             PreparedStatement ps = c.prepareStatement(SELECT_SQL)) {
             ps.setString(1, KEY);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {

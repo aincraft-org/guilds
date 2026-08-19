@@ -20,6 +20,8 @@ import java.util.List;
  * every other durable store.</p>
  */
 public class PostgresTerritoryStore implements AutoCloseable {
+    private static final String SELECT_SQL = SqlStatements.load("territory/select.sql");
+    private static final String DELETE_SQL = SqlStatements.load("territory/delete.sql");
     private final Database database;
     private final TerritoryJson json = new TerritoryJson();
 
@@ -31,7 +33,7 @@ public class PostgresTerritoryStore implements AutoCloseable {
         List<Territory> territories = new ArrayList<>();
         try (Connection c = database.connection();
              Statement s = c.createStatement();
-             ResultSet rs = s.executeQuery("SELECT doc FROM territories ORDER BY id")) {
+             ResultSet rs = s.executeQuery(SELECT_SQL)) {
             while (rs.next()) {
                 String doc = rs.getString("doc");
                 territories.add(json.fromJson(JsonParser.parseString(doc).getAsJsonObject()));
@@ -47,7 +49,7 @@ public class PostgresTerritoryStore implements AutoCloseable {
             c.setAutoCommit(false);
             try {
                 try (Statement clear = c.createStatement()) {
-                    clear.execute("DELETE FROM territories");
+                    clear.execute(DELETE_SQL);
                 }
                 try (PreparedStatement ps = c.prepareStatement(
                         database.dialect().documentUpsertSql("territories", "id"))) {

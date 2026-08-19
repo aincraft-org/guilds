@@ -1,15 +1,17 @@
 package org.aincraft.guilds.territory.persist;
 
+import java.util.Map;
+
 public final class MySqlDialect implements DatabaseDialect {
     private static final String[] SCHEMA = {
-            "CREATE TABLE IF NOT EXISTS territories (id VARCHAR(255) PRIMARY KEY, doc JSON NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS influence_state (id INT PRIMARY KEY, doc JSON NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS standing_state (id INT PRIMARY KEY, doc JSON NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS reconciliation_entries (idempotency_key VARCHAR(255) PRIMARY KEY, doc JSON NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS facilities (id VARCHAR(255) PRIMARY KEY, doc JSON NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS expenses (idempotency_key VARCHAR(255) PRIMARY KEY, doc JSON NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS upkeep_state (id INT PRIMARY KEY, doc JSON NOT NULL)",
-            "CREATE TABLE IF NOT EXISTS invasion_state (id INT PRIMARY KEY, doc JSON NOT NULL)"
+            SqlStatements.load("territory/create-mysql.sql"),
+            SqlStatements.load("influence/create-mysql.sql"),
+            SqlStatements.load("standing/create-mysql.sql"),
+            SqlStatements.load("reconciliation/create-mysql.sql"),
+            SqlStatements.load("facility/create-mysql.sql"),
+            SqlStatements.load("expense/create-mysql.sql"),
+            SqlStatements.load("upkeep/create-mysql.sql"),
+            SqlStatements.load("invasion/create-mysql.sql")
     };
     @Override public DatabaseType type() { return DatabaseType.MYSQL; }
     @Override public String driverClassName() { return "com.mysql.cj.jdbc.Driver"; }
@@ -17,11 +19,11 @@ public final class MySqlDialect implements DatabaseDialect {
     @Override public String[] schemaStatements() { return SCHEMA.clone(); }
     @Override public String jsonValueExpression() { return "?"; }
     @Override public String documentUpsertSql(String table, String keyColumn) {
-        return "INSERT INTO " + table + " (" + keyColumn + ", doc) VALUES (?, ?) "
-                + "ON DUPLICATE KEY UPDATE doc = VALUES(doc)";
+        return SqlStatements.load("dialect/mysql/document-upsert.sql",
+                Map.of("table", table, "keyColumn", keyColumn));
     }
     @Override public String singletonUpsertSql(String table, String idColumn) {
-        return "INSERT INTO " + table + " (" + idColumn + ", doc) VALUES (1, ?) "
-                + "ON DUPLICATE KEY UPDATE doc = VALUES(doc)";
+        return SqlStatements.load("dialect/mysql/singleton-upsert.sql",
+                Map.of("table", table, "idColumn", idColumn));
     }
 }

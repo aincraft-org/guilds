@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS {schema}.territories (id VARCHAR(255) PRIMARY KEY, doc JSON NOT NULL)

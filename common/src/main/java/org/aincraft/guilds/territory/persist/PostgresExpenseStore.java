@@ -20,6 +20,8 @@ import java.util.List;
 
 /** PostgreSQL persistence for treasury expense idempotency records. */
 public final class PostgresExpenseStore {
+    private static final String SELECT_SQL = SqlStatements.load("expense/select.sql");
+    private static final String DELETE_SQL = SqlStatements.load("expense/delete.sql");
     private final Database database;
     private final Gson gson = new Gson();
 
@@ -31,7 +33,7 @@ public final class PostgresExpenseStore {
         try (Connection c = database.connection()) {
             c.setAutoCommit(false);
             try {
-                try (PreparedStatement clear = c.prepareStatement("DELETE FROM expenses")) {
+                try (PreparedStatement clear = c.prepareStatement(DELETE_SQL)) {
                     clear.executeUpdate();
                 }
                 try (PreparedStatement insert = c.prepareStatement(
@@ -56,7 +58,7 @@ public final class PostgresExpenseStore {
     public List<ExpenseEntry> load() throws IOException {
         List<ExpenseEntry> loaded = new ArrayList<>();
         try (Connection c = database.connection();
-             PreparedStatement ps = c.prepareStatement("SELECT doc FROM expenses ORDER BY idempotency_key");
+             PreparedStatement ps = c.prepareStatement(SELECT_SQL);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 JsonElement parsed = JsonParser.parseString(rs.getString("doc"));

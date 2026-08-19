@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS {schema}.facilities (id TEXT PRIMARY KEY, doc JSONB NOT NULL)
