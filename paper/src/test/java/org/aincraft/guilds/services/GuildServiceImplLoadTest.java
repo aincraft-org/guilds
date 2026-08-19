@@ -79,29 +79,26 @@ class GuildServiceImplLoadTest {
 
     @Test
     void everyGuildMappingSelectIncludesProgressColumns() throws Exception {
-        String source = java.nio.file.Files.readString(java.nio.file.Path.of(
-                "src/main/java/org/aincraft/guilds/services/impl/GuildServiceImpl.java"));
-        int from = 0;
+        java.nio.file.Path dir = java.nio.file.Path.of("src/main/resources/sql/guilds");
         int selects = 0;
-        while (true) {
-            int start = source.indexOf("SELECT id, name, mayor_uuid", from);
-            if (start < 0) {
-                start = source.indexOf("SELECT t.id, t.name, t.mayor_uuid", from);
+        try (java.util.stream.Stream<java.nio.file.Path> files = java.nio.file.Files.list(dir)) {
+            for (java.nio.file.Path file : files.filter(path -> {
+                String name = path.getFileName().toString();
+                return name.startsWith("select-") && name.endsWith(".sql");
+            }).toList()) {
+                String sql = java.nio.file.Files.readString(file);
+                String upper = sql.toUpperCase(java.util.Locale.ROOT);
+                if (!upper.contains("SELECT") || !upper.contains("FROM GUILDS")) {
+                    continue;
+                }
+                if (!sql.contains("mayor_uuid")) {
+                    continue;
+                }
+                assertTrue(sql.contains("guild_level"), file + " missing guild_level");
+                assertTrue(sql.contains("tech_points"), file + " missing tech_points");
+                assertTrue(sql.contains("active_project_id"), file + " missing active_project_id");
+                selects++;
             }
-            if (start < 0) {
-                break;
-            }
-            int end = source.indexOf("FROM guilds", start);
-            if (end < 0) {
-                break;
-            }
-            String select = source.substring(start, end);
-            boolean viaConstant = select.contains("GUILD_PROGRESS_COLUMNS");
-            assertTrue(viaConstant || select.contains("guild_level"), select);
-            assertTrue(viaConstant || select.contains("tech_points"), select);
-            assertTrue(viaConstant || select.contains("active_project_id"), select);
-            selects++;
-            from = end + 1;
         }
         assertTrue(selects >= 8, "expected every guild mapping query, found " + selects);
     }
