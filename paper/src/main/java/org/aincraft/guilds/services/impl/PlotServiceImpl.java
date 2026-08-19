@@ -3,6 +3,7 @@ package org.aincraft.guilds.services.impl;
 
 
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildBlock;
@@ -65,7 +66,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public GuildBlock createGuildBlock(int x, int z, String world, String guildName) {
         // First, get the guild ID from the guild name
-        String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+        String getGuildIdSql = SqlStatements.load("guilds/select-id-by-name.sql");
         String guildId = null;
 
         try (Connection connection = dataSource.getConnection()) {
@@ -82,8 +83,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
             // Create guild block
-            String sql = "INSERT INTO guild_blocks (id, x, z, world, guild_id, plot_type, price, permissions_flags, claimed_at) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String sql = SqlStatements.load("plots/insert.sql");
 
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 UUID plotId = UUID.randomUUID();
@@ -117,8 +117,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public Optional<GuildBlock> getGuildBlock(int x, int z, String world) {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE x = ? AND z = ? AND world = ?";
+        String sql = SqlStatements.load("plots/select-by-coords.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -147,8 +146,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public Optional<GuildBlock> getGuildBlock(UUID id) {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE id = ?";
+        String sql = SqlStatements.load("plots/select-by-id.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -170,8 +168,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public GuildBlock updateGuildBlock(GuildBlock guildBlock) {
-        String sql = "UPDATE guild_blocks SET x = ?, z = ?, world = ?, guild_id = ?, owner_uuid = ?, " +
-                    "plot_type = ?, price = ?, permissions_flags = ?, custom_name = ? WHERE id = ?";
+        String sql = SqlStatements.load("plots/update.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -209,7 +206,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean deleteGuildBlock(UUID id) {
-        String sql = "DELETE FROM guild_blocks WHERE id = ?";
+        String sql = SqlStatements.load("plots/delete-by-id.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -232,8 +229,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public List<GuildBlock> getAllGuildBlocks() {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks ORDER BY world, x, z";
+        String sql = SqlStatements.load("plots/select-all.sql");
         List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -254,7 +250,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public List<GuildBlock> getGuildBlocksInGuild(String guildName) {
         // First get the guild ID from the guild name
-        String getGuildIdSql = "SELECT id FROM guilds WHERE name = ?";
+        String getGuildIdSql = SqlStatements.load("guilds/select-id-by-name.sql");
         String guildId = null;
 
         try (Connection connection = dataSource.getConnection()) {
@@ -272,8 +268,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             }
 
             // Get guild blocks for this guild
-            String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                        "FROM guild_blocks WHERE guild_id = ? ORDER BY x, z";
+            String sql = SqlStatements.load("plots/select-by-guild.sql");
             List<GuildBlock> guildBlocks = new ArrayList<>();
 
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -296,8 +291,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public List<GuildBlock> getGuildBlocksInWorld(String world) {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE world = ? ORDER BY x, z";
+        String sql = SqlStatements.load("plots/select-by-world.sql");
         List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -320,8 +314,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public List<GuildBlock> getGuildBlocksOwnedBy(UUID residentUuid) {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE owner_uuid = ? ORDER BY world, x, z";
+        String sql = SqlStatements.load("plots/select-by-owner.sql");
         List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -344,7 +337,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean guildBlockExists(int x, int z, String world) {
-        String sql = "SELECT COUNT(*) FROM guild_blocks WHERE x = ? AND z = ? AND world = ?";
+        String sql = SqlStatements.load("plots/count-by-coords.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -384,7 +377,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean unclaimGuildBlock(int x, int z, String world) {
-        String sql = "DELETE FROM guild_blocks WHERE x = ? AND z = ? AND world = ?";
+        String sql = SqlStatements.load("plots/delete-by-coords.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -409,7 +402,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean setGuildBlockOwner(UUID id, UUID ownerUuid) {
-        String sql = "UPDATE guild_blocks SET owner_uuid = ? WHERE id = ?";
+        String sql = SqlStatements.load("plots/update-owner.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -438,8 +431,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public List<GuildBlock> getGuildBlocksInRadius(int centerX, int centerZ, int radius, String world) {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE world = ? AND x >= ? AND x <= ? AND z >= ? AND z <= ? ORDER BY x, z";
+        String sql = SqlStatements.load("plots/select-in-radius.sql");
 
         List<GuildBlock> guildBlocks = new ArrayList<>();
 
@@ -467,8 +459,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public List<GuildBlock> getGuildBlocksByType(String plotType) {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE plot_type = ? ORDER BY world, x, z";
+        String sql = SqlStatements.load("plots/select-by-type.sql");
         List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -491,8 +482,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public List<GuildBlock> getGuildOwnedBlocks(String guildName) {
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE guild_id = ? AND owner_uuid IS NULL ORDER BY x, z";
+        String sql = SqlStatements.load("plots/select-unowned-by-guild.sql");
         List<GuildBlock> guildBlocks = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -515,7 +505,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public int getGuildBlockCount(String guildName) {
-        String sql = "SELECT COUNT(*) FROM guild_blocks WHERE guild_id = ?";
+        String sql = SqlStatements.load("plots/count-by-guild.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -537,7 +527,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean setPlotType(UUID id, String plotType) {
-        String sql = "UPDATE guild_blocks SET plot_type = ? WHERE id = ?";
+        String sql = SqlStatements.load("plots/update-plot-type.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -564,8 +554,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
         int blockX = chunkX << 4;
         int blockZ = chunkZ << 4;
 
-        String sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                    "FROM guild_blocks WHERE world = ? AND x >= ? AND x < ? AND z >= ? AND z < ? ORDER BY x, z";
+        String sql = SqlStatements.load("plots/select-in-chunk.sql");
 
         List<GuildBlock> guildBlocks = new ArrayList<>();
 
@@ -728,9 +717,9 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             // Any failure aborts with SQLException so the purchase rolls back —
             // money can never move without the ownership transfer.
             boolean txCommitted = databaseManager.executeTransaction(connection -> {
-                String transferSql = "UPDATE guild_blocks SET owner_uuid = ?, price = 0.0, permissions_flags = ? "
-                        + "WHERE id = ? AND price = ?"
-                        + (observedOwner == null ? " AND owner_uuid IS NULL" : " AND owner_uuid = ?");
+                String transferSql = SqlStatements.load(observedOwner == null
+                        ? "plots/update-transfer-unowned.sql"
+                        : "plots/update-transfer.sql");
                 try (PreparedStatement statement = connection.prepareStatement(transferSql)) {
                     statement.setString(1, residentUuid.toString());
                     statement.setInt(2, GuildPermission.ALL); // owner gets full permissions
@@ -745,7 +734,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                 }
 
                 if (!buyerGuildId.equals(plotGuildId)) {
-                    String debitSql = "UPDATE guilds SET balance = balance - ? WHERE id = ? AND balance >= ?";
+                    String debitSql = SqlStatements.load("plots/debit-guild-balance.sql");
                     try (PreparedStatement statement = connection.prepareStatement(debitSql)) {
                         statement.setDouble(1, price);
                         statement.setString(2, buyerGuildId);
@@ -754,7 +743,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                             throw new SQLException("Insufficient balance in guild " + buyerGuildId);
                         }
                     }
-                    String creditSql = "UPDATE guilds SET balance = balance + ? WHERE id = ?";
+                    String creditSql = SqlStatements.load("plots/credit-guild-balance.sql");
                     try (PreparedStatement statement = connection.prepareStatement(creditSql)) {
                         statement.setDouble(1, price);
                         statement.setString(2, plotGuildId);
@@ -764,8 +753,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
                     }
                 }
 
-                String auditSql = "INSERT INTO economy_transactions (id, guild_id, player_uuid, type, amount, description, timestamp) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+                String auditSql = SqlStatements.load("plots/insert-purchase.sql");
                 try (PreparedStatement statement = connection.prepareStatement(auditSql)) {
                     statement.setString(1, UUID.randomUUID().toString());
                     statement.setString(2, buyerGuildId);
@@ -818,11 +806,9 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     public List<GuildBlock> getPlotsForSale(String guildName) {
         String sql;
         if (guildName != null) {
-            sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                  "FROM guild_blocks WHERE guild_id = ? AND price > 0 ORDER BY price, x, z";
+            sql = SqlStatements.load("plots/select-for-sale.sql");
         } else {
-            sql = "SELECT id, x, z, world, guild_id, owner_uuid, plot_type, price, permissions_flags, claimed_at, custom_name " +
-                  "FROM guild_blocks WHERE price > 0 ORDER BY world, price, x, z";
+            sql = SqlStatements.load("plots/select-for-sale-all.sql");
         }
 
         List<GuildBlock> plotsForSale = new ArrayList<>();
@@ -905,8 +891,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     @Override
     public List<Permission> getPlotPermissions(UUID plotId) {
         List<Permission> permissions = new ArrayList<>();
-        String sql = "SELECT id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid " +
-                    "FROM permissions WHERE context = 'plot' AND context_id = ? ORDER BY granted_at";
+        String sql = SqlStatements.load("plots/select-permissions.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -948,8 +933,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     public boolean grantPlotPermission(UUID plotId, String targetType, String targetId, int permissionFlag, UUID grantedBy) {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(SqlSupport.upsertSql(connection,
-                    "INSERT INTO permissions (id, context, context_id, target_type, target_id, permissions_flags, granted_at, granted_by_uuid) "
-                            + "VALUES (?, 'plot', ?, ?, ?, ?, ?, ?)",
+                    SqlStatements.load("plots/insert-permission.sql"),
                     "id",
                     "permissions_flags = EXCLUDED.permissions_flags, granted_at = EXCLUDED.granted_at, granted_by_uuid = EXCLUDED.granted_by_uuid"))) {
 
@@ -982,7 +966,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
 
     @Override
     public boolean revokePlotPermission(UUID plotId, String targetType, String targetId, int permissionFlag) {
-        String sql = "DELETE FROM permissions WHERE context = 'plot' AND context_id = ? AND target_type = ? AND target_id = ? AND permissions_flags = ?";
+        String sql = SqlStatements.load("plots/delete-plot-permission.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1090,7 +1074,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     // Helper methods
 
     private String getResidentName(UUID residentUuid) {
-        String sql = "SELECT name FROM residents WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/select-name-by-uuid.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1111,7 +1095,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
     }
 
     private String getResidentGuild(UUID residentUuid) {
-        String sql = "SELECT guild_name FROM residents WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/select-guild-name.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
