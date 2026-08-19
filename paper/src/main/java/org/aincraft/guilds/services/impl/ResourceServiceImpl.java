@@ -4,6 +4,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.aincraft.guilds.models.ResourceContribution;
 import org.aincraft.guilds.models.ResourceType;
@@ -55,7 +56,7 @@ public class ResourceServiceImpl implements ResourceService {
         }
 
         try {
-            String sql = "SELECT * FROM guild_resources WHERE guild_id = ? AND resource_type = ?";
+            String sql = SqlStatements.load("resources/select-guild-resource.sql");
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -86,7 +87,7 @@ public class ResourceServiceImpl implements ResourceService {
         }
 
         try {
-            String sql = "SELECT * FROM guild_resources WHERE guild_id = ? ORDER BY resource_type";
+            String sql = SqlStatements.load("resources/select-guild-resources.sql");
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -169,7 +170,7 @@ public class ResourceServiceImpl implements ResourceService {
         }
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT * FROM resource_contributions WHERE id = ?")) {
+                     SqlStatements.load("resources/select-contribution-by-id.sql"))) {
             statement.setString(1, contributionId);
             try (ResultSet result = statement.executeQuery()) {
                 return result.next()
@@ -188,8 +189,7 @@ public class ResourceServiceImpl implements ResourceService {
             return List.of();
         }
         return queryContributions(
-                "SELECT * FROM resource_contributions WHERE guild_id = ? "
-                        + "ORDER BY contribution_time DESC, id DESC",
+                SqlStatements.load("resources/select-guild-contributions.sql"),
                 guildId);
     }
 
@@ -199,8 +199,7 @@ public class ResourceServiceImpl implements ResourceService {
             return List.of();
         }
         return queryContributions(
-                "SELECT * FROM resource_contributions WHERE contributor_uuid = ? "
-                        + "ORDER BY contribution_time DESC, id DESC",
+                SqlStatements.load("resources/select-player-contributions.sql"),
                 contributorUuid);
     }
 
@@ -211,8 +210,7 @@ public class ResourceServiceImpl implements ResourceService {
             return List.of();
         }
         return queryContributions(
-                "SELECT * FROM resource_contributions WHERE guild_id = ? AND contributor_uuid = ? "
-                        + "ORDER BY contribution_time DESC, id DESC",
+                SqlStatements.load("resources/select-player-guild-contributions.sql"),
                 guildId, contributorUuid);
     }
 
@@ -246,8 +244,7 @@ public class ResourceServiceImpl implements ResourceService {
         Map<String, Integer> totals = new LinkedHashMap<>();
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT resource_type, SUM(amount) AS total FROM resource_contributions "
-                             + "WHERE guild_id = ? GROUP BY resource_type ORDER BY resource_type")) {
+                     SqlStatements.load("resources/select-guild-totals.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
@@ -271,8 +268,7 @@ public class ResourceServiceImpl implements ResourceService {
         Map<String, Integer> totals = new LinkedHashMap<>();
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT resource_type, SUM(amount) AS total FROM resource_contributions "
-                             + "WHERE contributor_uuid = ? GROUP BY resource_type ORDER BY resource_type")) {
+                     SqlStatements.load("resources/select-player-totals.sql"))) {
             statement.setString(1, contributorUuid.toString());
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
@@ -294,8 +290,7 @@ public class ResourceServiceImpl implements ResourceService {
             return List.of();
         }
         return queryContributions(
-                "SELECT * FROM resource_contributions WHERE guild_id = ? AND contribution_time >= ? "
-                        + "ORDER BY contribution_time DESC, id DESC",
+                SqlStatements.load("resources/select-recent-contributions.sql"),
                 guildId, LocalDateTime.now().minusDays(1));
     }
 
@@ -309,8 +304,7 @@ public class ResourceServiceImpl implements ResourceService {
         LocalDateTime lastContribution = null;
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT COUNT(DISTINCT contributor_uuid), COUNT(*), MAX(contribution_time) "
-                             + "FROM resource_contributions WHERE guild_id = ?")) {
+                     SqlStatements.load("resources/select-contribution-stats.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 if (result.next()) {
@@ -329,8 +323,7 @@ public class ResourceServiceImpl implements ResourceService {
         Map<String, Integer> topContributors = new LinkedHashMap<>();
         try (Connection connection = databaseManager.getConnection();
              PreparedStatement statement = connection.prepareStatement(
-                     "SELECT contributor_uuid, SUM(amount) AS total FROM resource_contributions "
-                             + "WHERE guild_id = ? GROUP BY contributor_uuid ORDER BY total DESC, contributor_uuid")) {
+                     SqlStatements.load("resources/select-top-contributors.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
@@ -436,7 +429,7 @@ public class ResourceServiceImpl implements ResourceService {
         }
 
         try {
-            String sql = "DELETE FROM guild_resources WHERE guild_id = ?";
+            String sql = SqlStatements.load("resources/delete-by-guild.sql");
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -455,7 +448,7 @@ public class ResourceServiceImpl implements ResourceService {
     @Override
     public void resetAllResourceData() {
         try {
-            String sql = "DELETE FROM guild_resources";
+            String sql = SqlStatements.load("resources/delete-all.sql");
 
             try (Connection connection = databaseManager.getConnection();
                  PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -525,11 +518,7 @@ public class ResourceServiceImpl implements ResourceService {
 
     private void insertContribution(Connection connection, ResourceContribution contribution)
             throws SQLException {
-        String sql = """
-                INSERT INTO resource_contributions
-                    (id, guild_id, contributor_uuid, resource_type, amount, contribution_time)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """;
+        String sql = SqlStatements.load("resources/insert-contribution.sql");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, contribution.getId());
             statement.setString(2, contribution.getGuildId());
@@ -546,10 +535,7 @@ public class ResourceServiceImpl implements ResourceService {
     private void creditGuildResources(
             Connection connection, String guildId, ResourceType resourceType, int amount)
             throws SQLException {
-        String sql = SqlSupport.upsertSql(connection, """
-                INSERT INTO guild_resources (id, guild_id, resource_type, amount, last_updated)
-                VALUES (?, ?, ?, ?, ?)
-                """, "guild_id, resource_type", """
+        String sql = SqlSupport.upsertSql(connection, SqlStatements.load("resources/insert.sql"), "guild_id, resource_type", """
                     amount = guild_resources.amount + EXCLUDED.amount,
                     last_updated = EXCLUDED.last_updated
                 """);
@@ -570,7 +556,7 @@ public class ResourceServiceImpl implements ResourceService {
             throws SQLException {
         int available;
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT amount FROM guild_resources WHERE guild_id = ? AND resource_type = ? FOR UPDATE")) {
+                SqlStatements.load("resources/select-amount-for-update.sql"))) {
             statement.setString(1, guildId);
             statement.setString(2, resourceType.getNormalizedName());
             try (ResultSet result = statement.executeQuery()) {
@@ -584,8 +570,7 @@ public class ResourceServiceImpl implements ResourceService {
             return false;
         }
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE guild_resources SET amount = amount - ?, last_updated = ? "
-                        + "WHERE guild_id = ? AND resource_type = ?")) {
+                SqlStatements.load("resources/debit.sql"))) {
             statement.setInt(1, amount);
             statement.setString(2, LocalDateTime.now().toString());
             statement.setString(3, guildId);
@@ -599,7 +584,7 @@ public class ResourceServiceImpl implements ResourceService {
             throws SQLException {
         String currentJson;
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT upgrade_progress FROM guilds WHERE id = ? FOR UPDATE")) {
+                SqlStatements.load("resources/select-upgrade-progress-for-update.sql"))) {
             statement.setString(1, guildId);
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
@@ -611,7 +596,7 @@ public class ResourceServiceImpl implements ResourceService {
         Map<String, Integer> progress = parseProgressJson(currentJson);
         progress.merge(resourceType, amount, Math::addExact);
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE guilds SET upgrade_progress = ? WHERE id = ?")) {
+                SqlStatements.load("resources/update-upgrade-progress.sql"))) {
             statement.setString(1, serializeProgressJson(progress));
             statement.setString(2, guildId);
             if (statement.executeUpdate() != 1) {

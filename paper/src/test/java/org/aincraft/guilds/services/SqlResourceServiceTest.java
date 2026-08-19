@@ -39,4 +39,12 @@ class SqlResourceServiceTest {
                 .contains("IN ({audiencePlaceholders})"));
     }
 
+    @Test
+    void resourcesSqlLivesOnTheClasspath() {
+        assertTrue(SqlStatements.load("resources/insert.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO GUILD_RESOURCES"));
+        assertTrue(SqlStatements.load("resources/insert-contribution.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO RESOURCE_CONTRIBUTIONS"));
+    }
+
 }
