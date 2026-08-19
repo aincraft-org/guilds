@@ -1,10 +1,10 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.LocalDateTime;
 
 /**
@@ -36,26 +36,14 @@ public class AlterResidentLastOnlineMigration implements DatabaseMigration {
     public void migrate(Connection connection) throws SQLException {
         // ALTER TYPE INTEGER -> BIGINT works in-place on PostgreSQL; existing rows are
         // promoted losslessly. Idempotent for fresh installs (column is already BIGINT).
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("ALTER TABLE residents ALTER COLUMN last_online TYPE BIGINT");
-        }
+        SqlSupport.widenIntegerToBigint(connection, "residents", "last_online");
     }
 
     @Override
     public boolean isApplied(Connection connection) throws SQLException {
         // Guard for fresh installs where the initial schema may already be BIGINT: treat
         // the migration as applied when the column is BIGINT, so it isn't re-run.
-        String sql = """
-            SELECT COUNT(*) FROM information_schema.columns
-            WHERE table_schema = current_schema()
-              AND table_name = 'residents'
-              AND column_name = 'last_online'
-              AND data_type = 'bigint'
-            """;
-        try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            return rs.next() && rs.getInt(1) > 0;
-        }
+        return SqlSupport.isBigint(connection, "residents", "last_online");
     }
 
     @Override

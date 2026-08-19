@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,7 +31,7 @@ public class AddQuestMigration implements DatabaseMigration {
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
             // Guild quests table
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS guild_quests (
                     id TEXT PRIMARY KEY,
                     guild_id TEXT NOT NULL,
@@ -44,10 +46,10 @@ public class AddQuestMigration implements DatabaseMigration {
                     completed_at TEXT,
                     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE
                 )
-                """);
+                """));
 
             // Indexes
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_quests_guild_id ON guild_quests(guild_id)");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_quests_guild_id", "guild_quests", "guild_id");
         }
     }
 

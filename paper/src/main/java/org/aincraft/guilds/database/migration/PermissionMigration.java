@@ -1,6 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
 import org.aincraft.guilds.models.GuildPermission;
+import org.aincraft.guilds.territory.persist.SqlSupport;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,14 +18,14 @@ public class PermissionMigration {
      * Create permission mapping table for legacy conversion
      */
     public static void createPermissionMappingTable(Connection connection) throws SQLException {
-        String sql = """
+        String sql = SqlSupport.withIdType(connection, """
             CREATE TABLE IF NOT EXISTS permission_flag_mapping (
                 permission_name TEXT PRIMARY KEY,
                 legacy_bitmask INTEGER NOT NULL,
                 category TEXT NOT NULL,
                 description TEXT
             )
-        """;
+        """);
 
         try (Statement statement = connection.createStatement()) {
             statement.execute(sql);
@@ -38,14 +39,14 @@ public class PermissionMigration {
      * Populate the permission mapping table with current GuildPermission enum values
      */
     private static void populatePermissionMapping(Connection connection) throws SQLException {
-        String sql = """
+        String sql = SqlSupport.upsertSql(connection, """
                 INSERT INTO permission_flag_mapping (permission_name, legacy_bitmask, category, description)
                 VALUES (?, ?, ?, ?)
-                ON CONFLICT (permission_name) DO UPDATE SET
+                """, "permission_name", """
                     legacy_bitmask = EXCLUDED.legacy_bitmask,
                     category = EXCLUDED.category,
                     description = EXCLUDED.description
-                """;
+                """);
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (GuildPermission permission : GuildPermission.values()) {
@@ -63,10 +64,8 @@ public class PermissionMigration {
      * Add temporary columns for enum-based storage
      */
     public static void addEnumColumns(Connection connection) throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            statement.execute("ALTER TABLE permissions ADD COLUMN IF NOT EXISTS permissions_enum TEXT DEFAULT NULL");
-            statement.execute("ALTER TABLE permissions ADD COLUMN IF NOT EXISTS explicit_denials TEXT DEFAULT NULL");
-        }
+        SqlSupport.addColumnIfAbsent(connection, "permissions", "permissions_enum", "TEXT DEFAULT NULL");
+        SqlSupport.addColumnIfAbsent(connection, "permissions", "explicit_denials", "TEXT DEFAULT NULL");
     }
 
     /**

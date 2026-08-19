@@ -2,6 +2,7 @@ package org.aincraft.guilds.database.migration;
 
 
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.sql.Connection;
@@ -251,8 +252,7 @@ public class SchemaInitializer {
         @Override
         public void migrate(Connection connection) throws SQLException {
             try (Statement statement = connection.createStatement()) {
-                // Create residents table
-                statement.execute("""
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS residents (
                         uuid TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
@@ -262,10 +262,8 @@ public class SchemaInitializer {
                         joined_at TEXT NOT NULL,
                         permissions_flags INTEGER DEFAULT 0
                     )
-                """);
-
-                // Create guilds table
-                statement.execute("""
+                """));
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS guilds (
                         id TEXT PRIMARY KEY,
                         name TEXT UNIQUE NOT NULL,
@@ -280,10 +278,8 @@ public class SchemaInitializer {
                         tax_rates TEXT,
                         FOREIGN KEY (mayor_uuid) REFERENCES residents(uuid) ON DELETE SET NULL
                     )
-                """);
-
-                // Create guild residents mapping table
-                statement.execute("""
+                """));
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS guild_residents (
                         guild_id TEXT,
                         resident_uuid TEXT,
@@ -293,10 +289,8 @@ public class SchemaInitializer {
                         FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                         FOREIGN KEY (resident_uuid) REFERENCES residents(uuid) ON DELETE CASCADE
                     )
-                """);
-
-                // Create guild blocks table
-                statement.execute("""
+                """));
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS guild_blocks (
                         id TEXT PRIMARY KEY,
                         x INTEGER NOT NULL,
@@ -313,10 +307,8 @@ public class SchemaInitializer {
                         FOREIGN KEY (owner_uuid) REFERENCES residents(uuid) ON DELETE SET NULL,
                         UNIQUE(x, z, world)
                     )
-                """);
-
-                // Create permissions table with bitwise flags
-                statement.execute("""
+                """));
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS permissions (
                         id TEXT PRIMARY KEY,
                         context TEXT NOT NULL,
@@ -328,16 +320,16 @@ public class SchemaInitializer {
                         granted_by_uuid TEXT,
                         FOREIGN KEY (granted_by_uuid) REFERENCES residents(uuid) ON DELETE SET NULL
                     )
-                """);
+                """));
 
                 // Create indexes
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_residents_guild ON residents(guild_name)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guilds_name ON guilds(name)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_location ON guild_blocks(x, z, world)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_guild ON guild_blocks(guild_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_owner ON guild_blocks(owner_uuid)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_context ON permissions(context, context_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_permissions_target ON permissions(target_type, target_id)");
+                SqlSupport.createIndexIfAbsent(connection, "idx_residents_guild", "residents", "guild_name");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guilds_name", "guilds", "name");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guild_blocks_location", "guild_blocks", "x, z, world");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guild_blocks_guild", "guild_blocks", "guild_id");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guild_blocks_owner", "guild_blocks", "owner_uuid");
+                SqlSupport.createIndexIfAbsent(connection, "idx_permissions_context", "permissions", "context, context_id");
+                SqlSupport.createIndexIfAbsent(connection, "idx_permissions_target", "permissions", "target_type, target_id");
             }
         }
 
@@ -404,21 +396,16 @@ public class SchemaInitializer {
                 statement.execute("""
                     ALTER TABLE guilds ADD COLUMN spawn_pitch REAL DEFAULT NULL
                 """);
-                statement.execute("""
+                statement.execute(SqlSupport.withIdType(connection, """
                     ALTER TABLE guilds ADD COLUMN spawn_world TEXT DEFAULT NULL
-                """);
+                """));
             }
         }
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {
-            try (PreparedStatement statement = connection.prepareStatement("""
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_schema = current_schema()
-                      AND table_name = 'guilds' AND column_name = 'spawn_x'
-                    """);
-                 ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
+            try {
+                return SqlSupport.columnExists(connection, "guilds", "spawn_x");
             } catch (SQLException e) {
                 return false;
             }
@@ -464,13 +451,8 @@ public class SchemaInitializer {
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {
-            try (PreparedStatement statement = connection.prepareStatement("""
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_schema = current_schema()
-                      AND table_name = 'guilds' AND column_name = 'home_block_y'
-                    """);
-                 ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
+            try {
+                return SqlSupport.columnExists(connection, "guilds", "home_block_y");
             } catch (SQLException e) {
                 return false;
             }
@@ -514,12 +496,11 @@ public class SchemaInitializer {
                 statement.execute("""
                     ALTER TABLE guilds ADD COLUMN tech_points INTEGER DEFAULT 0
                 """);
-                statement.execute("""
-                    ALTER TABLE guilds ADD COLUMN upgrade_progress TEXT DEFAULT '{}'
-                """);
+                SqlSupport.addColumnIfAbsent(connection, "guilds", "upgrade_progress",
+                        SqlSupport.mysql(connection) ? "TEXT" : "TEXT DEFAULT '{}'");
 
                 // Create guild levels table (level definitions)
-                statement.execute("""
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS guild_levels (
                         level INTEGER PRIMARY KEY,
                         resource_costs_json TEXT NOT NULL DEFAULT '{}',
@@ -530,10 +511,10 @@ public class SchemaInitializer {
                         unlocked_plot_types TEXT DEFAULT '[]',
                         created_at TEXT NOT NULL
                     )
-                """);
+                """));
 
                 // Create guild resource bank table
-                statement.execute("""
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS guild_resources (
                         id TEXT PRIMARY KEY,
                         guild_id TEXT NOT NULL,
@@ -543,10 +524,10 @@ public class SchemaInitializer {
                         FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                         UNIQUE(guild_id, resource_type)
                     )
-                """);
+                """));
 
                 // Create resource contributions table
-                statement.execute("""
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS resource_contributions (
                         id TEXT PRIMARY KEY,
                         guild_id TEXT NOT NULL,
@@ -557,10 +538,10 @@ public class SchemaInitializer {
                         FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                         FOREIGN KEY (contributor_uuid) REFERENCES residents(uuid) ON DELETE CASCADE
                     )
-                """);
+                """));
 
                 // Create level benefits table for tracking unlocked benefits
-                statement.execute("""
+                statement.execute(SqlSupport.withIdType(connection, """
                     CREATE TABLE IF NOT EXISTS guild_level_benefits (
                         id TEXT PRIMARY KEY,
                         guild_id TEXT NOT NULL,
@@ -571,32 +552,27 @@ public class SchemaInitializer {
                         FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                         UNIQUE(guild_id, level, benefit_type)
                     )
-                """);
+                """));
 
                 // Level data will be populated from config.yml on plugin startup
                 // See GuildLevelConfigLoader and GuildLevelService.syncConfigToDatabase()
 
                 // Create indexes for performance
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_resources_guild ON guild_resources(guild_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_resources_type ON guild_resources(resource_type)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_guild ON resource_contributions(guild_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_contributor ON resource_contributions(contributor_uuid)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_resource_contributions_time ON resource_contributions(contribution_time)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_level_benefits_guild ON guild_level_benefits(guild_id)");
-                statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_level_benefits_level ON guild_level_benefits(level)");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guild_resources_guild", "guild_resources", "guild_id");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guild_resources_type", "guild_resources", "resource_type");
+                SqlSupport.createIndexIfAbsent(connection, "idx_resource_contributions_guild", "resource_contributions", "guild_id");
+                SqlSupport.createIndexIfAbsent(connection, "idx_resource_contributions_contributor", "resource_contributions", "contributor_uuid");
+                SqlSupport.createIndexIfAbsent(connection, "idx_resource_contributions_time", "resource_contributions", "contribution_time");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guild_level_benefits_guild", "guild_level_benefits", "guild_id");
+                SqlSupport.createIndexIfAbsent(connection, "idx_guild_level_benefits_level", "guild_level_benefits", "level");
             }
         }
 
 
         @Override
         public boolean isApplied(Connection connection) throws SQLException {
-            try (PreparedStatement statement = connection.prepareStatement("""
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_schema = current_schema()
-                      AND table_name = 'guilds' AND column_name = 'guild_level'
-                    """);
-                 ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
+            try {
+                return SqlSupport.columnExists(connection, "guilds", "guild_level");
             } catch (SQLException e) {
                 return false;
             }

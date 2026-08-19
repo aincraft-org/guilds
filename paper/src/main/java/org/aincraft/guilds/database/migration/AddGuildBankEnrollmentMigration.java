@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,7 +26,7 @@ public class AddGuildBankEnrollmentMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
-            statement.execute("""
+            statement.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS guild_bank_enrollments (
                     guild_id TEXT NOT NULL,
                     player_uuid TEXT NOT NULL,
@@ -35,9 +37,9 @@ public class AddGuildBankEnrollmentMigration implements DatabaseMigration {
                     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                     FOREIGN KEY (player_uuid) REFERENCES residents(uuid) ON DELETE CASCADE
                 )
-                """);
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_bank_enrollments_player ON guild_bank_enrollments(player_uuid)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_bank_enrollments_active ON guild_bank_enrollments(guild_id, player_uuid, active)");
+                """));
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_bank_enrollments_player", "guild_bank_enrollments", "player_uuid");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_bank_enrollments_active", "guild_bank_enrollments", "guild_id, player_uuid, active");
         }
     }
 

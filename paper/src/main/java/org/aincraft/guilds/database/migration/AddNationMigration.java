@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,7 +30,7 @@ public class AddNationMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS nations (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE,
@@ -38,40 +40,40 @@ public class AddNationMigration implements DatabaseMigration {
                     is_open INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL
                 )
-            """);
+            """));
 
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS nation_members (
                     nation_id TEXT NOT NULL,
                     guild_id TEXT NOT NULL,
                     PRIMARY KEY (nation_id, guild_id)
                 )
-            """);
+            """));
 
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS nation_ministers (
                     nation_id TEXT NOT NULL,
                     player_uuid TEXT NOT NULL,
                     PRIMARY KEY (nation_id, player_uuid)
                 )
-            """);
+            """));
 
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS nation_relations (
                     nation_id TEXT NOT NULL,
                     other_nation TEXT NOT NULL,
                     relation_type TEXT NOT NULL,
                     PRIMARY KEY (nation_id, other_nation)
                 )
-            """);
+            """));
 
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nations_capital ON nations(capital_guild_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nations_king ON nations(king_uuid)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_members_nation ON nation_members(nation_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_members_guild ON nation_members(guild_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_ministers_nation ON nation_ministers(nation_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_relations_nation ON nation_relations(nation_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_nation_relations_type ON nation_relations(relation_type)");
+            SqlSupport.createIndexIfAbsent(connection, "idx_nations_capital", "nations", "capital_guild_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_nations_king", "nations", "king_uuid");
+            SqlSupport.createIndexIfAbsent(connection, "idx_nation_members_nation", "nation_members", "nation_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_nation_members_guild", "nation_members", "guild_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_nation_ministers_nation", "nation_ministers", "nation_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_nation_relations_nation", "nation_relations", "nation_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_nation_relations_type", "nation_relations", "relation_type");
         }
     }
 

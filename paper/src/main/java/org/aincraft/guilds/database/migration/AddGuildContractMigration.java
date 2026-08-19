@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,7 +30,7 @@ public class AddGuildContractMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS guild_contracts (
                     id TEXT PRIMARY KEY,
                     contracting_guild_id TEXT NOT NULL,
@@ -42,11 +44,11 @@ public class AddGuildContractMigration implements DatabaseMigration {
                     fulfilled_at TEXT,
                     FOREIGN KEY (contracting_guild_id) REFERENCES guilds(id) ON DELETE CASCADE
                 )
-            """);
+            """));
 
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_contracts_status ON guild_contracts(status)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_contracts_contracting ON guild_contracts(contracting_guild_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_contracts_fulfilled_by ON guild_contracts(fulfilled_by_guild_id)");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_contracts_status", "guild_contracts", "status");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_contracts_contracting", "guild_contracts", "contracting_guild_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_contracts_fulfilled_by", "guild_contracts", "fulfilled_by_guild_id");
         }
     }
 

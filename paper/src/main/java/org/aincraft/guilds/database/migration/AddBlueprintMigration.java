@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,7 +30,7 @@ public class AddBlueprintMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS blueprints (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL UNIQUE,
@@ -37,11 +39,11 @@ public class AddBlueprintMigration implements DatabaseMigration {
                     schematic_data BYTEA,
                     created_at TEXT NOT NULL
                 )
-            """);
+            """));
 
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_blueprints_guild ON blueprints(guild_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_blueprints_name ON blueprints(name)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_blueprints_author ON blueprints(author_uuid)");
+            SqlSupport.createIndexIfAbsent(connection, "idx_blueprints_guild", "blueprints", "guild_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_blueprints_name", "blueprints", "name");
+            SqlSupport.createIndexIfAbsent(connection, "idx_blueprints_author", "blueprints", "author_uuid");
         }
     }
 

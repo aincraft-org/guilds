@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,7 +31,7 @@ public class AddTechTreeSystemMigration implements DatabaseMigration {
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
             // Node definitions table
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS tech_tree_nodes (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
@@ -40,10 +42,10 @@ public class AddTechTreeSystemMigration implements DatabaseMigration {
                     position_x INTEGER DEFAULT 0,
                     position_y INTEGER DEFAULT 0
                 )
-            """);
+            """));
 
             // Guild unlock tracking table
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS guild_unlocked_nodes (
                     guild_id TEXT NOT NULL,
                     node_id TEXT NOT NULL,
@@ -52,12 +54,12 @@ public class AddTechTreeSystemMigration implements DatabaseMigration {
                     FOREIGN KEY (guild_id) REFERENCES guilds(id) ON DELETE CASCADE,
                     FOREIGN KEY (node_id) REFERENCES tech_tree_nodes(id) ON DELETE CASCADE
                 )
-            """);
+            """));
 
             // Indexes
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_tech_nodes_branch ON tech_tree_nodes(branch)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_unlocked_guild ON guild_unlocked_nodes(guild_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_guild_unlocked_node ON guild_unlocked_nodes(node_id)");
+            SqlSupport.createIndexIfAbsent(connection, "idx_tech_nodes_branch", "tech_tree_nodes", "branch");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_unlocked_guild", "guild_unlocked_nodes", "guild_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_unlocked_node", "guild_unlocked_nodes", "node_id");
         }
     }
 

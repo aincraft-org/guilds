@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -32,9 +34,12 @@ public class AddGovernanceFormMigration implements DatabaseMigration {
 
     @Override
     public void migrate(Connection connection) throws SQLException {
-        try (Statement stmt = connection.createStatement()) {
-            stmt.execute("ALTER TABLE guilds ADD COLUMN governance_form TEXT NOT NULL DEFAULT 'MONARCHY'");
-            stmt.execute("ALTER TABLE nations ADD COLUMN governance_form TEXT NOT NULL DEFAULT 'MONARCHY'");
+        String definition = SqlSupport.mysql(connection)
+                ? "VARCHAR(255) NOT NULL DEFAULT 'MONARCHY'"
+                : "TEXT NOT NULL DEFAULT 'MONARCHY'";
+        SqlSupport.addColumnIfAbsent(connection, "guilds", "governance_form", definition);
+        if (SqlSupport.tableExists(connection, "nations")) {
+            SqlSupport.addColumnIfAbsent(connection, "nations", "governance_form", definition);
         }
     }
 

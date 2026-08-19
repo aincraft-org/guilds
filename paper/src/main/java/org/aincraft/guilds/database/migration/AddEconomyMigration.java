@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,7 +30,7 @@ public class AddEconomyMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws SQLException {
         try (Statement stmt = connection.createStatement()) {
-            stmt.execute("""
+            stmt.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS economy_transactions (
                     id TEXT PRIMARY KEY,
                     guild_id TEXT,
@@ -38,12 +40,12 @@ public class AddEconomyMigration implements DatabaseMigration {
                     description TEXT,
                     timestamp TEXT NOT NULL
                 )
-            """);
+            """));
 
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_guild ON economy_transactions(guild_id)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_player ON economy_transactions(player_uuid)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_type ON economy_transactions(type)");
-            stmt.execute("CREATE INDEX IF NOT EXISTS idx_economy_tx_timestamp ON economy_transactions(timestamp)");
+            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_guild", "economy_transactions", "guild_id");
+            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_player", "economy_transactions", "player_uuid");
+            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_type", "economy_transactions", "type");
+            SqlSupport.createIndexIfAbsent(connection, "idx_economy_tx_timestamp", "economy_transactions", "timestamp");
         }
     }
 

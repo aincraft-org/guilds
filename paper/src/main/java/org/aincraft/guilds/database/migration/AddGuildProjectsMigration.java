@@ -1,10 +1,11 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.LocalDateTime;
 
 /** Adds the single active guild-project slot and starts new guilds with 1 skill point. */
@@ -23,10 +24,9 @@ public class AddGuildProjectsMigration implements DatabaseMigration {
 
     @Override
     public void migrate(Connection connection) throws SQLException {
-        try (Statement statement = connection.createStatement()) {
-            statement.execute("ALTER TABLE guilds ADD COLUMN IF NOT EXISTS active_project_id TEXT");
-            statement.execute("ALTER TABLE guilds ALTER COLUMN tech_points SET DEFAULT 1");
-        }
+        SqlSupport.addColumnIfAbsent(connection, "guilds", "active_project_id",
+                SqlSupport.stringType(SqlSupport.mysql(connection)));
+        SqlSupport.setColumnDefault(connection, "guilds", "tech_points", "1");
     }
 
     @Override

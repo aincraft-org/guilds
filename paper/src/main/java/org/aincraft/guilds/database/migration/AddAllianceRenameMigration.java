@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -123,12 +125,8 @@ public class AddAllianceRenameMigration implements DatabaseMigration {
         if (!tableExists(connection, table)) {
             return; // older servers may lack this subsystem table entirely
         }
-        if (indexExists(connection, oldName)) {
-            try (Statement statement = connection.createStatement()) {
-                statement.execute("DROP INDEX " + oldName);
-            }
-        }
-        if (!indexExists(connection, newName)) {
+        SqlSupport.dropIndexIfPresent(connection, oldName, table);
+        if (!SqlSupport.indexExists(connection, newName)) {
             try (Statement statement = connection.createStatement()) {
                 statement.execute("CREATE INDEX " + newName + " ON " + table + " (" + columns + ")");
             }
@@ -136,36 +134,11 @@ public class AddAllianceRenameMigration implements DatabaseMigration {
     }
 
     private static boolean tableExists(Connection connection, String name) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = ?")) {
-            statement.setString(1, name);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
-            }
-        }
-    }
-
-    private static boolean indexExists(Connection connection, String name) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = ?")) {
-            statement.setString(1, name);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
-            }
-        }
+        return SqlSupport.tableExists(connection, name);
     }
 
     private static boolean columnExists(Connection connection, String table, String column) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT 1 FROM information_schema.columns
-                WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?
-                """)) {
-            statement.setString(1, table);
-            statement.setString(2, column);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
-            }
-        }
+        return SqlSupport.columnExists(connection, table, column);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package org.aincraft.guilds.database.migration;
 
+import org.aincraft.guilds.territory.persist.SqlSupport;
+
 import java.sql.Connection;
 import java.sql.Statement;
 
@@ -22,7 +24,7 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
     @Override
     public void migrate(Connection connection) throws java.sql.SQLException {
         try (Statement statement = connection.createStatement()) {
-            statement.execute("""
+            statement.execute(SqlSupport.withIdType(connection, """
                 CREATE TABLE IF NOT EXISTS plot_type_definitions (
                     type_name TEXT PRIMARY KEY,
                     display_name TEXT NOT NULL,
@@ -33,16 +35,15 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
                     is_enabled BOOLEAN DEFAULT TRUE,
                     created_at TEXT NOT NULL
                 )
-            """);
-            statement.execute("""
-                ALTER TABLE guild_blocks ADD COLUMN IF NOT EXISTS plot_type_definition TEXT DEFAULT NULL
-            """);
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_plugin "
-                    + "ON plot_type_definitions(plugin_name)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_plot_type_definitions_enabled "
-                    + "ON plot_type_definitions(is_enabled)");
-            statement.execute("CREATE INDEX IF NOT EXISTS idx_guild_blocks_plot_type_def "
-                    + "ON guild_blocks(plot_type_definition)");
+            """));
+            SqlSupport.addColumnIfAbsent(connection, "guild_blocks", "plot_type_definition",
+                    SqlSupport.mysql(connection) ? "VARCHAR(255) DEFAULT NULL" : "TEXT DEFAULT NULL");
+            SqlSupport.createIndexIfAbsent(connection, "idx_plot_type_definitions_plugin",
+                    "plot_type_definitions", "plugin_name");
+            SqlSupport.createIndexIfAbsent(connection, "idx_plot_type_definitions_enabled",
+                    "plot_type_definitions", "is_enabled");
+            SqlSupport.createIndexIfAbsent(connection, "idx_guild_blocks_plot_type_def",
+                    "guild_blocks", "plot_type_definition");
         }
 
         String currentTime = java.time.LocalDateTime.now().toString();
@@ -68,19 +69,20 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
 
     private static void seed(Connection connection, String typeName, String displayName, String description,
                              String metadata, String permissions, String createdAt) throws java.sql.SQLException {
-        try (java.sql.PreparedStatement statement = connection.prepareStatement("""
+        String sql = SqlSupport.upsertSql(connection, """
                 INSERT INTO plot_type_definitions (
                     type_name, display_name, description, plugin_name, metadata,
                     permissions, is_enabled, created_at
                 ) VALUES (?, ?, ?, NULL, ?, ?, TRUE, ?)
-                ON CONFLICT (type_name) DO UPDATE SET
+                """, "type_name", """
                     display_name = EXCLUDED.display_name,
                     description = EXCLUDED.description,
                     metadata = EXCLUDED.metadata,
                     permissions = EXCLUDED.permissions,
                     is_enabled = EXCLUDED.is_enabled,
                     created_at = EXCLUDED.created_at
-                """)) {
+                """);
+        try (java.sql.PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, typeName);
             statement.setString(2, displayName);
             statement.setString(3, description);
@@ -93,17 +95,11 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
 
     @Override
     public boolean isApplied(Connection connection) throws java.sql.SQLException {
-        try (Statement statement = connection.createStatement();
-             java.sql.ResultSet resultSet = statement.executeQuery(
-                     "SELECT COUNT(*) FROM information_schema.tables "
-                             + "WHERE table_schema = current_schema() AND table_name = 'plot_type_definitions'")) {
-            if (resultSet.next()) {
-                return resultSet.getInt(1) > 0;
-            }
+        try {
+            return SqlSupport.tableExists(connection, "plot_type_definitions");
         } catch (java.sql.SQLException e) {
             return false;
         }
-        return false;
     }
 
     @Override
