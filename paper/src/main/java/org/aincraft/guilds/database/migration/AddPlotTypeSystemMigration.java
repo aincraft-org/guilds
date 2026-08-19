@@ -3,7 +3,6 @@ package org.aincraft.guilds.database.migration;
 import org.aincraft.guilds.territory.persist.SqlSupport;
 
 import java.sql.Connection;
-import java.sql.Statement;
 
 /**
  * Migration to add plot type system with extensible registry
@@ -23,29 +22,11 @@ public class AddPlotTypeSystemMigration implements DatabaseMigration {
 
     @Override
     public void migrate(Connection connection) throws java.sql.SQLException {
-        try (Statement statement = connection.createStatement()) {
-            statement.execute(SqlSupport.withIdType(connection, """
-                CREATE TABLE IF NOT EXISTS plot_type_definitions (
-                    type_name TEXT PRIMARY KEY,
-                    display_name TEXT NOT NULL,
-                    description TEXT,
-                    plugin_name TEXT,
-                    metadata TEXT,
-                    permissions TEXT,
-                    is_enabled BOOLEAN DEFAULT TRUE,
-                    created_at TEXT NOT NULL
-                )
-            """));
-            SqlSupport.addColumnIfAbsent(connection, "guild_blocks", "plot_type_definition",
-                    SqlSupport.mysql(connection) ? "VARCHAR(255) DEFAULT NULL" : "TEXT DEFAULT NULL");
-            SqlSupport.createIndexIfAbsent(connection, "idx_plot_type_definitions_plugin",
-                    "plot_type_definitions", "plugin_name");
-            SqlSupport.createIndexIfAbsent(connection, "idx_plot_type_definitions_enabled",
-                    "plot_type_definitions", "is_enabled");
-            SqlSupport.createIndexIfAbsent(connection, "idx_guild_blocks_plot_type_def",
-                    "guild_blocks", "plot_type_definition");
-        }
+        org.aincraft.guilds.territory.persist.SqlScripts.apply(connection, "migrations/guilds/V7__plot-types.sql");
+        seedDefaults(connection);
+    }
 
+    static void seedDefaults(Connection connection) throws java.sql.SQLException {
         String currentTime = java.time.LocalDateTime.now().toString();
         seed(connection, "default", "Default", "Standard residential plot", "{}", "[]", currentTime);
         seed(connection, "shop", "Shop", "Commercial plot for shops and markets",

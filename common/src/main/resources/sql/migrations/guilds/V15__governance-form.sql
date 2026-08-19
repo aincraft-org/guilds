@@ -1,0 +1,2 @@
+-- +add-string-column guilds.governance_form NOT NULL DEFAULT 'MONARCHY'
+-- +add-string-column-if-table nations.governance_form NOT NULL DEFAULT 'MONARCHY'

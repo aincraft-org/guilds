@@ -1,0 +1,6 @@
+-- +add-column guilds spawn_x REAL DEFAULT NULL
+-- +add-column guilds spawn_y REAL DEFAULT NULL
+-- +add-column guilds spawn_z REAL DEFAULT NULL
+-- +add-column guilds spawn_yaw REAL DEFAULT NULL
+-- +add-column guilds spawn_pitch REAL DEFAULT NULL
+-- +add-string-column guilds.spawn_world

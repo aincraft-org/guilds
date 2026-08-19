@@ -1,0 +1,23 @@
+# track=guilds — relational Guilds schema. Versions match schema_migrations.
+1 initial Initial database schema creation
+2 spawn Add spawn location columns to guilds table
+3 home-block-y Add home_block_y column to guilds table for better spawn fallback
+4 level-system Add guild level system with resource contributions and tech tree points
+5 bitwise-permissions Convert GuildBlock permissions to bitwise system using GuildPermission flag values
+6 toggles Add guild toggle system with dedicated boolean columns
+7 plot-types Add extensible plot type system with registry support
+8 broadcasts Add guild broadcasting system with message types, priorities, and audience targeting
+9 tech-tree Add tech tree system with node definitions and guild unlock tracking
+10 economy Add economy transactions table for economy audit log
+11 nations Add nation system tables for nation mechanics
+12 specializations Add guild specialization system with specialization tracking
+13 quests Add guild quests system with quest tracking and rewards
+14 blueprints Add blueprints table for building templates and schematics
+15 governance-form Add governance form columns to guilds and nations
+16 rename-towns Rename legacy town schema objects to guild naming
+17 retire-blueprints Retire blueprint feature (table preserved for operator cleanup)
+18 rename-nations Rename nation schema objects to alliance naming
+19 contracts Add guild contracts table for cross-guild level-up material contracts
+20 last-online Widen residents.last_online from INTEGER to BIGINT to match the long-typed model
+21 bank-enrollment Add guild bank player enrollment tracking
+22 projects Add active guild project slot and default project skill points

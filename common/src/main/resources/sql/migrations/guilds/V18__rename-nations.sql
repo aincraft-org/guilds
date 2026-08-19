@@ -1,0 +1,1 @@
+-- Nation-to-alliance rename is a guarded Java hook: see AddAllianceRenameMigration.

@@ -1,0 +1,1 @@
+-- Town-to-guild rename is a guarded Java hook: see AddGuildRenameMigration.

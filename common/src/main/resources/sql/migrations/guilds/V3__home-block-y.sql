@@ -1,0 +1,1 @@
+-- +add-column guilds home_block_y INTEGER DEFAULT NULL

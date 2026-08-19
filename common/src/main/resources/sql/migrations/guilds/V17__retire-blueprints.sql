@@ -1,0 +1,1 @@
+-- Blueprint feature retired; table is preserved for operator cleanup.
