@@ -1,6 +1,7 @@
 package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildContract;
 import org.aincraft.guilds.services.GuildContractService;
@@ -94,12 +95,12 @@ public class GuildContractServiceImpl implements GuildContractService {
 
     @Override
     public List<GuildContract> getOpenContracts() {
-        return queryContracts("SELECT * FROM guild_contracts WHERE status = 'OPEN' ORDER BY created_at");
+        return queryContracts(SqlStatements.load("contracts/select-open.sql"));
     }
 
     @Override
     public List<GuildContract> getContractsForGuild(String guildId) {
-        return queryContracts("SELECT * FROM guild_contracts WHERE contracting_guild_id = ? ORDER BY created_at", guildId);
+        return queryContracts(SqlStatements.load("contracts/select-by-guild.sql"), guildId);
     }
 
     @Override
@@ -107,7 +108,7 @@ public class GuildContractServiceImpl implements GuildContractService {
         if (contractId == null) {
             return Optional.empty();
         }
-        List<GuildContract> results = queryContracts("SELECT * FROM guild_contracts WHERE id = ?", contractId);
+        List<GuildContract> results = queryContracts(SqlStatements.load("contracts/select-by-id.sql"), contractId);
         return results.stream().findFirst();
     }
 
@@ -201,11 +202,7 @@ public class GuildContractServiceImpl implements GuildContractService {
 
     private void insertContract(Connection connection, String id, String contractingGuildId,
                                 String resourceType, int amount, double payment, String createdAt) throws SQLException {
-        String sql = """
-            INSERT INTO guild_contracts (id, contracting_guild_id, resource_type, amount, payment,
-                filled, status, created_at)
-            VALUES (?, ?, ?, ?, ?, 0, 'OPEN', ?)
-            """;
+        String sql = SqlStatements.load("contracts/insert.sql");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, id);
             statement.setString(2, contractingGuildId);
@@ -219,11 +216,7 @@ public class GuildContractServiceImpl implements GuildContractService {
 
     private void markFulfilled(Connection connection, String contractId, String fulfillingGuildId,
                                String fulfilledAt) throws SQLException {
-        String sql = """
-            UPDATE guild_contracts
-            SET filled = amount, status = 'FULFILLED', fulfilled_by_guild_id = ?, fulfilled_at = ?
-            WHERE id = ?
-            """;
+        String sql = SqlStatements.load("contracts/mark-fulfilled.sql");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, fulfillingGuildId);
             statement.setString(2, fulfilledAt);
@@ -233,7 +226,7 @@ public class GuildContractServiceImpl implements GuildContractService {
     }
 
     private void markCancelled(Connection connection, String contractId) throws SQLException {
-        String sql = "UPDATE guild_contracts SET status = 'CANCELLED' WHERE id = ?";
+        String sql = SqlStatements.load("contracts/mark-cancelled.sql");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, contractId);
             statement.executeUpdate();
@@ -245,7 +238,7 @@ public class GuildContractServiceImpl implements GuildContractService {
      * JSON column, preserving any existing entries.
      */
     private void addToUpgradeProgress(Connection connection, String guildId, String resourceType, int amount) throws SQLException {
-        String selectSql = "SELECT upgrade_progress FROM guilds WHERE id = ?";
+        String selectSql = SqlStatements.load("contracts/select-upgrade-progress.sql");
         String currentJson = "{}";
 
         try (PreparedStatement statement = connection.prepareStatement(selectSql)) {
@@ -264,7 +257,7 @@ public class GuildContractServiceImpl implements GuildContractService {
         int existing = progress.getOrDefault(resourceType, 0);
         progress.put(resourceType, existing + amount);
 
-        String updateSql = "UPDATE guilds SET upgrade_progress = ? WHERE id = ?";
+        String updateSql = SqlStatements.load("contracts/update-upgrade-progress.sql");
         try (PreparedStatement statement = connection.prepareStatement(updateSql)) {
             statement.setString(1, serializeProgressJson(progress));
             statement.setString(2, guildId);
@@ -277,7 +270,7 @@ public class GuildContractServiceImpl implements GuildContractService {
      */
     private double updateBalance(Connection connection, String guildId, double delta) throws SQLException {
         try (PreparedStatement update = connection.prepareStatement(
-                "UPDATE guilds SET balance = balance + ? WHERE id = ?")) {
+                SqlStatements.load("contracts/update-balance.sql"))) {
             update.setDouble(1, delta);
             update.setString(2, guildId);
             if (update.executeUpdate() != 1) {
@@ -285,7 +278,7 @@ public class GuildContractServiceImpl implements GuildContractService {
             }
         }
         try (PreparedStatement select = connection.prepareStatement(
-                "SELECT balance FROM guilds WHERE id = ?")) {
+                SqlStatements.load("contracts/select-balance.sql"))) {
             select.setString(1, guildId);
             try (ResultSet resultSet = select.executeQuery()) {
                 if (resultSet.next()) {
@@ -297,7 +290,7 @@ public class GuildContractServiceImpl implements GuildContractService {
     }
 
     private boolean isOpen(Connection connection, String contractId) throws SQLException {
-        String sql = "SELECT status FROM guild_contracts WHERE id = ?";
+        String sql = SqlStatements.load("contracts/select-status.sql");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, contractId);
             try (ResultSet resultSet = statement.executeQuery()) {

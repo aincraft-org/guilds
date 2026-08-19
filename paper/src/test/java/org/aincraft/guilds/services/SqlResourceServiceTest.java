@@ -62,4 +62,11 @@ class SqlResourceServiceTest {
         assertTrue(SqlStatements.load("projects/select-unlocked.sql").contains("WHERE guild_id = ?"));
     }
 
+    @Test
+    void contractsSqlLivesOnTheClasspath() {
+        assertTrue(SqlStatements.load("contracts/insert.sql").toUpperCase(Locale.ROOT)
+                .contains("INSERT INTO GUILD_CONTRACTS"));
+        assertTrue(SqlStatements.load("contracts/select-by-id.sql").contains("WHERE id = ?"));
+    }
+
 }
