@@ -4,6 +4,7 @@ package org.aincraft.guilds.services.impl;
 
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.models.Resident;
+import org.aincraft.guilds.territory.persist.SqlStatements;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -41,7 +42,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public Resident createResident(UUID uuid, String name) {
-        String sql = "INSERT INTO residents (uuid, name, last_online, is_online, joined_at, permissions_flags) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = SqlStatements.load("residents/insert.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -74,7 +75,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public Optional<Resident> getResident(UUID uuid) {
-        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/select-by-uuid.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -96,7 +97,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public Optional<Resident> getResident(String name) {
-        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE name = ?";
+        String sql = SqlStatements.load("residents/select-by-name.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -118,7 +119,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public Resident updateResident(Resident resident) {
-        String sql = "UPDATE residents SET name = ?, guild_name = ?, last_online = ?, is_online = ?, joined_at = ?, permissions_flags = ? WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/update.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -147,7 +148,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public boolean deleteResident(UUID uuid) {
-        String sql = "DELETE FROM residents WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/delete-by-uuid.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -170,7 +171,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public List<Resident> getAllResidents() {
-        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents ORDER BY name";
+        String sql = SqlStatements.load("residents/select-all.sql");
         List<Resident> residents = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -190,7 +191,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public List<Resident> getResidentsInGuild(String guildName) {
-        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags FROM residents WHERE guild_name = ? ORDER BY name";
+        String sql = SqlStatements.load("residents/select-by-guild.sql");
         List<Resident> residents = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -213,8 +214,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public List<Resident> searchResidents(String prefix, int limit) {
-        String sql = "SELECT uuid, name, guild_name, last_online, is_online, joined_at, permissions_flags "
-                + "FROM residents WHERE name LIKE ? ORDER BY name LIMIT ?";
+        String sql = SqlStatements.load("residents/search-by-prefix.sql");
         List<Resident> residents = new ArrayList<>();
 
         try (Connection connection = dataSource.getConnection();
@@ -235,7 +235,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public boolean residentExists(UUID uuid) {
-        String sql = "SELECT COUNT(*) FROM residents WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/count-by-uuid.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -257,7 +257,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public int getOnlineResidentsCount() {
-        String sql = "SELECT COUNT(*) FROM residents WHERE is_online = TRUE";
+        String sql = SqlStatements.load("residents/count-online.sql");
 
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement();
@@ -276,7 +276,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public void updateLastOnline(UUID uuid) {
-        String sql = "UPDATE residents SET last_online = ? WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/update-last-online.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -294,7 +294,7 @@ public class ResidentServiceImpl implements org.aincraft.guilds.services.Residen
 
     @Override
     public void setOnlineStatus(UUID uuid, boolean online) {
-        String sql = "UPDATE residents SET is_online = ?, last_online = ? WHERE uuid = ?";
+        String sql = SqlStatements.load("residents/update-online-status.sql");
 
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
