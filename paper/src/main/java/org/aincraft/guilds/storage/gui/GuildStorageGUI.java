@@ -249,19 +249,8 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
     private void deposit(Player player, Session session, int slotIndex, ItemStack item) {
         UUID operationId = UUID.randomUUID();
         OpaqueItemPayload payload = codec.encode(item);
-        Runnable restoreOnFailure = () -> inventoryCoordinator.giveItem(
-                player.getUniqueId(),
-                item.clone(),
-                success -> {
-                    if (!success) {
-                        mainThreadExecutor.run(() -> {
-                            ItemStack current = player.getItemOnCursor();
-                            if (current == null || current.getType() == Material.AIR) {
-                                player.setItemOnCursor(item.clone());
-                            }
-                        });
-                    }
-                });
+        ItemStack retainedItem = item.clone();
+        Runnable restoreOnFailure = () -> mainThreadExecutor.run(() -> restoreDepositItem(player, retainedItem));
 
         player.setItemOnCursor(null);
         CompletableFuture.supplyAsync(
@@ -290,13 +279,16 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
     }
 
     private void handleDepositResult(Player player, Session session, StorageResult<StorageSlot> result) {
-        if (!activeSession(player, session)) {
+        if (!result.isSuccess()) {
+            if (activeSession(player, session)) {
+                player.sendMessage(Component.text(result.errorMessage(), NamedTextColor.RED));
+                refreshSession(player, session);
+            }
             return;
         }
-        if (!result.isSuccess()) {
-            player.sendMessage(Component.text(result.errorMessage(), NamedTextColor.RED));
+        if (activeSession(player, session)) {
+            refreshSession(player, session);
         }
-        refreshSession(player, session);
     }
 
     private void withdraw(Player player, Session session, int slotIndex) {
@@ -350,6 +342,9 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                 decoded,
                 payoutSuccess -> mainThreadExecutor.run(() -> {
                     if (payoutSuccess) {
+                        if (storageService instanceof GuildStorageServiceImpl impl) {
+                            impl.markWithdrawPayoutDelivered(operationId);
+                        }
                         if (activeSession(player, session)) {
                             refreshSession(player, session);
                         }
@@ -396,6 +391,15 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                             }
                         }),
                         Runnable::run);
+    }
+
+    private void restoreDepositItem(Player player, ItemStack item) {
+        ItemStack current = player.getItemOnCursor();
+        if (current == null || current.getType() == Material.AIR) {
+            player.setItemOnCursor(item.clone());
+            return;
+        }
+        inventoryCoordinator.giveItem(player.getUniqueId(), item.clone(), ignored -> {});
     }
 
     private boolean activeSession(Player player, Session session) {

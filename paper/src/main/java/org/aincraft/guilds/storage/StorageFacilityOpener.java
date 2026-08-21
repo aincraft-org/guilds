@@ -73,9 +73,7 @@ public final class StorageFacilityOpener {
         int x = location.getBlockX();
         int y = location.getBlockY();
         int z = location.getBlockZ();
-        Optional<SettlementFacility> facility = facilities.resolve(worldId, x, y, z)
-                .filter(candidate -> candidate.type() == FacilityType.STORAGE)
-                .filter(candidate -> anchors.validate(candidate).active())
+        Optional<SettlementFacility> facility = anchors.activeStorageAt(worldId, x, y, z)
                 .or(() -> anchors.activeStorageNear(worldId, x, y, z));
         return facility
                 .map(resolved -> tryOpen(player, resolved))

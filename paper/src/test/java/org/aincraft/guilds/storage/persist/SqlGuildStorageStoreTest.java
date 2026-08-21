@@ -85,6 +85,9 @@ class SqlGuildStorageStoreTest {
             if (!SqlSupport.columnExists(connection, "guild_storage_operations", "request_item_schema")) {
                 SqlScripts.apply(connection, "migrations/guilds/V27__guild-storage-operation-request-snapshot.sql");
             }
+            if (!SqlSupport.tableExists(connection, "guild_storage_payout_obligations")) {
+                SqlScripts.apply(connection, "migrations/guilds/V29__guild-storage-payout-obligations.sql");
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to ensure guild storage operation schema", e);
         }
@@ -814,4 +817,64 @@ class SqlGuildStorageStoreTest {
             throw new AssertionError("Interrupted while waiting for concurrent test start", e);
         }
     }
+    @Test
+    void withdrawWithAuditCreatesPendingPayoutObligation() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-withdraw", "payload-bytes");
+        UUID operationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 18, payload, 0L));
+
+        SqlGuildStorageStore.WithdrawAuditOutcome outcome = store.withdrawWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                18,
+                payload,
+                1L,
+                actor,
+                "facility-withdraw",
+                operationId);
+
+        assertEquals(SqlGuildStorageStore.SlotMutationResult.SUCCESS, outcome.status());
+        StoragePayoutObligationRecord obligation = store.findPayoutObligation(operationId).orElseThrow();
+        assertEquals(StoragePayoutObligationStatus.PENDING, obligation.status());
+        assertEquals(payload, obligation.item());
+    }
+
+    @Test
+    void reinsertWithdrawPayoutWithAuditRestoresSlotAndMarksObligationReinserted() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-reinsert", "payload-bytes");
+        UUID withdrawOperationId = UUID.randomUUID();
+        UUID reinsertOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 19, payload, 0L));
+        store.withdrawWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                19,
+                payload,
+                1L,
+                actor,
+                "facility-reinsert",
+                withdrawOperationId);
+
+        SqlGuildStorageStore.ReinsertWithdrawPayoutOutcome outcome = store.reinsertWithdrawPayoutWithAudit(
+                withdrawOperationId,
+                reinsertOperationId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                19,
+                payload,
+                actor,
+                "facility-reinsert");
+
+        assertEquals(SqlGuildStorageStore.SlotMutationResult.SUCCESS, outcome.status());
+        assertEquals(payload, store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(19).item());
+        StoragePayoutObligationRecord obligation = store.findPayoutObligation(withdrawOperationId).orElseThrow();
+        assertEquals(StoragePayoutObligationStatus.REINSERTED, obligation.status());
+        assertEquals(reinsertOperationId, obligation.reinsertOperationId());
+    }
+
+
 }

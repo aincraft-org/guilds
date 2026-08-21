@@ -116,6 +116,21 @@ class FacilityAnchorValidatorTest {
         assertEquals(java.util.Optional.of(first), validator.activeStorageNear("world", 5, 64, 5));
     }
 
+    @Test
+    void activeStorageAtRejectsInactiveExactAnchor() {
+        SettlementFacility storage = new SettlementFacility(
+                "storage", "Storage", "t1", FacilityType.STORAGE, "world", 6, 64, 5);
+        facilities.register(storage);
+        BuildingConfig config = new BuildingConfig(60_000L,
+                Map.of(FacilityType.STORAGE, Set.of(Material.BARREL)), 100L, 60_000L);
+        validator = new FacilityAnchorValidator(server, territories, facilities, config);
+        Block storageBlock = mock(Block.class);
+        when(world.getBlockAt(6, 64, 5)).thenReturn(storageBlock);
+        when(storageBlock.getType()).thenReturn(Material.STONE);
+
+        assertTrue(validator.activeStorageAt("world", 6, 64, 5).isEmpty());
+    }
+
 
     private static Territory territory() {
         return new Territory("t1", "Territory", "world", Boundary.ofPolygon(List.of(

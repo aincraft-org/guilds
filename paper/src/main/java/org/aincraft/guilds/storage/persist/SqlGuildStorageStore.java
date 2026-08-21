@@ -55,6 +55,8 @@ public class SqlGuildStorageStore {
 
     public record WithdrawAuditOutcome(SlotMutationResult status, OpaqueItemPayload item) {}
 
+    public record ReinsertWithdrawPayoutOutcome(SlotMutationResult status, StorageSlot slot) {}
+
     public SqlGuildStorageStore(DatabaseManager databaseManager, Logger logger) {
         this.databaseManager = databaseManager;
         this.logger = logger;
@@ -374,6 +376,7 @@ public class SqlGuildStorageStore {
                     if (!deleteSlot(connection, guildId, tabId, slotIndex, expectedVersion)) {
                         return new WithdrawAuditOutcome(SlotMutationResult.CONFLICT, null);
                     }
+                    Instant now = Instant.now();
                     insertAudit(
                             connection,
                             operationId,
@@ -384,12 +387,149 @@ public class SqlGuildStorageStore {
                             slotIndex,
                             expectedItem.fingerprint(),
                             facilityId.trim());
+                    insertPayoutObligation(
+                            connection,
+                            operationId,
+                            guildId,
+                            actorUuid,
+                            tabId,
+                            slotIndex,
+                            expectedItem,
+                            facilityId.trim(),
+                            now);
                     return new WithdrawAuditOutcome(SlotMutationResult.SUCCESS, expectedItem);
                 });
         return switch (outcome.outcome()) {
             case COMMITTED -> outcome.value();
             case ROLLED_BACK -> new WithdrawAuditOutcome(SlotMutationResult.FAILED, null);
             case INDETERMINATE -> new WithdrawAuditOutcome(SlotMutationResult.UNKNOWN, null);
+        };
+    }
+
+
+    public Optional<StoragePayoutObligationRecord> findPayoutObligation(UUID withdrawOperationId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        try (Connection connection = databaseManager.getConnection()) {
+            return selectPayoutObligation(connection, withdrawOperationId.toString());
+        } catch (SQLException e) {
+            throw new IllegalStateException(
+                    "Failed to load payout obligation for withdraw " + withdrawOperationId, e);
+        }
+    }
+
+    public List<StoragePayoutObligationRecord> findPendingPayoutObligations() {
+        return findPayoutObligationsByStatus(StoragePayoutObligationStatus.PENDING);
+    }
+
+    public boolean markPayoutObligationDelivered(UUID withdrawOperationId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        Instant now = Instant.now();
+        Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection ->
+                updatePayoutObligationStatus(
+                        connection,
+                        withdrawOperationId.toString(),
+                        StoragePayoutObligationStatus.PENDING,
+                        StoragePayoutObligationStatus.DELIVERED,
+                        null,
+                        now));
+        return updated.orElse(false);
+    }
+
+    public ReinsertWithdrawPayoutOutcome reinsertWithdrawPayoutWithAudit(
+            UUID withdrawOperationId,
+            UUID reinsertOperationId,
+            String guildId,
+            String tabId,
+            int slotIndex,
+            OpaqueItemPayload item,
+            UUID actorUuid,
+            String facilityId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        Objects.requireNonNull(reinsertOperationId, "reinsertOperationId");
+        requireGuildId(guildId);
+        requireTabId(tabId);
+        if (slotIndex < 0) {
+            throw new IllegalArgumentException("slotIndex must be >= 0");
+        }
+        Objects.requireNonNull(item, "item");
+        Objects.requireNonNull(actorUuid, "actorUuid");
+        if (facilityId == null || facilityId.isBlank()) {
+            throw new IllegalArgumentException("facilityId is required");
+        }
+        if (simulateIndeterminateCommitForTests) {
+            simulateIndeterminateCommitForTests = false;
+            return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.UNKNOWN, null);
+        }
+        DatabaseManager.TransactionExecutionResult<ReinsertWithdrawPayoutOutcome> outcome =
+                databaseManager.executeTransactionWithDetailedOutcome(connection -> {
+                    Optional<StoragePayoutObligationRecord> obligation =
+                            selectPayoutObligation(connection, withdrawOperationId.toString());
+                    if (obligation.isEmpty()) {
+                        return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    StoragePayoutObligationRecord current = obligation.get();
+                    if (current.status() == StoragePayoutObligationStatus.DELIVERED) {
+                        return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    if (current.status() == StoragePayoutObligationStatus.REINSERTED) {
+                        Optional<StorageSlot> existing = selectSlot(connection, guildId, tabId, slotIndex);
+                        if (existing.isPresent() && existing.get().item().equals(item)) {
+                            return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.SUCCESS, existing.get());
+                        }
+                        return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    if (!current.item().equals(item)
+                            || current.slotIndex() != slotIndex
+                            || !current.tabId().equals(tabId)
+                            || !current.guildId().equals(guildId)
+                            || !current.facilityId().equals(facilityId.trim())
+                            || !current.actorUuid().equals(actorUuid)) {
+                        return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    Long currentVersion = selectSlotVersion(connection, guildId, tabId, slotIndex);
+                    if (currentVersion != null) {
+                        Optional<StorageSlot> occupied = selectSlot(connection, guildId, tabId, slotIndex);
+                        if (occupied.isPresent() && occupied.get().item().equals(item)) {
+                            updatePayoutObligationStatus(
+                                    connection,
+                                    withdrawOperationId.toString(),
+                                    StoragePayoutObligationStatus.PENDING,
+                                    StoragePayoutObligationStatus.REINSERTED,
+                                    reinsertOperationId.toString(),
+                                    Instant.now());
+                            return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.SUCCESS, occupied.get());
+                        }
+                        return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    Instant now = Instant.now();
+                    insertSlot(connection, guildId, tabId, slotIndex, item, 1L, now);
+                    insertAudit(
+                            connection,
+                            reinsertOperationId,
+                            guildId,
+                            actorUuid,
+                            "PAYOUT_REINSERT",
+                            tabId,
+                            slotIndex,
+                            item.fingerprint(),
+                            facilityId.trim());
+                    if (!updatePayoutObligationStatus(
+                            connection,
+                            withdrawOperationId.toString(),
+                            StoragePayoutObligationStatus.PENDING,
+                            StoragePayoutObligationStatus.REINSERTED,
+                            reinsertOperationId.toString(),
+                            now)) {
+                        return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    return new ReinsertWithdrawPayoutOutcome(
+                            SlotMutationResult.SUCCESS,
+                            new StorageSlot(guildId, tabId, slotIndex, item, 1L, now));
+                });
+        return switch (outcome.outcome()) {
+            case COMMITTED -> outcome.value();
+            case ROLLED_BACK -> new ReinsertWithdrawPayoutOutcome(SlotMutationResult.FAILED, null);
+            case INDETERMINATE -> new ReinsertWithdrawPayoutOutcome(SlotMutationResult.UNKNOWN, null);
         };
     }
 
@@ -1085,6 +1225,129 @@ public class SqlGuildStorageStore {
             return Instant.EPOCH;
         }
         return Instant.parse(value);
+    }
+
+
+    private List<StoragePayoutObligationRecord> findPayoutObligationsByStatus(StoragePayoutObligationStatus status) {
+        Objects.requireNonNull(status, "status");
+        List<StoragePayoutObligationRecord> obligations = new ArrayList<>();
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     SELECT withdraw_operation_id, guild_id, actor_uuid, tab_id, slot_index, facility_id,
+                            item_schema, item_fingerprint, item_payload, status, reinsert_operation_id,
+                            created_at, updated_at
+                     FROM guild_storage_payout_obligations
+                     WHERE status = ?
+                     ORDER BY created_at
+                     """)) {
+            statement.setString(1, status.name());
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    obligations.add(mapPayoutObligation(result));
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to load payout obligations in status " + status, e);
+        }
+        return List.copyOf(obligations);
+    }
+
+    private static Optional<StoragePayoutObligationRecord> selectPayoutObligation(
+            Connection connection, String withdrawOperationId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT withdraw_operation_id, guild_id, actor_uuid, tab_id, slot_index, facility_id,
+                       item_schema, item_fingerprint, item_payload, status, reinsert_operation_id,
+                       created_at, updated_at
+                FROM guild_storage_payout_obligations
+                WHERE withdraw_operation_id = ?
+                """)) {
+            statement.setString(1, withdrawOperationId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(mapPayoutObligation(result));
+            }
+        }
+    }
+
+    private static StoragePayoutObligationRecord mapPayoutObligation(ResultSet result) throws SQLException {
+        OpaqueItemPayload item = new OpaqueItemPayload(
+                result.getString("item_schema"),
+                result.getString("item_fingerprint"),
+                result.getString("item_payload"));
+        String reinsertOperationId = result.getString("reinsert_operation_id");
+        return new StoragePayoutObligationRecord(
+                UUID.fromString(result.getString("withdraw_operation_id")),
+                result.getString("guild_id"),
+                UUID.fromString(result.getString("actor_uuid")),
+                result.getString("tab_id"),
+                result.getInt("slot_index"),
+                result.getString("facility_id"),
+                item,
+                StoragePayoutObligationStatus.valueOf(result.getString("status")),
+                reinsertOperationId == null || reinsertOperationId.isBlank()
+                        ? null
+                        : UUID.fromString(reinsertOperationId),
+                parseInstant(result.getString("created_at")),
+                parseInstant(result.getString("updated_at")));
+    }
+
+    private static void insertPayoutObligation(
+            Connection connection,
+            UUID withdrawOperationId,
+            String guildId,
+            UUID actorUuid,
+            String tabId,
+            int slotIndex,
+            OpaqueItemPayload item,
+            String facilityId,
+            Instant timestamp) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO guild_storage_payout_obligations (
+                    withdraw_operation_id, guild_id, actor_uuid, tab_id, slot_index, facility_id,
+                    item_schema, item_fingerprint, item_payload, status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """)) {
+            statement.setString(1, withdrawOperationId.toString());
+            statement.setString(2, guildId);
+            statement.setString(3, actorUuid.toString());
+            statement.setString(4, tabId);
+            statement.setInt(5, slotIndex);
+            statement.setString(6, facilityId);
+            statement.setString(7, item.schema());
+            statement.setString(8, item.fingerprint());
+            statement.setString(9, item.payload());
+            statement.setString(10, StoragePayoutObligationStatus.PENDING.name());
+            statement.setString(11, timestamp.toString());
+            statement.setString(12, timestamp.toString());
+            statement.executeUpdate();
+        }
+    }
+
+    private static boolean updatePayoutObligationStatus(
+            Connection connection,
+            String withdrawOperationId,
+            StoragePayoutObligationStatus expectedStatus,
+            StoragePayoutObligationStatus nextStatus,
+            String reinsertOperationId,
+            Instant updatedAt) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE guild_storage_payout_obligations
+                SET status = ?, reinsert_operation_id = ?, updated_at = ?
+                WHERE withdraw_operation_id = ? AND status = ?
+                """)) {
+            statement.setString(1, nextStatus.name());
+            if (reinsertOperationId == null) {
+                statement.setNull(2, java.sql.Types.VARCHAR);
+            } else {
+                statement.setString(2, reinsertOperationId);
+            }
+            statement.setString(3, updatedAt.toString());
+            statement.setString(4, withdrawOperationId);
+            statement.setString(5, expectedStatus.name());
+            return statement.executeUpdate() == 1;
+        }
     }
 
     private static void requireGuildId(String guildId) {

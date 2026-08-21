@@ -588,6 +588,7 @@ public class GuildsServices {
                 new BukkitPlayerLocationSource(), facilities, anchors, governance);
         MainThreadExecutor mainThreadExecutor = new BukkitMainThreadExecutor(plugin);
         Executor storageSqlExecutor = ForkJoinPool.commonPool();
+        PlayerInventoryCoordinator inventoryCoordinator = new BukkitPlayerInventoryCoordinator(mainThreadExecutor);
         SqlGuildStorageStore store = new SqlGuildStorageStore(
                 databaseManager, Logger.getLogger(SqlGuildStorageStore.class.getName()));
         GuildStorageServiceImpl service = new GuildStorageServiceImpl(
@@ -596,8 +597,8 @@ public class GuildsServices {
                 residentService,
                 accessValidator,
                 mainThreadExecutor,
-                storageSqlExecutor);
-        PlayerInventoryCoordinator inventoryCoordinator = new BukkitPlayerInventoryCoordinator(mainThreadExecutor);
+                storageSqlExecutor,
+                inventoryCoordinator);
         GuildStorageGUI storageGui = new GuildStorageGUI(
                 plugin, service, inventoryCoordinator, mainThreadExecutor, storageSqlExecutor);
         plugin.getServer().getPluginManager().registerEvents(storageGui, plugin);

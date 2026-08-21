@@ -31,7 +31,7 @@ class StorageCommandTest {
 
         assertTrue(guildCommand.contains("StorageFacilityOpener opener = storageFacilityOpener"));
         assertTrue(opener.contains("tryOpenAtLocation(Player player)"));
-        assertTrue(opener.contains("facilities.resolve("));
+        assertTrue(opener.contains("activeStorageAt("));
         assertTrue(opener.contains("You must stand at an active guild storage facility."));
     }
 

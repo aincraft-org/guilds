@@ -33,8 +33,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -141,7 +143,8 @@ class GuildStorageGUITest {
                 any());
         assertNotNull(operationId.get());
         compensation.get().run();
-        verify(inventoryCoordinator).giveItem(eq(playerId), eq(stack), any());
+        verify(player).setItemOnCursor(stack);
+        verify(inventoryCoordinator, never()).giveItem(any(), any(), any());
     }
 
     @Test
@@ -273,6 +276,79 @@ class GuildStorageGUITest {
                 eq(2),
                 eq(payload),
                 eq(facility.id()));
+    }
+
+
+    @Test
+    void depositPreCommitFailureRestoresCursorOnce() {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.DIAMOND);
+        when(stack.clone()).thenReturn(stack);
+        when(stack.serializeAsBytes()).thenReturn(new byte[] {1, 2, 3});
+        when(inventory.getItem(4)).thenReturn(null);
+        AtomicInteger compensationRuns = new AtomicInteger();
+        when(storageService.depositWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(4),
+                any(OpaqueItemPayload.class),
+                eq(facility.id()),
+                any(UUID.class),
+                any())).thenAnswer(invocation -> {
+            Runnable compensation = invocation.getArgument(7);
+            compensation.run();
+            compensationRuns.incrementAndGet();
+            return StorageResult.failure(StorageResult.Status.PERMISSION_DENIED, "forced failure");
+        });
+
+        gui.open(player, facility, guildId);
+        gui.onInventoryClick(click(4, stack));
+
+        assertEquals(1, compensationRuns.get());
+        verify(player).setItemOnCursor(stack);
+        verify(inventoryCoordinator, never()).giveItem(any(), any(), any());
+    }
+
+    @Test
+    void depositFailureRestoresItemWhenSessionInactive() {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.DIAMOND);
+        when(stack.clone()).thenReturn(stack);
+        when(stack.serializeAsBytes()).thenReturn(new byte[] {1, 2, 3});
+        when(inventory.getItem(4)).thenReturn(null);
+        AtomicReference<Runnable> compensation = new AtomicReference<>();
+        when(storageService.depositWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(4),
+                any(OpaqueItemPayload.class),
+                eq(facility.id()),
+                any(UUID.class),
+                any())).thenAnswer(invocation -> {
+            compensation.set(invocation.getArgument(7));
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "forced failure");
+        });
+
+        gui.open(player, facility, guildId);
+        gui.onInventoryClick(click(4, stack));
+        sessionsRemove(playerId);
+        compensation.get().run();
+
+        verify(player).setItemOnCursor(stack);
+    }
+
+    private void sessionsRemove(UUID playerId) {
+        try {
+            java.lang.reflect.Field field = GuildStorageGUI.class.getDeclaredField("sessions");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.Map<UUID, ?> sessions = (java.util.Map<UUID, ?>) field.get(gui);
+            sessions.remove(playerId);
+        } catch (ReflectiveOperationException e) {
+            throw new AssertionError(e);
+        }
     }
 
 

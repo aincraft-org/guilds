@@ -232,6 +232,18 @@ class StorageFacilityOpenerTest {
         assertEquals(facility, captor.getValue().facility());
     }
 
+    @Test
+    void deniesInactiveExactStorageAtLocation() {
+        when(player.getUniqueId()).thenReturn(memberId);
+        when(block.getType()).thenReturn(Material.STONE);
+
+        StorageFacilityOpener.Result result = opener.tryOpenAtLocation(player);
+
+        assertEquals(StorageFacilityOpener.Outcome.DENIED, result.outcome());
+        verify(storageGui, never()).open(any(), any(), any());
+    }
+
+
     private static final class MultiGuildSource implements GovernanceSource {
         private final String homeGuildId;
         private final UUID homeMember;

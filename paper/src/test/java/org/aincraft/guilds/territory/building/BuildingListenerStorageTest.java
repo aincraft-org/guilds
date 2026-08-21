@@ -23,10 +23,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -67,6 +69,9 @@ class BuildingListenerStorageTest {
 
         BuildingConfig config = new BuildingConfig(60_000L,
                 Map.of(FacilityType.STORAGE, Set.of(Material.BARREL)), 100L, 60_000L);
+        FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
+        when(anchors.activeStorageAt(org.mockito.ArgumentMatchers.eq("world"), anyInt(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(storageFacility));
         listener = new BuildingListener(
                 new BuildingPlacementSessions(60_000L),
                 config,
@@ -74,7 +79,7 @@ class BuildingListenerStorageTest {
                 facilities,
                 mock(BuildingAuthorization.class),
                 new FacilityMutationService(facilities, mock(org.aincraft.guilds.territory.persist.FacilityStore.class)),
-                mock(FacilityAnchorValidator.class),
+                anchors,
                 mock(WaystoneAccess.class),
                 new WaystoneSelections(60_000L),
                 mock(org.bukkit.plugin.PluginManager.class),

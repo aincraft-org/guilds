@@ -48,6 +48,12 @@ public final class FacilityAnchorValidator {
         return facilities.resolve(worldId, x, y, z).filter(facility -> validate(facility).active());
     }
 
+    public Optional<SettlementFacility> activeStorageAt(String worldId, int x, int y, int z) {
+        return facilities.resolve(worldId, x, y, z)
+                .filter(facility -> facility.type() == FacilityType.STORAGE)
+                .filter(facility -> validate(facility).active());
+    }
+
     public Optional<SettlementFacility> activeNear(String worldId, int x, int y, int z, int radius) {
         return facilities.resolveNearby(worldId, x, y, z, radius)
                 .filter(facility -> validate(facility).active());

@@ -1673,9 +1673,35 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
         }
     }
 
+@Test
+    void depositPreCommitFailureRunsCompensationOnce() {
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-precommit", "payload");
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(facilityAccess.validateMutationAccess(memberId, guildId, "facility-1"))
+                .thenReturn(StorageResult.failure(
+                        StorageResult.Status.PERMISSION_DENIED, "Actor is not at storage facility"));
+        AtomicInteger compensationRuns = new AtomicInteger();
+
+        StorageResult<StorageSlot> result = storageService.depositWithCompensation(
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                6,
+                payload,
+                "facility-1",
+                UUID.randomUUID(),
+                compensationRuns::incrementAndGet);
+
+        assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
+        assertEquals(1, compensationRuns.get());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
+    }
+
     @Test
-    void compensateWithdrawPayoutRestoresCommittedWithdrawToStorage() {
+    void compensateWithdrawPayoutUsesAuthorizedReinsertWithoutDepositValidation() {
         UUID withdrawOperationId = UUID.randomUUID();
+        UUID reinsertOperationId = UUID.nameUUIDFromBytes(
+                ("withdraw-payout-compensation:" + withdrawOperationId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-restore", "payload");
         StorageSlot restored = new StorageSlot(
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
@@ -1695,11 +1721,26 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 null,
                 Instant.parse("2026-08-21T12:00:00Z"),
                 Instant.parse("2026-08-21T12:00:00Z"))));
-        when(residentService.getResident(mayorId)).thenReturn(Optional.of(member("Mayor", mayorId)));
-        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(2), eq(payload), eq(mayorId), eq("facility-1"), any()))
-                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
-                        SqlGuildStorageStore.SlotMutationResult.SUCCESS, restored));
+        when(store.lookupOperation(reinsertOperationId)).thenReturn(StorageOperationLookupResult.notFound());
+        when(store.insertPendingOperation(
+                eq(reinsertOperationId),
+                eq(guildId),
+                eq("PAYOUT_REINSERT"),
+                eq(mayorId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq("facility-1"),
+                eq(payload))).thenReturn(true);
+        when(store.reinsertWithdrawPayoutWithAudit(
+                eq(withdrawOperationId),
+                eq(reinsertOperationId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(payload),
+                eq(mayorId),
+                eq("facility-1"))).thenReturn(new SqlGuildStorageStore.ReinsertWithdrawPayoutOutcome(
+                SqlGuildStorageStore.SlotMutationResult.SUCCESS, restored));
 
         StorageResult<StorageSlot> result = storageService.compensateWithdrawPayout(
                 withdrawOperationId,
@@ -1711,7 +1752,17 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 "facility-1");
 
         assertTrue(result.isSuccess());
-        assertEquals(restored, result.value().orElseThrow());
+        verify(facilityAccess, never()).validateMutationAccess(any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
+        verify(store).reinsertWithdrawPayoutWithAudit(
+                eq(withdrawOperationId),
+                eq(reinsertOperationId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(payload),
+                eq(mayorId),
+                eq("facility-1"));
     }
 
     private Resident member(String name, UUID uuid) {

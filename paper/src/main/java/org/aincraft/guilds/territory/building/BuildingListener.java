@@ -106,10 +106,10 @@ public final class BuildingListener implements Listener {
     }
 
     private void interactWithActiveAnchor(PlayerInteractEvent event, Player player, Block block) {
-        var resolved = facilities.resolve(
+        Optional<SettlementFacility> storageFacility = anchors.activeStorageAt(
                 block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-        if (resolved.isPresent() && resolved.get().type() == FacilityType.STORAGE) {
-            interactWithStorageAnchor(event, player, resolved.get());
+        if (storageFacility.isPresent()) {
+            interactWithStorageAnchor(event, player, storageFacility.get());
             return;
         }
 

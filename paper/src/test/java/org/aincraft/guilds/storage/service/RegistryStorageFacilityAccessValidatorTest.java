@@ -135,6 +135,14 @@ class RegistryStorageFacilityAccessValidatorTest {
         assertEquals(StorageResult.Status.SUCCESS, result.status());
     }
 
+    @Test
+    void rejectsInactiveExactStorageAnchor() {
+        when(block.getType()).thenReturn(Material.STONE);
+        RegistryStorageFacilityAccessValidator validator = validatorAt(5, 64, 5);
+        StorageResult<Void> result = validator.validateMutationAccess(actor, guildId, facility.id());
+        assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
+    }
+
 
     private RegistryStorageFacilityAccessValidator validatorAt(int x, int y, int z) {
         return new RegistryStorageFacilityAccessValidator(
