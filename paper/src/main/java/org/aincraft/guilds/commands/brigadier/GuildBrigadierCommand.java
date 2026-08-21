@@ -22,6 +22,7 @@ import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.MintGuildBankService;
 import org.aincraft.guilds.services.MintTransferPort;
+import org.aincraft.guilds.storage.StorageFacilityOpener;
 import java.math.BigDecimal;
 
 import java.util.List;
@@ -43,6 +44,7 @@ public class GuildBrigadierCommand {
     private final PlotTypeRegistry plotTypeRegistry;
     private final GuildsGovernanceSource governanceSource;
     private volatile MintGuildBankService mintGuildBankService;
+    private volatile StorageFacilityOpener storageFacilityOpener;
 
 
     public GuildBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
@@ -63,6 +65,10 @@ public class GuildBrigadierCommand {
 
     public void setMintGuildBankService(MintGuildBankService bank) {
         this.mintGuildBankService = bank;
+    }
+
+    public void setStorageFacilityOpener(StorageFacilityOpener opener) {
+        this.storageFacilityOpener = opener;
     }
 
 
@@ -148,6 +154,8 @@ public class GuildBrigadierCommand {
                 .then(Commands.literal("withdraw")
                     .then(Commands.argument("amount", StringArgumentType.word())
                         .executes(ctx -> handleBankTransfer(ctx, false)))))
+            .then(Commands.literal("storage")
+                .executes(this::handleStorage))
             // Tech tree subcommand
             .then(techTreeCommand.buildCommand())
             // Government subcommand: the guild (guild) picks its governance form
@@ -1202,6 +1210,24 @@ public class GuildBrigadierCommand {
                 case UNAVAILABLE -> player.sendMessage("§cMint guild bank is unavailable.");
             }
         });
+    }
+
+    private int handleStorage(CommandContext<CommandSourceStack> ctx) {
+        if (!(ctx.getSource().getSender() instanceof org.bukkit.entity.Player player)) {
+            ctx.getSource().getSender().sendMessage("§cThis command can only be used by players.");
+            return 0;
+        }
+        StorageFacilityOpener opener = storageFacilityOpener;
+        if (opener == null) {
+            player.sendMessage("§cGuild storage is unavailable.");
+            return 0;
+        }
+        StorageFacilityOpener.Result result = opener.tryOpenAtLocation(player);
+        if (result.outcome() == StorageFacilityOpener.Outcome.OPENED) {
+            return Command.SINGLE_SUCCESS;
+        }
+        player.sendMessage("§c" + result.message());
+        return 0;
     }
 
 }

@@ -83,6 +83,8 @@ import org.aincraft.guilds.storage.service.MainThreadExecutor;
 import org.aincraft.guilds.storage.service.PlayerInventoryCoordinator;
 import org.aincraft.guilds.storage.service.RegistryStorageFacilityAccessValidator;
 import org.aincraft.guilds.storage.service.StorageFacilityAccessValidator;
+import org.aincraft.guilds.storage.StorageFacilityOpener;
+import org.aincraft.guilds.storage.gui.GuildStorageGUI;
 import org.aincraft.guilds.storage.service.impl.GuildStorageServiceImpl;
 import org.aincraft.guilds.territory.building.FacilityAnchorValidator;
 import org.aincraft.guilds.territory.permission.GovernanceRegistry;
@@ -176,6 +178,8 @@ public class GuildsServices {
     private MainThreadExecutor storageMainThreadExecutor;
     private PlayerInventoryCoordinator playerInventoryCoordinator;
     private StorageFacilityAccessValidator storageFacilityAccessValidator;
+    private GuildStorageGUI guildStorageGUI;
+    private StorageFacilityOpener storageFacilityOpener;
 
     // Hearthstone (deferred until BlockProtection is available)
     private org.aincraft.guilds.services.GuildHearthstoneService hearthstoneService;
@@ -591,11 +595,27 @@ public class GuildsServices {
                 accessValidator,
                 mainThreadExecutor,
                 ForkJoinPool.commonPool());
+        PlayerInventoryCoordinator inventoryCoordinator = new BukkitPlayerInventoryCoordinator(mainThreadExecutor);
+        GuildStorageGUI storageGui = new GuildStorageGUI(
+                plugin, service, inventoryCoordinator, mainThreadExecutor);
+        plugin.getServer().getPluginManager().registerEvents(storageGui, plugin);
+        StorageFacilityOpener opener = new StorageFacilityOpener(
+                facilities,
+                governance.territories(),
+                anchors,
+                governance,
+                storageGui,
+                plugin.getServer().getPluginManager());
         this.storageFacilityAccessValidator = accessValidator;
         this.storageMainThreadExecutor = mainThreadExecutor;
         this.guildStorageStore = store;
         this.guildStorageService = service;
-        this.playerInventoryCoordinator = new BukkitPlayerInventoryCoordinator(mainThreadExecutor);
+        this.playerInventoryCoordinator = inventoryCoordinator;
+        this.guildStorageGUI = storageGui;
+        this.storageFacilityOpener = opener;
+        if (guildBrigadierCommand != null) {
+            guildBrigadierCommand.setStorageFacilityOpener(opener);
+        }
     }
 
     public GuildStorageService getGuildStorageService() {
@@ -616,6 +636,14 @@ public class GuildsServices {
 
     public StorageFacilityAccessValidator getStorageFacilityAccessValidator() {
         return storageFacilityAccessValidator;
+    }
+
+    public GuildStorageGUI getGuildStorageGUI() {
+        return guildStorageGUI;
+    }
+
+    public StorageFacilityOpener getStorageFacilityOpener() {
+        return storageFacilityOpener;
     }
 
     public void wireTerritoryRegistry(org.aincraft.guilds.territory.registry.TerritoryRegistry registry) {

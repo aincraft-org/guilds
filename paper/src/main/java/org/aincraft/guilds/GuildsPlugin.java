@@ -743,7 +743,7 @@ public final class GuildsPlugin extends JavaPlugin {
                     new org.aincraft.guilds.territory.building.BuildingListener(
                             sessions, config, registry, facilities, authorization,
                             facilityMutations, anchors, access, selections,
-                            getServer().getPluginManager()), this);
+                            getServer().getPluginManager(), guilds.getStorageFacilityOpener()), this);
             getServer().getPluginManager().registerEvents(
                     new org.aincraft.guilds.territory.building.WaystoneTravelListener(waystoneTravelService),
                     this);

@@ -17,6 +17,8 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.inventory.EquipmentSlot;
+import org.aincraft.guilds.storage.StorageFacilityOpener;
+import org.aincraft.guilds.territory.model.FacilityType;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -36,12 +38,14 @@ public final class BuildingListener implements Listener {
     private final WaystoneAccess waystones;
     private final WaystoneSelections selections;
     private final PluginManager pluginManager;
+    private final StorageFacilityOpener storageOpener;
 
     public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
                             TerritoryRegistry territories, FacilityRegistry facilities,
                             BuildingAuthorization authorization, FacilityMutationService mutations,
                             FacilityAnchorValidator anchors, WaystoneAccess waystones,
-                            WaystoneSelections selections, PluginManager pluginManager) {
+                            WaystoneSelections selections, PluginManager pluginManager,
+                            StorageFacilityOpener storageOpener) {
         this.sessions = sessions;
         this.config = config;
         this.territories = territories;
@@ -52,6 +56,7 @@ public final class BuildingListener implements Listener {
         this.waystones = waystones;
         this.selections = selections;
         this.pluginManager = pluginManager;
+        this.storageOpener = storageOpener;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -100,12 +105,19 @@ public final class BuildingListener implements Listener {
     }
 
     private void interactWithActiveAnchor(PlayerInteractEvent event, Player player, Block block) {
+        var resolved = facilities.resolve(
+                block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        if (resolved.isPresent() && resolved.get().type() == FacilityType.STORAGE) {
+            interactWithStorageAnchor(event, player, resolved.get());
+            return;
+        }
+
         SettlementFacility facility = anchors.activeAt(
                 block.getWorld().getName(), block.getX(), block.getY(), block.getZ()).orElse(null);
         if (facility == null) {
             return;
         }
-        if (facility.type() == org.aincraft.guilds.territory.model.FacilityType.TRADING_POST) {
+        if (facility.type() == FacilityType.TRADING_POST) {
             Territory territory = territories.get(facility.territoryId()).orElse(null);
             if (territory == null) return;
             TradingPostInteractEvent tradingPostEvent =
@@ -118,7 +130,7 @@ public final class BuildingListener implements Listener {
                     tradingPostEvent.isCancelled() ? NamedTextColor.RED : NamedTextColor.GOLD));
             return;
         }
-        if (facility.type() != org.aincraft.guilds.territory.model.FacilityType.WAYSTONE) {
+        if (facility.type() != FacilityType.WAYSTONE) {
             return;
         }
         var reachable = waystones.reachable(player.getUniqueId(), facility);
@@ -129,6 +141,22 @@ public final class BuildingListener implements Listener {
             player.sendMessage(Component.text(" • " + destination.name(), NamedTextColor.YELLOW)
                     .clickEvent(ClickEvent.runCommand(
                             "/territory building travel " + destination.id())));
+        }
+    }
+
+    private void interactWithStorageAnchor(PlayerInteractEvent event, Player player, SettlementFacility facility) {
+        if (storageOpener == null) {
+            event.setCancelled(true);
+            player.sendMessage(Component.text("Guild storage is unavailable.", NamedTextColor.RED));
+            return;
+        }
+        StorageFacilityOpener.Result result = storageOpener.tryOpen(player, facility);
+        if (result.outcome() == StorageFacilityOpener.Outcome.NOT_APPLICABLE) {
+            return;
+        }
+        event.setCancelled(true);
+        if (result.outcome() != StorageFacilityOpener.Outcome.OPENED) {
+            player.sendMessage(Component.text(result.message(), NamedTextColor.RED));
         }
     }
 
