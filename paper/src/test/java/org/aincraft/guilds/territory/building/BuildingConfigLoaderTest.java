@@ -9,8 +9,8 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BuildingConfigLoaderTest {
     @Test
@@ -20,10 +20,31 @@ class BuildingConfigLoaderTest {
         assertEquals(Set.of(Material.LODESTONE), config.anchorMaterials(FacilityType.WAYSTONE));
         assertEquals(Set.of(Material.BELL, Material.LECTERN),
                 config.anchorMaterials(FacilityType.TRADING_POST));
-        assertFalse(config.supports(FacilityType.STORAGE));
+        assertEquals(Set.of(Material.BARREL, Material.CHEST),
+                config.anchorMaterials(FacilityType.STORAGE));
+        assertTrue(config.supports(FacilityType.STORAGE));
         assertEquals(60_000L, config.placementTimeoutMillis());
         assertEquals(100L, config.waystoneWarmupTicks());
         assertEquals(60_000L, config.waystoneCooldownMillis());
+    }
+
+    @Test
+    void loadsExplicitStorageMaterials() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("buildings.storage.anchor-materials", List.of("SHULKER_BOX", "ENDER_CHEST"));
+
+        BuildingConfig config = BuildingConfigLoader.from(yaml);
+
+        assertEquals(Set.of(Material.SHULKER_BOX, Material.ENDER_CHEST),
+                config.anchorMaterials(FacilityType.STORAGE));
+    }
+
+    @Test
+    void rejectsInvalidStorageMaterial() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("buildings.storage.anchor-materials", List.of("NOT_A_BLOCK"));
+
+        assertThrows(IllegalArgumentException.class, () -> BuildingConfigLoader.from(yaml));
     }
 
     @Test

@@ -119,3 +119,5 @@ buildings:
     cooldown-seconds: 60
   trading-post:
     anchor-materials: [BELL, LECTERN]
+  storage:
+    anchor-materials: [BARREL, CHEST]

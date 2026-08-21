@@ -46,7 +46,8 @@ class BuildingCommandTest {
         facilities = new FacilityRegistry(territories);
         BuildingConfig config = new BuildingConfig(60_000L,
                 Map.of(FacilityType.WAYSTONE, Set.of(Material.LODESTONE),
-                        FacilityType.TRADING_POST, Set.of(Material.BELL)), 100L, 60_000L);
+                        FacilityType.TRADING_POST, Set.of(Material.BELL),
+                        FacilityType.STORAGE, Set.of(Material.BARREL, Material.CHEST)), 100L, 60_000L);
         sessions = new BuildingPlacementSessions(config.placementTimeoutMillis());
         FacilityAnchorValidator anchors = new FacilityAnchorValidator(
                 mock(Server.class), territories, facilities, config);
@@ -77,6 +78,25 @@ class BuildingCommandTest {
         command.execute(player, "territory", new String[]{"cancel"});
 
         assertTrue(sessions.current(playerId, 1_001L).isEmpty());
+    }
+
+    @Test
+    void createStartsStoragePlacementSession() {
+        command.execute(player, "territory",
+                new String[]{"create", "storage", "vault", "Guild Vault"});
+
+        BuildingPlacement placement = sessions.current(playerId, System.currentTimeMillis())
+                .orElseThrow();
+        assertEquals(FacilityType.STORAGE, placement.type());
+        assertEquals("vault", placement.id());
+        assertEquals("Guild Vault", placement.name());
+    }
+
+    @Test
+    void completionIncludesStorageType() {
+        List<String> completions = command.complete(player, new String[]{"create", "st"});
+
+        assertTrue(completions.contains("storage"));
     }
 
     @Test

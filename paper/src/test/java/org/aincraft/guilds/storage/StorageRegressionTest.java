@@ -13,6 +13,7 @@ import org.aincraft.guilds.territory.building.BuildingConfigLoader;
 import org.aincraft.guilds.territory.economy.GuildBankCapacity;
 import org.aincraft.guilds.territory.economy.MintOperationResult;
 import org.aincraft.guilds.territory.model.FacilityType;
+import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -32,7 +34,6 @@ import org.bukkit.scheduler.BukkitScheduler;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -52,8 +53,12 @@ class StorageRegressionTest {
     }
 
     @Test
-    void storageIsCurrentlyUnsupportedByDefault() {
-        assertFalse(BuildingConfigLoader.from(new YamlConfiguration()).supports(FacilityType.STORAGE));
+    void storageIsSupportedByDefault() {
+        BuildingConfig config = BuildingConfigLoader.from(new YamlConfiguration());
+
+        assertTrue(config.supports(FacilityType.STORAGE));
+        assertEquals(Set.of(Material.BARREL, Material.CHEST),
+                config.anchorMaterials(FacilityType.STORAGE));
     }
 
     @Test
