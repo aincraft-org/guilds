@@ -28,6 +28,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
 public class GuildStorageServiceImpl implements GuildStorageService {
+    private static final String JOURNAL_LOOKUP_FAILURE = "Failed to load storage operation journal";
+    private static final String UNKNOWN_OUTCOME_MESSAGE =
+            "Storage mutation outcome unknown; retry with same operationId";
     private enum GuildStorageRole {
         OUTSIDER(0),
         MEMBER(1),
@@ -198,7 +201,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 deposit.facilityId(),
                 deposit.item(),
                 compensationOnFailure,
-                () -> persistDeposit(deposit));
+                () -> persistDeposit(deposit, operationId));
     }
 
     @Override
@@ -237,7 +240,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 withdraw.facilityId(),
                 withdraw.occupied().item(),
                 compensationOnFailure,
-                () -> persistWithdraw(withdraw));
+                () -> persistWithdraw(withdraw, operationId));
     }
 
     @Override
@@ -312,6 +315,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     private void reconcilePendingDeposit(StorageOperationRecord pending) {
         StorageSlot slot = store.loadSlots(pending.guildId(), pending.tabId()).get(pending.slotIndex());
         boolean auditEvidence = store.hasMatchingAudit(
+                pending.operationId(),
                 pending.guildId(),
                 pending.actorUuid(),
                 "DEPOSIT",
@@ -348,6 +352,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     private void reconcilePendingWithdraw(StorageOperationRecord pending) {
         StorageSlot slot = store.loadSlots(pending.guildId(), pending.tabId()).get(pending.slotIndex());
         boolean auditEvidence = store.hasMatchingAudit(
+                pending.operationId(),
                 pending.guildId(),
                 pending.actorUuid(),
                 "WITHDRAW",
@@ -448,14 +453,15 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
-    private StorageResult<StorageSlot> persistDeposit(PreparedDeposit prepared) {
+    private StorageResult<StorageSlot> persistDeposit(PreparedDeposit prepared, UUID operationId) {
         SqlGuildStorageStore.DepositAuditOutcome outcome = store.depositWithAudit(
                 prepared.guildId(),
                 prepared.tabId(),
                 prepared.slotIndex(),
                 prepared.item(),
                 prepared.actor(),
-                prepared.facilityId());
+                prepared.facilityId(),
+                operationId);
         return switch (outcome.status()) {
             case SUCCESS -> StorageResult.success(outcome.slot());
             case CONFLICT -> StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during deposit");
@@ -512,7 +518,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
-    private StorageResult<OpaqueItemPayload> persistWithdraw(PreparedWithdraw prepared) {
+    private StorageResult<OpaqueItemPayload> persistWithdraw(PreparedWithdraw prepared, UUID operationId) {
         StorageSlot occupied = prepared.occupied();
         SqlGuildStorageStore.WithdrawAuditOutcome outcome = store.withdrawWithAudit(
                 prepared.guildId(),
@@ -521,14 +527,14 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 occupied.item(),
                 occupied.version(),
                 prepared.actor(),
-                prepared.facilityId());
+                prepared.facilityId(),
+                operationId);
         return switch (outcome.status()) {
             case SUCCESS -> StorageResult.success(outcome.item());
             case CONFLICT -> StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during withdraw");
             case FAILED -> StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Failed to persist withdraw");
         };
     }
-
     private <T> StorageResult<T> executeMutation(
             UUID operationId,
             String operationType,
@@ -549,65 +555,101 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 slotIndex,
                 facilityId,
                 requestSnapshot)) {
-            Optional<StorageOperationRecord> existing = store.findOperation(operationId);
-            if (existing.isPresent()) {
-                if (!matchesOperationRequest(
-                        existing.get(),
-                        operationType,
-                        actor,
-                        guildId,
-                        tabId,
-                        slotIndex,
-                        facilityId,
-                        requestSnapshot)) {
-                    return StorageResult.failure(
-                            StorageResult.Status.CONFLICT, "Storage operation identity mismatch");
-                }
-                return replayOperation(existing.get());
+            Optional<StorageOperationRecord> existing = loadOperationJournal(operationId);
+            if (existing.isEmpty()) {
+                return StorageResult.failure(
+                        StorageResult.Status.STORAGE_ERROR,
+                        JOURNAL_LOOKUP_FAILURE + " after insert conflict");
             }
-            return StorageResult.failure(
-                    StorageResult.Status.STORAGE_ERROR, "Failed to record pending storage operation");
+            if (!matchesOperationRequest(
+                    existing.get(),
+                    operationType,
+                    actor,
+                    guildId,
+                    tabId,
+                    slotIndex,
+                    facilityId,
+                    requestSnapshot)) {
+                return StorageResult.failure(
+                        StorageResult.Status.CONFLICT, "Storage operation identity mismatch");
+            }
+            return replayOperation(existing.get());
         }
         try {
             StorageResult<T> result = CompletableFuture.supplyAsync(mutation, sqlExecutor).get();
-            finalizeOperationJournal(operationId, result, compensationOnFailure);
+            if (!finalizeOperationJournal(operationId, result, compensationOnFailure) && result.isSuccess()) {
+                return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, UNKNOWN_OUTCOME_MESSAGE);
+            }
             return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            StorageResult<T> failure =
-                    StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Storage mutation interrupted");
-            finalizeOperationJournal(operationId, failure, compensationOnFailure);
-            return failure;
+            preserveUnknownOutcome(operationId, "Storage mutation interrupted; outcome unknown");
+            return StorageResult.failure(
+                    StorageResult.Status.STORAGE_ERROR, "Storage mutation interrupted; outcome unknown");
         } catch (Exception e) {
             StorageResult<T> failure = StorageResult.failure(
                     StorageResult.Status.STORAGE_ERROR,
                     e.getCause() instanceof RuntimeException runtime
                             ? runtime.getMessage()
                             : e.getMessage());
-            finalizeOperationJournal(operationId, failure, compensationOnFailure);
+            if (!finalizeOperationJournal(operationId, failure, compensationOnFailure)) {
+                preserveUnknownOutcome(operationId, UNKNOWN_OUTCOME_MESSAGE);
+            }
             return failure;
         }
     }
 
-    private <T> void finalizeOperationJournal(
+    private Optional<StorageOperationRecord> loadOperationJournal(UUID operationId) {
+        try {
+            return store.findOperation(operationId);
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    private <T> boolean finalizeOperationJournal(
             UUID operationId, StorageResult<T> result, Runnable compensationOnFailure) {
-        if (result.isSuccess()) {
+        try {
+            if (result.isSuccess()) {
+                store.finalizeOperation(
+                        operationId,
+                        StorageOperationStatus.COMMITTED,
+                        result.status().name(),
+                        null,
+                        resultSlot(result),
+                        resultItem(result));
+            } else {
+                runCompensation(compensationOnFailure);
+                store.finalizeOperation(
+                        operationId,
+                        StorageOperationStatus.COMPENSATED,
+                        result.status().name(),
+                        result.errorMessage(),
+                        null,
+                        null);
+            }
+            return true;
+        } catch (RuntimeException e) {
+            preserveUnknownOutcome(
+                    operationId,
+                    result.isSuccess()
+                            ? "Storage mutation succeeded but journal finalize failed"
+                            : "Storage mutation failed but journal finalize failed");
+            return false;
+        }
+    }
+
+    private void preserveUnknownOutcome(UUID operationId, String errorMessage) {
+        try {
             store.finalizeOperation(
                     operationId,
-                    StorageOperationStatus.COMMITTED,
-                    result.status().name(),
-                    null,
-                    resultSlot(result),
-                    resultItem(result));
-        } else {
-            runCompensation(compensationOnFailure);
-            store.finalizeOperation(
-                    operationId,
-                    StorageOperationStatus.COMPENSATED,
-                    result.status().name(),
-                    result.errorMessage(),
+                    StorageOperationStatus.UNKNOWN,
+                    StorageResult.Status.STORAGE_ERROR.name(),
+                    errorMessage,
                     null,
                     null);
+        } catch (RuntimeException ignored) {
+            // Leave the journal row pending for operator reconciliation.
         }
     }
 
@@ -638,13 +680,20 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             String tabId,
             int slotIndex,
             String facilityId,
-            OpaqueItemPayload depositItem) {
-        Optional<StorageOperationRecord> existing = store.findOperation(operationId);
+            OpaqueItemPayload requestSnapshot) {
+        Optional<StorageOperationRecord> existing = loadOperationJournal(operationId);
         if (existing.isEmpty()) {
             return null;
         }
         if (!matchesOperationRequest(
-                existing.get(), operationType, actor, guildId, tabId, slotIndex, facilityId, depositItem)) {
+                existing.get(),
+                operationType,
+                actor,
+                guildId,
+                tabId,
+                slotIndex,
+                facilityId,
+                requestSnapshot)) {
             return StorageResult.failure(StorageResult.Status.CONFLICT, "Storage operation identity mismatch");
         }
         return replayOperation(existing.get());
@@ -658,7 +707,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             String tabId,
             int slotIndex,
             String facilityId,
-            OpaqueItemPayload depositItem) {
+            OpaqueItemPayload requestSnapshot) {
         if (!operation.operationType().equals(operationType)) {
             return false;
         }
@@ -677,10 +726,23 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!operation.facilityId().equals(facilityId.trim())) {
             return false;
         }
-        if (depositItem != null && operation.resultItem() != null) {
-            return depositItem.fingerprint().equals(operation.resultItem().fingerprint());
+        if (requestSnapshot != null) {
+            OpaqueItemPayload storedSnapshot = storedOperationSnapshot(operation);
+            if (operation.status() == StorageOperationStatus.COMMITTED) {
+                return storedSnapshot != null && requestSnapshot.equals(storedSnapshot);
+            }
+            if (operation.status() == StorageOperationStatus.PENDING && storedSnapshot != null) {
+                return requestSnapshot.equals(storedSnapshot);
+            }
         }
         return true;
+    }
+
+    private static OpaqueItemPayload storedOperationSnapshot(StorageOperationRecord operation) {
+        if (operation.status() == StorageOperationStatus.COMMITTED && operation.resultSlot() != null) {
+            return operation.resultSlot().item();
+        }
+        return operation.resultItem();
     }
 
     @SuppressWarnings("unchecked")
@@ -688,6 +750,11 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (operation.status() == StorageOperationStatus.PENDING) {
             return StorageResult.failure(
                     StorageResult.Status.CONFLICT, "Storage operation already in progress");
+        }
+        if (operation.status() == StorageOperationStatus.UNKNOWN) {
+            return StorageResult.failure(
+                    StorageResult.Status.STORAGE_ERROR,
+                    operation.resultError() != null ? operation.resultError() : UNKNOWN_OUTCOME_MESSAGE);
         }
         StorageResult.Status status = StorageResult.Status.valueOf(operation.resultStatus());
         if (operation.status() == StorageOperationStatus.COMMITTED && status == StorageResult.Status.SUCCESS) {

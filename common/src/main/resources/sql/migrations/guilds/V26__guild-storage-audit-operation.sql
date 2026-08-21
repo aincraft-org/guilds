@@ -1,0 +1,2 @@
+-- +add-string-column guild_storage_audit.operation_id
+-- +index idx_guild_storage_audit_operation guild_storage_audit (operation_id)

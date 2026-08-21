@@ -4,5 +4,6 @@ package org.aincraft.guilds.storage.persist;
 public enum StorageOperationStatus {
     PENDING,
     COMMITTED,
-    COMPENSATED
+    COMPENSATED,
+    UNKNOWN
 }

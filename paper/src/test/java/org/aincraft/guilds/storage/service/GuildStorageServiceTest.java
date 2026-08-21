@@ -110,13 +110,7 @@ class GuildStorageServiceTest {
 
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.depositWithAudit(
-                        guildId,
-                        SqlGuildStorageStore.DEFAULT_TAB_ID,
-                        4,
-                        payload,
-                        memberId,
-                        "facility-1"))
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(4), eq(payload), eq(memberId), eq("facility-1"), any()))
                 .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
                         SqlGuildStorageStore.SlotMutationResult.SUCCESS, saved));
 
@@ -131,8 +125,7 @@ class GuildStorageServiceTest {
 
         assertTrue(result.isSuccess(), () -> result.status() + ": " + result.errorMessage());
         assertEquals(payload, result.value().orElseThrow().item());
-        verify(store).depositWithAudit(
-                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, payload, memberId, "facility-1");
+        verify(store).depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(4), eq(payload), eq(memberId), eq("facility-1"), any());
         verify(store, never()).saveSlot(any(), any(), anyInt(), any(), anyLong());
     }
 
@@ -151,7 +144,7 @@ class GuildStorageServiceTest {
                 "facility-1");
 
         assertEquals(StorageResult.Status.UNAUTHORIZED, result.status());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -171,7 +164,7 @@ class GuildStorageServiceTest {
                 "foreign-facility");
 
         assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -186,7 +179,7 @@ class GuildStorageServiceTest {
                 UUID.randomUUID(), memberId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, "facility-1");
 
         assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
-        verify(store, never()).withdrawWithAudit(any(), any(), anyInt(), any(), anyLong(), any(), any());
+        verify(store, never()).withdrawWithAudit(any(), any(), anyInt(), any(), anyLong(), any(), any(), any());
     }
 
     @Test
@@ -261,7 +254,7 @@ class GuildStorageServiceTest {
 
         assertEquals(StorageResult.Status.CONFLICT, result.status());
         assertEquals("Storage operation already in progress", result.errorMessage());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
         verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
@@ -309,13 +302,7 @@ class GuildStorageServiceTest {
         CountDownLatch mutationStarted = new CountDownLatch(1);
         CountDownLatch allowMutationComplete = new CountDownLatch(1);
         AtomicInteger mutationCalls = new AtomicInteger();
-        when(store.depositWithAudit(
-                        guildId,
-                        SqlGuildStorageStore.DEFAULT_TAB_ID,
-                        3,
-                        payload,
-                        memberId,
-                        "facility-1"))
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(3), eq(payload), eq(memberId), eq("facility-1"), any()))
                 .thenAnswer(invocation -> {
                     mutationCalls.incrementAndGet();
                     mutationStarted.countDown();
@@ -355,14 +342,7 @@ class GuildStorageServiceTest {
             StorageResult<StorageSlot> leaderResult = leader.get(5, TimeUnit.SECONDS);
             assertTrue(leaderResult.isSuccess());
             assertEquals(1, mutationCalls.get());
-            verify(store, org.mockito.Mockito.times(1))
-                    .depositWithAudit(
-                            guildId,
-                            SqlGuildStorageStore.DEFAULT_TAB_ID,
-                            3,
-                            payload,
-                            memberId,
-                            "facility-1");
+            verify(store, org.mockito.Mockito.times(1)).depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(3), eq(payload), eq(memberId), eq("facility-1"), eq(operationId));
         } finally {
             allowMutationComplete.countDown();
             pool.shutdownNow();
@@ -405,7 +385,7 @@ class GuildStorageServiceTest {
 
         assertTrue(result.isSuccess());
         assertEquals(saved, result.value().orElseThrow());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -423,7 +403,7 @@ class GuildStorageServiceTest {
                 "facility-1");
 
         assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -432,13 +412,7 @@ class GuildStorageServiceTest {
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-comp", "payload");
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.depositWithAudit(
-                        guildId,
-                        SqlGuildStorageStore.DEFAULT_TAB_ID,
-                        5,
-                        payload,
-                        memberId,
-                        "facility-1"))
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(5), eq(payload), eq(memberId), eq("facility-1"), any()))
                 .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
                         SqlGuildStorageStore.SlotMutationResult.CONFLICT, null));
         AtomicBoolean compensated = new AtomicBoolean();
@@ -478,14 +452,7 @@ class GuildStorageServiceTest {
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 9, payload, 3L, Instant.parse("2026-08-21T12:00:00Z"));
         when(residentService.getResident(mayorId)).thenReturn(Optional.of(member("Mayor", mayorId)));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(9, occupied));
-        when(store.withdrawWithAudit(
-                        guildId,
-                        SqlGuildStorageStore.DEFAULT_TAB_ID,
-                        9,
-                        payload,
-                        3L,
-                        mayorId,
-                        "facility-1"))
+        when(store.withdrawWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(9), eq(payload), eq(3L), eq(mayorId), eq("facility-1"), any()))
                 .thenReturn(new SqlGuildStorageStore.WithdrawAuditOutcome(
                         SqlGuildStorageStore.SlotMutationResult.CONFLICT, null));
         AtomicBoolean compensated = new AtomicBoolean();
@@ -535,7 +502,7 @@ class GuildStorageServiceTest {
         verify(store, never()).loadPolicy(guildId);
         verify(store, never()).loadTabs(any());
         verify(store, never()).loadSlots(any(), any());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -566,7 +533,7 @@ class GuildStorageServiceTest {
                 "facility-1");
 
         assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -614,13 +581,14 @@ class GuildStorageServiceTest {
         when(store.findPendingOperations()).thenReturn(List.of(pending));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(4, slot));
         when(store.hasMatchingAudit(
-                        guildId,
-                        memberId,
-                        "DEPOSIT",
-                        SqlGuildStorageStore.DEFAULT_TAB_ID,
-                        4,
-                        "facility-1",
-                        createdAt))
+                        eq(operationId),
+                        eq(guildId),
+                        eq(memberId),
+                        eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(4),
+                        eq("facility-1"),
+                        eq(createdAt)))
                 .thenReturn(true);
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
@@ -658,13 +626,14 @@ class GuildStorageServiceTest {
         when(store.findPendingOperations()).thenReturn(List.of(pending));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
         when(store.hasMatchingAudit(
-                        guildId,
-                        memberId,
-                        "DEPOSIT",
-                        SqlGuildStorageStore.DEFAULT_TAB_ID,
-                        4,
-                        "facility-1",
-                        createdAt))
+                        eq(operationId),
+                        eq(guildId),
+                        eq(memberId),
+                        eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(4),
+                        eq("facility-1"),
+                        eq(createdAt)))
                 .thenReturn(false);
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
@@ -715,7 +684,7 @@ class GuildStorageServiceTest {
         assertTrue(result.isSuccess());
         verify(store, never()).loadSlots(any(), any());
         verify(store, never()).loadPolicy(guildId);
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -752,7 +721,7 @@ class GuildStorageServiceTest {
 
         assertEquals(StorageResult.Status.CONFLICT, result.status());
         assertEquals("Storage operation identity mismatch", result.errorMessage());
-        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -807,7 +776,7 @@ class GuildStorageServiceTest {
 
         assertEquals(StorageResult.Status.CONFLICT, result.status());
         assertEquals("Storage operation identity mismatch", result.errorMessage());
-        verify(store, never()).withdrawWithAudit(any(), any(), anyInt(), any(), anyLong(), any(), any());
+        verify(store, never()).withdrawWithAudit(any(), any(), anyInt(), any(), anyLong(), any(), any(), any());
     }
 
     @Test
@@ -833,13 +802,14 @@ class GuildStorageServiceTest {
         when(store.findPendingOperations()).thenReturn(List.of(pending));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
         when(store.hasMatchingAudit(
-                        guildId,
-                        mayorId,
-                        "WITHDRAW",
-                        SqlGuildStorageStore.DEFAULT_TAB_ID,
-                        6,
-                        "facility-1",
-                        createdAt))
+                        eq(operationId),
+                        eq(guildId),
+                        eq(mayorId),
+                        eq("WITHDRAW"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(6),
+                        eq("facility-1"),
+                        eq(createdAt)))
                 .thenReturn(true);
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
@@ -853,6 +823,154 @@ class GuildStorageServiceTest {
                         isNull(),
                         isNull(),
                         eq(payload));
+    }
+
+    @Test
+    void finalizeFailureAfterSuccessfulMutationPreservesUnknownOutcome() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-unknown", "payload");
+        StorageSlot saved = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 20, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(20), eq(payload), eq(memberId), eq("facility-1"), eq(operationId)))
+                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.SUCCESS, saved));
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    if (invocation.getArgument(1) == StorageOperationStatus.COMMITTED) {
+                        throw new IllegalStateException("simulated finalize failure");
+                    }
+                    return null;
+                })
+                .when(store)
+                .finalizeOperation(any(), any(), any(), any(), any(), any());
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                20,
+                payload,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
+        assertEquals(
+                "Storage mutation outcome unknown; retry with same operationId", result.errorMessage());
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.UNKNOWN),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Storage mutation succeeded but journal finalize failed"),
+                        isNull(),
+                        isNull());
+    }
+
+    @Test
+    void journalLookupFailureAfterInsertConflictReturnsStorageError() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-journal-lookup", "payload");
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.insertPendingOperation(
+                        operationId,
+                        guildId,
+                        "DEPOSIT",
+                        memberId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        21,
+                        "facility-1",
+                        payload))
+                .thenReturn(false);
+        when(store.findOperation(operationId)).thenThrow(new IllegalStateException("journal read failed"));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                21,
+                payload,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
+        assertEquals(
+                "Failed to load storage operation journal after insert conflict", result.errorMessage());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
+    }
+
+    @Test
+    void duplicateDepositWithDifferentPayloadReturnsConflictWithoutMutation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload stored = new OpaqueItemPayload("paper-bytes-v1", "fp-stored", "stored-bytes");
+        OpaqueItemPayload different = new OpaqueItemPayload("paper-bytes-v1", "fp-other", "other-bytes");
+        StorageSlot saved = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 22, stored, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        when(store.findOperation(operationId))
+                .thenReturn(Optional.of(new StorageOperationRecord(
+                        operationId,
+                        guildId,
+                        "DEPOSIT",
+                        memberId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        22,
+                        "facility-1",
+                        StorageOperationStatus.COMMITTED,
+                        StorageResult.Status.SUCCESS.name(),
+                        null,
+                        stored,
+                        saved,
+                        Instant.parse("2026-08-21T12:00:00Z"),
+                        Instant.parse("2026-08-21T12:00:00Z"))));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                22,
+                different,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.CONFLICT, result.status());
+        assertEquals("Storage operation identity mismatch", result.errorMessage());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
+    }
+
+    @Test
+    void unknownOperationReplayReturnsStorageErrorWithoutMutation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-unknown-replay", "payload");
+        when(store.findOperation(operationId))
+                .thenReturn(Optional.of(new StorageOperationRecord(
+                        operationId,
+                        guildId,
+                        "DEPOSIT",
+                        memberId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        23,
+                        "facility-1",
+                        StorageOperationStatus.UNKNOWN,
+                        StorageResult.Status.STORAGE_ERROR.name(),
+                        "Storage mutation interrupted; outcome unknown",
+                        null,
+                        null,
+                        Instant.parse("2026-08-21T12:00:00Z"),
+                        Instant.parse("2026-08-21T12:00:00Z"))));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                23,
+                payload,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
+        assertEquals("Storage mutation interrupted; outcome unknown", result.errorMessage());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
 

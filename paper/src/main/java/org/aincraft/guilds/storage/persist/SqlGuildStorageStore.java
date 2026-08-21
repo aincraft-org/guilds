@@ -240,38 +240,39 @@ public class SqlGuildStorageStore {
         boolean committed = databaseManager.executeTransaction(connection -> {
             try (PreparedStatement statement = connection.prepareStatement("""
                     INSERT INTO guild_storage_audit (
-                        id, guild_id, actor_uuid, operation, tab_id, slot_index, fingerprint, facility_id, recorded_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, operation_id, guild_id, actor_uuid, operation, tab_id, slot_index, fingerprint, facility_id, recorded_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """)) {
                 statement.setString(1, UUID.randomUUID().toString());
-                statement.setString(2, guildId);
+                statement.setNull(2, java.sql.Types.VARCHAR);
+                statement.setString(3, guildId);
                 if (actorUuid == null) {
-                    statement.setNull(3, java.sql.Types.VARCHAR);
+                    statement.setNull(4, java.sql.Types.VARCHAR);
                 } else {
-                    statement.setString(3, actorUuid.toString());
+                    statement.setString(4, actorUuid.toString());
                 }
-                statement.setString(4, operation.trim());
+                statement.setString(5, operation.trim());
                 if (tabId == null || tabId.isBlank()) {
-                    statement.setNull(5, java.sql.Types.VARCHAR);
+                    statement.setNull(6, java.sql.Types.VARCHAR);
                 } else {
-                    statement.setString(5, tabId.trim());
+                    statement.setString(6, tabId.trim());
                 }
                 if (slotIndex == null) {
-                    statement.setNull(6, java.sql.Types.INTEGER);
+                    statement.setNull(7, java.sql.Types.INTEGER);
                 } else {
-                    statement.setInt(6, slotIndex);
+                    statement.setInt(7, slotIndex);
                 }
                 if (fingerprint == null || fingerprint.isBlank()) {
-                    statement.setNull(7, java.sql.Types.VARCHAR);
-                } else {
-                    statement.setString(7, fingerprint.trim());
-                }
-                if (facilityId == null || facilityId.isBlank()) {
                     statement.setNull(8, java.sql.Types.VARCHAR);
                 } else {
-                    statement.setString(8, facilityId.trim());
+                    statement.setString(8, fingerprint.trim());
                 }
-                statement.setString(9, Instant.now().toString());
+                if (facilityId == null || facilityId.isBlank()) {
+                    statement.setNull(9, java.sql.Types.VARCHAR);
+                } else {
+                    statement.setString(9, facilityId.trim());
+                }
+                statement.setString(10, Instant.now().toString());
                 statement.executeUpdate();
             }
         });
@@ -287,7 +288,8 @@ public class SqlGuildStorageStore {
             int slotIndex,
             OpaqueItemPayload item,
             UUID actorUuid,
-            String facilityId) {
+            String facilityId,
+            UUID operationId) {
         requireGuildId(guildId);
         requireTabId(tabId);
         if (slotIndex < 0) {
@@ -298,6 +300,7 @@ public class SqlGuildStorageStore {
         if (facilityId == null || facilityId.isBlank()) {
             throw new IllegalArgumentException("facilityId is required");
         }
+        Objects.requireNonNull(operationId, "operationId");
         Optional<DepositAuditOutcome> outcome = databaseManager.executeTransactionWithResult(connection -> {
             Long currentVersion = selectSlotVersion(connection, guildId, tabId, slotIndex);
             if (currentVersion != null) {
@@ -307,6 +310,7 @@ public class SqlGuildStorageStore {
             insertSlot(connection, guildId, tabId, slotIndex, item, 1L, now);
             insertAudit(
                     connection,
+                    operationId,
                     guildId,
                     actorUuid,
                     "DEPOSIT",
@@ -327,7 +331,8 @@ public class SqlGuildStorageStore {
             OpaqueItemPayload expectedItem,
             long expectedVersion,
             UUID actorUuid,
-            String facilityId) {
+            String facilityId,
+            UUID operationId) {
         requireGuildId(guildId);
         requireTabId(tabId);
         if (slotIndex < 0) {
@@ -338,6 +343,7 @@ public class SqlGuildStorageStore {
         if (facilityId == null || facilityId.isBlank()) {
             throw new IllegalArgumentException("facilityId is required");
         }
+        Objects.requireNonNull(operationId, "operationId");
         Optional<WithdrawAuditOutcome> outcome = databaseManager.executeTransactionWithResult(connection -> {
             Optional<StorageSlot> occupied = selectSlot(connection, guildId, tabId, slotIndex);
             if (occupied.isEmpty()) {
@@ -352,6 +358,7 @@ public class SqlGuildStorageStore {
             }
             insertAudit(
                     connection,
+                    operationId,
                     guildId,
                     actorUuid,
                     "WITHDRAW",
@@ -382,6 +389,7 @@ public class SqlGuildStorageStore {
      * Used to reconcile interrupted operation journal rows against committed slot/audit state.
      */
     public boolean hasMatchingAudit(
+            UUID operationId,
             String guildId,
             UUID actorUuid,
             String operation,
@@ -389,6 +397,7 @@ public class SqlGuildStorageStore {
             int slotIndex,
             String facilityId,
             Instant notBefore) {
+        Objects.requireNonNull(operationId, "operationId");
         requireGuildId(guildId);
         Objects.requireNonNull(actorUuid, "actorUuid");
         if (operation == null || operation.isBlank()) {
@@ -403,7 +412,8 @@ public class SqlGuildStorageStore {
              PreparedStatement statement = connection.prepareStatement("""
                      SELECT 1
                      FROM guild_storage_audit
-                     WHERE guild_id = ?
+                     WHERE operation_id = ?
+                       AND guild_id = ?
                        AND actor_uuid = ?
                        AND operation = ?
                        AND tab_id = ?
@@ -412,13 +422,14 @@ public class SqlGuildStorageStore {
                        AND recorded_at >= ?
                      LIMIT 1
                      """)) {
-            statement.setString(1, guildId.trim());
-            statement.setString(2, actorUuid.toString());
-            statement.setString(3, operation.trim());
-            statement.setString(4, tabId.trim());
-            statement.setInt(5, slotIndex);
-            statement.setString(6, facilityId.trim());
-            statement.setString(7, notBefore.toString());
+            statement.setString(1, operationId.toString());
+            statement.setString(2, guildId.trim());
+            statement.setString(3, actorUuid.toString());
+            statement.setString(4, operation.trim());
+            statement.setString(5, tabId.trim());
+            statement.setInt(6, slotIndex);
+            statement.setString(7, facilityId.trim());
+            statement.setString(8, notBefore.toString());
             try (ResultSet result = statement.executeQuery()) {
                 return result.next();
             }
@@ -698,6 +709,7 @@ public class SqlGuildStorageStore {
 
     private void insertAudit(
             Connection connection,
+            UUID operationId,
             String guildId,
             UUID actorUuid,
             String operation,
@@ -711,22 +723,23 @@ public class SqlGuildStorageStore {
         }
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO guild_storage_audit (
-                    id, guild_id, actor_uuid, operation, tab_id, slot_index, fingerprint, facility_id, recorded_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    id, operation_id, guild_id, actor_uuid, operation, tab_id, slot_index, fingerprint, facility_id, recorded_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """)) {
             statement.setString(1, UUID.randomUUID().toString());
-            statement.setString(2, guildId);
-            statement.setString(3, actorUuid.toString());
-            statement.setString(4, operation.trim());
-            statement.setString(5, tabId.trim());
-            statement.setInt(6, slotIndex);
+            statement.setString(2, operationId.toString());
+            statement.setString(3, guildId);
+            statement.setString(4, actorUuid.toString());
+            statement.setString(5, operation.trim());
+            statement.setString(6, tabId.trim());
+            statement.setInt(7, slotIndex);
             if (fingerprint == null || fingerprint.isBlank()) {
-                statement.setNull(7, java.sql.Types.VARCHAR);
+                statement.setNull(8, java.sql.Types.VARCHAR);
             } else {
-                statement.setString(7, fingerprint.trim());
+                statement.setString(8, fingerprint.trim());
             }
-            statement.setString(8, facilityId.trim());
-            statement.setString(9, Instant.now().toString());
+            statement.setString(9, facilityId.trim());
+            statement.setString(10, Instant.now().toString());
             statement.executeUpdate();
         }
     }

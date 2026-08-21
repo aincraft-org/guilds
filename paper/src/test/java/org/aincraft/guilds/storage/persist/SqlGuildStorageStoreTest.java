@@ -77,6 +77,9 @@ class SqlGuildStorageStoreTest {
             if (!SqlSupport.columnExists(connection, "guild_storage_operations", "operation_id")) {
                 SqlScripts.apply(connection, "migrations/guilds/V25__guild-storage-operations.sql");
             }
+            if (!SqlSupport.columnExists(connection, "guild_storage_audit", "operation_id")) {
+                SqlScripts.apply(connection, "migrations/guilds/V26__guild-storage-audit-operation.sql");
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to ensure guild storage operation schema", e);
         }
@@ -336,8 +339,9 @@ class SqlGuildStorageStoreTest {
         UUID actor = UUID.randomUUID();
         store.simulateAuditFailureForTests = true;
 
+        UUID operationId = UUID.randomUUID();
         SqlGuildStorageStore.DepositAuditOutcome outcome = store.depositWithAudit(
-                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 11, payload, actor, "facility-1");
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 11, payload, actor, "facility-1", operationId);
 
         assertEquals(SqlGuildStorageStore.SlotMutationResult.FAILED, outcome.status());
         assertTrue(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).isEmpty());
@@ -347,10 +351,11 @@ class SqlGuildStorageStoreTest {
     void depositWithAuditPersistsSlotAndAuditAtomically() throws Exception {
         store.getOrCreateBank(guildId);
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-atomic", "payload-bytes");
+        UUID operationId = UUID.randomUUID();
         UUID actor = UUID.randomUUID();
 
         SqlGuildStorageStore.DepositAuditOutcome outcome = store.depositWithAudit(
-                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 12, payload, actor, "facility-atomic");
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 12, payload, actor, "facility-atomic", operationId);
 
         assertEquals(SqlGuildStorageStore.SlotMutationResult.SUCCESS, outcome.status());
         assertEquals(payload, store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(12).item());
@@ -370,6 +375,38 @@ class SqlGuildStorageStoreTest {
                 assertEquals("facility-atomic", result.getString("facility_id"));
             }
         }
+    }
+
+    @Test
+    void hasMatchingAuditRequiresExactOperationId() {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        UUID otherOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-audit-op", "payload-bytes");
+        Instant notBefore = Instant.parse("2026-08-21T12:00:00Z");
+
+        store.depositWithAudit(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 16, payload, actor, "facility-audit", operationId);
+
+        assertTrue(store.hasMatchingAudit(
+                operationId,
+                guildId,
+                actor,
+                "DEPOSIT",
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                16,
+                "facility-audit",
+                notBefore));
+        assertFalse(store.hasMatchingAudit(
+                otherOperationId,
+                guildId,
+                actor,
+                "DEPOSIT",
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                16,
+                "facility-audit",
+                notBefore));
     }
 
     @Test

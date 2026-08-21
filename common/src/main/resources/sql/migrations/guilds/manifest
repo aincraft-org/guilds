@@ -24,3 +24,4 @@
 23 projects-tech-points Backfill tech_points column on legacy installs skipped by v4
 24 guild-storage Add guild storage item bank tables
 25 guild-storage-operations Add durable guild storage mutation operation journal
+26 guild-storage-audit-operation Add operation identity to guild storage audit records
