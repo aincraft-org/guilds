@@ -184,6 +184,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             String facilityId,
             UUID operationId,
             Runnable compensationOnFailure) {
+        StorageResult<Void> requestValidation = validateMutationRequest(operationId, facilityId);
+        if (!requestValidation.isSuccess()) {
+            return mapFailure(requestValidation);
+        }
         StorageResult<StorageSlot> existing =
                 resolveExistingOperation(operationId, "DEPOSIT", actor, guildId, tabId, slotIndex, facilityId, item);
         if (existing != null) {
@@ -223,6 +227,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             String facilityId,
             UUID operationId,
             Runnable compensationOnFailure) {
+        StorageResult<Void> requestValidation = validateMutationRequest(operationId, facilityId);
+        if (!requestValidation.isSuccess()) {
+            return mapFailure(requestValidation);
+        }
         StorageResult<OpaqueItemPayload> existing =
                 resolveExistingOperation(operationId, "WITHDRAW", actor, guildId, tabId, slotIndex, facilityId, null);
         if (existing != null) {
@@ -439,6 +447,16 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 null);
     }
 
+
+    private StorageResult<Void> validateMutationRequest(UUID operationId, String facilityId) {
+        if (operationId == null) {
+            return StorageResult.failure(StorageResult.Status.INVALID_ARGUMENT, "operationId is required");
+        }
+        if (facilityId == null || facilityId.isBlank()) {
+            return StorageResult.failure(StorageResult.Status.INVALID_ARGUMENT, "facilityId is required");
+        }
+        return StorageResult.success(null);
+    }
     private StorageResult<PreparedDeposit> prepareDeposit(
             UUID actor,
             String guildId,

@@ -1093,6 +1093,62 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         isNull());
     }
 
+    @Test
+    void depositRejectsNullOperationIdBeforeJournalLookup() {
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                null,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                1,
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                "facility-1");
+
+        assertEquals(StorageResult.Status.INVALID_ARGUMENT, result.status());
+        assertEquals("operationId is required", result.errorMessage());
+        verify(store, never()).lookupOperation(any());
+        verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    void depositRejectsBlankFacilityIdBeforeJournalLookup() {
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                1,
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                "   ");
+
+        assertEquals(StorageResult.Status.INVALID_ARGUMENT, result.status());
+        assertEquals("facilityId is required", result.errorMessage());
+        verify(store, never()).lookupOperation(any());
+        verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    void withdrawRejectsNullOperationIdBeforeJournalLookup() {
+        when(residentService.getResident(mayorId)).thenReturn(Optional.of(member("Mayor", mayorId)));
+
+        StorageResult<OpaqueItemPayload> result = storageService.withdraw(
+                null,
+                mayorId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                1,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.INVALID_ARGUMENT, result.status());
+        assertEquals("operationId is required", result.errorMessage());
+        verify(store, never()).lookupOperation(any());
+        verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
+    }
+
 
     private Resident member(String name, UUID uuid) {
         Resident resident = new Resident(uuid, name);

@@ -19,6 +19,8 @@ public final class SqlScripts {
     private static final Pattern ADD_COLUMN = Pattern.compile("^--\\s*\\+add-column\\s+(\\S+)\\s+(\\S+)\\s+(.+?)\\s*$");
     private static final Pattern ADD_STRING_COLUMN = Pattern.compile(
             "^--\\s*\\+add-string-column(-if-table)?\\s+(\\S+)\\.(\\S+)(?:\\s+(.+))?\\s*$");
+    private static final Pattern WIDEN_PAYLOAD_COLUMN = Pattern.compile(
+            "^--\\s*\\+widen-payload-column\\s+(\\S+)\\.(\\S+)\\s*$");
     private static final Pattern SET_DEFAULT = Pattern.compile("^--\\s*\\+set-default\\s+(\\S+)\\s+(\\S+)\\s+(.+?)\\s*$");
     private static final Pattern WIDEN_BIGINT = Pattern.compile("^--\\s*\\+widen-bigint\\s+(\\S+)\\s+(\\S+)\\s*$");
 
@@ -73,7 +75,15 @@ public final class SqlScripts {
                     continue;
                 }
                 String suffix = addString.group(4) == null ? "" : " " + addString.group(4).strip();
-                SqlSupport.addColumnIfAbsent(connection, table, column, SqlSupport.stringType(mysql) + suffix);
+                SqlSupport.addColumnIfAbsent(
+                        connection, table, column, SqlSupport.stringColumnType(mysql, column) + suffix);
+                continue;
+            }
+            Matcher widenPayload = WIDEN_PAYLOAD_COLUMN.matcher(line);
+            if (widenPayload.matches()) {
+                flush(connection, mysql, statement);
+                SqlSupport.widenPayloadColumnIfPresent(
+                        connection, widenPayload.group(1), widenPayload.group(2));
                 continue;
             }
             Matcher setDefault = SET_DEFAULT.matcher(line);

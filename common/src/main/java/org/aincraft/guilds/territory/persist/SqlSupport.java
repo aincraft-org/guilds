@@ -21,7 +21,8 @@ public final class SqlSupport {
             "resource_costs_json", "upgrade_progress", "permissions_enum",
             "explicit_denials", "unlocked_plot_types", "metadata", "permissions",
             "benefit_value", "schematic_data");
-    private static final Set<String> MYSQL_PAYLOAD_TEXT = Set.of("item_payload", "result_item_payload");
+    private static final Set<String> MYSQL_PAYLOAD_TEXT = Set.of(
+            "item_payload", "result_item_payload", "request_item_payload");
     private static final Pattern MYSQL_TEXT_COLUMN = Pattern.compile("(?i)\\b([a-z0-9_]+)\\s+TEXT\\b");
 
     private SqlSupport() {
@@ -35,10 +36,18 @@ public final class SqlSupport {
         String lower = product.toLowerCase(Locale.ROOT);
         return lower.contains("mysql") || lower.contains("mariadb");
     }
-
     public static String stringType(boolean mysql) {
         return mysql ? "VARCHAR(255)" : "TEXT";
     }
+
+    public static String stringColumnType(boolean mysql, String column) {
+        Objects.requireNonNull(column, "column");
+        if (MYSQL_PAYLOAD_TEXT.contains(column.toLowerCase(Locale.ROOT))) {
+            return mysql ? "LONGTEXT" : "TEXT";
+        }
+        return stringType(mysql);
+    }
+
 
     public static String withIdType(Connection connection, String sql) throws SQLException {
         return withIdType(mysql(connection), sql);
@@ -192,6 +201,18 @@ public final class SqlSupport {
                 statement.execute(SqlStatements.load("support/widen-bigint-postgres.sql",
                         Map.of("table", table, "column", column)));
             }
+        }
+    }
+
+    public static void widenPayloadColumnIfPresent(Connection connection, String table, String column)
+            throws SQLException {
+        Objects.requireNonNull(table, "table");
+        Objects.requireNonNull(column, "column");
+        if (!mysql(connection) || !columnExists(connection, table, column)) {
+            return;
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE `" + table + "` MODIFY COLUMN `" + column + "` LONGTEXT");
         }
     }
 

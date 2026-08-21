@@ -449,7 +449,7 @@ class SqlGuildStorageStoreTest {
         assertEquals(org.aincraft.guilds.storage.persist.StorageOperationStatus.COMMITTED, loaded.status());
         assertEquals("SUCCESS", loaded.resultStatus());
         assertEquals(payload, loaded.requestSnapshot());
-        assertEquals(null, loaded.resultItem());
+        assertEquals(payload, loaded.resultItem());
         assertEquals(slot.version(), loaded.resultSlot().version());
     }
 

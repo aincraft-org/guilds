@@ -9,6 +9,7 @@ import org.aincraft.guilds.database.migration.SchemaInitializer;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.logging.Level;
 
@@ -24,6 +25,17 @@ public class DatabaseManager {
     private final DataSource dataSource;
     private final SchemaInitializer schemaInitializer;
     private final boolean ownsDataSource;
+    /**
+     * Test-only constructor that skips schema initialization.
+     */
+    DatabaseManager(JavaPlugin plugin, DataSource dataSource) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.databaseConfig = null;
+        this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
+        this.schemaInitializer = null;
+        this.ownsDataSource = false;
+    }
+
 
     public DatabaseManager(JavaPlugin plugin, DatabaseConfig databaseConfig, SchemaInitializer schemaInitializer) {
         this(plugin, databaseConfig, schemaInitializer, false);
@@ -173,29 +185,13 @@ public class DatabaseManager {
      */
     public <T> TransactionExecutionResult<T> executeTransactionWithDetailedOutcome(
             TransactionWithResultCallback<T> transaction) {
-        try (Connection connection = getConnection()) {
+        Connection connection = null;
+        try {
+            connection = getConnection();
             connection.setAutoCommit(false);
+            final T result;
             try {
-                T result = transaction.execute(connection);
-                try {
-                    connection.commit();
-                } catch (SQLException commitFailure) {
-                    plugin.getLogger().log(
-                            Level.WARNING,
-                            "Transaction commit outcome unknown: " + commitFailure.getMessage(),
-                            commitFailure);
-                    try {
-                        connection.rollback();
-                    } catch (SQLException rollbackFailure) {
-                        plugin.getLogger().log(
-                                Level.WARNING,
-                                "Transaction rollback after indeterminate commit also failed: "
-                                        + rollbackFailure.getMessage(),
-                                rollbackFailure);
-                    }
-                    return TransactionExecutionResult.indeterminate();
-                }
-                return TransactionExecutionResult.committed(result);
+                result = transaction.execute(connection);
             } catch (SQLException executionFailure) {
                 try {
                     connection.rollback();
@@ -212,12 +208,42 @@ public class DatabaseManager {
                     return TransactionExecutionResult.indeterminate();
                 }
             }
+            try {
+                connection.commit();
+            } catch (SQLException commitFailure) {
+                plugin.getLogger().log(
+                        Level.WARNING,
+                        "Transaction commit outcome unknown: " + commitFailure.getMessage(),
+                        commitFailure);
+                try {
+                    connection.rollback();
+                } catch (SQLException rollbackFailure) {
+                    plugin.getLogger().log(
+                            Level.WARNING,
+                            "Transaction rollback after indeterminate commit also failed: "
+                                    + rollbackFailure.getMessage(),
+                            rollbackFailure);
+                }
+                return TransactionExecutionResult.indeterminate();
+            }
+            return TransactionExecutionResult.committed(result);
         } catch (SQLException connectionFailure) {
             plugin.getLogger().log(
                     Level.SEVERE,
                     "Failed to execute transaction: " + connectionFailure.getMessage(),
                     connectionFailure);
             return TransactionExecutionResult.rolledBack();
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException closeFailure) {
+                    plugin.getLogger().log(
+                            Level.WARNING,
+                            "Failed to close transaction connection: " + closeFailure.getMessage(),
+                            closeFailure);
+                }
+            }
         }
     }
 

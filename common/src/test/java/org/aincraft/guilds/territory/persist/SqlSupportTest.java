@@ -89,6 +89,20 @@ class SqlSupportTest {
     }
 
     @Test
+    void mysqlIdTypeRewritesRequestItemPayloadToLongtext() {
+        String mysql = SqlSupport.withIdType(true,
+                "CREATE TABLE guild_storage_operations (request_item_payload TEXT, request_item_schema TEXT NOT NULL)");
+        assertTrue(mysql.contains("request_item_payload LONGTEXT"));
+        assertTrue(mysql.contains("request_item_schema VARCHAR(255) NOT NULL"));
+    }
+
+    @Test
+    void mysqlStringColumnTypeUsesLongtextForRequestPayload() {
+        assertEquals("LONGTEXT", SqlSupport.stringColumnType(true, "request_item_payload"));
+        assertEquals("VARCHAR(255)", SqlSupport.stringColumnType(true, "request_item_schema"));
+    }
+
+    @Test
     void postgresDoNothingKeepsOnConflict() {
         String sql = SqlSupport.upsertSql(false,
                 "INSERT INTO guild_level_benefits (id) VALUES (?)",
