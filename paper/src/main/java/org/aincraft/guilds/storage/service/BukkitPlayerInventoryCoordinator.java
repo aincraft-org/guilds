@@ -16,31 +16,35 @@ public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCo
     }
 
     @Override
-    public void removeMatching(UUID playerId, ItemStack item, Runnable onComplete) {
+    public void removeMatching(UUID playerId, ItemStack item, java.util.function.Consumer<Boolean> onComplete) {
         Objects.requireNonNull(playerId, "playerId");
         Objects.requireNonNull(item, "item");
         mainThreadExecutor.run(() -> {
             Player player = Bukkit.getPlayer(playerId);
+            boolean changed = false;
             if (player != null && player.isOnline()) {
                 player.getInventory().removeItem(item.clone());
+                changed = true;
             }
             if (onComplete != null) {
-                onComplete.run();
+                onComplete.accept(changed);
             }
         });
     }
 
     @Override
-    public void giveItem(UUID playerId, ItemStack item, Runnable onComplete) {
+    public void giveItem(UUID playerId, ItemStack item, java.util.function.Consumer<Boolean> onComplete) {
         Objects.requireNonNull(playerId, "playerId");
         Objects.requireNonNull(item, "item");
         mainThreadExecutor.run(() -> {
             Player player = Bukkit.getPlayer(playerId);
+            boolean changed = false;
             if (player != null && player.isOnline()) {
                 player.getInventory().addItem(item.clone());
+                changed = true;
             }
             if (onComplete != null) {
-                onComplete.run();
+                onComplete.accept(changed);
             }
         });
     }

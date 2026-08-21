@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /** Main-thread player inventory mutations for storage compensation. */
 public interface PlayerInventoryCoordinator {
-    void removeMatching(UUID playerId, ItemStack item, Runnable onComplete);
+    void removeMatching(UUID playerId, ItemStack item, java.util.function.Consumer<Boolean> onComplete);
 
-    void giveItem(UUID playerId, ItemStack item, Runnable onComplete);
+    void giveItem(UUID playerId, ItemStack item, java.util.function.Consumer<Boolean> onComplete);
 }

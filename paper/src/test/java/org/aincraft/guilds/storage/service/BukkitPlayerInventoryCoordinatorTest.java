@@ -38,7 +38,7 @@ class BukkitPlayerInventoryCoordinatorTest {
         BukkitPlayerInventoryCoordinator coordinator = new BukkitPlayerInventoryCoordinator(executor);
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getPlayer(playerId)).thenReturn(player);
-            coordinator.removeMatching(playerId, item, () -> {});
+            coordinator.removeMatching(playerId, item, changed -> {});
         }
         assertTrue(scheduled.get());
         verify(inventory).removeItem(clone);
@@ -59,7 +59,7 @@ class BukkitPlayerInventoryCoordinatorTest {
         BukkitPlayerInventoryCoordinator coordinator = new BukkitPlayerInventoryCoordinator(executor);
         try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
             bukkit.when(() -> Bukkit.getPlayer(playerId)).thenReturn(player);
-            coordinator.giveItem(playerId, item, () -> {});
+            coordinator.giveItem(playerId, item, changed -> {});
         }
         verify(inventory).addItem(clone);
     }
