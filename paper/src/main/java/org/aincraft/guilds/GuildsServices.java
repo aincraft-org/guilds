@@ -97,6 +97,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
 /**
@@ -586,6 +587,7 @@ public class GuildsServices {
         StorageFacilityAccessValidator accessValidator = new RegistryStorageFacilityAccessValidator(
                 new BukkitPlayerLocationSource(), facilities, anchors, governance);
         MainThreadExecutor mainThreadExecutor = new BukkitMainThreadExecutor(plugin);
+        Executor storageSqlExecutor = ForkJoinPool.commonPool();
         SqlGuildStorageStore store = new SqlGuildStorageStore(
                 databaseManager, Logger.getLogger(SqlGuildStorageStore.class.getName()));
         GuildStorageServiceImpl service = new GuildStorageServiceImpl(
@@ -594,10 +596,10 @@ public class GuildsServices {
                 residentService,
                 accessValidator,
                 mainThreadExecutor,
-                ForkJoinPool.commonPool());
+                storageSqlExecutor);
         PlayerInventoryCoordinator inventoryCoordinator = new BukkitPlayerInventoryCoordinator(mainThreadExecutor);
         GuildStorageGUI storageGui = new GuildStorageGUI(
-                plugin, service, inventoryCoordinator, mainThreadExecutor);
+                plugin, service, inventoryCoordinator, mainThreadExecutor, storageSqlExecutor);
         plugin.getServer().getPluginManager().registerEvents(storageGui, plugin);
         StorageFacilityOpener opener = new StorageFacilityOpener(
                 facilities,

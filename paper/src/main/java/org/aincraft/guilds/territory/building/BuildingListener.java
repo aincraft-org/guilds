@@ -21,6 +21,7 @@ import org.aincraft.guilds.storage.StorageFacilityOpener;
 import org.aincraft.guilds.territory.model.FacilityType;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -109,6 +110,13 @@ public final class BuildingListener implements Listener {
                 block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
         if (resolved.isPresent() && resolved.get().type() == FacilityType.STORAGE) {
             interactWithStorageAnchor(event, player, resolved.get());
+            return;
+        }
+
+        Optional<SettlementFacility> nearbyStorage = anchors.activeStorageNear(
+                block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        if (nearbyStorage.isPresent()) {
+            interactWithStorageAnchor(event, player, nearbyStorage.get());
             return;
         }
 

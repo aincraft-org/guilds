@@ -95,6 +95,9 @@ public class BrigadierCommandRegistry {
             commands.register(Commands.literal("t")
                 .redirect(guildCommand.buildCommand())
                 .build());
+            commands.register(Commands.literal("town")
+                .redirect(guildCommand.buildCommand())
+                .build());
 
             // Register plot command
             commands.register(plotCommand.buildCommand());

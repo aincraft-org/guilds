@@ -68,13 +68,17 @@ public final class StorageFacilityOpener {
 
     public Result tryOpenAtLocation(Player player) {
         Objects.requireNonNull(player, "player");
-        return facilities.resolve(
-                        player.getWorld().getName(),
-                        player.getLocation().getBlockX(),
-                        player.getLocation().getBlockY(),
-                        player.getLocation().getBlockZ())
-                .filter(facility -> facility.type() == FacilityType.STORAGE)
-                .map(facility -> tryOpen(player, facility))
+        var location = player.getLocation();
+        String worldId = location.getWorld().getName();
+        int x = location.getBlockX();
+        int y = location.getBlockY();
+        int z = location.getBlockZ();
+        Optional<SettlementFacility> facility = facilities.resolve(worldId, x, y, z)
+                .filter(candidate -> candidate.type() == FacilityType.STORAGE)
+                .filter(candidate -> anchors.validate(candidate).active())
+                .or(() -> anchors.activeStorageNear(worldId, x, y, z));
+        return facility
+                .map(resolved -> tryOpen(player, resolved))
                 .orElseGet(() -> denied("You must stand at an active guild storage facility."));
     }
 

@@ -18,6 +18,8 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -30,29 +32,42 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
-/** Main-thread guild storage chest backed by {@link GuildStorageService}. */
+/** Per-player guild storage chest backed by {@link GuildStorageService}. */
 public final class GuildStorageGUI implements InventoryHolder, Listener {
     public static final int LOGICAL_SLOTS = 54;
 
     private final GuildStorageService storageService;
     private final PlayerInventoryCoordinator inventoryCoordinator;
     private final MainThreadExecutor mainThreadExecutor;
+    private final Executor sqlExecutor;
     private final ItemStackStorageCodec codec;
     private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
 
-    private Inventory inventory;
+    private volatile Inventory inventory;
 
     public GuildStorageGUI(
             JavaPlugin plugin,
             GuildStorageService storageService,
             PlayerInventoryCoordinator inventoryCoordinator,
             MainThreadExecutor mainThreadExecutor) {
+        this(plugin, storageService, inventoryCoordinator, mainThreadExecutor, Runnable::run);
+    }
+
+    public GuildStorageGUI(
+            JavaPlugin plugin,
+            GuildStorageService storageService,
+            PlayerInventoryCoordinator inventoryCoordinator,
+            MainThreadExecutor mainThreadExecutor,
+            Executor sqlExecutor) {
         Objects.requireNonNull(plugin, "plugin");
         this.storageService = Objects.requireNonNull(storageService, "storageService");
         this.inventoryCoordinator = Objects.requireNonNull(inventoryCoordinator, "inventoryCoordinator");
         this.mainThreadExecutor = Objects.requireNonNull(mainThreadExecutor, "mainThreadExecutor");
+        this.sqlExecutor = Objects.requireNonNull(sqlExecutor, "sqlExecutor");
         this.codec = new ItemStackStorageCodec();
     }
 
@@ -60,77 +75,114 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(facility, "facility");
         Objects.requireNonNull(guildId, "guildId");
-        mainThreadExecutor.run(() -> openOnMainThread(player, facility, guildId));
+        UUID playerId = player.getUniqueId();
+        CompletableFuture.supplyAsync(() -> loadOpenState(playerId, guildId), sqlExecutor)
+                .thenAcceptAsync(
+                        state -> finishOpen(player, facility, guildId, state, null),
+                        command -> mainThreadExecutor.run(command))
+                .exceptionally(error -> {
+                    mainThreadExecutor.run(() -> finishOpen(player, facility, guildId, null, error));
+                    return null;
+                });
     }
 
-    private void openOnMainThread(Player player, SettlementFacility facility, String guildId) {
-        StorageResult<List<StorageTab>> tabs = storageService.getTabs(player.getUniqueId(), guildId);
+    private OpenState loadOpenState(UUID playerId, String guildId) {
+        StorageResult<List<StorageTab>> tabs = storageService.getTabs(playerId, guildId);
         if (!tabs.isSuccess()) {
-            player.sendMessage(Component.text(tabs.errorMessage(), NamedTextColor.RED));
-            return;
+            return OpenState.failure(tabs.errorMessage());
         }
         StorageTab tab = tabs.value().orElseThrow().stream()
                 .filter(candidate -> SqlGuildStorageStore.DEFAULT_TAB_ID.equals(candidate.tabId()))
                 .findFirst()
                 .orElse(tabs.value().orElseThrow().get(0));
-
         StorageResult<Map<Integer, StorageSlot>> slots =
-                storageService.getSlots(player.getUniqueId(), guildId, tab.tabId());
+                storageService.getSlots(playerId, guildId, tab.tabId());
         if (!slots.isSuccess()) {
-            player.sendMessage(Component.text(slots.errorMessage(), NamedTextColor.RED));
+            return OpenState.failure(slots.errorMessage());
+        }
+        return OpenState.success(tab.tabId(), slots.value().orElseThrow());
+    }
+
+    private void finishOpen(
+            Player player,
+            SettlementFacility facility,
+            String guildId,
+            OpenState state,
+            Throwable error) {
+        if (error != null) {
+            player.sendMessage(Component.text("Failed to open guild storage.", NamedTextColor.RED));
+            return;
+        }
+        if (state == null || !state.success()) {
+            player.sendMessage(Component.text(
+                    state == null ? "Failed to open guild storage." : state.errorMessage(), NamedTextColor.RED));
             return;
         }
 
-        inventory = Bukkit.createInventory(
+        Inventory sessionInventory = Bukkit.createInventory(
                 this,
                 LOGICAL_SLOTS,
                 Component.text(facility.name() + " Storage", NamedTextColor.GOLD));
-        renderSlots(slots.value().orElseThrow());
-
-        sessions.put(player.getUniqueId(), new Session(player.getUniqueId(), facility, guildId, tab.tabId()));
-        player.openInventory(inventory);
+        renderSlots(sessionInventory, state.slots());
+        inventory = sessionInventory;
+        sessions.put(
+                player.getUniqueId(),
+                new Session(player.getUniqueId(), facility, guildId, state.tabId(), sessionInventory));
+        player.openInventory(sessionInventory);
     }
 
-    private void renderSlots(Map<Integer, StorageSlot> slots) {
-        inventory.clear();
+    private void renderSlots(Inventory target, Map<Integer, StorageSlot> slots) {
+        target.clear();
         for (Map.Entry<Integer, StorageSlot> entry : slots.entrySet()) {
             int slotIndex = entry.getKey();
             if (slotIndex < 0 || slotIndex >= LOGICAL_SLOTS) {
                 continue;
             }
-            inventory.setItem(slotIndex, codec.decode(entry.getValue().item()));
+            target.setItem(slotIndex, codec.decode(entry.getValue().item()));
         }
     }
 
     private void refreshSession(Player player, Session session) {
-        StorageResult<Map<Integer, StorageSlot>> slots =
-                storageService.getSlots(player.getUniqueId(), session.guildId(), session.tabId());
-        if (slots.isSuccess()) {
-            renderSlots(slots.value().orElseThrow());
-        }
+        CompletableFuture.supplyAsync(
+                        () -> storageService.getSlots(player.getUniqueId(), session.guildId(), session.tabId()),
+                        sqlExecutor)
+                .thenAcceptAsync(
+                        slots -> {
+                            Session active = sessions.get(player.getUniqueId());
+                            if (active == null || active != session) {
+                                return;
+                            }
+                            if (slots.isSuccess()) {
+                                renderSlots(session.inventory(), slots.value().orElseThrow());
+                            }
+                        },
+                        command -> mainThreadExecutor.run(command));
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getInventory().getHolder() instanceof GuildStorageGUI)) {
-            return;
-        }
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
-        Session session = sessions.get(player.getUniqueId());
-        if (session == null || !Objects.equals(event.getInventory(), inventory)) {
+        if (!(event.getInventory().getHolder() instanceof GuildStorageGUI)) {
             return;
         }
-
-        event.setCancelled(true);
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null || !Objects.equals(event.getInventory(), session.inventory())) {
+            return;
+        }
+        if (isBlockedStorageInteraction(event)) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getRawSlot() < 0 || event.getRawSlot() >= LOGICAL_SLOTS) {
             return;
         }
 
+        event.setCancelled(true);
         int slotIndex = event.getRawSlot();
         ItemStack cursor = event.getCursor();
-        ItemStack stored = inventory.getItem(slotIndex);
+        ItemStack stored = session.inventory().getItem(slotIndex);
         boolean cursorEmpty = cursor == null || cursor.getType() == Material.AIR;
         boolean storedEmpty = stored == null || stored.getType() == Material.AIR;
 
@@ -145,8 +197,19 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getInventory().getHolder() instanceof GuildStorageGUI) {
-            event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player)) {
+            return;
+        }
+        Session session = sessions.get(player.getUniqueId());
+        if (session == null || event.getView() == null
+                || !Objects.equals(event.getView().getTopInventory(), session.inventory())) {
+            return;
+        }
+        for (int rawSlot : event.getRawSlots()) {
+            if (rawSlot >= 0 && rawSlot < LOGICAL_SLOTS) {
+                event.setCancelled(true);
+                return;
+            }
         }
     }
 
@@ -155,9 +218,32 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
         if (!(event.getPlayer() instanceof Player player)) {
             return;
         }
-        if (event.getInventory().getHolder() instanceof GuildStorageGUI) {
+        if (!(event.getInventory().getHolder() instanceof GuildStorageGUI)) {
+            return;
+        }
+        Session session = sessions.get(player.getUniqueId());
+        if (session != null && Objects.equals(event.getInventory(), session.inventory())) {
             sessions.remove(player.getUniqueId());
         }
+    }
+
+    private static boolean isBlockedStorageInteraction(InventoryClickEvent event) {
+        ClickType click = event.getClick();
+        if (click != null
+                && (click == ClickType.SHIFT_LEFT
+                        || click == ClickType.SHIFT_RIGHT
+                        || click == ClickType.NUMBER_KEY
+                        || click == ClickType.DOUBLE_CLICK)) {
+            return true;
+        }
+        InventoryAction action = event.getAction();
+        if (action == null) {
+            return false;
+        }
+        return action == InventoryAction.MOVE_TO_OTHER_INVENTORY
+                || action == InventoryAction.HOTBAR_MOVE_AND_READD
+                || action == InventoryAction.HOTBAR_SWAP
+                || action == InventoryAction.COLLECT_TO_CURSOR;
     }
 
     private void deposit(Player player, Session session, int slotIndex, ItemStack item) {
@@ -178,16 +264,35 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                 });
 
         player.setItemOnCursor(null);
-        StorageResult<StorageSlot> result = invokeDeposit(
-                operationId,
-                player.getUniqueId(),
-                session.guildId(),
-                session.tabId(),
-                slotIndex,
-                payload,
-                session.facility().id(),
-                restoreOnFailure);
+        CompletableFuture.supplyAsync(
+                        () -> invokeDeposit(
+                                operationId,
+                                player.getUniqueId(),
+                                session.guildId(),
+                                session.tabId(),
+                                slotIndex,
+                                payload,
+                                session.facility().id(),
+                                restoreOnFailure),
+                        sqlExecutor)
+                .thenAcceptAsync(
+                        result -> handleDepositResult(player, session, result),
+                        command -> mainThreadExecutor.run(command))
+                .exceptionally(error -> {
+                    mainThreadExecutor.run(() -> {
+                        if (activeSession(player, session)) {
+                            player.sendMessage(Component.text("Failed to deposit item.", NamedTextColor.RED));
+                            refreshSession(player, session);
+                        }
+                    });
+                    return null;
+                });
+    }
 
+    private void handleDepositResult(Player player, Session session, StorageResult<StorageSlot> result) {
+        if (!activeSession(player, session)) {
+            return;
+        }
         if (!result.isSuccess()) {
             player.sendMessage(Component.text(result.errorMessage(), NamedTextColor.RED));
         }
@@ -196,7 +301,7 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
 
     private void withdraw(Player player, Session session, int slotIndex) {
         UUID operationId = UUID.randomUUID();
-        ItemStack pending = inventory.getItem(slotIndex);
+        ItemStack pending = session.inventory().getItem(slotIndex);
         if (pending == null || pending.getType() == Material.AIR) {
             return;
         }
@@ -204,15 +309,34 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
         Runnable restoreOnFailure = () -> inventoryCoordinator.removeMatching(
                 player.getUniqueId(), payout.clone(), ignored -> {});
 
-        StorageResult<OpaqueItemPayload> result = invokeWithdraw(
-                operationId,
-                player.getUniqueId(),
-                session.guildId(),
-                session.tabId(),
-                slotIndex,
-                session.facility().id(),
-                restoreOnFailure);
+        CompletableFuture.supplyAsync(
+                        () -> invokeWithdraw(
+                                operationId,
+                                player.getUniqueId(),
+                                session.guildId(),
+                                session.tabId(),
+                                slotIndex,
+                                session.facility().id(),
+                                restoreOnFailure),
+                        sqlExecutor)
+                .thenAcceptAsync(
+                        result -> handleWithdrawResult(player, session, result),
+                        command -> mainThreadExecutor.run(command))
+                .exceptionally(error -> {
+                    mainThreadExecutor.run(() -> {
+                        if (activeSession(player, session)) {
+                            player.sendMessage(Component.text("Failed to withdraw item.", NamedTextColor.RED));
+                            refreshSession(player, session);
+                        }
+                    });
+                    return null;
+                });
+    }
 
+    private void handleWithdrawResult(Player player, Session session, StorageResult<OpaqueItemPayload> result) {
+        if (!activeSession(player, session)) {
+            return;
+        }
         if (!result.isSuccess()) {
             player.sendMessage(Component.text(result.errorMessage(), NamedTextColor.RED));
             refreshSession(player, session);
@@ -221,11 +345,19 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
 
         ItemStack decoded = codec.decode(result.value().orElseThrow());
         inventoryCoordinator.giveItem(player.getUniqueId(), decoded, success -> mainThreadExecutor.run(() -> {
+            if (!activeSession(player, session)) {
+                return;
+            }
             if (!success) {
                 player.sendMessage(Component.text("Not enough inventory space.", NamedTextColor.RED));
             }
             refreshSession(player, session);
         }));
+    }
+
+    private boolean activeSession(Player player, Session session) {
+        Session active = sessions.get(player.getUniqueId());
+        return active != null && active == session;
     }
 
     private StorageResult<StorageSlot> invokeDeposit(
@@ -268,5 +400,16 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
         return inventory;
     }
 
-    record Session(UUID playerId, SettlementFacility facility, String guildId, String tabId) {}
+    record Session(
+            UUID playerId, SettlementFacility facility, String guildId, String tabId, Inventory inventory) {}
+
+    private record OpenState(boolean success, String tabId, Map<Integer, StorageSlot> slots, String errorMessage) {
+        static OpenState success(String tabId, Map<Integer, StorageSlot> slots) {
+            return new OpenState(true, tabId, slots, null);
+        }
+
+        static OpenState failure(String errorMessage) {
+            return new OpenState(false, null, Map.of(), errorMessage);
+        }
+    }
 }

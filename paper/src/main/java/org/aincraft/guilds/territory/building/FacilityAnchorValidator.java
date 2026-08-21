@@ -1,5 +1,6 @@
 package org.aincraft.guilds.territory.building;
 
+import org.aincraft.guilds.territory.model.FacilityType;
 import org.aincraft.guilds.territory.model.SettlementFacility;
 import org.aincraft.guilds.territory.registry.FacilityRegistry;
 import org.aincraft.guilds.territory.registry.TerritoryRegistry;
@@ -11,6 +12,9 @@ import java.util.Optional;
 
 /** Validates only the registered block coordinate; neighboring construction is irrelevant. */
 public final class FacilityAnchorValidator {
+    /** Chebyshev distance for physical storage access and supporting-anchor resolution. */
+    public static final int PHYSICAL_ACCESS_RADIUS = 1;
+
     private final Server server;
     private final TerritoryRegistry territories;
     private final FacilityRegistry facilities;
@@ -42,6 +46,16 @@ public final class FacilityAnchorValidator {
 
     public Optional<SettlementFacility> activeAt(String worldId, int x, int y, int z) {
         return facilities.resolve(worldId, x, y, z).filter(facility -> validate(facility).active());
+    }
+
+    public Optional<SettlementFacility> activeNear(String worldId, int x, int y, int z, int radius) {
+        return facilities.resolveNearby(worldId, x, y, z, radius)
+                .filter(facility -> validate(facility).active());
+    }
+
+    public Optional<SettlementFacility> activeStorageNear(String worldId, int x, int y, int z) {
+        return activeNear(worldId, x, y, z, PHYSICAL_ACCESS_RADIUS)
+                .filter(facility -> facility.type() == FacilityType.STORAGE);
     }
 
     public record AnchorValidation(AnchorStatus status, SettlementFacility facility) {

@@ -55,8 +55,14 @@ public final class RegistryStorageFacilityAccessValidator implements StorageFaci
             return StorageResult.failure(StorageResult.Status.PERMISSION_DENIED, "Actor location unavailable");
         }
         PlayerLocationSource.BlockLocation location = actorLocation.get();
-        Optional<SettlementFacility> atLocation =
-                facilities.resolve(location.worldId(), location.x(), location.y(), location.z());
+        Optional<SettlementFacility> atLocation = facilities.resolve(
+                        location.worldId(), location.x(), location.y(), location.z())
+                .or(() -> facilities.resolveNearby(
+                        location.worldId(),
+                        location.x(),
+                        location.y(),
+                        location.z(),
+                        FacilityAnchorValidator.PHYSICAL_ACCESS_RADIUS));
         if (atLocation.isEmpty() || !atLocation.get().id().equals(resolvedFacility.id())) {
             return StorageResult.failure(StorageResult.Status.PERMISSION_DENIED, "Actor is not at storage facility");
         }
