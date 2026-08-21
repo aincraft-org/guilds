@@ -54,8 +54,14 @@ public final class FacilityAnchorValidator {
     }
 
     public Optional<SettlementFacility> activeStorageNear(String worldId, int x, int y, int z) {
-        return activeNear(worldId, x, y, z, PHYSICAL_ACCESS_RADIUS)
-                .filter(facility -> facility.type() == FacilityType.STORAGE);
+        return facilities.resolveNearby(
+                        worldId,
+                        x,
+                        y,
+                        z,
+                        PHYSICAL_ACCESS_RADIUS,
+                        facility -> facility.type() == FacilityType.STORAGE)
+                .filter(facility -> validate(facility).active());
     }
 
     public record AnchorValidation(AnchorStatus status, SettlementFacility facility) {

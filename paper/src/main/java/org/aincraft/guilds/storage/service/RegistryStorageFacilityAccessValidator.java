@@ -62,7 +62,8 @@ public final class RegistryStorageFacilityAccessValidator implements StorageFaci
                         location.x(),
                         location.y(),
                         location.z(),
-                        FacilityAnchorValidator.PHYSICAL_ACCESS_RADIUS));
+                        FacilityAnchorValidator.PHYSICAL_ACCESS_RADIUS,
+                        candidate -> candidate.type() == FacilityType.STORAGE));
         if (atLocation.isEmpty() || !atLocation.get().id().equals(resolvedFacility.id())) {
             return StorageResult.failure(StorageResult.Status.PERMISSION_DENIED, "Actor is not at storage facility");
         }

@@ -89,13 +89,19 @@ public final class FacilityRegistry {
      * for deterministic event handling.
      */
     public Optional<SettlementFacility> resolveNearby(String worldId, int x, int y, int z, int radius) {
-        if (worldId == null || radius < 0) {
+        return resolveNearby(worldId, x, y, z, radius, ignored -> true);
+    }
+
+    public Optional<SettlementFacility> resolveNearby(
+            String worldId, int x, int y, int z, int radius,
+            java.util.function.Predicate<SettlementFacility> candidateFilter) {
+        if (worldId == null || radius < 0 || candidateFilter == null) {
             return Optional.empty();
         }
         SettlementFacility nearest = null;
         long nearestDistance = Long.MAX_VALUE;
         for (SettlementFacility facility : byId.values()) {
-            if (!facility.worldId().equals(worldId.trim())) {
+            if (!candidateFilter.test(facility) || !facility.worldId().equals(worldId.trim())) {
                 continue;
             }
             long dx = (long) facility.x() - x;

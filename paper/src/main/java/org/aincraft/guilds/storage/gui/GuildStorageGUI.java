@@ -305,10 +305,6 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
         if (pending == null || pending.getType() == Material.AIR) {
             return;
         }
-        ItemStack payout = pending.clone();
-        Runnable restoreOnFailure = () -> inventoryCoordinator.removeMatching(
-                player.getUniqueId(), payout.clone(), ignored -> {});
-
         CompletableFuture.supplyAsync(
                         () -> invokeWithdraw(
                                 operationId,
@@ -317,10 +313,10 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                                 session.tabId(),
                                 slotIndex,
                                 session.facility().id(),
-                                restoreOnFailure),
+                                null),
                         sqlExecutor)
                 .thenAcceptAsync(
-                        result -> handleWithdrawResult(player, session, result),
+                        result -> handleWithdrawResult(player, session, operationId, slotIndex, result),
                         command -> mainThreadExecutor.run(command))
                 .exceptionally(error -> {
                     mainThreadExecutor.run(() -> {
@@ -333,26 +329,73 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                 });
     }
 
-    private void handleWithdrawResult(Player player, Session session, StorageResult<OpaqueItemPayload> result) {
-        if (!activeSession(player, session)) {
-            return;
-        }
+    private void handleWithdrawResult(
+            Player player,
+            Session session,
+            UUID operationId,
+            int slotIndex,
+            StorageResult<OpaqueItemPayload> result) {
         if (!result.isSuccess()) {
-            player.sendMessage(Component.text(result.errorMessage(), NamedTextColor.RED));
-            refreshSession(player, session);
+            if (activeSession(player, session)) {
+                player.sendMessage(Component.text(result.errorMessage(), NamedTextColor.RED));
+                refreshSession(player, session);
+            }
             return;
         }
 
-        ItemStack decoded = codec.decode(result.value().orElseThrow());
-        inventoryCoordinator.giveItem(player.getUniqueId(), decoded, success -> mainThreadExecutor.run(() -> {
-            if (!activeSession(player, session)) {
-                return;
-            }
-            if (!success) {
+        OpaqueItemPayload payload = result.value().orElseThrow();
+        ItemStack decoded = codec.decode(payload);
+        inventoryCoordinator.giveItem(
+                player.getUniqueId(),
+                decoded,
+                payoutSuccess -> mainThreadExecutor.run(() -> {
+                    if (payoutSuccess) {
+                        if (activeSession(player, session)) {
+                            refreshSession(player, session);
+                        }
+                        return;
+                    }
+                    restoreWithdrawPayout(player, session, operationId, slotIndex, payload);
+                }));
+    }
+
+    private void restoreWithdrawPayout(
+            Player player,
+            Session session,
+            UUID operationId,
+            int slotIndex,
+            OpaqueItemPayload payload) {
+        if (!(storageService instanceof GuildStorageServiceImpl impl)) {
+            if (activeSession(player, session)) {
                 player.sendMessage(Component.text("Not enough inventory space.", NamedTextColor.RED));
+                refreshSession(player, session);
             }
-            refreshSession(player, session);
-        }));
+            return;
+        }
+        CompletableFuture.supplyAsync(
+                        () -> impl.compensateWithdrawPayout(
+                                operationId,
+                                player.getUniqueId(),
+                                session.guildId(),
+                                session.tabId(),
+                                slotIndex,
+                                payload,
+                                session.facility().id()),
+                        sqlExecutor)
+                .thenAcceptAsync(
+                        restoreResult -> mainThreadExecutor.run(() -> {
+                            if (activeSession(player, session)) {
+                                if (!restoreResult.isSuccess()) {
+                                    player.sendMessage(Component.text(
+                                            "Failed to restore withdrawn item to storage.", NamedTextColor.RED));
+                                } else {
+                                    player.sendMessage(Component.text(
+                                            "Not enough inventory space.", NamedTextColor.RED));
+                                }
+                                refreshSession(player, session);
+                            }
+                        }),
+                        Runnable::run);
     }
 
     private boolean activeSession(Player player, Session session) {

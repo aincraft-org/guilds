@@ -19,6 +19,7 @@ import org.aincraft.guilds.territory.storage.StoragePolicy;
 import org.aincraft.guilds.territory.storage.StorageSlot;
 import org.aincraft.guilds.territory.storage.StorageTab;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 
@@ -196,6 +198,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (existing != null) {
             return existing;
         }
+        StorageResult<Void> facilityValidation = validateFacilityAccessOnMainThread(actor, guildId, facilityId);
+        if (!facilityValidation.isSuccess()) {
+            return mapFailure(facilityValidation);
+        }
         StorageResult<PreparedDeposit> prepared =
                 prepareDeposit(actor, guildId, tabId, slotIndex, item, facilityId, operationId);
         if (!prepared.isSuccess()) {
@@ -239,6 +245,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (existing != null) {
             return existing;
         }
+        StorageResult<Void> facilityValidation = validateFacilityAccessOnMainThread(actor, guildId, facilityId);
+        if (!facilityValidation.isSuccess()) {
+            return mapFailure(facilityValidation);
+        }
         StorageResult<PreparedWithdraw> prepared =
                 prepareWithdraw(actor, guildId, tabId, slotIndex, facilityId, operationId);
         if (!prepared.isSuccess()) {
@@ -256,6 +266,40 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 withdraw.occupied().item(),
                 compensationOnFailure,
                 () -> persistWithdraw(withdraw, operationId));
+    }
+
+    /**
+     * Restores a committed withdraw back into storage when payout to the player inventory fails
+     * or the GUI session ends before payout completes.
+     */
+    public StorageResult<StorageSlot> compensateWithdrawPayout(
+            UUID withdrawOperationId,
+            UUID actor,
+            String guildId,
+            String tabId,
+            int slotIndex,
+            OpaqueItemPayload item,
+            String facilityId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        if (item == null) {
+            return StorageResult.failure(StorageResult.Status.INVALID_ARGUMENT, "item is required");
+        }
+        StorageOperationLookupResult withdrawLookup = store.lookupOperation(withdrawOperationId);
+        if (withdrawLookup.status() == StorageOperationLookupResult.Status.READ_FAILURE) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, JOURNAL_LOOKUP_FAILURE);
+        }
+        if (withdrawLookup.status() == StorageOperationLookupResult.Status.NOT_FOUND) {
+            return StorageResult.failure(
+                    StorageResult.Status.CONFLICT, "Withdraw operation is not eligible for payout compensation");
+        }
+        StorageOperationRecord withdrawOperation = withdrawLookup.record().orElseThrow();
+        if (withdrawOperation.status() != StorageOperationStatus.COMMITTED
+                || !"WITHDRAW".equals(withdrawOperation.operationType())) {
+            return StorageResult.failure(
+                    StorageResult.Status.CONFLICT, "Withdraw operation is not eligible for payout compensation");
+        }
+        UUID compensationOperationId = payoutCompensationOperationId(withdrawOperationId);
+        return deposit(compensationOperationId, actor, guildId, tabId, slotIndex, item, facilityId);
     }
 
     @Override
@@ -496,10 +540,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!access.isSuccess()) {
             return mapFailure(access);
         }
-        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
-        if (!facility.isSuccess()) {
-            return mapFailure(facility);
-        }
         StorageResult<StoragePolicy> policy = loadPolicySafely(guildId);
         if (!policy.isSuccess()) {
             return mapFailure(policy);
@@ -560,10 +600,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         StorageResult<AccessContext> access = resolveAccess(actor, guildId);
         if (!access.isSuccess()) {
             return mapFailure(access);
-        }
-        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
-        if (!facility.isSuccess()) {
-            return mapFailure(facility);
         }
         StorageResult<StoragePolicy> policy = loadPolicySafely(guildId);
         if (!policy.isSuccess()) {
@@ -665,7 +701,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 preserveUnknownOutcome(operationId, UNKNOWN_OUTCOME_MESSAGE);
                 return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, UNKNOWN_OUTCOME_MESSAGE);
             }
-            if (!finalizeOperationJournal(operationId, result, compensationOnFailure) && result.isSuccess()) {
+            if (!finalizeOperationJournal(operationId, operationType, result, compensationOnFailure) && result.isSuccess()) {
                 return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, UNKNOWN_OUTCOME_MESSAGE);
             }
             return result;
@@ -680,7 +716,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                     e.getCause() instanceof RuntimeException runtime
                             ? runtime.getMessage()
                             : e.getMessage());
-            if (!finalizeOperationJournal(operationId, failure, compensationOnFailure)) {
+            if (!finalizeOperationJournal(operationId, operationType, failure, compensationOnFailure)) {
                 preserveUnknownOutcome(operationId, UNKNOWN_OUTCOME_MESSAGE);
             }
             return failure;
@@ -689,7 +725,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
 
 
     private <T> boolean finalizeOperationJournal(
-            UUID operationId, StorageResult<T> result, Runnable compensationOnFailure) {
+            UUID operationId,
+            String operationType,
+            StorageResult<T> result,
+            Runnable compensationOnFailure) {
         try {
             if (result.isSuccess()) {
                 store.finalizeOperation(
@@ -702,7 +741,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             } else if (isUnknownMutationResult(result)) {
                 preserveUnknownOutcome(operationId, result.errorMessage());
             } else {
-                runCompensation(compensationOnFailure);
                 store.finalizeOperation(
                         operationId,
                         StorageOperationStatus.COMPENSATED,
@@ -710,6 +748,9 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                         result.errorMessage(),
                         null,
                         null);
+                if ("DEPOSIT".equals(operationType)) {
+                    runCompensation(compensationOnFailure);
+                }
             }
             return true;
         } catch (RuntimeException e) {
@@ -861,6 +902,30 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             }
         }
         return StorageResult.failure(status, operation.resultError());
+    }
+
+    private StorageResult<Void> validateFacilityAccessOnMainThread(UUID actor, String guildId, String facilityId) {
+        CompletableFuture<StorageResult<Void>> validation = new CompletableFuture<>();
+        mainThreadExecutor.run(() ->
+                validation.complete(facilityAccess.validateMutationAccess(actor, guildId, facilityId)));
+        try {
+            return validation.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return StorageResult.failure(
+                    StorageResult.Status.STORAGE_ERROR, "Storage access validation interrupted");
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, cause.getMessage());
+        }
+    }
+
+    private static UUID payoutCompensationOperationId(UUID withdrawOperationId) {
+        return UUID.nameUUIDFromBytes(
+                ("withdraw-payout-compensation:" + withdrawOperationId).getBytes(StandardCharsets.UTF_8));
     }
 
     private void runCompensation(Runnable compensationOnFailure) {

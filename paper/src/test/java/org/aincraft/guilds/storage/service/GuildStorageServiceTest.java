@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -451,7 +452,7 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
     }
 
     @Test
-    void withdrawRunsCompensationOnMainThreadWhenSqlPersistFails() {
+    void withdrawSqlFailureDoesNotRunInventoryCompensation() {
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-withdraw", "payload");
         StorageSlot occupied = new StorageSlot(
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 9, payload, 3L, Instant.parse("2026-08-21T12:00:00Z"));
@@ -466,10 +467,7 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 guildService,
                 residentService,
                 facilityAccess,
-                task -> {
-                    task.run();
-                    compensated.set(true);
-                },
+                Runnable::run,
                 Runnable::run);
         UUID operationId = UUID.randomUUID();
 
@@ -480,10 +478,10 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 9,
                 "facility-1",
                 operationId,
-                () -> {});
+                () -> compensated.set(true));
 
         assertEquals(StorageResult.Status.CONFLICT, result.status());
-        assertTrue(compensated.get());
+        assertFalse(compensated.get());
     }
 
     @Test
@@ -1573,6 +1571,148 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
         verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
+
+
+    @Test
+    void failureCompensationRunsAfterJournalFinalized() {
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-order", "payload");
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(5), eq(payload), eq(memberId), eq("facility-1"), any()))
+                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.CONFLICT, null));
+        AtomicBoolean finalized = new AtomicBoolean();
+        AtomicBoolean compensated = new AtomicBoolean();
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    if (invocation.getArgument(1) == StorageOperationStatus.COMPENSATED) {
+                        assertFalse(compensated.get(), "compensation must not run before journal finalize");
+                        finalized.set(true);
+                    }
+                    return null;
+                })
+                .when(store)
+                .finalizeOperation(any(), any(), any(), any(), any(), any());
+        UUID operationId = UUID.randomUUID();
+
+        StorageResult<StorageSlot> result = storageService.depositWithCompensation(
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                5,
+                payload,
+                "facility-1",
+                operationId,
+                () -> {
+                    assertTrue(finalized.get(), "journal finalize must precede compensation");
+                    compensated.set(true);
+                });
+
+        assertEquals(StorageResult.Status.CONFLICT, result.status());
+        assertTrue(finalized.get());
+        assertTrue(compensated.get());
+    }
+
+    @Test
+    void facilityAccessValidationRunsOnMainThreadBeforeSqlMutation() throws Exception {
+        ExecutorService sqlPool = Executors.newCachedThreadPool();
+        ExecutorService mainPool = Executors.newSingleThreadExecutor();
+        try {
+            AtomicReference<Thread> validationThread = new AtomicReference<>();
+            AtomicReference<Thread> mutationThread = new AtomicReference<>();
+            CountDownLatch validationStarted = new CountDownLatch(1);
+            GuildStorageServiceImpl service = new GuildStorageServiceImpl(
+                    store,
+                    guildService,
+                    residentService,
+                    facilityAccess,
+                    task -> {
+                        try {
+                            mainPool.submit(() -> {
+                                validationThread.set(Thread.currentThread());
+                                task.run();
+                            }).get(5, TimeUnit.SECONDS);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    },
+                    sqlPool);
+            OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-thread", "payload");
+            StorageSlot saved = new StorageSlot(
+                    guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 3, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+            when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+            when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+            when(facilityAccess.validateMutationAccess(memberId, guildId, "facility-1")).thenAnswer(invocation -> {
+                validationStarted.countDown();
+                return StorageResult.success(null);
+            });
+            when(store.depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any())).thenAnswer(invocation -> {
+                mutationThread.set(Thread.currentThread());
+                return new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.SUCCESS, saved);
+            });
+
+            Future<StorageResult<StorageSlot>> future = sqlPool.submit(() -> service.deposit(
+                    UUID.randomUUID(),
+                    memberId,
+                    guildId,
+                    SqlGuildStorageStore.DEFAULT_TAB_ID,
+                    3,
+                    payload,
+                    "facility-1"));
+            StorageResult<StorageSlot> result = future.get(5, TimeUnit.SECONDS);
+
+            assertTrue(result.isSuccess());
+            assertTrue(validationStarted.await(5, TimeUnit.SECONDS));
+            assertTrue(validationThread.get() != null);
+            assertTrue(mutationThread.get() != null);
+            assertFalse(validationThread.get().equals(mutationThread.get()));
+            assertFalse(validationThread.get().equals(Thread.currentThread()));
+        } finally {
+            sqlPool.shutdownNow();
+            mainPool.shutdownNow();
+        }
+    }
+
+    @Test
+    void compensateWithdrawPayoutRestoresCommittedWithdrawToStorage() {
+        UUID withdrawOperationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-restore", "payload");
+        StorageSlot restored = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        when(store.lookupOperation(withdrawOperationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
+                withdrawOperationId,
+                guildId,
+                "WITHDRAW",
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                "facility-1",
+                payload,
+                StorageOperationStatus.COMMITTED,
+                StorageResult.Status.SUCCESS.name(),
+                null,
+                payload,
+                null,
+                Instant.parse("2026-08-21T12:00:00Z"),
+                Instant.parse("2026-08-21T12:00:00Z"))));
+        when(residentService.getResident(mayorId)).thenReturn(Optional.of(member("Mayor", mayorId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(2), eq(payload), eq(mayorId), eq("facility-1"), any()))
+                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.SUCCESS, restored));
+
+        StorageResult<StorageSlot> result = storageService.compensateWithdrawPayout(
+                withdrawOperationId,
+                mayorId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                payload,
+                "facility-1");
+
+        assertTrue(result.isSuccess());
+        assertEquals(restored, result.value().orElseThrow());
+    }
 
     private Resident member(String name, UUID uuid) {
         Resident resident = new Resident(uuid, name);

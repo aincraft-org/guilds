@@ -76,7 +76,7 @@ class RegistryStorageFacilityAccessValidatorTest {
         facilities = new FacilityRegistry(territories);
         facility = new SettlementFacility("storage-1", "Storage", "territory-1", FacilityType.STORAGE, "world", 5, 64, 5);
         facilities.register(facility);
-        BuildingConfig config = new BuildingConfig(30_000L, Map.of(FacilityType.STORAGE, Set.of(Material.BARREL)), 0L, 0L);
+        BuildingConfig config = new BuildingConfig(30_000L, Map.of(FacilityType.STORAGE, Set.of(Material.BARREL), FacilityType.WAYSTONE, Set.of(Material.LODESTONE)), 0L, 0L);
         anchors = new FacilityAnchorValidator(server, territories, facilities, config);
         governance = new GovernanceRegistry(territories, new FixedGovernanceSource(guildId, actor));
         when(server.getWorld("world")).thenReturn(world);
@@ -120,6 +120,21 @@ class RegistryStorageFacilityAccessValidatorTest {
         StorageResult<Void> result = validator.validateMutationAccess(actor, "other-guild", facility.id());
         assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
     }
+
+    @Test
+    void allowsNearbyStorageWhenNonStorageFacilityIsCloser() {
+        SettlementFacility waystone = new SettlementFacility(
+                "waystone", "Waystone", "territory-1", FacilityType.WAYSTONE, "world", 4, 64, 5);
+        facilities.register(waystone);
+        Block waystoneBlock = org.mockito.Mockito.mock(Block.class);
+        when(world.getBlockAt(4, 64, 5)).thenReturn(waystoneBlock);
+        when(waystoneBlock.getType()).thenReturn(Material.LODESTONE);
+
+        RegistryStorageFacilityAccessValidator validator = validatorAt(6, 64, 5);
+        StorageResult<Void> result = validator.validateMutationAccess(actor, guildId, facility.id());
+        assertEquals(StorageResult.Status.SUCCESS, result.status());
+    }
+
 
     private RegistryStorageFacilityAccessValidator validatorAt(int x, int y, int z) {
         return new RegistryStorageFacilityAccessValidator(

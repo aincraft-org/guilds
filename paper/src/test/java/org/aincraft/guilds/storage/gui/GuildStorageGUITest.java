@@ -32,8 +32,10 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -41,6 +43,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -146,7 +149,6 @@ class GuildStorageGUITest {
         ItemStack stored = mock(ItemStack.class);
         ItemStack decoded = mock(ItemStack.class);
         when(stored.getType()).thenReturn(Material.EMERALD);
-        when(stored.clone()).thenReturn(stored);
         byte[] bytes = new byte[] {4, 5, 6};
         OpaqueItemPayload payload = new OpaqueItemPayload(
                 "paper:v1", sha256(bytes), Base64.getEncoder().encodeToString(bytes));
@@ -158,7 +160,7 @@ class GuildStorageGUITest {
                 eq(2),
                 eq(facility.id()),
                 any(UUID.class),
-                any()))
+                isNull()))
                 .thenReturn(StorageResult.success(payload));
 
         try (MockedStatic<ItemStack> itemStacks = mockStatic(ItemStack.class)) {
@@ -175,7 +177,7 @@ class GuildStorageGUITest {
                 eq(2),
                 eq(facility.id()),
                 any(UUID.class),
-                any());
+                isNull());
         verify(inventoryCoordinator).giveItem(eq(playerId), eq(decoded), any());
     }
 
@@ -193,6 +195,87 @@ class GuildStorageGUITest {
         assertNull(gui.sessionFor(playerId));
         verify(player, never()).setItemOnCursor(any());
     }
+    @Test
+    void withdrawDoesNotRegisterPrematureInventoryCompensation() {
+        ItemStack stored = mock(ItemStack.class);
+        when(stored.getType()).thenReturn(Material.EMERALD);
+        when(inventory.getItem(2)).thenReturn(stored);
+        when(storageService.withdrawWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(facility.id()),
+                any(UUID.class),
+                isNull()))
+                .thenReturn(StorageResult.failure(StorageResult.Status.CONFLICT, "forced failure"));
+
+        gui.open(player, facility, guildId);
+        gui.onInventoryClick(click(2, null));
+
+        verify(storageService).withdrawWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(facility.id()),
+                any(UUID.class),
+                isNull());
+        verify(inventoryCoordinator, never()).removeMatching(any(), any(), any());
+    }
+
+    @Test
+    void withdrawRestoresToStorageWhenPayoutFails() {
+        ItemStack stored = mock(ItemStack.class);
+        ItemStack decoded = mock(ItemStack.class);
+        when(stored.getType()).thenReturn(Material.EMERALD);
+        byte[] bytes = new byte[] {4, 5, 6};
+        OpaqueItemPayload payload = new OpaqueItemPayload(
+                "paper:v1", sha256(bytes), Base64.getEncoder().encodeToString(bytes));
+        when(inventory.getItem(2)).thenReturn(stored);
+        when(storageService.withdrawWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(facility.id()),
+                any(UUID.class),
+                isNull()))
+                .thenReturn(StorageResult.success(payload));
+        when(storageService.compensateWithdrawPayout(
+                any(UUID.class),
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(payload),
+                eq(facility.id())))
+                .thenReturn(StorageResult.success(null));
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    java.util.function.Consumer<Boolean> callback = invocation.getArgument(2);
+                    callback.accept(false);
+                    return null;
+                })
+                .when(inventoryCoordinator)
+                .giveItem(eq(playerId), eq(decoded), any());
+
+        try (MockedStatic<ItemStack> itemStacks = mockStatic(ItemStack.class)) {
+            itemStacks.when(() -> ItemStack.deserializeBytes(bytes)).thenReturn(decoded);
+            gui.open(player, facility, guildId);
+            gui.onInventoryClick(click(2, null));
+        }
+
+        verify(storageService).compensateWithdrawPayout(
+                any(UUID.class),
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(payload),
+                eq(facility.id()));
+    }
+
+
     private static String sha256(byte[] bytes) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
