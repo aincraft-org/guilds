@@ -33,6 +33,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class BuildingListenerStorageTest {
@@ -70,7 +72,7 @@ class BuildingListenerStorageTest {
         BuildingConfig config = new BuildingConfig(60_000L,
                 Map.of(FacilityType.STORAGE, Set.of(Material.BARREL)), 100L, 60_000L);
         FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
-        when(anchors.activeStorageAt(org.mockito.ArgumentMatchers.eq("world"), anyInt(), anyInt(), anyInt()))
+        lenient().when(anchors.activeAt(org.mockito.ArgumentMatchers.eq("world"), anyInt(), anyInt(), anyInt()))
                 .thenReturn(Optional.of(storageFacility));
         listener = new BuildingListener(
                 new BuildingPlacementSessions(60_000L),
@@ -112,4 +114,40 @@ class BuildingListenerStorageTest {
 
         assertTrue(event.isCancelled());
     }
+    @Test
+    void exactActiveFacilityTakesPrecedenceOverNearbyStorage() {
+        SettlementFacility waystone = new SettlementFacility(
+                "waystone", "Waystone", "t1", FacilityType.WAYSTONE, "world", 5, 64, 5);
+        FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
+        when(anchors.activeAt(org.mockito.ArgumentMatchers.eq("world"), anyInt(), anyInt(), anyInt()))
+                .thenReturn(java.util.Optional.of(waystone));
+        lenient().when(anchors.activeStorageNear(org.mockito.ArgumentMatchers.eq("world"), anyInt(), anyInt(), anyInt()))
+                .thenReturn(java.util.Optional.of(storageFacility));
+        WaystoneAccess waystones = mock(WaystoneAccess.class);
+        when(waystones.reachable(eq(player.getUniqueId()), eq(waystone))).thenReturn(java.util.List.of());
+        listener = new BuildingListener(
+                new BuildingPlacementSessions(60_000L),
+                new BuildingConfig(60_000L,
+                        java.util.Map.of(FacilityType.STORAGE, java.util.Set.of(Material.BARREL)), 100L, 60_000L),
+                new TerritoryRegistry(java.util.List.of(new Territory("t1", "Territory", "world", Boundary.ofPolygon(java.util.List.of(
+                        new BlockPos(0, 0), new BlockPos(100, 0),
+                        new BlockPos(100, 100), new BlockPos(0, 100)))))),
+                new FacilityRegistry(new TerritoryRegistry(java.util.List.of())),
+                mock(BuildingAuthorization.class),
+                new FacilityMutationService(new FacilityRegistry(new TerritoryRegistry(java.util.List.of())), mock(org.aincraft.guilds.territory.persist.FacilityStore.class)),
+                anchors,
+                waystones,
+                new WaystoneSelections(60_000L),
+                mock(org.bukkit.plugin.PluginManager.class),
+                storageOpener);
+        PlayerInteractEvent event = new PlayerInteractEvent(
+                player, Action.RIGHT_CLICK_BLOCK, null, anchor,
+                org.bukkit.block.BlockFace.UP, EquipmentSlot.HAND);
+
+        listener.onInteract(event);
+
+        verify(storageOpener, org.mockito.Mockito.never()).tryOpen(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        assertTrue(event.isCancelled());
+    }
+
 }

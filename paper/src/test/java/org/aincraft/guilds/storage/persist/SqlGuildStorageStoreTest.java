@@ -1010,6 +1010,33 @@ class SqlGuildStorageStoreTest {
         assertTrue(store.markDepositRestorationComplete(depositOperationId, secondToken.orElseThrow()));
         assertTrue(store.findPendingDepositRestorations().isEmpty());
     }
+    @Test
+    void depositRestorationUnknownPreservesHandoffToken() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-restore-unknown", "payload-bytes");
+        UUID depositOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        store.insertDepositRestorationObligation(
+                depositOperationId,
+                guildId,
+                actor,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                25,
+                "facility-restore-unknown",
+                payload);
+
+        java.util.Optional<java.util.UUID> handoffToken =
+                store.claimDepositRestorationForDelivery(depositOperationId);
+        assertTrue(handoffToken.isPresent());
+        assertTrue(store.markDepositRestorationUnknown(depositOperationId, handoffToken.orElseThrow()));
+
+        StorageDepositRestorationRecord obligation =
+                store.findDepositRestoration(depositOperationId).orElseThrow();
+        assertEquals(StorageDepositRestorationStatus.UNKNOWN, obligation.status());
+        assertEquals(handoffToken.orElseThrow(), obligation.handoffToken());
+        assertTrue(store.findPendingDepositRestorations().isEmpty());
+    }
+
 
     @Test
     void findOutstandingPayoutObligationsExcludesDelivering() {

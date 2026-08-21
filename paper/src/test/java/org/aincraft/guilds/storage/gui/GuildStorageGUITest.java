@@ -96,6 +96,8 @@ class GuildStorageGUITest {
                 .thenReturn(StorageResult.success(new DepositRestorationHandoff(UUID.randomUUID())));
         lenient().when(storageService.isWithdrawPayoutDeliveryClaimActive(any(UUID.class), any(UUID.class)))
                 .thenReturn(true);
+        lenient().when(storageService.isDepositRestorationClaimActive(any(UUID.class), any(UUID.class)))
+                .thenReturn(true);
 
         gui = new GuildStorageGUI(plugin, storageService, inventoryCoordinator, Runnable::run);
     }
@@ -434,6 +436,73 @@ class GuildStorageGUITest {
         verify(player).setItemOnCursor(stack);
         verify(storageService).acknowledgeDepositRestoration(any(UUID.class), any(UUID.class));
     }
+    @Test
+    void depositFailureSkipsDirectRestoreWhenClaimUnavailable() {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.DIAMOND);
+        when(stack.clone()).thenReturn(stack);
+        when(stack.serializeAsBytes()).thenReturn(new byte[] {1, 2, 3});
+        when(inventory.getItem(4)).thenReturn(null);
+        AtomicReference<Runnable> compensation = new AtomicReference<>();
+        when(storageService.depositWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(4),
+                any(OpaqueItemPayload.class),
+                eq(facility.id()),
+                any(UUID.class),
+                any())).thenAnswer(invocation -> {
+            compensation.set(invocation.getArgument(7));
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "forced failure");
+        });
+        when(storageService.beginDepositRestorationDelivery(any(UUID.class)))
+                .thenReturn(StorageResult.failure(
+                        StorageResult.Status.CONFLICT, "Deposit restoration delivery already in progress"));
+
+        gui.open(player, facility, guildId);
+        gui.onInventoryClick(click(4, stack));
+        compensation.get().run();
+
+        verify(player, never()).setItemOnCursor(stack);
+        verify(inventoryCoordinator, never()).giveItem(any(), any(), any());
+    }
+
+    @Test
+    void depositMarksUnknownWhenAcknowledgeFailsAfterSuccessfulRestore() {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.DIAMOND);
+        when(stack.clone()).thenReturn(stack);
+        when(stack.serializeAsBytes()).thenReturn(new byte[] {1, 2, 3});
+        when(inventory.getItem(4)).thenReturn(null);
+        when(player.getItemOnCursor()).thenReturn(null);
+        UUID handoffToken = UUID.randomUUID();
+        AtomicReference<Runnable> compensation = new AtomicReference<>();
+        when(storageService.depositWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(4),
+                any(OpaqueItemPayload.class),
+                eq(facility.id()),
+                any(UUID.class),
+                any())).thenAnswer(invocation -> {
+            compensation.set(invocation.getArgument(7));
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "forced failure");
+        });
+        when(storageService.beginDepositRestorationDelivery(any(UUID.class)))
+                .thenReturn(StorageResult.success(new DepositRestorationHandoff(handoffToken)));
+        when(storageService.acknowledgeDepositRestoration(any(UUID.class), eq(handoffToken)))
+                .thenReturn(StorageResult.failure(StorageResult.Status.CONFLICT, "marker failed"));
+
+        gui.open(player, facility, guildId);
+        gui.onInventoryClick(click(4, stack));
+        compensation.get().run();
+
+        verify(player).setItemOnCursor(stack);
+        verify(storageService).markDepositRestorationDeliveryUnknown(any(UUID.class), eq(handoffToken));
+    }
+
 
     @Test
     void withdrawMarksUnknownWhenConfirmFailsAfterSuccessfulGive() {

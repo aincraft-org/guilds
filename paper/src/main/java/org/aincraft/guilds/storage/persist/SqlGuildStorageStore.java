@@ -624,6 +624,22 @@ public class SqlGuildStorageStore {
                         now));
         return updated.orElse(false);
     }
+    public boolean markDepositRestorationUnknown(UUID depositOperationId, UUID handoffToken) {
+        Objects.requireNonNull(depositOperationId, "depositOperationId");
+        Objects.requireNonNull(handoffToken, "handoffToken");
+        Instant now = Instant.now();
+        Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection ->
+                transitionDepositRestoration(
+                        connection,
+                        depositOperationId.toString(),
+                        handoffToken,
+                        StorageDepositRestorationStatus.RESTORING,
+                        StorageDepositRestorationStatus.UNKNOWN,
+                        handoffToken,
+                        now));
+        return updated.orElse(false);
+    }
+
 
     public ReinsertWithdrawPayoutOutcome reinsertWithdrawPayoutWithAudit(
             UUID withdrawOperationId,

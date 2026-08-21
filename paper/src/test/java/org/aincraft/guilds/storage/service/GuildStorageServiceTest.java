@@ -658,6 +658,14 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         eq("Pending deposit interrupted before durable slot and audit mutation"),
                         isNull(),
                         isNull());
+        verify(store).insertDepositRestorationObligation(
+                eq(operationId),
+                eq(guildId),
+                eq(memberId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(4),
+                eq("facility-1"),
+                eq(payload));
     }
 
     @Test

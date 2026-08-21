@@ -106,10 +106,40 @@ public final class BuildingListener implements Listener {
     }
 
     private void interactWithActiveAnchor(PlayerInteractEvent event, Player player, Block block) {
-        Optional<SettlementFacility> storageFacility = anchors.activeStorageAt(
-                block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-        if (storageFacility.isPresent()) {
-            interactWithStorageAnchor(event, player, storageFacility.get());
+        SettlementFacility facility = anchors.activeAt(
+                block.getWorld().getName(), block.getX(), block.getY(), block.getZ()).orElse(null);
+        if (facility != null) {
+            if (facility.type() == FacilityType.STORAGE) {
+                interactWithStorageAnchor(event, player, facility);
+                return;
+            }
+            if (facility.type() == FacilityType.TRADING_POST) {
+                Territory territory = territories.get(facility.territoryId()).orElse(null);
+                if (territory == null) {
+                    return;
+                }
+                TradingPostInteractEvent tradingPostEvent =
+                        new TradingPostInteractEvent(player, facility, territory);
+                pluginManager.callEvent(tradingPostEvent);
+                event.setCancelled(true);
+                player.sendMessage(Component.text(tradingPostEvent.isCancelled()
+                                ? "Trading post interaction is unavailable."
+                                : facility.name() + " — " + territory.name(),
+                        tradingPostEvent.isCancelled() ? NamedTextColor.RED : NamedTextColor.GOLD));
+                return;
+            }
+            if (facility.type() == FacilityType.WAYSTONE) {
+                var reachable = waystones.reachable(player.getUniqueId(), facility);
+                selections.select(player.getUniqueId(), facility.id(), System.currentTimeMillis());
+                event.setCancelled(true);
+                player.sendMessage(Component.text("Reachable waystones:", NamedTextColor.GOLD));
+                for (SettlementFacility destination : reachable) {
+                    player.sendMessage(Component.text(" • " + destination.name(), NamedTextColor.YELLOW)
+                            .clickEvent(ClickEvent.runCommand(
+                                    "/territory building travel " + destination.id())));
+                }
+                return;
+            }
             return;
         }
 
@@ -117,38 +147,6 @@ public final class BuildingListener implements Listener {
                 block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
         if (nearbyStorage.isPresent()) {
             interactWithStorageAnchor(event, player, nearbyStorage.get());
-            return;
-        }
-
-        SettlementFacility facility = anchors.activeAt(
-                block.getWorld().getName(), block.getX(), block.getY(), block.getZ()).orElse(null);
-        if (facility == null) {
-            return;
-        }
-        if (facility.type() == FacilityType.TRADING_POST) {
-            Territory territory = territories.get(facility.territoryId()).orElse(null);
-            if (territory == null) return;
-            TradingPostInteractEvent tradingPostEvent =
-                    new TradingPostInteractEvent(player, facility, territory);
-            pluginManager.callEvent(tradingPostEvent);
-            event.setCancelled(true);
-            player.sendMessage(Component.text(tradingPostEvent.isCancelled()
-                            ? "Trading post interaction is unavailable."
-                            : facility.name() + " — " + territory.name(),
-                    tradingPostEvent.isCancelled() ? NamedTextColor.RED : NamedTextColor.GOLD));
-            return;
-        }
-        if (facility.type() != FacilityType.WAYSTONE) {
-            return;
-        }
-        var reachable = waystones.reachable(player.getUniqueId(), facility);
-        selections.select(player.getUniqueId(), facility.id(), System.currentTimeMillis());
-        event.setCancelled(true);
-        player.sendMessage(Component.text("Reachable waystones:", NamedTextColor.GOLD));
-        for (SettlementFacility destination : reachable) {
-            player.sendMessage(Component.text(" • " + destination.name(), NamedTextColor.YELLOW)
-                    .clickEvent(ClickEvent.runCommand(
-                            "/territory building travel " + destination.id())));
         }
     }
 

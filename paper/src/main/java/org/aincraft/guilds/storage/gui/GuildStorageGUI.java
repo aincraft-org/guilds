@@ -8,6 +8,7 @@ import org.aincraft.guilds.storage.service.GuildStorageService;
 import org.aincraft.guilds.storage.service.MainThreadExecutor;
 import org.aincraft.guilds.storage.service.PlayerInventoryCoordinator;
 import org.aincraft.guilds.storage.service.StorageResult;
+import org.aincraft.guilds.storage.service.DepositRestorationHandoff;
 import org.aincraft.guilds.storage.service.impl.GuildStorageServiceImpl;
 import org.aincraft.guilds.territory.model.SettlementFacility;
 import org.aincraft.guilds.territory.storage.OpaqueItemPayload;
@@ -506,7 +507,9 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                         .thenAcceptAsync(
                                 claimResult -> mainThreadExecutor.run(() -> {
                                     if (!claimResult.isSuccess()) {
-                                        restoreDepositItemDirect(player, item);
+                                        if (shouldRestoreDirectlyAfterClaimFailure(claimResult)) {
+                                            restoreDepositItemDirect(player, item);
+                                        }
                                         return;
                                     }
                                     UUID handoffToken = claimResult.value().orElseThrow().handoffToken();
@@ -532,6 +535,12 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
         }
         inventoryCoordinator.giveItem(player.getUniqueId(), item.clone(), success -> {});
     }
+    private static boolean shouldRestoreDirectlyAfterClaimFailure(
+            StorageResult<DepositRestorationHandoff> claimResult) {
+        return claimResult.status() == StorageResult.Status.CONFLICT
+                && "Deposit restoration obligation not found".equals(claimResult.errorMessage());
+    }
+
 
     private void restoreDepositItemWithHandoff(
             Player player,
@@ -539,6 +548,9 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
             GuildStorageServiceImpl impl,
             UUID operationId,
             UUID handoffToken) {
+        if (!impl.isDepositRestorationClaimActive(operationId, handoffToken)) {
+            return;
+        }
         ItemStack current = player.getItemOnCursor();
         if (current == null || current.getType() == Material.AIR) {
             player.setItemOnCursor(item.clone());
@@ -564,9 +576,25 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
             GuildStorageServiceImpl impl, UUID operationId, UUID handoffToken) {
         try {
             CompletableFuture.supplyAsync(
-                            () -> impl.acknowledgeDepositRestoration(operationId, handoffToken),
+                            () -> {
+                                if (!impl.isDepositRestorationClaimActive(operationId, handoffToken)) {
+                                    return StorageResult.<Void>failure(
+                                            StorageResult.Status.CONFLICT,
+                                            "Deposit restoration handoff mismatch");
+                                }
+                                return impl.acknowledgeDepositRestoration(operationId, handoffToken);
+                            },
                             sqlExecutor)
-                    .exceptionally(error -> null);
+                    .handle((confirmResult, error) -> {
+                        boolean needsUnknown = error != null
+                                || confirmResult == null
+                                || !confirmResult.isSuccess();
+                        if (needsUnknown
+                                && impl.isDepositRestorationClaimActive(operationId, handoffToken)) {
+                            impl.markDepositRestorationDeliveryUnknown(operationId, handoffToken);
+                        }
+                        return null;
+                    });
         } catch (Throwable ignored) {
             // Leave restoration obligation pending for reconciliation.
         }

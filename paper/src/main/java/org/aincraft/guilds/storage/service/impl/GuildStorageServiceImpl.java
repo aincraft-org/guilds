@@ -409,6 +409,8 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                                 StorageResult.Status.CONFLICT, "Deposit restoration already completed");
                         case RESTORING -> StorageResult.<DepositRestorationHandoff>failure(
                                 StorageResult.Status.CONFLICT, "Deposit restoration delivery already in progress");
+                        case UNKNOWN -> StorageResult.<DepositRestorationHandoff>failure(
+                                StorageResult.Status.CONFLICT, "Deposit restoration delivery outcome unknown");
                         default -> StorageResult.<DepositRestorationHandoff>failure(
                                 StorageResult.Status.CONFLICT, "Deposit restoration is not pending delivery");
                     })
@@ -428,7 +430,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             }
             return store.findDepositRestoration(depositOperationId)
                     .map(obligation -> switch (obligation.status()) {
-                        case PENDING, RESTORED -> StorageResult.<Void>success(null);
+                        case PENDING, RESTORED, UNKNOWN -> StorageResult.<Void>success(null);
                         default -> StorageResult.<Void>failure(
                                 StorageResult.Status.CONFLICT, "Deposit restoration handoff mismatch");
                     })
@@ -438,6 +440,28 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
         }
     }
+    public StorageResult<Void> markDepositRestorationDeliveryUnknown(UUID depositOperationId, UUID handoffToken) {
+        Objects.requireNonNull(depositOperationId, "depositOperationId");
+        Objects.requireNonNull(handoffToken, "handoffToken");
+        try {
+            if (store.markDepositRestorationUnknown(depositOperationId, handoffToken)) {
+                return StorageResult.success(null);
+            }
+            return store.findDepositRestoration(depositOperationId)
+                    .map(obligation -> switch (obligation.status()) {
+                        case UNKNOWN -> StorageResult.<Void>success(null);
+                        case RESTORED -> StorageResult.<Void>failure(
+                                StorageResult.Status.CONFLICT, "Deposit restoration already completed");
+                        default -> StorageResult.<Void>failure(
+                                StorageResult.Status.CONFLICT, "Deposit restoration handoff mismatch");
+                    })
+                    .orElseGet(() -> StorageResult.failure(
+                            StorageResult.Status.CONFLICT, "Deposit restoration obligation not found"));
+        } catch (RuntimeException e) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
+        }
+    }
+
 
     public StorageResult<Void> acknowledgeDepositRestoration(UUID depositOperationId, UUID handoffToken) {
         Objects.requireNonNull(depositOperationId, "depositOperationId");
@@ -644,6 +668,9 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 errorMessage,
                 null,
                 null);
+        if ("DEPOSIT".equals(pending.operationType())) {
+            recordDepositRestorationObligationFrom(pending);
+        }
     }
 
     private void finalizeReconciliationUnknown(StorageOperationRecord pending, String errorMessage) {
@@ -1426,6 +1453,21 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 operation.facilityId(),
                 item);
     }
+    private void recordDepositRestorationObligationFrom(StorageOperationRecord operation) {
+        OpaqueItemPayload item = operation.requestSnapshot();
+        if (item == null) {
+            return;
+        }
+        store.insertDepositRestorationObligation(
+                operation.operationId(),
+                operation.guildId(),
+                operation.actorUuid(),
+                operation.tabId(),
+                operation.slotIndex(),
+                operation.facilityId(),
+                item);
+    }
+
 
     private void runCompensation(Runnable compensationOnFailure) {
         if (compensationOnFailure != null) {

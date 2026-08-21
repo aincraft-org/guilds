@@ -4,5 +4,6 @@ package org.aincraft.guilds.storage.persist;
 public enum StorageDepositRestorationStatus {
     PENDING,
     RESTORING,
-    RESTORED
+    RESTORED,
+    UNKNOWN
 }
