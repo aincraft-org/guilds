@@ -35,6 +35,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Per-player guild storage chest backed by {@link GuildStorageService}. */
 public final class GuildStorageGUI implements InventoryHolder, Listener {
@@ -143,20 +144,24 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
     }
 
     private void refreshSession(Player player, Session session) {
-        CompletableFuture.supplyAsync(
-                        () -> storageService.getSlots(player.getUniqueId(), session.guildId(), session.tabId()),
-                        sqlExecutor)
-                .thenAcceptAsync(
-                        slots -> {
-                            Session active = sessions.get(player.getUniqueId());
-                            if (active == null || active != session) {
-                                return;
-                            }
-                            if (slots.isSuccess()) {
-                                renderSlots(session.inventory(), slots.value().orElseThrow());
-                            }
-                        },
-                        command -> mainThreadExecutor.run(command));
+        try {
+            CompletableFuture.supplyAsync(
+                            () -> storageService.getSlots(player.getUniqueId(), session.guildId(), session.tabId()),
+                            sqlExecutor)
+                    .thenAcceptAsync(
+                            slots -> {
+                                Session active = sessions.get(player.getUniqueId());
+                                if (active == null || active != session) {
+                                    return;
+                                }
+                                if (slots.isSuccess()) {
+                                    renderSlots(session.inventory(), slots.value().orElseThrow());
+                                }
+                            },
+                            command -> mainThreadExecutor.run(command));
+        } catch (Throwable ignored) {
+            // Best-effort refresh; ignore executor submission failures.
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -250,32 +255,47 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
         UUID operationId = UUID.randomUUID();
         OpaqueItemPayload payload = codec.encode(item);
         ItemStack retainedItem = item.clone();
-        Runnable restoreOnFailure = () -> mainThreadExecutor.run(() -> restoreDepositItem(player, retainedItem));
+        AtomicBoolean restored = new AtomicBoolean(false);
+        Runnable restoreOnFailure = () -> {
+            if (!restored.compareAndSet(false, true)) {
+                return;
+            }
+            mainThreadExecutor.run(() -> restoreDepositItem(player, retainedItem));
+        };
 
         player.setItemOnCursor(null);
-        CompletableFuture.supplyAsync(
-                        () -> invokeDeposit(
-                                operationId,
-                                player.getUniqueId(),
-                                session.guildId(),
-                                session.tabId(),
-                                slotIndex,
-                                payload,
-                                session.facility().id(),
-                                restoreOnFailure),
-                        sqlExecutor)
-                .thenAcceptAsync(
-                        result -> handleDepositResult(player, session, result),
-                        command -> mainThreadExecutor.run(command))
-                .exceptionally(error -> {
-                    mainThreadExecutor.run(() -> {
-                        if (activeSession(player, session)) {
-                            player.sendMessage(Component.text("Failed to deposit item.", NamedTextColor.RED));
-                            refreshSession(player, session);
-                        }
+        Runnable notifyDepositFailure = () -> mainThreadExecutor.run(() -> {
+            if (activeSession(player, session)) {
+                player.sendMessage(Component.text("Failed to deposit item.", NamedTextColor.RED));
+                refreshSession(player, session);
+            }
+        });
+        Runnable handleDepositFailure = () -> {
+            restoreOnFailure.run();
+            notifyDepositFailure.run();
+        };
+        try {
+            CompletableFuture.supplyAsync(
+                            () -> invokeDeposit(
+                                    operationId,
+                                    player.getUniqueId(),
+                                    session.guildId(),
+                                    session.tabId(),
+                                    slotIndex,
+                                    payload,
+                                    session.facility().id(),
+                                    restoreOnFailure),
+                            sqlExecutor)
+                    .thenAcceptAsync(
+                            result -> handleDepositResult(player, session, result),
+                            command -> mainThreadExecutor.run(command))
+                    .exceptionally(error -> {
+                        handleDepositFailure.run();
+                        return null;
                     });
-                    return null;
-                });
+        } catch (Throwable error) {
+            handleDepositFailure.run();
+        }
     }
 
     private void handleDepositResult(Player player, Session session, StorageResult<StorageSlot> result) {

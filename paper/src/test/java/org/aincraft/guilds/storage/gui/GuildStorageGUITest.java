@@ -42,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -312,6 +313,60 @@ class GuildStorageGUITest {
 
         assertEquals(1, compensationRuns.get());
         verify(player).setItemOnCursor(stack);
+        verify(inventoryCoordinator, never()).giveItem(any(), any(), any());
+    }
+
+    @Test
+    void depositUncheckedFailureRestoresCursorExactlyOnce() {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.DIAMOND);
+        when(stack.clone()).thenReturn(stack);
+        when(stack.serializeAsBytes()).thenReturn(new byte[] {1, 2, 3});
+        when(inventory.getItem(4)).thenReturn(null);
+        when(storageService.depositWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(4),
+                any(OpaqueItemPayload.class),
+                eq(facility.id()),
+                any(UUID.class),
+                any())).thenThrow(new IllegalStateException("simulated deposit failure"));
+
+        gui.open(player, facility, guildId);
+        gui.onInventoryClick(click(4, stack));
+
+        verify(player).setItemOnCursor(null);
+        verify(player).setItemOnCursor(stack);
+        verify(inventoryCoordinator, never()).giveItem(any(), any(), any());
+    }
+
+    @Test
+    void depositExecutorSubmitFailureRestoresCursorExactlyOnce() throws Exception {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.DIAMOND);
+        when(stack.clone()).thenReturn(stack);
+        when(stack.serializeAsBytes()).thenReturn(new byte[] {1, 2, 3});
+        when(inventory.getItem(4)).thenReturn(null);
+        gui.open(player, facility, guildId);
+        GuildStorageGUI failingDepositGui = new GuildStorageGUI(
+                plugin,
+                storageService,
+                inventoryCoordinator,
+                Runnable::run,
+                command -> {
+                    throw new IllegalStateException("simulated executor submit failure");
+                });
+        java.lang.reflect.Field sessionsField = GuildStorageGUI.class.getDeclaredField("sessions");
+        sessionsField.setAccessible(true);
+        sessionsField.set(failingDepositGui, sessionsField.get(gui));
+
+        failingDepositGui.onInventoryClick(click(4, stack));
+
+        verify(player).setItemOnCursor(null);
+        verify(player).setItemOnCursor(stack);
+        verify(storageService, never()).depositWithCompensation(
+                any(), any(), any(), anyInt(), any(), any(), any(), any());
         verify(inventoryCoordinator, never()).giveItem(any(), any(), any());
     }
 
