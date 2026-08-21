@@ -6,6 +6,7 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /** Bukkit-backed inventory coordinator that always runs on the main thread. */
 public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCoordinator {
@@ -16,35 +17,33 @@ public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCo
     }
 
     @Override
-    public void removeMatching(UUID playerId, ItemStack item, java.util.function.Consumer<Boolean> onComplete) {
+    public void removeMatching(UUID playerId, ItemStack item, Consumer<Boolean> onComplete) {
         Objects.requireNonNull(playerId, "playerId");
         Objects.requireNonNull(item, "item");
         mainThreadExecutor.run(() -> {
+            boolean success = false;
             Player player = Bukkit.getPlayer(playerId);
-            boolean changed = false;
             if (player != null && player.isOnline()) {
-                player.getInventory().removeItem(item.clone());
-                changed = true;
+                success = player.getInventory().removeItem(item.clone()).isEmpty();
             }
             if (onComplete != null) {
-                onComplete.accept(changed);
+                onComplete.accept(success);
             }
         });
     }
 
     @Override
-    public void giveItem(UUID playerId, ItemStack item, java.util.function.Consumer<Boolean> onComplete) {
+    public void giveItem(UUID playerId, ItemStack item, Consumer<Boolean> onComplete) {
         Objects.requireNonNull(playerId, "playerId");
         Objects.requireNonNull(item, "item");
         mainThreadExecutor.run(() -> {
+            boolean success = false;
             Player player = Bukkit.getPlayer(playerId);
-            boolean changed = false;
             if (player != null && player.isOnline()) {
-                player.getInventory().addItem(item.clone());
-                changed = true;
+                success = player.getInventory().addItem(item.clone()).isEmpty();
             }
             if (onComplete != null) {
-                onComplete.accept(changed);
+                onComplete.accept(success);
             }
         });
     }

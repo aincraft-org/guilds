@@ -177,6 +177,11 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             String facilityId,
             UUID operationId,
             Runnable compensationOnFailure) {
+        StorageResult<StorageSlot> existing =
+                resolveExistingOperation(operationId, "DEPOSIT", actor, guildId, tabId, slotIndex, facilityId, item);
+        if (existing != null) {
+            return existing;
+        }
         StorageResult<PreparedDeposit> prepared =
                 prepareDeposit(actor, guildId, tabId, slotIndex, item, facilityId, operationId);
         if (!prepared.isSuccess()) {
@@ -191,6 +196,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 deposit.tabId(),
                 deposit.slotIndex(),
                 deposit.facilityId(),
+                deposit.item(),
                 compensationOnFailure,
                 () -> persistDeposit(deposit));
     }
@@ -210,6 +216,11 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             String facilityId,
             UUID operationId,
             Runnable compensationOnFailure) {
+        StorageResult<OpaqueItemPayload> existing =
+                resolveExistingOperation(operationId, "WITHDRAW", actor, guildId, tabId, slotIndex, facilityId, null);
+        if (existing != null) {
+            return existing;
+        }
         StorageResult<PreparedWithdraw> prepared =
                 prepareWithdraw(actor, guildId, tabId, slotIndex, facilityId, operationId);
         if (!prepared.isSuccess()) {
@@ -224,6 +235,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 withdraw.tabId(),
                 withdraw.slotIndex(),
                 withdraw.facilityId(),
+                withdraw.occupied().item(),
                 compensationOnFailure,
                 () -> persistWithdraw(withdraw));
     }
@@ -344,6 +356,16 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 pending.facilityId(),
                 pending.createdAt());
         if (slot == null && auditEvidence) {
+            if (pending.resultItem() != null) {
+                store.finalizeOperation(
+                        pending.operationId(),
+                        StorageOperationStatus.COMMITTED,
+                        StorageResult.Status.SUCCESS.name(),
+                        null,
+                        null,
+                        pending.resultItem());
+                return;
+            }
             finalizeReconciliationFailure(
                     pending,
                     "Withdraw slot and audit were durably applied but item payload is unavailable for idempotent replay; operator reconciliation required");
@@ -515,16 +537,32 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             String tabId,
             int slotIndex,
             String facilityId,
+            OpaqueItemPayload requestSnapshot,
             Runnable compensationOnFailure,
             java.util.function.Supplier<StorageResult<T>> mutation) {
-        Optional<StorageOperationRecord> existing = store.findOperation(operationId);
-        if (existing.isPresent()) {
-            return replayOperation(existing.get());
-        }
         if (!store.insertPendingOperation(
-                operationId, guildId, operationType, actor, tabId, slotIndex, facilityId)) {
-            existing = store.findOperation(operationId);
+                operationId,
+                guildId,
+                operationType,
+                actor,
+                tabId,
+                slotIndex,
+                facilityId,
+                requestSnapshot)) {
+            Optional<StorageOperationRecord> existing = store.findOperation(operationId);
             if (existing.isPresent()) {
+                if (!matchesOperationRequest(
+                        existing.get(),
+                        operationType,
+                        actor,
+                        guildId,
+                        tabId,
+                        slotIndex,
+                        facilityId,
+                        requestSnapshot)) {
+                    return StorageResult.failure(
+                            StorageResult.Status.CONFLICT, "Storage operation identity mismatch");
+                }
                 return replayOperation(existing.get());
             }
             return StorageResult.failure(
@@ -589,6 +627,60 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return payload;
         }
         return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> StorageResult<T> resolveExistingOperation(
+            UUID operationId,
+            String operationType,
+            UUID actor,
+            String guildId,
+            String tabId,
+            int slotIndex,
+            String facilityId,
+            OpaqueItemPayload depositItem) {
+        Optional<StorageOperationRecord> existing = store.findOperation(operationId);
+        if (existing.isEmpty()) {
+            return null;
+        }
+        if (!matchesOperationRequest(
+                existing.get(), operationType, actor, guildId, tabId, slotIndex, facilityId, depositItem)) {
+            return StorageResult.failure(StorageResult.Status.CONFLICT, "Storage operation identity mismatch");
+        }
+        return replayOperation(existing.get());
+    }
+
+    private static boolean matchesOperationRequest(
+            StorageOperationRecord operation,
+            String operationType,
+            UUID actor,
+            String guildId,
+            String tabId,
+            int slotIndex,
+            String facilityId,
+            OpaqueItemPayload depositItem) {
+        if (!operation.operationType().equals(operationType)) {
+            return false;
+        }
+        if (!operation.actorUuid().equals(actor)) {
+            return false;
+        }
+        if (!operation.guildId().equals(guildId)) {
+            return false;
+        }
+        if (!operation.tabId().equals(tabId)) {
+            return false;
+        }
+        if (operation.slotIndex() != slotIndex) {
+            return false;
+        }
+        if (!operation.facilityId().equals(facilityId.trim())) {
+            return false;
+        }
+        if ("DEPOSIT".equals(operationType) && depositItem != null && operation.resultItem() != null) {
+            return depositItem.fingerprint().equals(operation.resultItem().fingerprint());
+        }
+        return true;
     }
 
     @SuppressWarnings("unchecked")

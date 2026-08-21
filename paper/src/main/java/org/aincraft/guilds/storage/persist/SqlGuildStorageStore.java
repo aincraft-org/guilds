@@ -434,7 +434,8 @@ public class SqlGuildStorageStore {
             UUID actorUuid,
             String tabId,
             int slotIndex,
-            String facilityId) {
+            String facilityId,
+            OpaqueItemPayload requestSnapshot) {
         Objects.requireNonNull(operationId, "operationId");
         requireGuildId(guildId);
         if (operationType == null || operationType.isBlank()) {
@@ -459,6 +460,7 @@ public class SqlGuildStorageStore {
                     tabId,
                     slotIndex,
                     facilityId.trim(),
+                    requestSnapshot,
                     now);
             return true;
         });
@@ -543,12 +545,14 @@ public class SqlGuildStorageStore {
             String tabId,
             int slotIndex,
             String facilityId,
+            OpaqueItemPayload requestSnapshot,
             Instant timestamp) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO guild_storage_operations (
                     operation_id, guild_id, operation_type, actor_uuid, tab_id, slot_index,
-                    facility_id, status, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    facility_id, status, result_item_schema, result_item_fingerprint, result_item_payload,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """)) {
             statement.setString(1, operationId);
             statement.setString(2, guildId);
@@ -558,8 +562,17 @@ public class SqlGuildStorageStore {
             statement.setInt(6, slotIndex);
             statement.setString(7, facilityId);
             statement.setString(8, StorageOperationStatus.PENDING.name());
-            statement.setString(9, timestamp.toString());
-            statement.setString(10, timestamp.toString());
+            if (requestSnapshot == null) {
+                statement.setNull(9, java.sql.Types.VARCHAR);
+                statement.setNull(10, java.sql.Types.VARCHAR);
+                statement.setNull(11, java.sql.Types.VARCHAR);
+            } else {
+                statement.setString(9, requestSnapshot.schema());
+                statement.setString(10, requestSnapshot.fingerprint());
+                statement.setString(11, requestSnapshot.payload());
+            }
+            statement.setString(12, timestamp.toString());
+            statement.setString(13, timestamp.toString());
             statement.executeUpdate();
         }
     }

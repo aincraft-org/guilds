@@ -73,18 +73,18 @@ class SqlSupportTest {
     }
 
     @Test
-    void mysqlIdTypeKeepsItemPayloadText() {
+    void mysqlIdTypeRewritesItemPayloadToLongtext() {
         String mysql = SqlSupport.withIdType(true,
                 "CREATE TABLE guild_storage_slots (item_payload TEXT NOT NULL, item_schema TEXT NOT NULL)");
-        assertTrue(mysql.contains("item_payload TEXT NOT NULL"));
+        assertTrue(mysql.contains("item_payload LONGTEXT NOT NULL"));
         assertTrue(mysql.contains("item_schema VARCHAR(255) NOT NULL"));
     }
 
     @Test
-    void mysqlIdTypeKeepsResultItemPayloadText() {
+    void mysqlIdTypeRewritesResultItemPayloadToLongtext() {
         String mysql = SqlSupport.withIdType(true,
                 "CREATE TABLE guild_storage_operations (result_item_payload TEXT, result_item_schema TEXT NOT NULL)");
-        assertTrue(mysql.contains("result_item_payload TEXT"));
+        assertTrue(mysql.contains("result_item_payload LONGTEXT"));
         assertTrue(mysql.contains("result_item_schema VARCHAR(255) NOT NULL"));
     }
 

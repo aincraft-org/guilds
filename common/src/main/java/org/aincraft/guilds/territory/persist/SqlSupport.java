@@ -20,7 +20,8 @@ public final class SqlSupport {
             "content", "description", "tax_rates", "prerequisites", "effects",
             "resource_costs_json", "upgrade_progress", "permissions_enum",
             "explicit_denials", "unlocked_plot_types", "metadata", "permissions",
-            "benefit_value", "schematic_data", "item_payload", "result_item_payload");
+            "benefit_value", "schematic_data");
+    private static final Set<String> MYSQL_PAYLOAD_TEXT = Set.of("item_payload", "result_item_payload");
     private static final Pattern MYSQL_TEXT_COLUMN = Pattern.compile("(?i)\\b([a-z0-9_]+)\\s+TEXT\\b");
 
     private SqlSupport() {
@@ -58,7 +59,9 @@ public final class SqlSupport {
         StringBuilder out = new StringBuilder();
         while (matcher.find()) {
             String column = matcher.group(1).toLowerCase(Locale.ROOT);
-            if (MYSQL_KEEP_TEXT.contains(column)) {
+            if (MYSQL_PAYLOAD_TEXT.contains(column)) {
+                matcher.appendReplacement(out, Matcher.quoteReplacement(matcher.group(1) + " LONGTEXT"));
+            } else if (MYSQL_KEEP_TEXT.contains(column)) {
                 matcher.appendReplacement(out, Matcher.quoteReplacement(matcher.group(0)));
             } else {
                 matcher.appendReplacement(out, Matcher.quoteReplacement(matcher.group(1) + " VARCHAR(255)"));

@@ -393,7 +393,8 @@ class SqlGuildStorageStoreTest {
                 actor,
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 13,
-                "facility-journal"));
+                "facility-journal",
+                payload));
         store.finalizeOperation(
                 operationId,
                 org.aincraft.guilds.storage.persist.StorageOperationStatus.COMMITTED,
@@ -408,6 +409,40 @@ class SqlGuildStorageStoreTest {
         assertEquals("SUCCESS", loaded.resultStatus());
         assertEquals(payload, loaded.resultItem());
         assertEquals(slot.version(), loaded.resultSlot().version());
+    }
+
+    @Test
+    void pendingOperationPersistsRequestSnapshotForWithdrawRecovery() {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-pending-withdraw", "payload-bytes");
+
+        assertTrue(store.insertPendingOperation(
+                operationId,
+                guildId,
+                "WITHDRAW",
+                actor,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                14,
+                "facility-withdraw",
+                payload));
+
+        StorageOperationRecord loaded = store.findOperation(operationId).orElseThrow();
+        assertEquals(StorageOperationStatus.PENDING, loaded.status());
+        assertEquals(payload, loaded.resultItem());
+    }
+
+    @Test
+    void saveSlotRoundTripsPayloadLargerThanMysqlTextLimit() {
+        store.getOrCreateBank(guildId);
+        String largePayload = "x".repeat(70_000);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-large", largePayload);
+
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 15, payload, 0L));
+
+        StorageSlot slot = store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(15);
+        assertEquals(largePayload, slot.item().payload());
     }
 
     private static void awaitLatch(CountDownLatch latch) {
