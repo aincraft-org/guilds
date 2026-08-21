@@ -11,9 +11,11 @@ import org.aincraft.guilds.storage.persist.StorageOperationRecord;
 import org.aincraft.guilds.storage.persist.StorageOperationStatus;
 import org.aincraft.guilds.storage.codec.ItemStackStorageCodec;
 import org.aincraft.guilds.storage.persist.StorageDepositRestorationRecord;
+import org.aincraft.guilds.storage.persist.StorageDepositRestorationStatus;
 import org.aincraft.guilds.storage.persist.StoragePayoutObligationRecord;
 import org.aincraft.guilds.storage.persist.StoragePayoutObligationStatus;
 import org.aincraft.guilds.storage.service.GuildStorageService;
+import org.aincraft.guilds.storage.service.DepositRestorationHandoff;
 import org.aincraft.guilds.storage.service.PayoutDeliveryHandoff;
 import org.aincraft.guilds.storage.service.PlayerInventoryCoordinator;
 import org.bukkit.inventory.ItemStack;
@@ -394,14 +396,75 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
-
-    public void acknowledgeDepositRestoration(UUID depositOperationId) {
+    public StorageResult<DepositRestorationHandoff> beginDepositRestorationDelivery(UUID depositOperationId) {
         Objects.requireNonNull(depositOperationId, "depositOperationId");
         try {
-            store.markDepositRestorationComplete(depositOperationId);
-        } catch (RuntimeException ignored) {
-            // Leave restoration obligation pending for startup reconciliation.
+            Optional<UUID> handoffToken = store.claimDepositRestorationForDelivery(depositOperationId);
+            if (handoffToken.isPresent()) {
+                return StorageResult.success(new DepositRestorationHandoff(handoffToken.get()));
+            }
+            return store.findDepositRestoration(depositOperationId)
+                    .map(obligation -> switch (obligation.status()) {
+                        case RESTORED -> StorageResult.<DepositRestorationHandoff>failure(
+                                StorageResult.Status.CONFLICT, "Deposit restoration already completed");
+                        case RESTORING -> StorageResult.<DepositRestorationHandoff>failure(
+                                StorageResult.Status.CONFLICT, "Deposit restoration delivery already in progress");
+                        default -> StorageResult.<DepositRestorationHandoff>failure(
+                                StorageResult.Status.CONFLICT, "Deposit restoration is not pending delivery");
+                    })
+                    .orElseGet(() -> StorageResult.failure(
+                            StorageResult.Status.CONFLICT, "Deposit restoration obligation not found"));
+        } catch (RuntimeException e) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
         }
+    }
+
+    public StorageResult<Void> cancelDepositRestorationDelivery(UUID depositOperationId, UUID handoffToken) {
+        Objects.requireNonNull(depositOperationId, "depositOperationId");
+        Objects.requireNonNull(handoffToken, "handoffToken");
+        try {
+            if (store.releaseDepositRestorationClaim(depositOperationId, handoffToken)) {
+                return StorageResult.success(null);
+            }
+            return store.findDepositRestoration(depositOperationId)
+                    .map(obligation -> switch (obligation.status()) {
+                        case PENDING, RESTORED -> StorageResult.<Void>success(null);
+                        default -> StorageResult.<Void>failure(
+                                StorageResult.Status.CONFLICT, "Deposit restoration handoff mismatch");
+                    })
+                    .orElseGet(() -> StorageResult.failure(
+                            StorageResult.Status.CONFLICT, "Deposit restoration obligation not found"));
+        } catch (RuntimeException e) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
+        }
+    }
+
+    public StorageResult<Void> acknowledgeDepositRestoration(UUID depositOperationId, UUID handoffToken) {
+        Objects.requireNonNull(depositOperationId, "depositOperationId");
+        Objects.requireNonNull(handoffToken, "handoffToken");
+        try {
+            if (store.markDepositRestorationComplete(depositOperationId, handoffToken)) {
+                return StorageResult.success(null);
+            }
+            return store.findDepositRestoration(depositOperationId)
+                    .filter(obligation -> obligation.status() == StorageDepositRestorationStatus.RESTORED)
+                    .map(ignored -> StorageResult.<Void>success(null))
+                    .orElseGet(() -> StorageResult.failure(
+                            StorageResult.Status.CONFLICT, "Deposit restoration handoff mismatch"));
+        } catch (RuntimeException e) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
+        }
+    }
+
+    public boolean isWithdrawPayoutDeliveryClaimActive(UUID withdrawOperationId, UUID deliveryToken) {
+        return isPayoutDeliveryClaimActive(withdrawOperationId, deliveryToken);
+    }
+
+    public boolean isDepositRestorationClaimActive(UUID depositOperationId, UUID handoffToken) {
+        return store.findDepositRestoration(depositOperationId)
+                .filter(obligation -> obligation.status() == StorageDepositRestorationStatus.RESTORING
+                        && handoffToken.equals(obligation.handoffToken()))
+                .isPresent();
     }
 
     @Override
@@ -629,42 +692,55 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (tryDeliverPayoutOnline(obligation)) {
             return;
         }
+        Optional<StoragePayoutObligationRecord> refreshed =
+                store.findPayoutObligation(obligation.withdrawOperationId());
+        if (refreshed.isEmpty() || refreshed.get().status() != StoragePayoutObligationStatus.PENDING) {
+            return;
+        }
+        StoragePayoutObligationRecord current = refreshed.get();
         reinsertAuthorizedWithdrawPayout(
-                obligation.withdrawOperationId(),
-                obligation.actorUuid(),
-                obligation.guildId(),
-                obligation.tabId(),
-                obligation.slotIndex(),
-                obligation.item(),
-                obligation.facilityId());
+                current.withdrawOperationId(),
+                current.actorUuid(),
+                current.guildId(),
+                current.tabId(),
+                current.slotIndex(),
+                current.item(),
+                current.facilityId());
     }
 
     private void reconcileDepositRestorations() {
         if (inventoryCoordinator == null) {
             return;
         }
-        for (StorageDepositRestorationRecord restoring : store.findRestoringDepositRestorations()) {
-            store.releaseDepositRestorationClaim(restoring.depositOperationId());
-        }
         for (StorageDepositRestorationRecord obligation : store.findPendingDepositRestorations()) {
-            if (!store.claimDepositRestorationForDelivery(obligation.depositOperationId())) {
+            Optional<UUID> handoffToken = store.claimDepositRestorationForDelivery(obligation.depositOperationId());
+            if (handoffToken.isEmpty()) {
                 continue;
             }
+            UUID depositOperationId = obligation.depositOperationId();
+            UUID claimToken = handoffToken.orElseThrow();
             ItemStack item = payoutCodec.decode(obligation.item());
             CompletableFuture<Boolean> restored = new CompletableFuture<>();
             mainThreadExecutor.run(() -> inventoryCoordinator.giveItem(
                     obligation.actorUuid(), item, restored::complete));
             try {
                 if (Boolean.TRUE.equals(restored.get(5, TimeUnit.SECONDS))) {
-                    acknowledgeDepositRestoration(obligation.depositOperationId());
-                } else {
-                    store.releaseDepositRestorationClaim(obligation.depositOperationId());
+                    if (!isDepositRestorationClaimActive(depositOperationId, claimToken)) {
+                        continue;
+                    }
+                    acknowledgeDepositRestoration(depositOperationId, claimToken);
+                } else if (isDepositRestorationClaimActive(depositOperationId, claimToken)) {
+                    cancelDepositRestorationDelivery(depositOperationId, claimToken);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                store.releaseDepositRestorationClaim(obligation.depositOperationId());
+                if (isDepositRestorationClaimActive(depositOperationId, claimToken)) {
+                    cancelDepositRestorationDelivery(depositOperationId, claimToken);
+                }
             } catch (Exception ignored) {
-                store.releaseDepositRestorationClaim(obligation.depositOperationId());
+                if (isDepositRestorationClaimActive(depositOperationId, claimToken)) {
+                    cancelDepositRestorationDelivery(depositOperationId, claimToken);
+                }
             }
         }
     }
@@ -680,13 +756,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return false;
         }
         if (obligation.status() == StoragePayoutObligationStatus.DELIVERING) {
-            store.cancelPayoutDeliveryForReinsertion(obligation.withdrawOperationId());
-            Optional<StoragePayoutObligationRecord> refreshed =
-                    store.findPayoutObligation(obligation.withdrawOperationId());
-            if (refreshed.isEmpty() || refreshed.get().status() != StoragePayoutObligationStatus.PENDING) {
-                return false;
-            }
-            obligation = refreshed.get();
+            return false;
         }
         StorageResult<PayoutDeliveryHandoff> claimed = beginWithdrawPayoutDelivery(obligation.withdrawOperationId());
         if (!claimed.isSuccess()) {
@@ -1038,11 +1108,17 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 requestSnapshot)) {
             StorageOperationLookupResult existing = store.lookupOperation(operationId);
             if (existing.status() == StorageOperationLookupResult.Status.READ_FAILURE) {
+                if ("DEPOSIT".equals(operationType)) {
+                    runCompensation(compensationOnFailure);
+                }
                 return StorageResult.failure(
                         StorageResult.Status.STORAGE_ERROR,
                         JOURNAL_LOOKUP_FAILURE + " after insert conflict");
             }
             if (existing.status() == StorageOperationLookupResult.Status.NOT_FOUND) {
+                if ("DEPOSIT".equals(operationType)) {
+                    runCompensation(compensationOnFailure);
+                }
                 return StorageResult.failure(
                         StorageResult.Status.STORAGE_ERROR,
                         JOURNAL_LOOKUP_FAILURE + " after insert conflict");
@@ -1126,6 +1202,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return true;
         } catch (RuntimeException e) {
             if (!result.isSuccess() && "DEPOSIT".equals(operationType)) {
+                recordDepositRestorationObligation(operationId);
                 runCompensation(compensationOnFailure);
             }
             preserveUnknownOutcome(

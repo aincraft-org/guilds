@@ -415,20 +415,26 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
             boolean payoutSuccess) {
         if (payoutSuccess) {
             CompletableFuture.supplyAsync(
-                            () -> payoutService.confirmWithdrawPayoutDelivered(operationId, deliveryToken),
-                            sqlExecutor)
-                    .thenAcceptAsync(
-                            confirmResult -> mainThreadExecutor.run(() -> {
-                                if (!confirmResult.isSuccess()) {
-                                    CompletableFuture.runAsync(
-                                            () -> payoutService.markWithdrawPayoutDeliveryUnknown(
-                                                    operationId, deliveryToken),
-                                            sqlExecutor);
-                                    if (activeSession(player, session)) {
-                                        player.sendMessage(
-                                                Component.text(confirmResult.errorMessage(), NamedTextColor.RED));
-                                    }
+                            () -> {
+                                if (!payoutService.isWithdrawPayoutDeliveryClaimActive(operationId, deliveryToken)) {
+                                    return StorageResult.<Void>failure(
+                                            StorageResult.Status.CONFLICT, "Withdraw payout delivery handoff mismatch");
                                 }
+                                return payoutService.confirmWithdrawPayoutDelivered(operationId, deliveryToken);
+                            },
+                            sqlExecutor)
+                    .handle((confirmResult, error) -> {
+                        boolean needsUnknown = error != null
+                                || confirmResult == null
+                                || !confirmResult.isSuccess();
+                        if (needsUnknown
+                                && payoutService.isWithdrawPayoutDeliveryClaimActive(operationId, deliveryToken)) {
+                            payoutService.markWithdrawPayoutDeliveryUnknown(operationId, deliveryToken);
+                        }
+                        return null;
+                    })
+                    .thenRunAsync(
+                            () -> mainThreadExecutor.run(() -> {
                                 if (activeSession(player, session)) {
                                     refreshSession(player, session);
                                 }
@@ -437,7 +443,12 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
             return;
         }
         CompletableFuture.supplyAsync(
-                        () -> payoutService.cancelWithdrawPayoutDelivery(operationId, deliveryToken),
+                        () -> {
+                            if (!payoutService.isWithdrawPayoutDeliveryClaimActive(operationId, deliveryToken)) {
+                                return StorageResult.<Void>success(null);
+                            }
+                            return payoutService.cancelWithdrawPayoutDelivery(operationId, deliveryToken);
+                        },
                         sqlExecutor)
                 .thenAcceptAsync(
                         ignored -> mainThreadExecutor.run(() ->
@@ -485,25 +496,77 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
     }
 
     private void restoreDepositItem(Player player, ItemStack item, UUID operationId) {
+        if (!(storageService instanceof GuildStorageServiceImpl impl)) {
+            restoreDepositItemDirect(player, item);
+            return;
+        }
+        Runnable restoreWithClaim = () -> {
+            try {
+                CompletableFuture.supplyAsync(() -> impl.beginDepositRestorationDelivery(operationId), sqlExecutor)
+                        .thenAcceptAsync(
+                                claimResult -> mainThreadExecutor.run(() -> {
+                                    if (!claimResult.isSuccess()) {
+                                        restoreDepositItemDirect(player, item);
+                                        return;
+                                    }
+                                    UUID handoffToken = claimResult.value().orElseThrow().handoffToken();
+                                    restoreDepositItemWithHandoff(player, item, impl, operationId, handoffToken);
+                                }),
+                                Runnable::run)
+                        .exceptionally(error -> {
+                            mainThreadExecutor.run(() -> restoreDepositItemDirect(player, item));
+                            return null;
+                        });
+            } catch (Throwable error) {
+                mainThreadExecutor.run(() -> restoreDepositItemDirect(player, item));
+            }
+        };
+        mainThreadExecutor.run(restoreWithClaim);
+    }
+
+    private void restoreDepositItemDirect(Player player, ItemStack item) {
         ItemStack current = player.getItemOnCursor();
         if (current == null || current.getType() == Material.AIR) {
             player.setItemOnCursor(item.clone());
-            acknowledgeDepositRestoration(player, operationId);
+            return;
+        }
+        inventoryCoordinator.giveItem(player.getUniqueId(), item.clone(), success -> {});
+    }
+
+    private void restoreDepositItemWithHandoff(
+            Player player,
+            ItemStack item,
+            GuildStorageServiceImpl impl,
+            UUID operationId,
+            UUID handoffToken) {
+        ItemStack current = player.getItemOnCursor();
+        if (current == null || current.getType() == Material.AIR) {
+            player.setItemOnCursor(item.clone());
+            acknowledgeDepositRestoration(impl, operationId, handoffToken);
             return;
         }
         inventoryCoordinator.giveItem(player.getUniqueId(), item.clone(), success -> {
-            if (Boolean.TRUE.equals(success)) {
-                acknowledgeDepositRestoration(player, operationId);
+            if (!Boolean.TRUE.equals(success)) {
+                try {
+                    CompletableFuture.runAsync(
+                            () -> impl.cancelDepositRestorationDelivery(operationId, handoffToken),
+                            sqlExecutor);
+                } catch (Throwable ignored) {
+                    // Leave restoration obligation pending for reconciliation.
+                }
+                return;
             }
+            acknowledgeDepositRestoration(impl, operationId, handoffToken);
         });
     }
 
-    private void acknowledgeDepositRestoration(Player player, UUID operationId) {
-        if (!(storageService instanceof GuildStorageServiceImpl impl)) {
-            return;
-        }
+    private void acknowledgeDepositRestoration(
+            GuildStorageServiceImpl impl, UUID operationId, UUID handoffToken) {
         try {
-            CompletableFuture.runAsync(() -> impl.acknowledgeDepositRestoration(operationId), sqlExecutor);
+            CompletableFuture.supplyAsync(
+                            () -> impl.acknowledgeDepositRestoration(operationId, handoffToken),
+                            sqlExecutor)
+                    .exceptionally(error -> null);
         } catch (Throwable ignored) {
             // Leave restoration obligation pending for reconciliation.
         }

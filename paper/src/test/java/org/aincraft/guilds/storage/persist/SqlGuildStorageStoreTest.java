@@ -979,7 +979,10 @@ class SqlGuildStorageStoreTest {
                 payload);
 
         assertEquals(1, store.findPendingDepositRestorations().size());
-        assertTrue(store.markDepositRestorationComplete(depositOperationId));
+        java.util.Optional<java.util.UUID> handoffToken =
+                store.claimDepositRestorationForDelivery(depositOperationId);
+        assertTrue(handoffToken.isPresent());
+        assertTrue(store.markDepositRestorationComplete(depositOperationId, handoffToken.orElseThrow()));
         assertTrue(store.findPendingDepositRestorations().isEmpty());
     }
 
@@ -998,12 +1001,47 @@ class SqlGuildStorageStoreTest {
                 "facility-restore-claim",
                 payload);
 
-        assertTrue(store.claimDepositRestorationForDelivery(depositOperationId));
-        assertFalse(store.claimDepositRestorationForDelivery(depositOperationId));
-        assertTrue(store.releaseDepositRestorationClaim(depositOperationId));
-        assertTrue(store.claimDepositRestorationForDelivery(depositOperationId));
-        assertTrue(store.markDepositRestorationComplete(depositOperationId));
+        java.util.Optional<java.util.UUID> firstToken = store.claimDepositRestorationForDelivery(depositOperationId);
+        assertTrue(firstToken.isPresent());
+        assertTrue(store.claimDepositRestorationForDelivery(depositOperationId).isEmpty());
+        assertTrue(store.releaseDepositRestorationClaim(depositOperationId, firstToken.orElseThrow()));
+        java.util.Optional<java.util.UUID> secondToken = store.claimDepositRestorationForDelivery(depositOperationId);
+        assertTrue(secondToken.isPresent());
+        assertTrue(store.markDepositRestorationComplete(depositOperationId, secondToken.orElseThrow()));
         assertTrue(store.findPendingDepositRestorations().isEmpty());
+    }
+
+    @Test
+    void findOutstandingPayoutObligationsExcludesDelivering() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-outstanding", "payload-bytes");
+        UUID pendingOperationId = UUID.randomUUID();
+        UUID deliveringOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 25, payload, 0L));
+        store.withdrawWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                25,
+                payload,
+                1L,
+                actor,
+                "facility-outstanding-pending",
+                pendingOperationId);
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 26, payload, 0L));
+        store.withdrawWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                26,
+                payload,
+                1L,
+                actor,
+                "facility-outstanding-delivering",
+                deliveringOperationId);
+        assertTrue(store.claimPayoutObligationForDelivery(deliveringOperationId).isPresent());
+
+        assertEquals(1, store.findOutstandingPayoutObligations().size());
+        assertEquals(pendingOperationId, store.findOutstandingPayoutObligations().getFirst().withdrawOperationId());
     }
 
 

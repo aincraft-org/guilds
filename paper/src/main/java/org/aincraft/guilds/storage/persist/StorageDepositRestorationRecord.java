@@ -15,5 +15,6 @@ public record StorageDepositRestorationRecord(
         String facilityId,
         OpaqueItemPayload item,
         StorageDepositRestorationStatus status,
+        UUID handoffToken,
         Instant createdAt,
         Instant updatedAt) {}
