@@ -4,7 +4,9 @@ import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.ResidentService;
+import org.aincraft.guilds.storage.persist.AuditEvidenceLookupResult;
 import org.aincraft.guilds.storage.persist.SqlGuildStorageStore;
+import org.aincraft.guilds.storage.persist.StorageOperationLookupResult;
 import org.aincraft.guilds.storage.persist.StorageOperationRecord;
 import org.aincraft.guilds.storage.persist.StorageOperationStatus;
 import org.aincraft.guilds.storage.service.GuildStorageService;
@@ -31,6 +33,8 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     private static final String JOURNAL_LOOKUP_FAILURE = "Failed to load storage operation journal";
     private static final String UNKNOWN_OUTCOME_MESSAGE =
             "Storage mutation outcome unknown; retry with same operationId";
+    private static final String MUTATION_OUTCOME_UNKNOWN =
+            "Storage mutation commit outcome unknown";
     private enum GuildStorageRole {
         OUTSIDER(0),
         MEMBER(1),
@@ -299,22 +303,25 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     }
 
     private void reconcilePendingOperation(StorageOperationRecord pending) {
-        try {
-            switch (pending.operationType()) {
-                case "DEPOSIT" -> reconcilePendingDeposit(pending);
-                case "WITHDRAW" -> reconcilePendingWithdraw(pending);
-                default -> finalizeReconciliationFailure(
-                        pending, "Unknown pending storage operation type: " + pending.operationType());
-            }
-        } catch (RuntimeException e) {
-            finalizeReconciliationFailure(
-                    pending, "Failed to reconcile pending storage operation: " + e.getMessage());
+        switch (pending.operationType()) {
+            case "DEPOSIT" -> reconcilePendingDeposit(pending);
+            case "WITHDRAW" -> reconcilePendingWithdraw(pending);
+            default -> finalizeReconciliationFailure(
+                    pending, "Unknown pending storage operation type: " + pending.operationType());
         }
     }
 
     private void reconcilePendingDeposit(StorageOperationRecord pending) {
-        StorageSlot slot = store.loadSlots(pending.guildId(), pending.tabId()).get(pending.slotIndex());
-        boolean auditEvidence = store.hasMatchingAudit(
+        Map<Integer, StorageSlot> slots;
+        try {
+            slots = store.loadSlots(pending.guildId(), pending.tabId());
+        } catch (RuntimeException e) {
+            finalizeReconciliationUnknown(
+                    pending, "Failed to load storage slots during reconciliation: " + e.getMessage());
+            return;
+        }
+        StorageSlot slot = slots.get(pending.slotIndex());
+        AuditEvidenceLookupResult auditLookup = store.lookupMatchingAudit(
                 pending.operationId(),
                 pending.guildId(),
                 pending.actorUuid(),
@@ -323,6 +330,11 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 pending.slotIndex(),
                 pending.facilityId(),
                 pending.createdAt());
+        if (auditLookup.status() == AuditEvidenceLookupResult.Status.READ_FAILURE) {
+            finalizeReconciliationUnknown(pending, auditLookup.errorMessage());
+            return;
+        }
+        boolean auditEvidence = auditLookup.status() == AuditEvidenceLookupResult.Status.MATCHING;
         if (slot != null && auditEvidence) {
             store.finalizeOperation(
                     pending.operationId(),
@@ -350,8 +362,16 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     }
 
     private void reconcilePendingWithdraw(StorageOperationRecord pending) {
-        StorageSlot slot = store.loadSlots(pending.guildId(), pending.tabId()).get(pending.slotIndex());
-        boolean auditEvidence = store.hasMatchingAudit(
+        Map<Integer, StorageSlot> slots;
+        try {
+            slots = store.loadSlots(pending.guildId(), pending.tabId());
+        } catch (RuntimeException e) {
+            finalizeReconciliationUnknown(
+                    pending, "Failed to load storage slots during reconciliation: " + e.getMessage());
+            return;
+        }
+        StorageSlot slot = slots.get(pending.slotIndex());
+        AuditEvidenceLookupResult auditLookup = store.lookupMatchingAudit(
                 pending.operationId(),
                 pending.guildId(),
                 pending.actorUuid(),
@@ -360,15 +380,23 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 pending.slotIndex(),
                 pending.facilityId(),
                 pending.createdAt());
+        if (auditLookup.status() == AuditEvidenceLookupResult.Status.READ_FAILURE) {
+            finalizeReconciliationUnknown(pending, auditLookup.errorMessage());
+            return;
+        }
+        boolean auditEvidence = auditLookup.status() == AuditEvidenceLookupResult.Status.MATCHING;
         if (slot == null && auditEvidence) {
-            if (pending.resultItem() != null) {
+            OpaqueItemPayload replayItem = pending.requestSnapshot() != null
+                    ? pending.requestSnapshot()
+                    : pending.resultItem();
+            if (replayItem != null) {
                 store.finalizeOperation(
                         pending.operationId(),
                         StorageOperationStatus.COMMITTED,
                         StorageResult.Status.SUCCESS.name(),
                         null,
                         null,
-                        pending.resultItem());
+                        replayItem);
                 return;
             }
             finalizeReconciliationFailure(
@@ -395,6 +423,16 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         store.finalizeOperation(
                 pending.operationId(),
                 StorageOperationStatus.COMPENSATED,
+                StorageResult.Status.STORAGE_ERROR.name(),
+                errorMessage,
+                null,
+                null);
+    }
+
+    private void finalizeReconciliationUnknown(StorageOperationRecord pending, String errorMessage) {
+        store.finalizeOperation(
+                pending.operationId(),
+                StorageOperationStatus.UNKNOWN,
                 StorageResult.Status.STORAGE_ERROR.name(),
                 errorMessage,
                 null,
@@ -466,6 +504,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             case SUCCESS -> StorageResult.success(outcome.slot());
             case CONFLICT -> StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during deposit");
             case FAILED -> StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Failed to persist deposit");
+            case UNKNOWN -> StorageResult.failure(StorageResult.Status.STORAGE_ERROR, MUTATION_OUTCOME_UNKNOWN);
         };
     }
 
@@ -533,6 +572,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             case SUCCESS -> StorageResult.success(outcome.item());
             case CONFLICT -> StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during withdraw");
             case FAILED -> StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Failed to persist withdraw");
+            case UNKNOWN -> StorageResult.failure(StorageResult.Status.STORAGE_ERROR, MUTATION_OUTCOME_UNKNOWN);
         };
     }
     private <T> StorageResult<T> executeMutation(
@@ -555,14 +595,19 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 slotIndex,
                 facilityId,
                 requestSnapshot)) {
-            Optional<StorageOperationRecord> existing = loadOperationJournal(operationId);
-            if (existing.isEmpty()) {
+            StorageOperationLookupResult existing = store.lookupOperation(operationId);
+            if (existing.status() == StorageOperationLookupResult.Status.READ_FAILURE) {
+                return StorageResult.failure(
+                        StorageResult.Status.STORAGE_ERROR,
+                        JOURNAL_LOOKUP_FAILURE + " after insert conflict");
+            }
+            if (existing.status() == StorageOperationLookupResult.Status.NOT_FOUND) {
                 return StorageResult.failure(
                         StorageResult.Status.STORAGE_ERROR,
                         JOURNAL_LOOKUP_FAILURE + " after insert conflict");
             }
             if (!matchesOperationRequest(
-                    existing.get(),
+                    existing.record().orElseThrow(),
                     operationType,
                     actor,
                     guildId,
@@ -573,10 +618,14 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 return StorageResult.failure(
                         StorageResult.Status.CONFLICT, "Storage operation identity mismatch");
             }
-            return replayOperation(existing.get());
+            return replayOperation(existing.record().orElseThrow());
         }
         try {
             StorageResult<T> result = CompletableFuture.supplyAsync(mutation, sqlExecutor).get();
+            if (isUnknownMutationResult(result)) {
+                preserveUnknownOutcome(operationId, UNKNOWN_OUTCOME_MESSAGE);
+                return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, UNKNOWN_OUTCOME_MESSAGE);
+            }
             if (!finalizeOperationJournal(operationId, result, compensationOnFailure) && result.isSuccess()) {
                 return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, UNKNOWN_OUTCOME_MESSAGE);
             }
@@ -599,13 +648,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
-    private Optional<StorageOperationRecord> loadOperationJournal(UUID operationId) {
-        try {
-            return store.findOperation(operationId);
-        } catch (RuntimeException e) {
-            return Optional.empty();
-        }
-    }
 
     private <T> boolean finalizeOperationJournal(
             UUID operationId, StorageResult<T> result, Runnable compensationOnFailure) {
@@ -618,6 +660,8 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                         null,
                         resultSlot(result),
                         resultItem(result));
+            } else if (isUnknownMutationResult(result)) {
+                preserveUnknownOutcome(operationId, result.errorMessage());
             } else {
                 runCompensation(compensationOnFailure);
                 store.finalizeOperation(
@@ -681,12 +725,15 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             int slotIndex,
             String facilityId,
             OpaqueItemPayload requestSnapshot) {
-        Optional<StorageOperationRecord> existing = loadOperationJournal(operationId);
-        if (existing.isEmpty()) {
+        StorageOperationLookupResult existing = store.lookupOperation(operationId);
+        if (existing.status() == StorageOperationLookupResult.Status.READ_FAILURE) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, JOURNAL_LOOKUP_FAILURE);
+        }
+        if (existing.status() == StorageOperationLookupResult.Status.NOT_FOUND) {
             return null;
         }
         if (!matchesOperationRequest(
-                existing.get(),
+                existing.record().orElseThrow(),
                 operationType,
                 actor,
                 guildId,
@@ -696,7 +743,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 requestSnapshot)) {
             return StorageResult.failure(StorageResult.Status.CONFLICT, "Storage operation identity mismatch");
         }
-        return replayOperation(existing.get());
+        return replayOperation(existing.record().orElseThrow());
     }
 
     private static boolean matchesOperationRequest(
@@ -728,21 +775,23 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
         if (requestSnapshot != null) {
             OpaqueItemPayload storedSnapshot = storedOperationSnapshot(operation);
-            if (operation.status() == StorageOperationStatus.COMMITTED) {
-                return storedSnapshot != null && requestSnapshot.equals(storedSnapshot);
-            }
-            if (operation.status() == StorageOperationStatus.PENDING && storedSnapshot != null) {
-                return requestSnapshot.equals(storedSnapshot);
-            }
+            return storedSnapshot != null && requestSnapshot.equals(storedSnapshot);
         }
         return true;
     }
 
     private static OpaqueItemPayload storedOperationSnapshot(StorageOperationRecord operation) {
+        if (operation.requestSnapshot() != null) {
+            return operation.requestSnapshot();
+        }
         if (operation.status() == StorageOperationStatus.COMMITTED && operation.resultSlot() != null) {
             return operation.resultSlot().item();
         }
         return operation.resultItem();
+    }
+
+    private static boolean isUnknownMutationResult(StorageResult<?> result) {
+        return !result.isSuccess() && MUTATION_OUTCOME_UNKNOWN.equals(result.errorMessage());
     }
 
     @SuppressWarnings("unchecked")

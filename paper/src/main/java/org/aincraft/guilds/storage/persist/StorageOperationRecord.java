@@ -16,6 +16,7 @@ public record StorageOperationRecord(
         String tabId,
         int slotIndex,
         String facilityId,
+        OpaqueItemPayload requestSnapshot,
         StorageOperationStatus status,
         String resultStatus,
         String resultError,

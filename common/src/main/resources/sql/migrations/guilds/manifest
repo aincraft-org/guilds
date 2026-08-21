@@ -25,3 +25,4 @@
 24 guild-storage Add guild storage item bank tables
 25 guild-storage-operations Add durable guild storage mutation operation journal
 26 guild-storage-audit-operation Add operation identity to guild storage audit records
+27 guild-storage-operation-request-snapshot Add immutable request snapshots to storage operation journal

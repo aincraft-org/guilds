@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
+import org.aincraft.guilds.storage.persist.StorageOperationLookupResult;
 import org.aincraft.guilds.storage.persist.StorageOperationStatus;
 import java.time.Instant;
 import java.util.logging.Logger;
@@ -79,6 +80,9 @@ class SqlGuildStorageStoreTest {
             }
             if (!SqlSupport.columnExists(connection, "guild_storage_audit", "operation_id")) {
                 SqlScripts.apply(connection, "migrations/guilds/V26__guild-storage-audit-operation.sql");
+            }
+            if (!SqlSupport.columnExists(connection, "guild_storage_operations", "request_item_schema")) {
+                SqlScripts.apply(connection, "migrations/guilds/V27__guild-storage-operation-request-snapshot.sql");
             }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to ensure guild storage operation schema", e);
@@ -444,7 +448,8 @@ class SqlGuildStorageStoreTest {
                 store.findOperation(operationId).orElseThrow();
         assertEquals(org.aincraft.guilds.storage.persist.StorageOperationStatus.COMMITTED, loaded.status());
         assertEquals("SUCCESS", loaded.resultStatus());
-        assertEquals(payload, loaded.resultItem());
+        assertEquals(payload, loaded.requestSnapshot());
+        assertEquals(null, loaded.resultItem());
         assertEquals(slot.version(), loaded.resultSlot().version());
     }
 
@@ -467,7 +472,8 @@ class SqlGuildStorageStoreTest {
 
         StorageOperationRecord loaded = store.findOperation(operationId).orElseThrow();
         assertEquals(StorageOperationStatus.PENDING, loaded.status());
-        assertEquals(payload, loaded.resultItem());
+        assertEquals(payload, loaded.requestSnapshot());
+        assertEquals(null, loaded.resultItem());
     }
 
     @Test
@@ -480,6 +486,83 @@ class SqlGuildStorageStoreTest {
 
         StorageSlot slot = store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(15);
         assertEquals(largePayload, slot.item().payload());
+    }
+
+    @Test
+    void finalizeOperationPreservesRequestSnapshotAfterCommit() {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        OpaqueItemPayload request = new OpaqueItemPayload("paper-bytes-v1", "fp-request", "request-bytes");
+        OpaqueItemPayload result = new OpaqueItemPayload("paper-bytes-v1", "fp-result", "result-bytes");
+        StorageSlot slot = new StorageSlot(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                17,
+                result,
+                1L,
+                Instant.parse("2026-08-21T12:00:00Z"));
+
+        assertTrue(store.insertPendingOperation(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                actor,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                17,
+                "facility-request",
+                request));
+        store.finalizeOperation(
+                operationId,
+                StorageOperationStatus.COMMITTED,
+                "SUCCESS",
+                null,
+                slot,
+                result);
+
+        StorageOperationRecord loaded = store.findOperation(operationId).orElseThrow();
+        assertEquals(request, loaded.requestSnapshot());
+        assertEquals(result, loaded.resultItem());
+    }
+
+    @Test
+    void lookupOperationDistinguishesNotFoundFromReadFailure() {
+        UUID operationId = UUID.randomUUID();
+        assertEquals(
+                StorageOperationLookupResult.Status.NOT_FOUND,
+                store.lookupOperation(operationId).status());
+
+        store.getOrCreateBank(guildId);
+        assertTrue(store.insertPendingOperation(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                UUID.randomUUID(),
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                18,
+                "facility-lookup",
+                new OpaqueItemPayload("paper-bytes-v1", "fp-lookup", "payload")));
+        assertEquals(
+                StorageOperationLookupResult.Status.FOUND,
+                store.lookupOperation(operationId).status());
+    }
+
+    @Test
+    void depositWithAuditReturnsUnknownOnIndeterminateCommit() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-unknown-commit", "payload-bytes");
+        store.simulateIndeterminateCommitForTests = true;
+
+        SqlGuildStorageStore.DepositAuditOutcome outcome = store.depositWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                19,
+                payload,
+                UUID.randomUUID(),
+                "facility-unknown",
+                UUID.randomUUID());
+
+        assertEquals(SqlGuildStorageStore.SlotMutationResult.UNKNOWN, outcome.status());
     }
 
     private static void awaitLatch(CountDownLatch latch) {

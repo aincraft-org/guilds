@@ -168,6 +168,79 @@ public class DatabaseManager {
             return Optional.empty();
         }
     }
+    /**
+     * Execute a database transaction and distinguish rolled-back from indeterminate outcomes.
+     */
+    public <T> TransactionExecutionResult<T> executeTransactionWithDetailedOutcome(
+            TransactionWithResultCallback<T> transaction) {
+        try (Connection connection = getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                T result = transaction.execute(connection);
+                try {
+                    connection.commit();
+                } catch (SQLException commitFailure) {
+                    plugin.getLogger().log(
+                            Level.WARNING,
+                            "Transaction commit outcome unknown: " + commitFailure.getMessage(),
+                            commitFailure);
+                    try {
+                        connection.rollback();
+                    } catch (SQLException rollbackFailure) {
+                        plugin.getLogger().log(
+                                Level.WARNING,
+                                "Transaction rollback after indeterminate commit also failed: "
+                                        + rollbackFailure.getMessage(),
+                                rollbackFailure);
+                    }
+                    return TransactionExecutionResult.indeterminate();
+                }
+                return TransactionExecutionResult.committed(result);
+            } catch (SQLException executionFailure) {
+                try {
+                    connection.rollback();
+                    plugin.getLogger().log(
+                            Level.WARNING,
+                            "Transaction rolled back: " + executionFailure.getMessage(),
+                            executionFailure);
+                    return TransactionExecutionResult.rolledBack();
+                } catch (SQLException rollbackFailure) {
+                    plugin.getLogger().log(
+                            Level.WARNING,
+                            "Transaction rollback failed: " + rollbackFailure.getMessage(),
+                            rollbackFailure);
+                    return TransactionExecutionResult.indeterminate();
+                }
+            }
+        } catch (SQLException connectionFailure) {
+            plugin.getLogger().log(
+                    Level.SEVERE,
+                    "Failed to execute transaction: " + connectionFailure.getMessage(),
+                    connectionFailure);
+            return TransactionExecutionResult.rolledBack();
+        }
+    }
+
+    public enum TransactionCommitOutcome {
+        COMMITTED,
+        ROLLED_BACK,
+        INDETERMINATE
+    }
+
+    public record TransactionExecutionResult<T>(TransactionCommitOutcome outcome, T value) {
+        public static <T> TransactionExecutionResult<T> committed(T value) {
+            return new TransactionExecutionResult<>(TransactionCommitOutcome.COMMITTED, value);
+        }
+
+        public static <T> TransactionExecutionResult<T> rolledBack() {
+            return new TransactionExecutionResult<>(TransactionCommitOutcome.ROLLED_BACK, null);
+        }
+
+        public static <T> TransactionExecutionResult<T> indeterminate() {
+            return new TransactionExecutionResult<>(TransactionCommitOutcome.INDETERMINATE, null);
+        }
+    }
+
 
     /**
      * Interface for database transactions

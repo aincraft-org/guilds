@@ -14,7 +14,7 @@ class SqlMigrationCatalogTest {
         assertEquals(1, migrations.getFirst().version());
         assertEquals("initial", migrations.getFirst().slug());
         assertEquals("migrations/guilds/V1__initial.sql", migrations.getFirst().resource());
-        assertEquals(26, migrations.getLast().version());
+        assertEquals(27, migrations.getLast().version());
         assertTrue(migrations.stream().anyMatch(migration -> migration.version() == 16));
         SqlMigration lastOnline = migrations.stream()
                 .filter(migration -> migration.version() == 20)
@@ -35,6 +35,13 @@ class SqlMigrationCatalogTest {
         assertEquals("guild-storage-audit-operation", storageAuditOperation.slug());
         assertEquals(
                 "migrations/guilds/V26__guild-storage-audit-operation.sql", storageAuditOperation.resource());
+        SqlMigration requestSnapshot = migrations.stream()
+                .filter(migration -> migration.version() == 27)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("guild-storage-operation-request-snapshot", requestSnapshot.slug());
+        assertEquals(
+                "migrations/guilds/V27__guild-storage-operation-request-snapshot.sql", requestSnapshot.resource());
     }
 
     @Test

@@ -41,10 +41,14 @@ public class SqlGuildStorageStore {
     /** Test hook: next atomic mutation fails while inserting audit. */
     public volatile boolean simulateAuditFailureForTests;
 
+    /** Test hook: next atomic mutation returns indeterminate commit outcome. */
+    public volatile boolean simulateIndeterminateCommitForTests;
+
     public enum SlotMutationResult {
         SUCCESS,
         CONFLICT,
-        FAILED
+        FAILED,
+        UNKNOWN
     }
 
     public record DepositAuditOutcome(SlotMutationResult status, StorageSlot slot) {}
@@ -301,27 +305,36 @@ public class SqlGuildStorageStore {
             throw new IllegalArgumentException("facilityId is required");
         }
         Objects.requireNonNull(operationId, "operationId");
-        Optional<DepositAuditOutcome> outcome = databaseManager.executeTransactionWithResult(connection -> {
-            Long currentVersion = selectSlotVersion(connection, guildId, tabId, slotIndex);
-            if (currentVersion != null) {
-                return new DepositAuditOutcome(SlotMutationResult.CONFLICT, null);
-            }
-            Instant now = Instant.now();
-            insertSlot(connection, guildId, tabId, slotIndex, item, 1L, now);
-            insertAudit(
-                    connection,
-                    operationId,
-                    guildId,
-                    actorUuid,
-                    "DEPOSIT",
-                    tabId,
-                    slotIndex,
-                    item.fingerprint(),
-                    facilityId.trim());
-            return new DepositAuditOutcome(
-                    SlotMutationResult.SUCCESS, new StorageSlot(guildId, tabId, slotIndex, item, 1L, now));
-        });
-        return outcome.orElse(new DepositAuditOutcome(SlotMutationResult.FAILED, null));
+        if (simulateIndeterminateCommitForTests) {
+            simulateIndeterminateCommitForTests = false;
+            return new DepositAuditOutcome(SlotMutationResult.UNKNOWN, null);
+        }
+        DatabaseManager.TransactionExecutionResult<DepositAuditOutcome> outcome =
+                databaseManager.executeTransactionWithDetailedOutcome(connection -> {
+                    Long currentVersion = selectSlotVersion(connection, guildId, tabId, slotIndex);
+                    if (currentVersion != null) {
+                        return new DepositAuditOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    Instant now = Instant.now();
+                    insertSlot(connection, guildId, tabId, slotIndex, item, 1L, now);
+                    insertAudit(
+                            connection,
+                            operationId,
+                            guildId,
+                            actorUuid,
+                            "DEPOSIT",
+                            tabId,
+                            slotIndex,
+                            item.fingerprint(),
+                            facilityId.trim());
+                    return new DepositAuditOutcome(
+                            SlotMutationResult.SUCCESS, new StorageSlot(guildId, tabId, slotIndex, item, 1L, now));
+                });
+        return switch (outcome.outcome()) {
+            case COMMITTED -> outcome.value();
+            case ROLLED_BACK -> new DepositAuditOutcome(SlotMutationResult.FAILED, null);
+            case INDETERMINATE -> new DepositAuditOutcome(SlotMutationResult.UNKNOWN, null);
+        };
     }
 
     public WithdrawAuditOutcome withdrawWithAudit(
@@ -344,40 +357,61 @@ public class SqlGuildStorageStore {
             throw new IllegalArgumentException("facilityId is required");
         }
         Objects.requireNonNull(operationId, "operationId");
-        Optional<WithdrawAuditOutcome> outcome = databaseManager.executeTransactionWithResult(connection -> {
-            Optional<StorageSlot> occupied = selectSlot(connection, guildId, tabId, slotIndex);
-            if (occupied.isEmpty()) {
-                return new WithdrawAuditOutcome(SlotMutationResult.CONFLICT, null);
-            }
-            StorageSlot slot = occupied.get();
-            if (slot.version() != expectedVersion || !slot.item().equals(expectedItem)) {
-                return new WithdrawAuditOutcome(SlotMutationResult.CONFLICT, null);
-            }
-            if (!deleteSlot(connection, guildId, tabId, slotIndex, expectedVersion)) {
-                return new WithdrawAuditOutcome(SlotMutationResult.CONFLICT, null);
-            }
-            insertAudit(
-                    connection,
-                    operationId,
-                    guildId,
-                    actorUuid,
-                    "WITHDRAW",
-                    tabId,
-                    slotIndex,
-                    expectedItem.fingerprint(),
-                    facilityId.trim());
-            return new WithdrawAuditOutcome(SlotMutationResult.SUCCESS, expectedItem);
-        });
-        return outcome.orElse(new WithdrawAuditOutcome(SlotMutationResult.FAILED, null));
+        if (simulateIndeterminateCommitForTests) {
+            simulateIndeterminateCommitForTests = false;
+            return new WithdrawAuditOutcome(SlotMutationResult.UNKNOWN, null);
+        }
+        DatabaseManager.TransactionExecutionResult<WithdrawAuditOutcome> outcome =
+                databaseManager.executeTransactionWithDetailedOutcome(connection -> {
+                    Optional<StorageSlot> occupied = selectSlot(connection, guildId, tabId, slotIndex);
+                    if (occupied.isEmpty()) {
+                        return new WithdrawAuditOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    StorageSlot slot = occupied.get();
+                    if (slot.version() != expectedVersion || !slot.item().equals(expectedItem)) {
+                        return new WithdrawAuditOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    if (!deleteSlot(connection, guildId, tabId, slotIndex, expectedVersion)) {
+                        return new WithdrawAuditOutcome(SlotMutationResult.CONFLICT, null);
+                    }
+                    insertAudit(
+                            connection,
+                            operationId,
+                            guildId,
+                            actorUuid,
+                            "WITHDRAW",
+                            tabId,
+                            slotIndex,
+                            expectedItem.fingerprint(),
+                            facilityId.trim());
+                    return new WithdrawAuditOutcome(SlotMutationResult.SUCCESS, expectedItem);
+                });
+        return switch (outcome.outcome()) {
+            case COMMITTED -> outcome.value();
+            case ROLLED_BACK -> new WithdrawAuditOutcome(SlotMutationResult.FAILED, null);
+            case INDETERMINATE -> new WithdrawAuditOutcome(SlotMutationResult.UNKNOWN, null);
+        };
+    }
+
+    public StorageOperationLookupResult lookupOperation(UUID operationId) {
+        Objects.requireNonNull(operationId, "operationId");
+        try (Connection connection = databaseManager.getConnection()) {
+            return selectOperation(connection, operationId.toString())
+                    .map(StorageOperationLookupResult::found)
+                    .orElseGet(StorageOperationLookupResult::notFound);
+        } catch (SQLException e) {
+            return StorageOperationLookupResult.readFailure(
+                    "Failed to load storage operation " + operationId + ": " + e.getMessage());
+        }
     }
 
     public Optional<StorageOperationRecord> findOperation(UUID operationId) {
-        Objects.requireNonNull(operationId, "operationId");
-        try (Connection connection = databaseManager.getConnection()) {
-            return selectOperation(connection, operationId.toString());
-        } catch (SQLException e) {
-            throw new IllegalStateException("Failed to load storage operation " + operationId, e);
-        }
+        StorageOperationLookupResult lookup = lookupOperation(operationId);
+        return switch (lookup.status()) {
+            case FOUND -> lookup.record();
+            case NOT_FOUND -> Optional.empty();
+            case READ_FAILURE -> throw new IllegalStateException(lookup.errorMessage());
+        };
     }
 
     public List<StorageOperationRecord> findPendingOperations() {
@@ -388,7 +422,7 @@ public class SqlGuildStorageStore {
      * Returns whether durable audit evidence exists for a storage mutation at the given slot.
      * Used to reconcile interrupted operation journal rows against committed slot/audit state.
      */
-    public boolean hasMatchingAudit(
+    public AuditEvidenceLookupResult lookupMatchingAudit(
             UUID operationId,
             String guildId,
             UUID actorUuid,
@@ -431,11 +465,41 @@ public class SqlGuildStorageStore {
             statement.setString(7, facilityId.trim());
             statement.setString(8, notBefore.toString());
             try (ResultSet result = statement.executeQuery()) {
-                return result.next();
+                return result.next() ? AuditEvidenceLookupResult.matching() : AuditEvidenceLookupResult.none();
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("Failed to query storage audit evidence for guild " + guildId, e);
+            return AuditEvidenceLookupResult.readFailure(
+                    "Failed to query storage audit evidence for guild " + guildId + ": " + e.getMessage());
         }
+    }
+
+    public boolean hasMatchingAudit(
+            UUID operationId,
+            String guildId,
+            UUID actorUuid,
+            String operation,
+            String tabId,
+            int slotIndex,
+            String facilityId,
+            Instant notBefore) {
+        Objects.requireNonNull(operationId, "operationId");
+        requireGuildId(guildId);
+        Objects.requireNonNull(actorUuid, "actorUuid");
+        if (operation == null || operation.isBlank()) {
+            throw new IllegalArgumentException("operation is required");
+        }
+        requireTabId(tabId);
+        if (facilityId == null || facilityId.isBlank()) {
+            throw new IllegalArgumentException("facilityId is required");
+        }
+        Objects.requireNonNull(notBefore, "notBefore");
+        AuditEvidenceLookupResult lookup = lookupMatchingAudit(
+                operationId, guildId, actorUuid, operation, tabId, slotIndex, facilityId, notBefore);
+        return switch (lookup.status()) {
+            case MATCHING -> true;
+            case NONE -> false;
+            case READ_FAILURE -> throw new IllegalStateException(lookup.errorMessage());
+        };
     }
 
     public boolean insertPendingOperation(
@@ -509,6 +573,7 @@ public class SqlGuildStorageStore {
              PreparedStatement statement = connection.prepareStatement("""
                      SELECT operation_id, guild_id, operation_type, actor_uuid, tab_id, slot_index,
                             facility_id, status, result_status, result_error,
+                            request_item_schema, request_item_fingerprint, request_item_payload,
                             result_item_schema, result_item_fingerprint, result_item_payload,
                             result_slot_version, result_slot_updated_at, created_at, updated_at
                      FROM guild_storage_operations
@@ -532,6 +597,7 @@ public class SqlGuildStorageStore {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT operation_id, guild_id, operation_type, actor_uuid, tab_id, slot_index,
                        facility_id, status, result_status, result_error,
+                       request_item_schema, request_item_fingerprint, request_item_payload,
                        result_item_schema, result_item_fingerprint, result_item_payload,
                        result_slot_version, result_slot_updated_at, created_at, updated_at
                 FROM guild_storage_operations
@@ -561,7 +627,8 @@ public class SqlGuildStorageStore {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO guild_storage_operations (
                     operation_id, guild_id, operation_type, actor_uuid, tab_id, slot_index,
-                    facility_id, status, result_item_schema, result_item_fingerprint, result_item_payload,
+                    facility_id, status,
+                    request_item_schema, request_item_fingerprint, request_item_payload,
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """)) {
@@ -597,9 +664,9 @@ public class SqlGuildStorageStore {
             StorageSlot resultSlot,
             OpaqueItemPayload resultItem,
             Instant updatedAt) throws SQLException {
-        OpaqueItemPayload itemForSnapshot = resultItem;
-        if (itemForSnapshot == null && resultSlot != null) {
-            itemForSnapshot = resultSlot.item();
+        OpaqueItemPayload resultPayload = resultItem;
+        if (resultPayload == null && resultSlot != null) {
+            resultPayload = resultSlot.item();
         }
         try (PreparedStatement statement = connection.prepareStatement("""
                 UPDATE guild_storage_operations
@@ -619,14 +686,14 @@ public class SqlGuildStorageStore {
             } else {
                 statement.setString(3, resultError);
             }
-            if (itemForSnapshot == null) {
+            if (resultPayload == null) {
                 statement.setNull(4, java.sql.Types.VARCHAR);
                 statement.setNull(5, java.sql.Types.VARCHAR);
                 statement.setNull(6, java.sql.Types.VARCHAR);
             } else {
-                statement.setString(4, itemForSnapshot.schema());
-                statement.setString(5, itemForSnapshot.fingerprint());
-                statement.setString(6, itemForSnapshot.payload());
+                statement.setString(4, resultPayload.schema());
+                statement.setString(5, resultPayload.fingerprint());
+                statement.setString(6, resultPayload.payload());
             }
             if (resultSlot == null) {
                 statement.setNull(7, java.sql.Types.BIGINT);
@@ -642,14 +709,10 @@ public class SqlGuildStorageStore {
     }
 
     private static StorageOperationRecord mapOperation(ResultSet result) throws SQLException {
-        OpaqueItemPayload resultItem = null;
-        String itemSchema = result.getString("result_item_schema");
-        if (itemSchema != null && !itemSchema.isBlank()) {
-            resultItem = new OpaqueItemPayload(
-                    itemSchema,
-                    result.getString("result_item_fingerprint"),
-                    result.getString("result_item_payload"));
-        }
+        OpaqueItemPayload requestSnapshot = readItemPayload(
+                result, "request_item_schema", "request_item_fingerprint", "request_item_payload");
+        OpaqueItemPayload resultItem = readItemPayload(
+                result, "result_item_schema", "result_item_fingerprint", "result_item_payload");
         StorageSlot resultSlot = null;
         long slotVersion = result.getLong("result_slot_version");
         if (!result.wasNull() && resultItem != null) {
@@ -669,6 +732,7 @@ public class SqlGuildStorageStore {
                 result.getString("tab_id"),
                 result.getInt("slot_index"),
                 result.getString("facility_id"),
+                requestSnapshot,
                 StorageOperationStatus.valueOf(result.getString("status")),
                 result.getString("result_status"),
                 result.getString("result_error"),
@@ -676,6 +740,16 @@ public class SqlGuildStorageStore {
                 resultSlot,
                 parseInstant(result.getString("created_at")),
                 parseInstant(result.getString("updated_at")));
+    }
+
+    private static OpaqueItemPayload readItemPayload(
+            ResultSet result, String schemaColumn, String fingerprintColumn, String payloadColumn)
+            throws SQLException {
+        String schema = result.getString(schemaColumn);
+        if (schema == null || schema.isBlank()) {
+            return null;
+        }
+        return new OpaqueItemPayload(schema, result.getString(fingerprintColumn), result.getString(payloadColumn));
     }
 
     private static Optional<StorageSlot> selectSlot(

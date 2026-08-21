@@ -5,6 +5,8 @@ import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.storage.persist.SqlGuildStorageStore;
+import org.aincraft.guilds.storage.persist.AuditEvidenceLookupResult;
+import org.aincraft.guilds.storage.persist.StorageOperationLookupResult;
 import org.aincraft.guilds.storage.persist.StorageOperationRecord;
 import org.aincraft.guilds.storage.persist.StorageOperationStatus;
 import org.aincraft.guilds.storage.service.impl.GuildStorageServiceImpl;
@@ -96,7 +98,7 @@ class GuildStorageServiceTest {
                         guildId, "MEMBER", "ASSISTANT", "MAYOR", Instant.parse("2026-08-21T12:00:00Z")));
         when(facilityAccess.validateMutationAccess(any(), eq(guildId), any()))
                 .thenReturn(StorageResult.success(null));
-        when(store.findOperation(any())).thenReturn(Optional.empty());
+        when(store.lookupOperation(any())).thenReturn(StorageOperationLookupResult.notFound());
         when(store.insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any())).thenReturn(true);
         when(store.findPendingOperations()).thenReturn(List.of());
     }
@@ -226,8 +228,7 @@ class GuildStorageServiceTest {
         Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.findOperation(operationId))
-                .thenReturn(Optional.of(new StorageOperationRecord(
+        when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
                         operationId,
                         guildId,
                         "DEPOSIT",
@@ -235,6 +236,7 @@ class GuildStorageServiceTest {
                         SqlGuildStorageStore.DEFAULT_TAB_ID,
                         1,
                         "facility-1",
+                        payload,
                         StorageOperationStatus.PENDING,
                         null,
                         null,
@@ -273,6 +275,7 @@ class GuildStorageServiceTest {
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 3,
                 "facility-1",
+                payload,
                 StorageOperationStatus.PENDING,
                 null,
                 null,
@@ -283,11 +286,11 @@ class GuildStorageServiceTest {
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
         AtomicInteger findCalls = new AtomicInteger();
-        when(store.findOperation(operationId)).thenAnswer(invocation -> {
+        when(store.lookupOperation(operationId)).thenAnswer(invocation -> {
             if (findCalls.incrementAndGet() == 1) {
-                return Optional.empty();
+                return StorageOperationLookupResult.notFound();
             }
-            return Optional.of(pending);
+            return StorageOperationLookupResult.found(pending);
         });
         when(store.insertPendingOperation(
                         operationId,
@@ -357,8 +360,8 @@ class GuildStorageServiceTest {
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 1, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.findOperation(operationId))
-                .thenReturn(Optional.of(new StorageOperationRecord(
+                Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
                         operationId,
                         guildId,
                         "DEPOSIT",
@@ -366,6 +369,7 @@ class GuildStorageServiceTest {
                         SqlGuildStorageStore.DEFAULT_TAB_ID,
                         1,
                         "facility-1",
+                        payload,
                         StorageOperationStatus.COMMITTED,
                         StorageResult.Status.SUCCESS.name(),
                         null,
@@ -511,7 +515,7 @@ class GuildStorageServiceTest {
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-journal-fail", "payload");
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.findOperation(operationId)).thenReturn(Optional.empty());
+        when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.notFound());
         when(store.insertPendingOperation(
                         operationId,
                         guildId,
@@ -571,6 +575,7 @@ class GuildStorageServiceTest {
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 4,
                 "facility-1",
+                null,
                 StorageOperationStatus.PENDING,
                 null,
                 null,
@@ -580,7 +585,7 @@ class GuildStorageServiceTest {
                 createdAt);
         when(store.findPendingOperations()).thenReturn(List.of(pending));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(4, slot));
-        when(store.hasMatchingAudit(
+        when(store.lookupMatchingAudit(
                         eq(operationId),
                         eq(guildId),
                         eq(memberId),
@@ -589,7 +594,7 @@ class GuildStorageServiceTest {
                         eq(4),
                         eq("facility-1"),
                         eq(createdAt)))
-                .thenReturn(true);
+                .thenReturn(AuditEvidenceLookupResult.matching());
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
                 store, guildService, residentService, facilityAccess);
@@ -616,6 +621,7 @@ class GuildStorageServiceTest {
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 4,
                 "facility-1",
+                null,
                 StorageOperationStatus.PENDING,
                 null,
                 null,
@@ -625,7 +631,7 @@ class GuildStorageServiceTest {
                 createdAt);
         when(store.findPendingOperations()).thenReturn(List.of(pending));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.hasMatchingAudit(
+        when(store.lookupMatchingAudit(
                         eq(operationId),
                         eq(guildId),
                         eq(memberId),
@@ -634,7 +640,7 @@ class GuildStorageServiceTest {
                         eq(4),
                         eq("facility-1"),
                         eq(createdAt)))
-                .thenReturn(false);
+                .thenReturn(AuditEvidenceLookupResult.none());
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
                 store, guildService, residentService, facilityAccess);
@@ -655,8 +661,8 @@ class GuildStorageServiceTest {
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-dup", "payload");
         StorageSlot saved = new StorageSlot(
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 1, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
-        when(store.findOperation(operationId))
-                .thenReturn(Optional.of(new StorageOperationRecord(
+                Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
                         operationId,
                         guildId,
                         "DEPOSIT",
@@ -664,6 +670,7 @@ class GuildStorageServiceTest {
                         SqlGuildStorageStore.DEFAULT_TAB_ID,
                         1,
                         "facility-1",
+                        payload,
                         StorageOperationStatus.COMMITTED,
                         StorageResult.Status.SUCCESS.name(),
                         null,
@@ -693,8 +700,8 @@ class GuildStorageServiceTest {
         OpaqueItemPayload stored = new OpaqueItemPayload("paper-bytes-v1", "fp-stored", "stored");
         StorageSlot saved = new StorageSlot(
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 1, stored, 1L, Instant.parse("2026-08-21T12:00:00Z"));
-        when(store.findOperation(operationId))
-                .thenReturn(Optional.of(new StorageOperationRecord(
+                Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
                         operationId,
                         guildId,
                         "DEPOSIT",
@@ -702,6 +709,7 @@ class GuildStorageServiceTest {
                         SqlGuildStorageStore.DEFAULT_TAB_ID,
                         1,
                         "facility-1",
+                        stored,
                         StorageOperationStatus.COMMITTED,
                         StorageResult.Status.SUCCESS.name(),
                         null,
@@ -745,16 +753,19 @@ class GuildStorageServiceTest {
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 8,
                 "facility-1",
+                pendingItem,
                 StorageOperationStatus.PENDING,
                 null,
                 null,
-                pendingItem,
+                null,
                 null,
                 createdAt,
                 createdAt);
         when(residentService.getResident(mayorId)).thenReturn(Optional.of(member("Mayor", mayorId)));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(8, occupied));
-        when(store.findOperation(operationId)).thenReturn(Optional.empty(), Optional.of(pending));
+        when(store.lookupOperation(operationId)).thenReturn(
+                StorageOperationLookupResult.notFound(),
+                StorageOperationLookupResult.found(pending));
         when(store.insertPendingOperation(
                         operationId,
                         guildId,
@@ -792,16 +803,17 @@ class GuildStorageServiceTest {
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 6,
                 "facility-1",
+                payload,
                 StorageOperationStatus.PENDING,
                 null,
                 null,
-                payload,
+                null,
                 null,
                 createdAt,
                 createdAt);
         when(store.findPendingOperations()).thenReturn(List.of(pending));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.hasMatchingAudit(
+        when(store.lookupMatchingAudit(
                         eq(operationId),
                         eq(guildId),
                         eq(mayorId),
@@ -810,7 +822,7 @@ class GuildStorageServiceTest {
                         eq(6),
                         eq("facility-1"),
                         eq(createdAt)))
-                .thenReturn(true);
+                .thenReturn(AuditEvidenceLookupResult.matching());
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
                 store, guildService, residentService, facilityAccess);
@@ -883,7 +895,10 @@ class GuildStorageServiceTest {
                         "facility-1",
                         payload))
                 .thenReturn(false);
-        when(store.findOperation(operationId)).thenThrow(new IllegalStateException("journal read failed"));
+        when(store.lookupOperation(operationId))
+                .thenReturn(
+                        StorageOperationLookupResult.notFound(),
+                        StorageOperationLookupResult.readFailure("journal read failed"));
 
         StorageResult<StorageSlot> result = storageService.deposit(
                 operationId,
@@ -907,8 +922,8 @@ class GuildStorageServiceTest {
         OpaqueItemPayload different = new OpaqueItemPayload("paper-bytes-v1", "fp-other", "other-bytes");
         StorageSlot saved = new StorageSlot(
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 22, stored, 1L, Instant.parse("2026-08-21T12:00:00Z"));
-        when(store.findOperation(operationId))
-                .thenReturn(Optional.of(new StorageOperationRecord(
+                Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
                         operationId,
                         guildId,
                         "DEPOSIT",
@@ -916,6 +931,7 @@ class GuildStorageServiceTest {
                         SqlGuildStorageStore.DEFAULT_TAB_ID,
                         22,
                         "facility-1",
+                        stored,
                         StorageOperationStatus.COMMITTED,
                         StorageResult.Status.SUCCESS.name(),
                         null,
@@ -942,8 +958,8 @@ class GuildStorageServiceTest {
     void unknownOperationReplayReturnsStorageErrorWithoutMutation() {
         UUID operationId = UUID.randomUUID();
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-unknown-replay", "payload");
-        when(store.findOperation(operationId))
-                .thenReturn(Optional.of(new StorageOperationRecord(
+                Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
                         operationId,
                         guildId,
                         "DEPOSIT",
@@ -951,6 +967,7 @@ class GuildStorageServiceTest {
                         SqlGuildStorageStore.DEFAULT_TAB_ID,
                         23,
                         "facility-1",
+                        payload,
                         StorageOperationStatus.UNKNOWN,
                         StorageResult.Status.STORAGE_ERROR.name(),
                         "Storage mutation interrupted; outcome unknown",
@@ -971,6 +988,109 @@ class GuildStorageServiceTest {
         assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
         assertEquals("Storage mutation interrupted; outcome unknown", result.errorMessage());
         verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
+    }
+
+
+    @Test
+    void initialJournalLookupFailureReturnsStorageErrorWithoutMutation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-initial-lookup", "payload");
+        when(store.lookupOperation(operationId))
+                .thenReturn(StorageOperationLookupResult.readFailure("journal read failed"));
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                24,
+                payload,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
+        assertEquals("Failed to load storage operation journal", result.errorMessage());
+        verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    void reconcilePendingDepositPreservesUnknownWhenAuditLookupFails() {
+        UUID operationId = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                5,
+                "facility-1",
+                null,
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.lookupMatchingAudit(
+                        eq(operationId),
+                        eq(guildId),
+                        eq(memberId),
+                        eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(5),
+                        eq("facility-1"),
+                        eq(createdAt)))
+                .thenReturn(AuditEvidenceLookupResult.readFailure("audit read failed"));
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.UNKNOWN),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("audit read failed"),
+                        isNull(),
+                        isNull());
+    }
+
+    @Test
+    void ambiguousDepositCommitPreservesUnknownWithoutCompensation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-ambiguous", "payload");
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(25), eq(payload), eq(memberId), eq("facility-1"), eq(operationId)))
+                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.UNKNOWN, null));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                25,
+                payload,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
+        assertEquals(
+                "Storage mutation outcome unknown; retry with same operationId", result.errorMessage());
+        verify(store, never()).finalizeOperation(
+                eq(operationId), eq(StorageOperationStatus.COMPENSATED), any(), any(), any(), any());
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.UNKNOWN),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Storage mutation outcome unknown; retry with same operationId"),
+                        isNull(),
+                        isNull());
     }
 
 
