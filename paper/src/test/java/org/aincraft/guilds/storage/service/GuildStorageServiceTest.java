@@ -756,6 +756,61 @@ class GuildStorageServiceTest {
     }
 
     @Test
+    void mismatchedWithdrawSnapshotReturnsConflictWithoutMutation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload pendingItem = new OpaqueItemPayload("paper-bytes-v1", "fp-pending", "pending");
+        OpaqueItemPayload slotItem = new OpaqueItemPayload("paper-bytes-v1", "fp-slot", "slot");
+        StorageSlot occupied = new StorageSlot(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                8,
+                slotItem,
+                1L,
+                Instant.parse("2026-08-21T12:00:00Z"));
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "WITHDRAW",
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                8,
+                "facility-1",
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                pendingItem,
+                null,
+                createdAt,
+                createdAt);
+        when(residentService.getResident(mayorId)).thenReturn(Optional.of(member("Mayor", mayorId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(8, occupied));
+        when(store.findOperation(operationId)).thenReturn(Optional.empty(), Optional.of(pending));
+        when(store.insertPendingOperation(
+                        operationId,
+                        guildId,
+                        "WITHDRAW",
+                        mayorId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        8,
+                        "facility-1",
+                        slotItem))
+                .thenReturn(false);
+
+        StorageResult<OpaqueItemPayload> result = storageService.withdraw(
+                operationId,
+                mayorId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                8,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.CONFLICT, result.status());
+        assertEquals("Storage operation identity mismatch", result.errorMessage());
+        verify(store, never()).withdrawWithAudit(any(), any(), anyInt(), any(), anyLong(), any(), any());
+    }
+
+    @Test
     void reconcilePendingWithdrawFinalizesCommittedWhenAuditAndPayloadSnapshotPresent() {
         UUID operationId = UUID.randomUUID();
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-withdraw", "payload");

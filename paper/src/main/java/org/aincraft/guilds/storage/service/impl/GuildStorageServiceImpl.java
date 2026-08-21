@@ -677,7 +677,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!operation.facilityId().equals(facilityId.trim())) {
             return false;
         }
-        if ("DEPOSIT".equals(operationType) && depositItem != null && operation.resultItem() != null) {
+        if (depositItem != null && operation.resultItem() != null) {
             return depositItem.fingerprint().equals(operation.resultItem().fingerprint());
         }
         return true;
