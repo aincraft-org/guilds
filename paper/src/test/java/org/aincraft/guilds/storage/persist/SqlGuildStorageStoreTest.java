@@ -877,4 +877,64 @@ class SqlGuildStorageStoreTest {
     }
 
 
+    @Test
+    void reinsertWithdrawPayoutRejectsUnrelatedOccupiedSlot() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload withdrawn = new OpaqueItemPayload("paper-bytes-v1", "fp-withdrawn", "withdrawn-bytes");
+        OpaqueItemPayload unrelated = new OpaqueItemPayload("paper-bytes-v1", "fp-unrelated", "unrelated-bytes");
+        UUID withdrawOperationId = UUID.randomUUID();
+        UUID reinsertOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 20, withdrawn, 0L));
+        store.withdrawWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                20,
+                withdrawn,
+                1L,
+                actor,
+                "facility-reinsert",
+                withdrawOperationId);
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 20, unrelated, 0L));
+
+        SqlGuildStorageStore.ReinsertWithdrawPayoutOutcome outcome = store.reinsertWithdrawPayoutWithAudit(
+                withdrawOperationId,
+                reinsertOperationId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                20,
+                withdrawn,
+                actor,
+                "facility-reinsert");
+
+        assertEquals(SqlGuildStorageStore.SlotMutationResult.CONFLICT, outcome.status());
+        assertEquals(unrelated, store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(20).item());
+        assertEquals(StoragePayoutObligationStatus.PENDING, store.findPayoutObligation(withdrawOperationId).orElseThrow().status());
+    }
+
+    @Test
+    void payoutDeliveryClaimPreventsDuplicateGiveUntilMarkerConfirmed() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-delivery", "payload-bytes");
+        UUID withdrawOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 21, payload, 0L));
+        store.withdrawWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                21,
+                payload,
+                1L,
+                actor,
+                "facility-delivery",
+                withdrawOperationId);
+
+        assertTrue(store.claimPayoutObligationForDelivery(withdrawOperationId));
+        assertFalse(store.claimPayoutObligationForDelivery(withdrawOperationId));
+        assertFalse(store.markPayoutObligationDelivered(withdrawOperationId));
+        assertTrue(store.markPayoutObligationDelivered(withdrawOperationId));
+        assertEquals(StoragePayoutObligationStatus.DELIVERED, store.findPayoutObligation(withdrawOperationId).orElseThrow().status());
+    }
+
+
 }

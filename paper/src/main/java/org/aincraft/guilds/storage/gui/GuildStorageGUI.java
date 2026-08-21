@@ -337,18 +337,32 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
 
         OpaqueItemPayload payload = result.value().orElseThrow();
         ItemStack decoded = codec.decode(payload);
+        GuildStorageServiceImpl payoutService = storageService instanceof GuildStorageServiceImpl impl ? impl : null;
+        if (payoutService != null) {
+            StorageResult<Void> claimed = payoutService.claimWithdrawPayoutDelivery(operationId);
+            if (!claimed.isSuccess()) {
+                if (activeSession(player, session)) {
+                    player.sendMessage(Component.text(claimed.errorMessage(), NamedTextColor.RED));
+                    refreshSession(player, session);
+                }
+                return;
+            }
+        }
         inventoryCoordinator.giveItem(
                 player.getUniqueId(),
                 decoded,
                 payoutSuccess -> mainThreadExecutor.run(() -> {
                     if (payoutSuccess) {
-                        if (storageService instanceof GuildStorageServiceImpl impl) {
-                            impl.markWithdrawPayoutDelivered(operationId);
+                        if (payoutService != null) {
+                            payoutService.markWithdrawPayoutDelivered(operationId);
                         }
                         if (activeSession(player, session)) {
                             refreshSession(player, session);
                         }
                         return;
+                    }
+                    if (payoutService != null) {
+                        payoutService.releaseWithdrawPayoutDelivery(operationId);
                     }
                     restoreWithdrawPayout(player, session, operationId, slotIndex, payload);
                 }));

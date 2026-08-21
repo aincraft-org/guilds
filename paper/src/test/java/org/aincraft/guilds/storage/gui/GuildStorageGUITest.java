@@ -48,6 +48,7 @@ import static org.mockito.Mockito.mockStatic;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -85,6 +86,9 @@ class GuildStorageGUITest {
                 new StorageTab(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, "General", 0, 54, true))));
         when(storageService.getSlots(playerId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID))
                 .thenReturn(StorageResult.success(Map.of()));
+
+        lenient().when(storageService.claimWithdrawPayoutDelivery(any(UUID.class)))
+                .thenReturn(StorageResult.success(null));
 
         gui = new GuildStorageGUI(plugin, storageService, inventoryCoordinator, Runnable::run);
     }
@@ -276,6 +280,7 @@ class GuildStorageGUITest {
                 eq(2),
                 eq(payload),
                 eq(facility.id()));
+        verify(storageService).releaseWithdrawPayoutDelivery(any(UUID.class));
     }
 
 

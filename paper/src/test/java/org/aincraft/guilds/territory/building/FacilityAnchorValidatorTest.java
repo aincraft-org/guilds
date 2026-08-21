@@ -116,6 +116,28 @@ class FacilityAnchorValidatorTest {
         assertEquals(java.util.Optional.of(first), validator.activeStorageNear("world", 5, 64, 5));
     }
 
+
+    @Test
+    void activeStorageNearPrefersActiveStorageOverInactiveNearerAnchor() {
+        SettlementFacility inactiveNear = new SettlementFacility(
+                "inactive", "Inactive", "t1", FacilityType.STORAGE, "world", 6, 64, 5);
+        SettlementFacility activeWithinRadius = new SettlementFacility(
+                "active", "Active", "t1", FacilityType.STORAGE, "world", 5, 64, 6);
+        facilities.register(inactiveNear);
+        facilities.register(activeWithinRadius);
+        BuildingConfig config = new BuildingConfig(60_000L,
+                Map.of(FacilityType.STORAGE, Set.of(Material.BARREL)), 100L, 60_000L);
+        validator = new FacilityAnchorValidator(server, territories, facilities, config);
+        Block inactiveBlock = mock(Block.class);
+        Block activeBlock = mock(Block.class);
+        when(world.getBlockAt(6, 64, 5)).thenReturn(inactiveBlock);
+        when(world.getBlockAt(5, 64, 6)).thenReturn(activeBlock);
+        when(inactiveBlock.getType()).thenReturn(Material.STONE);
+        when(activeBlock.getType()).thenReturn(Material.BARREL);
+
+        assertEquals(java.util.Optional.of(activeWithinRadius), validator.activeStorageNear("world", 5, 64, 5));
+    }
+
     @Test
     void activeStorageAtRejectsInactiveExactAnchor() {
         SettlementFacility storage = new SettlementFacility(

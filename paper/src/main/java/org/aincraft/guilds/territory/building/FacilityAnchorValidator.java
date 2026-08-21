@@ -60,14 +60,34 @@ public final class FacilityAnchorValidator {
     }
 
     public Optional<SettlementFacility> activeStorageNear(String worldId, int x, int y, int z) {
-        return facilities.resolveNearby(
-                        worldId,
-                        x,
-                        y,
-                        z,
-                        PHYSICAL_ACCESS_RADIUS,
-                        facility -> facility.type() == FacilityType.STORAGE)
-                .filter(facility -> validate(facility).active());
+        if (worldId == null) {
+            return Optional.empty();
+        }
+        String normalizedWorld = worldId.trim();
+        SettlementFacility nearest = null;
+        long nearestDistance = Long.MAX_VALUE;
+        for (SettlementFacility facility : facilities.list()) {
+            if (facility.type() != FacilityType.STORAGE || !facility.worldId().equals(normalizedWorld)) {
+                continue;
+            }
+            if (!validate(facility).active()) {
+                continue;
+            }
+            long dx = (long) facility.x() - x;
+            long dy = (long) facility.y() - y;
+            long dz = (long) facility.z() - z;
+            if (Math.max(Math.max(Math.abs(dx), Math.abs(dy)), Math.abs(dz)) > PHYSICAL_ACCESS_RADIUS) {
+                continue;
+            }
+            long distance = dx * dx + dy * dy + dz * dz;
+            if (distance < nearestDistance
+                    || (distance == nearestDistance
+                            && (nearest == null || facility.id().compareTo(nearest.id()) < 0))) {
+                nearest = facility;
+                nearestDistance = distance;
+            }
+        }
+        return Optional.ofNullable(nearest);
     }
 
     public record AnchorValidation(AnchorStatus status, SettlementFacility facility) {

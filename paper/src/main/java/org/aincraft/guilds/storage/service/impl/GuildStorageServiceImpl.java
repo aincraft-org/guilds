@@ -128,8 +128,8 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         this.mainThreadExecutor = Objects.requireNonNull(mainThreadExecutor, "mainThreadExecutor");
         this.sqlExecutor = Objects.requireNonNull(sqlExecutor, "sqlExecutor");
         this.inventoryCoordinator = inventoryCoordinator;
-        reconcilePendingOperations();
-        reconcilePayoutObligations();
+        sqlExecutor.execute(this::reconcilePendingOperations);
+        sqlExecutor.execute(this::reconcilePayoutObligations);
     }
 
     public static GuildStorageServiceImpl withDirectExecutorsForUnitTests(
@@ -320,6 +320,34 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                             StorageResult.Status.CONFLICT, "Withdraw payout is not pending delivery"));
         } catch (RuntimeException e) {
             return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
+        }
+    }
+
+    public StorageResult<Void> claimWithdrawPayoutDelivery(UUID withdrawOperationId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        try {
+            if (store.claimPayoutObligationForDelivery(withdrawOperationId)) {
+                return StorageResult.success(null);
+            }
+            return store.findPayoutObligation(withdrawOperationId)
+                    .map(obligation -> switch (obligation.status()) {
+                        case DELIVERING, DELIVERED -> StorageResult.<Void>success(null);
+                        default -> StorageResult.<Void>failure(
+                                StorageResult.Status.CONFLICT, "Withdraw payout is not pending delivery");
+                    })
+                    .orElseGet(() -> StorageResult.<Void>failure(
+                            StorageResult.Status.CONFLICT, "Withdraw payout obligation not found"));
+        } catch (RuntimeException e) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
+        }
+    }
+
+    public void releaseWithdrawPayoutDelivery(UUID withdrawOperationId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        try {
+            store.releasePayoutObligationDeliveryClaim(withdrawOperationId);
+        } catch (RuntimeException ignored) {
+            // Leave obligation in DELIVERING for marker-only reconciliation.
         }
     }
 
@@ -539,7 +567,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (inventoryCoordinator == null) {
             return;
         }
-        for (StoragePayoutObligationRecord obligation : store.findPendingPayoutObligations()) {
+        for (StoragePayoutObligationRecord obligation : store.findOutstandingPayoutObligations()) {
             reconcilePayoutObligation(obligation);
         }
     }
@@ -562,19 +590,33 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (inventoryCoordinator == null) {
             return false;
         }
+        if (obligation.status() == StoragePayoutObligationStatus.DELIVERING) {
+            return markWithdrawPayoutDelivered(obligation.withdrawOperationId()).isSuccess();
+        }
+        if (obligation.status() != StoragePayoutObligationStatus.PENDING) {
+            return obligation.status() == StoragePayoutObligationStatus.DELIVERED;
+        }
+        if (!store.claimPayoutObligationForDelivery(obligation.withdrawOperationId())) {
+            return store.findPayoutObligation(obligation.withdrawOperationId())
+                    .map(current -> current.status() == StoragePayoutObligationStatus.DELIVERING
+                            && markWithdrawPayoutDelivered(obligation.withdrawOperationId()).isSuccess())
+                    .orElse(false);
+        }
         CompletableFuture<Boolean> delivered = new CompletableFuture<>();
         ItemStack item = payoutCodec.decode(obligation.item());
         mainThreadExecutor.run(() -> inventoryCoordinator.giveItem(
                 obligation.actorUuid(), item, delivered::complete));
         try {
             if (Boolean.TRUE.equals(delivered.get(5, TimeUnit.SECONDS))) {
-                StorageResult<Void> marked = markWithdrawPayoutDelivered(obligation.withdrawOperationId());
-                return marked.isSuccess();
+                markWithdrawPayoutDelivered(obligation.withdrawOperationId());
+                return true;
             }
+            store.releasePayoutObligationDeliveryClaim(obligation.withdrawOperationId());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            store.releasePayoutObligationDeliveryClaim(obligation.withdrawOperationId());
         } catch (Exception ignored) {
-            // Fall back to authorized storage reinsertion.
+            store.releasePayoutObligationDeliveryClaim(obligation.withdrawOperationId());
         }
         return false;
     }
@@ -916,6 +958,9 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                             ? runtime.getMessage()
                             : e.getMessage());
             if (!finalizeOperationJournal(operationId, operationType, failure, compensationOnFailure)) {
+                if ("DEPOSIT".equals(operationType)) {
+                    runCompensation(compensationOnFailure);
+                }
                 preserveUnknownOutcome(operationId, UNKNOWN_OUTCOME_MESSAGE);
             }
             return failure;
@@ -953,6 +998,9 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             }
             return true;
         } catch (RuntimeException e) {
+            if (!result.isSuccess() && "DEPOSIT".equals(operationType)) {
+                runCompensation(compensationOnFailure);
+            }
             preserveUnknownOutcome(
                     operationId,
                     result.isSuccess()

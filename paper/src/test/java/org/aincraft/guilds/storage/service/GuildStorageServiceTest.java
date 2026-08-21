@@ -1765,6 +1765,39 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 eq("facility-1"));
     }
 
+
+    @Test
+    void depositJournalFinalizeFailureRunsCompensationOnce() {
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-finalize-fail", "payload");
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.depositWithAudit(eq(guildId), eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(7), eq(payload), eq(memberId), eq("facility-1"), any()))
+                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.CONFLICT, null));
+        AtomicInteger compensationRuns = new AtomicInteger();
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    if (invocation.getArgument(1) == StorageOperationStatus.COMPENSATED) {
+                        throw new IllegalStateException("simulated finalize failure");
+                    }
+                    return null;
+                })
+                .when(store)
+                .finalizeOperation(any(), any(), any(), any(), any(), any());
+
+        StorageResult<StorageSlot> result = storageService.depositWithCompensation(
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                7,
+                payload,
+                "facility-1",
+                UUID.randomUUID(),
+                compensationRuns::incrementAndGet);
+
+        assertEquals(StorageResult.Status.CONFLICT, result.status());
+        assertEquals(1, compensationRuns.get());
+    }
+
     private Resident member(String name, UUID uuid) {
         Resident resident = new Resident(uuid, name);
         resident.setGuild(guild.getName());

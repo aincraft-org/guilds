@@ -421,7 +421,14 @@ public class SqlGuildStorageStore {
         return findPayoutObligationsByStatus(StoragePayoutObligationStatus.PENDING);
     }
 
-    public boolean markPayoutObligationDelivered(UUID withdrawOperationId) {
+    public List<StoragePayoutObligationRecord> findOutstandingPayoutObligations() {
+        List<StoragePayoutObligationRecord> outstanding = new ArrayList<>();
+        outstanding.addAll(findPayoutObligationsByStatus(StoragePayoutObligationStatus.PENDING));
+        outstanding.addAll(findPayoutObligationsByStatus(StoragePayoutObligationStatus.DELIVERING));
+        return List.copyOf(outstanding);
+    }
+
+    public boolean claimPayoutObligationForDelivery(UUID withdrawOperationId) {
         Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
         Instant now = Instant.now();
         Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection ->
@@ -429,6 +436,34 @@ public class SqlGuildStorageStore {
                         connection,
                         withdrawOperationId.toString(),
                         StoragePayoutObligationStatus.PENDING,
+                        StoragePayoutObligationStatus.DELIVERING,
+                        null,
+                        now));
+        return updated.orElse(false);
+    }
+
+    public boolean releasePayoutObligationDeliveryClaim(UUID withdrawOperationId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        Instant now = Instant.now();
+        Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection ->
+                updatePayoutObligationStatus(
+                        connection,
+                        withdrawOperationId.toString(),
+                        StoragePayoutObligationStatus.DELIVERING,
+                        StoragePayoutObligationStatus.PENDING,
+                        null,
+                        now));
+        return updated.orElse(false);
+    }
+
+    public boolean markPayoutObligationDelivered(UUID withdrawOperationId) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        Instant now = Instant.now();
+        Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection ->
+                updatePayoutObligationStatus(
+                        connection,
+                        withdrawOperationId.toString(),
+                        StoragePayoutObligationStatus.DELIVERING,
                         StoragePayoutObligationStatus.DELIVERED,
                         null,
                         now));
@@ -471,7 +506,20 @@ public class SqlGuildStorageStore {
                     if (current.status() == StoragePayoutObligationStatus.DELIVERED) {
                         return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
                     }
+                    if (current.status() == StoragePayoutObligationStatus.DELIVERING) {
+                        return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                    }
                     if (current.status() == StoragePayoutObligationStatus.REINSERTED) {
+                        if (current.reinsertOperationId() == null) {
+                            return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                        }
+                        Optional<StorageOperationRecord> reinsertOperation =
+                                selectOperation(connection, current.reinsertOperationId().toString());
+                        if (reinsertOperation.isEmpty()
+                                || !"PAYOUT_REINSERT".equals(reinsertOperation.get().operationType())
+                                || reinsertOperation.get().status() != StorageOperationStatus.COMMITTED) {
+                            return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
+                        }
                         Optional<StorageSlot> existing = selectSlot(connection, guildId, tabId, slotIndex);
                         if (existing.isPresent() && existing.get().item().equals(item)) {
                             return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.SUCCESS, existing.get());
@@ -488,17 +536,6 @@ public class SqlGuildStorageStore {
                     }
                     Long currentVersion = selectSlotVersion(connection, guildId, tabId, slotIndex);
                     if (currentVersion != null) {
-                        Optional<StorageSlot> occupied = selectSlot(connection, guildId, tabId, slotIndex);
-                        if (occupied.isPresent() && occupied.get().item().equals(item)) {
-                            updatePayoutObligationStatus(
-                                    connection,
-                                    withdrawOperationId.toString(),
-                                    StoragePayoutObligationStatus.PENDING,
-                                    StoragePayoutObligationStatus.REINSERTED,
-                                    reinsertOperationId.toString(),
-                                    Instant.now());
-                            return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.SUCCESS, occupied.get());
-                        }
                         return new ReinsertWithdrawPayoutOutcome(SlotMutationResult.CONFLICT, null);
                     }
                     Instant now = Instant.now();
