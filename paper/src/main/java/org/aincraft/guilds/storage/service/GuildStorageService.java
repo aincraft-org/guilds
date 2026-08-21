@@ -26,8 +26,20 @@ public interface GuildStorageService {
             OpaqueItemPayload item,
             String facilityId);
 
+    StorageResult<StorageSlot> deposit(
+            UUID operationId,
+            UUID actor,
+            String guildId,
+            String tabId,
+            int slotIndex,
+            OpaqueItemPayload item,
+            String facilityId);
+
     StorageResult<OpaqueItemPayload> withdraw(
             UUID actor, String guildId, String tabId, int slotIndex, String facilityId);
+
+    StorageResult<OpaqueItemPayload> withdraw(
+            UUID operationId, UUID actor, String guildId, String tabId, int slotIndex, String facilityId);
 
     StorageResult<StoragePolicy> getPolicy(UUID actor, String guildId);
 

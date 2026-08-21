@@ -5,8 +5,11 @@ import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.storage.persist.SqlGuildStorageStore;
+import org.aincraft.guilds.storage.persist.StorageOperationRecord;
+import org.aincraft.guilds.storage.persist.StorageOperationStatus;
 import org.aincraft.guilds.storage.service.GuildStorageService;
 import org.aincraft.guilds.storage.service.MainThreadExecutor;
+import org.aincraft.guilds.storage.service.StorageFacilityAccessValidator;
 import org.aincraft.guilds.storage.service.StorageResult;
 import org.aincraft.guilds.territory.storage.GuildStorageBank;
 import org.aincraft.guilds.territory.storage.OpaqueItemPayload;
@@ -21,10 +24,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
-
 
 public class GuildStorageServiceImpl implements GuildStorageService {
     private enum GuildStorageRole {
@@ -64,29 +65,50 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
+    private static final class DirectExecutor implements MainThreadExecutor, Executor {
+        private static final DirectExecutor INSTANCE = new DirectExecutor();
+
+        @Override
+        public void run(Runnable task) {
+            task.run();
+        }
+
+        @Override
+        public void execute(Runnable command) {
+            command.run();
+        }
+    }
+
     private final SqlGuildStorageStore store;
     private final GuildService guildService;
     private final ResidentService residentService;
+    private final StorageFacilityAccessValidator facilityAccess;
     private final MainThreadExecutor mainThreadExecutor;
     private final Executor sqlExecutor;
-    private final ConcurrentHashMap<UUID, StorageResult<?>> completedMutations = new ConcurrentHashMap<>();
-
-    public GuildStorageServiceImpl(
-            SqlGuildStorageStore store, GuildService guildService, ResidentService residentService) {
-        this(store, guildService, residentService, Runnable::run, ForkJoinPool.commonPool());
-    }
 
     public GuildStorageServiceImpl(
             SqlGuildStorageStore store,
             GuildService guildService,
             ResidentService residentService,
+            StorageFacilityAccessValidator facilityAccess,
             MainThreadExecutor mainThreadExecutor,
             Executor sqlExecutor) {
         this.store = Objects.requireNonNull(store, "store");
         this.guildService = Objects.requireNonNull(guildService, "guildService");
         this.residentService = Objects.requireNonNull(residentService, "residentService");
+        this.facilityAccess = Objects.requireNonNull(facilityAccess, "facilityAccess");
         this.mainThreadExecutor = Objects.requireNonNull(mainThreadExecutor, "mainThreadExecutor");
         this.sqlExecutor = Objects.requireNonNull(sqlExecutor, "sqlExecutor");
+        reconcilePendingOperations();
+    }
+
+    public static GuildStorageServiceImpl withDirectExecutorsForUnitTests(
+            SqlGuildStorageStore store,
+            GuildService guildService,
+            ResidentService residentService,
+            StorageFacilityAccessValidator facilityAccess) {
+        return new GuildStorageServiceImpl(
+                store, guildService, residentService, facilityAccess, DirectExecutor.INSTANCE, DirectExecutor.INSTANCE);
     }
 
     @Override
@@ -141,8 +163,20 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             int slotIndex,
             OpaqueItemPayload item,
             String facilityId) {
+        return deposit(UUID.randomUUID(), actor, guildId, tabId, slotIndex, item, facilityId);
+    }
+
+    @Override
+    public StorageResult<StorageSlot> deposit(
+            UUID operationId,
+            UUID actor,
+            String guildId,
+            String tabId,
+            int slotIndex,
+            OpaqueItemPayload item,
+            String facilityId) {
         return depositWithCompensation(
-                actor, guildId, tabId, slotIndex, item, facilityId, UUID.randomUUID(), null);
+                actor, guildId, tabId, slotIndex, item, facilityId, operationId, null);
     }
 
     public StorageResult<StorageSlot> depositWithCompensation(
@@ -159,17 +193,30 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!prepared.isSuccess()) {
             return mapFailure(prepared);
         }
+        PreparedDeposit deposit = prepared.value().orElseThrow();
         return executeMutation(
                 operationId,
+                "DEPOSIT",
+                deposit.actor(),
+                deposit.guildId(),
+                deposit.tabId(),
+                deposit.slotIndex(),
+                deposit.facilityId(),
                 compensationOnFailure,
-                () -> persistDeposit(prepared.value().orElseThrow(), operationId));
+                () -> persistDeposit(deposit));
     }
 
     @Override
     public StorageResult<OpaqueItemPayload> withdraw(
             UUID actor, String guildId, String tabId, int slotIndex, String facilityId) {
+        return withdraw(UUID.randomUUID(), actor, guildId, tabId, slotIndex, facilityId);
+    }
+
+    @Override
+    public StorageResult<OpaqueItemPayload> withdraw(
+            UUID operationId, UUID actor, String guildId, String tabId, int slotIndex, String facilityId) {
         return withdrawWithCompensation(
-                actor, guildId, tabId, slotIndex, facilityId, UUID.randomUUID(), null);
+                actor, guildId, tabId, slotIndex, facilityId, operationId, null);
     }
 
     public StorageResult<OpaqueItemPayload> withdrawWithCompensation(
@@ -185,10 +232,17 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!prepared.isSuccess()) {
             return mapFailure(prepared);
         }
+        PreparedWithdraw withdraw = prepared.value().orElseThrow();
         return executeMutation(
                 operationId,
+                "WITHDRAW",
+                withdraw.actor(),
+                withdraw.guildId(),
+                withdraw.tabId(),
+                withdraw.slotIndex(),
+                withdraw.facilityId(),
                 compensationOnFailure,
-                () -> persistWithdraw(prepared.value().orElseThrow(), operationId));
+                () -> persistWithdraw(withdraw));
     }
 
     @Override
@@ -199,7 +253,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
         try {
             store.getOrCreateBank(requireGuildId(guildId));
-            return StorageResult.success(store.loadPolicy(guildId));
+            return loadPolicySafely(guildId);
         } catch (RuntimeException e) {
             return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
         }
@@ -212,9 +266,13 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!access.isSuccess()) {
             return mapFailure(access);
         }
+        StorageResult<StoragePolicy> policy = loadPolicySafely(guildId);
+        if (!policy.isSuccess()) {
+            return mapFailure(policy);
+        }
         StorageResult<Void> permission = requireRole(
                 access.value().orElseThrow(),
-                GuildStorageRole.parse(store.loadPolicy(guildId).manageRole()));
+                GuildStorageRole.parse(policy.value().orElseThrow().manageRole()));
         if (!permission.isSuccess()) {
             return mapFailure(permission);
         }
@@ -236,6 +294,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
+    private void reconcilePendingOperations() {
+        store.findPendingOperations();
+    }
+
     private StorageResult<PreparedDeposit> prepareDeposit(
             UUID actor,
             String guildId,
@@ -254,10 +316,19 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!access.isSuccess()) {
             return mapFailure(access);
         }
+        StorageResult<StoragePolicy> policy = loadPolicySafely(guildId);
+        if (!policy.isSuccess()) {
+            return mapFailure(policy);
+        }
         StorageResult<Void> permission = requireRole(
-                access.value().orElseThrow(), GuildStorageRole.parse(store.loadPolicy(guildId).depositRole()));
+                access.value().orElseThrow(),
+                GuildStorageRole.parse(policy.value().orElseThrow().depositRole()));
         if (!permission.isSuccess()) {
             return mapFailure(permission);
+        }
+        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
+        if (!facility.isSuccess()) {
+            return mapFailure(facility);
         }
         StorageResult<StorageTab> tab = resolveTab(guildId, tabId);
         if (!tab.isSuccess()) {
@@ -266,9 +337,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         StorageResult<Void> bounds = validateSlotIndex(tab.value().orElseThrow(), slotIndex);
         if (!bounds.isSuccess()) {
             return mapFailure(bounds);
-        }
-        if (facilityId == null || facilityId.isBlank()) {
-            return StorageResult.failure(StorageResult.Status.INVALID_ARGUMENT, "facilityId is required");
         }
         try {
             store.getOrCreateBank(requireGuildId(guildId));
@@ -282,20 +350,19 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
-    private StorageResult<StorageSlot> persistDeposit(PreparedDeposit prepared, UUID operationId) {
-        if (!store.saveSlot(prepared.guildId(), prepared.tabId(), prepared.slotIndex(), prepared.item(), 0L)) {
-            return StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during deposit");
-        }
-        store.recordAudit(
+    private StorageResult<StorageSlot> persistDeposit(PreparedDeposit prepared) {
+        SqlGuildStorageStore.DepositAuditOutcome outcome = store.depositWithAudit(
                 prepared.guildId(),
-                prepared.actor(),
-                "DEPOSIT",
                 prepared.tabId(),
                 prepared.slotIndex(),
-                prepared.item().fingerprint(),
-                prepared.facilityId() + ":" + operationId);
-        StorageSlot slot = store.loadSlots(prepared.guildId(), prepared.tabId()).get(prepared.slotIndex());
-        return StorageResult.success(slot);
+                prepared.item(),
+                prepared.actor(),
+                prepared.facilityId());
+        return switch (outcome.status()) {
+            case SUCCESS -> StorageResult.success(outcome.slot());
+            case CONFLICT -> StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during deposit");
+            case FAILED -> StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Failed to persist deposit");
+        };
     }
 
     private StorageResult<PreparedWithdraw> prepareWithdraw(
@@ -312,10 +379,19 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!access.isSuccess()) {
             return mapFailure(access);
         }
+        StorageResult<StoragePolicy> policy = loadPolicySafely(guildId);
+        if (!policy.isSuccess()) {
+            return mapFailure(policy);
+        }
         StorageResult<Void> permission = requireRole(
-                access.value().orElseThrow(), GuildStorageRole.parse(store.loadPolicy(guildId).withdrawRole()));
+                access.value().orElseThrow(),
+                GuildStorageRole.parse(policy.value().orElseThrow().withdrawRole()));
         if (!permission.isSuccess()) {
             return mapFailure(permission);
+        }
+        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
+        if (!facility.isSuccess()) {
+            return mapFailure(facility);
         }
         StorageResult<StorageTab> tab = resolveTab(guildId, tabId);
         if (!tab.isSuccess()) {
@@ -324,9 +400,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         StorageResult<Void> bounds = validateSlotIndex(tab.value().orElseThrow(), slotIndex);
         if (!bounds.isSuccess()) {
             return mapFailure(bounds);
-        }
-        if (facilityId == null || facilityId.isBlank()) {
-            return StorageResult.failure(StorageResult.Status.INVALID_ARGUMENT, "facilityId is required");
         }
         try {
             store.getOrCreateBank(requireGuildId(guildId));
@@ -341,58 +414,138 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
     }
 
-    private StorageResult<OpaqueItemPayload> persistWithdraw(PreparedWithdraw prepared, UUID operationId) {
+    private StorageResult<OpaqueItemPayload> persistWithdraw(PreparedWithdraw prepared) {
         StorageSlot occupied = prepared.occupied();
-        if (!store.saveSlot(
+        SqlGuildStorageStore.WithdrawAuditOutcome outcome = store.withdrawWithAudit(
                 prepared.guildId(),
                 prepared.tabId(),
                 prepared.slotIndex(),
-                null,
-                occupied.version())) {
-            return StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during withdraw");
-        }
-        store.recordAudit(
-                prepared.guildId(),
+                occupied.item(),
+                occupied.version(),
                 prepared.actor(),
-                "WITHDRAW",
-                prepared.tabId(),
-                prepared.slotIndex(),
-                occupied.item().fingerprint(),
-                prepared.facilityId() + ":" + operationId);
-        return StorageResult.success(occupied.item());
+                prepared.facilityId());
+        return switch (outcome.status()) {
+            case SUCCESS -> StorageResult.success(outcome.item());
+            case CONFLICT -> StorageResult.failure(StorageResult.Status.CONFLICT, "Slot changed during withdraw");
+            case FAILED -> StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Failed to persist withdraw");
+        };
     }
 
     private <T> StorageResult<T> executeMutation(
-            UUID operationId, Runnable compensationOnFailure, java.util.function.Supplier<StorageResult<T>> mutation) {
-        StorageResult<?> existing = completedMutations.get(operationId);
-        if (existing != null) {
-            return castCached(existing);
+            UUID operationId,
+            String operationType,
+            UUID actor,
+            String guildId,
+            String tabId,
+            int slotIndex,
+            String facilityId,
+            Runnable compensationOnFailure,
+            java.util.function.Supplier<StorageResult<T>> mutation) {
+        Optional<StorageOperationRecord> existing = store.findOperation(operationId);
+        if (existing.isPresent()) {
+            StorageResult<T> replayed = replayOperation(existing.get());
+            if (replayed != null) {
+                return replayed;
+            }
+        } else if (!store.insertPendingOperation(
+                operationId, guildId, operationType, actor, tabId, slotIndex, facilityId)) {
+            existing = store.findOperation(operationId);
+            if (existing.isPresent()) {
+                StorageResult<T> replayed = replayOperation(existing.get());
+                if (replayed != null) {
+                    return replayed;
+                }
+            }
         }
         try {
             StorageResult<T> result = CompletableFuture.supplyAsync(mutation, sqlExecutor).get();
-            if (!result.isSuccess()) {
-                runCompensation(compensationOnFailure);
-            } else {
-                completedMutations.putIfAbsent(operationId, result);
-            }
+            finalizeOperationJournal(operationId, result, compensationOnFailure);
             return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            runCompensation(compensationOnFailure);
-            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Deposit interrupted");
+            StorageResult<T> failure =
+                    StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "Storage mutation interrupted");
+            finalizeOperationJournal(operationId, failure, compensationOnFailure);
+            return failure;
         } catch (Exception e) {
-            runCompensation(compensationOnFailure);
-            return StorageResult.failure(
+            StorageResult<T> failure = StorageResult.failure(
                     StorageResult.Status.STORAGE_ERROR,
                     e.getCause() instanceof RuntimeException runtime
                             ? runtime.getMessage()
                             : e.getMessage());
+            finalizeOperationJournal(operationId, failure, compensationOnFailure);
+            return failure;
         }
+    }
+
+    private <T> void finalizeOperationJournal(
+            UUID operationId, StorageResult<T> result, Runnable compensationOnFailure) {
+        if (result.isSuccess()) {
+            store.finalizeOperation(
+                    operationId,
+                    StorageOperationStatus.COMMITTED,
+                    result.status().name(),
+                    null,
+                    resultSlot(result),
+                    resultItem(result));
+        } else {
+            runCompensation(compensationOnFailure);
+            store.finalizeOperation(
+                    operationId,
+                    StorageOperationStatus.COMPENSATED,
+                    result.status().name(),
+                    result.errorMessage(),
+                    null,
+                    null);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> StorageSlot resultSlot(StorageResult<T> result) {
+        Object value = result.value().orElse(null);
+        if (value instanceof StorageSlot slot) {
+            return slot;
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> OpaqueItemPayload resultItem(StorageResult<T> result) {
+        Object value = result.value().orElse(null);
+        if (value instanceof OpaqueItemPayload payload) {
+            return payload;
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> StorageResult<T> replayOperation(StorageOperationRecord operation) {
+        if (operation.status() == StorageOperationStatus.PENDING) {
+            return null;
+        }
+        StorageResult.Status status = StorageResult.Status.valueOf(operation.resultStatus());
+        if (operation.status() == StorageOperationStatus.COMMITTED && status == StorageResult.Status.SUCCESS) {
+            if ("DEPOSIT".equals(operation.operationType()) && operation.resultSlot() != null) {
+                return (StorageResult<T>) StorageResult.success(operation.resultSlot());
+            }
+            if ("WITHDRAW".equals(operation.operationType()) && operation.resultItem() != null) {
+                return (StorageResult<T>) StorageResult.success(operation.resultItem());
+            }
+        }
+        return StorageResult.failure(status, operation.resultError());
     }
 
     private void runCompensation(Runnable compensationOnFailure) {
         if (compensationOnFailure != null) {
             mainThreadExecutor.run(compensationOnFailure);
+        }
+    }
+
+    private StorageResult<StoragePolicy> loadPolicySafely(String guildId) {
+        try {
+            return StorageResult.success(store.loadPolicy(guildId));
+        } catch (RuntimeException e) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
         }
     }
 
@@ -457,11 +610,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             throw new IllegalArgumentException("guildId is required");
         }
         return guildId.trim();
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T> StorageResult<T> castCached(StorageResult<?> cached) {
-        return (StorageResult<T>) cached;
     }
 
     private static <T> StorageResult<T> mapFailure(StorageResult<?> source) {

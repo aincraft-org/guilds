@@ -24,6 +24,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
+import org.aincraft.guilds.storage.persist.StorageOperationStatus;
+import java.time.Instant;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,6 +45,7 @@ class SqlGuildStorageStoreTest {
     void setUp() {
         services = GuildsServiceTestFixture.create(tempDir);
         ensureStorageSchema(services.databaseManager());
+        ensureOperationSchema(services.databaseManager());
         store = new SqlGuildStorageStore(services.databaseManager(), Logger.getLogger("storage-test"));
         UUID mayor = UUID.randomUUID();
         services.residentService().createResident(mayor, "Mayor-" + mayor.toString().substring(0, 8));
@@ -65,6 +68,17 @@ class SqlGuildStorageStoreTest {
             }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to ensure guild storage schema", e);
+        }
+    }
+
+
+    private static void ensureOperationSchema(DatabaseManager databaseManager) {
+        try (Connection connection = databaseManager.getConnection()) {
+            if (!SqlSupport.columnExists(connection, "guild_storage_operations", "operation_id")) {
+                SqlScripts.apply(connection, "migrations/guilds/V25__guild-storage-operations.sql");
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to ensure guild storage operation schema", e);
         }
     }
 
@@ -312,6 +326,88 @@ class SqlGuildStorageStoreTest {
         } catch (Throwable throwable) {
             failure.set(throwable);
         }
+    }
+
+
+    @Test
+    void depositWithAuditRollsBackSlotWhenAuditInsertFails() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-audit", "payload-bytes");
+        UUID actor = UUID.randomUUID();
+        store.simulateAuditFailureForTests = true;
+
+        SqlGuildStorageStore.DepositAuditOutcome outcome = store.depositWithAudit(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 11, payload, actor, "facility-1");
+
+        assertEquals(SqlGuildStorageStore.SlotMutationResult.FAILED, outcome.status());
+        assertTrue(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).isEmpty());
+    }
+
+    @Test
+    void depositWithAuditPersistsSlotAndAuditAtomically() throws Exception {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-atomic", "payload-bytes");
+        UUID actor = UUID.randomUUID();
+
+        SqlGuildStorageStore.DepositAuditOutcome outcome = store.depositWithAudit(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 12, payload, actor, "facility-atomic");
+
+        assertEquals(SqlGuildStorageStore.SlotMutationResult.SUCCESS, outcome.status());
+        assertEquals(payload, store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(12).item());
+
+        try (Connection connection = services.databaseManager().getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     SELECT operation, facility_id
+                     FROM guild_storage_audit
+                     WHERE guild_id = ? AND tab_id = ? AND slot_index = ?
+                     """)) {
+            statement.setString(1, guildId);
+            statement.setString(2, SqlGuildStorageStore.DEFAULT_TAB_ID);
+            statement.setInt(3, 12);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                assertEquals("DEPOSIT", result.getString("operation"));
+                assertEquals("facility-atomic", result.getString("facility_id"));
+            }
+        }
+    }
+
+    @Test
+    void operationJournalPersistsAndReplaysCommittedResult() {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-journal", "payload-bytes");
+        StorageSlot slot = new StorageSlot(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                13,
+                payload,
+                1L,
+                Instant.parse("2026-08-21T12:00:00Z"));
+
+        assertTrue(store.insertPendingOperation(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                actor,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                13,
+                "facility-journal"));
+        store.finalizeOperation(
+                operationId,
+                org.aincraft.guilds.storage.persist.StorageOperationStatus.COMMITTED,
+                "SUCCESS",
+                null,
+                slot,
+                payload);
+
+        org.aincraft.guilds.storage.persist.StorageOperationRecord loaded =
+                store.findOperation(operationId).orElseThrow();
+        assertEquals(org.aincraft.guilds.storage.persist.StorageOperationStatus.COMMITTED, loaded.status());
+        assertEquals("SUCCESS", loaded.resultStatus());
+        assertEquals(payload, loaded.resultItem());
+        assertEquals(slot.version(), loaded.resultSlot().version());
     }
 
     private static void awaitLatch(CountDownLatch latch) {

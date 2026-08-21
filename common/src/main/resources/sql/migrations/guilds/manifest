@@ -23,3 +23,4 @@
 22 projects Add active guild project slot and default project skill points
 23 projects-tech-points Backfill tech_points column on legacy installs skipped by v4
 24 guild-storage Add guild storage item bank tables
+25 guild-storage-operations Add durable guild storage mutation operation journal

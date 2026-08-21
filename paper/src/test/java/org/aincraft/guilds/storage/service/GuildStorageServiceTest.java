@@ -5,6 +5,8 @@ import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.storage.persist.SqlGuildStorageStore;
+import org.aincraft.guilds.storage.persist.StorageOperationRecord;
+import org.aincraft.guilds.storage.persist.StorageOperationStatus;
 import org.aincraft.guilds.storage.service.impl.GuildStorageServiceImpl;
 import org.aincraft.guilds.territory.storage.GuildStorageBank;
 import org.aincraft.guilds.territory.storage.OpaqueItemPayload;
@@ -13,12 +15,12 @@ import org.aincraft.guilds.territory.storage.StorageSlot;
 import org.aincraft.guilds.territory.storage.StorageTab;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.time.Instant;
 import java.util.List;
@@ -52,6 +54,9 @@ class GuildStorageServiceTest {
     @Mock
     private ResidentService residentService;
 
+    @Mock
+    private StorageFacilityAccessValidator facilityAccess;
+
     private GuildStorageServiceImpl storageService;
     private String guildId;
     private UUID mayorId;
@@ -60,8 +65,8 @@ class GuildStorageServiceTest {
 
     @BeforeEach
     void setUp() {
-        storageService = new GuildStorageServiceImpl(
-                store, guildService, residentService, Runnable::run, Runnable::run);
+        storageService = GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
         guildId = "guild-1";
         mayorId = UUID.randomUUID();
         memberId = UUID.randomUUID();
@@ -83,6 +88,10 @@ class GuildStorageServiceTest {
         when(store.loadPolicy(guildId))
                 .thenReturn(new StoragePolicy(
                         guildId, "MEMBER", "ASSISTANT", "MAYOR", Instant.parse("2026-08-21T12:00:00Z")));
+        when(facilityAccess.validateMutationAccess(any(), eq(guildId), any()))
+                .thenReturn(StorageResult.success(null));
+        when(store.findOperation(any())).thenReturn(Optional.empty());
+        when(store.insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any())).thenReturn(true);
     }
 
     @Test
@@ -93,11 +102,16 @@ class GuildStorageServiceTest {
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
 
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member));
-        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID))
-                .thenReturn(Map.of())
-                .thenReturn(Map.of(4, saved))
-                .thenReturn(Map.of(4, saved));
-        when(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, payload, 0L)).thenReturn(true);
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.depositWithAudit(
+                        guildId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        4,
+                        payload,
+                        memberId,
+                        "facility-1"))
+                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.SUCCESS, saved));
 
         StorageResult<StorageSlot> result = storageService.deposit(
                 memberId,
@@ -109,16 +123,9 @@ class GuildStorageServiceTest {
 
         assertTrue(result.isSuccess(), () -> result.status() + ": " + result.errorMessage());
         assertEquals(payload, result.value().orElseThrow().item());
-        ArgumentCaptor<UUID> actorCaptor = ArgumentCaptor.forClass(UUID.class);
-        verify(store).recordAudit(
-                eq(guildId),
-                actorCaptor.capture(),
-                eq("DEPOSIT"),
-                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
-                eq(4),
-                eq("fp-deposit"),
-                org.mockito.ArgumentMatchers.startsWith("facility-1:"));
-        assertEquals(memberId, actorCaptor.getValue());
+        verify(store).depositWithAudit(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, payload, memberId, "facility-1");
+        verify(store, never()).saveSlot(any(), any(), anyInt(), any(), anyLong());
     }
 
     @Test
@@ -135,7 +142,26 @@ class GuildStorageServiceTest {
                 "facility-1");
 
         assertEquals(StorageResult.Status.UNAUTHORIZED, result.status());
-        verify(store, never()).saveSlot(any(), any(), anyInt(), any(), anyLong());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void depositDeniedWhenFacilityAccessFails() {
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(facilityAccess.validateMutationAccess(memberId, guildId, "foreign-facility"))
+                .thenReturn(StorageResult.failure(
+                        StorageResult.Status.PERMISSION_DENIED, "Storage facility is not governed by guild"));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                "foreign-facility");
+
+        assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -150,7 +176,7 @@ class GuildStorageServiceTest {
                 memberId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, "facility-1");
 
         assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
-        verify(store, never()).saveSlot(any(), any(), anyInt(), isNull(), anyLong());
+        verify(store, never()).withdrawWithAudit(any(), any(), anyInt(), any(), anyLong(), any(), any());
     }
 
     @Test
@@ -189,18 +215,83 @@ class GuildStorageServiceTest {
     }
 
     @Test
+    void duplicateOperationReturnsStoredResultWithoutSecondMutation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-dup", "payload");
+        StorageSlot saved = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 1, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.findOperation(operationId))
+                .thenReturn(Optional.of(new StorageOperationRecord(
+                        operationId,
+                        guildId,
+                        "DEPOSIT",
+                        memberId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        1,
+                        "facility-1",
+                        StorageOperationStatus.COMMITTED,
+                        StorageResult.Status.SUCCESS.name(),
+                        null,
+                        payload,
+                        saved,
+                        Instant.parse("2026-08-21T12:00:00Z"),
+                        Instant.parse("2026-08-21T12:00:00Z"))));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                1,
+                payload,
+                "facility-1");
+
+        assertTrue(result.isSuccess());
+        assertEquals(saved, result.value().orElseThrow());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void policyLoadFailureReturnsStorageError() {
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadPolicy(guildId)).thenThrow(new IllegalStateException("policy table missing"));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                3,
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                "facility-1");
+
+        assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
     void depositRunsCompensationOnMainThreadWhenSqlPersistFails() {
         Resident member = member("Member", memberId);
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-comp", "payload");
         when(residentService.getResident(memberId)).thenReturn(Optional.of(member));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 5, payload, 0L)).thenReturn(false);
+        when(store.depositWithAudit(
+                        guildId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        5,
+                        payload,
+                        memberId,
+                        "facility-1"))
+                .thenReturn(new SqlGuildStorageStore.DepositAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.CONFLICT, null));
         AtomicBoolean compensated = new AtomicBoolean();
         AtomicReference<Thread> compensationThread = new AtomicReference<>();
         GuildStorageServiceImpl service = new GuildStorageServiceImpl(
                 store,
                 guildService,
                 residentService,
+                facilityAccess,
                 task -> {
                     compensationThread.set(Thread.currentThread());
                     task.run();
@@ -231,14 +322,22 @@ class GuildStorageServiceTest {
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 9, payload, 3L, Instant.parse("2026-08-21T12:00:00Z"));
         when(residentService.getResident(mayorId)).thenReturn(Optional.of(member("Mayor", mayorId)));
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(9, occupied));
-        doReturn(false)
-                .when(store)
-                .saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 9, null, 3L);
+        when(store.withdrawWithAudit(
+                        guildId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        9,
+                        payload,
+                        3L,
+                        mayorId,
+                        "facility-1"))
+                .thenReturn(new SqlGuildStorageStore.WithdrawAuditOutcome(
+                        SqlGuildStorageStore.SlotMutationResult.CONFLICT, null));
         AtomicBoolean compensated = new AtomicBoolean();
         GuildStorageServiceImpl service = new GuildStorageServiceImpl(
                 store,
                 guildService,
                 residentService,
+                facilityAccess,
                 task -> {
                     task.run();
                     compensated.set(true);
