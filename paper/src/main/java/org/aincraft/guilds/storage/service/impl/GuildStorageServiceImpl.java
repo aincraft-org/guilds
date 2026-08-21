@@ -157,17 +157,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
 
     @Override
     public StorageResult<StorageSlot> deposit(
-            UUID actor,
-            String guildId,
-            String tabId,
-            int slotIndex,
-            OpaqueItemPayload item,
-            String facilityId) {
-        return deposit(UUID.randomUUID(), actor, guildId, tabId, slotIndex, item, facilityId);
-    }
-
-    @Override
-    public StorageResult<StorageSlot> deposit(
             UUID operationId,
             UUID actor,
             String guildId,
@@ -204,12 +193,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 deposit.facilityId(),
                 compensationOnFailure,
                 () -> persistDeposit(deposit));
-    }
-
-    @Override
-    public StorageResult<OpaqueItemPayload> withdraw(
-            UUID actor, String guildId, String tabId, int slotIndex, String facilityId) {
-        return withdraw(UUID.randomUUID(), actor, guildId, tabId, slotIndex, facilityId);
     }
 
     @Override
@@ -316,6 +299,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!access.isSuccess()) {
             return mapFailure(access);
         }
+        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
+        if (!facility.isSuccess()) {
+            return mapFailure(facility);
+        }
         StorageResult<StoragePolicy> policy = loadPolicySafely(guildId);
         if (!policy.isSuccess()) {
             return mapFailure(policy);
@@ -325,10 +312,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 GuildStorageRole.parse(policy.value().orElseThrow().depositRole()));
         if (!permission.isSuccess()) {
             return mapFailure(permission);
-        }
-        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
-        if (!facility.isSuccess()) {
-            return mapFailure(facility);
         }
         StorageResult<StorageTab> tab = resolveTab(guildId, tabId);
         if (!tab.isSuccess()) {
@@ -379,6 +362,10 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (!access.isSuccess()) {
             return mapFailure(access);
         }
+        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
+        if (!facility.isSuccess()) {
+            return mapFailure(facility);
+        }
         StorageResult<StoragePolicy> policy = loadPolicySafely(guildId);
         if (!policy.isSuccess()) {
             return mapFailure(policy);
@@ -388,10 +375,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 GuildStorageRole.parse(policy.value().orElseThrow().withdrawRole()));
         if (!permission.isSuccess()) {
             return mapFailure(permission);
-        }
-        StorageResult<Void> facility = facilityAccess.validateMutationAccess(actor, guildId, facilityId);
-        if (!facility.isSuccess()) {
-            return mapFailure(facility);
         }
         StorageResult<StorageTab> tab = resolveTab(guildId, tabId);
         if (!tab.isSuccess()) {
@@ -456,6 +439,8 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                     return replayed;
                 }
             }
+            return StorageResult.failure(
+                    StorageResult.Status.STORAGE_ERROR, "Failed to record pending storage operation");
         }
         try {
             StorageResult<T> result = CompletableFuture.supplyAsync(mutation, sqlExecutor).get();

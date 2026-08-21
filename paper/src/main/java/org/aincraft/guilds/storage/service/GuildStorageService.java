@@ -19,14 +19,6 @@ public interface GuildStorageService {
     StorageResult<Map<Integer, StorageSlot>> getSlots(UUID actor, String guildId, String tabId);
 
     StorageResult<StorageSlot> deposit(
-            UUID actor,
-            String guildId,
-            String tabId,
-            int slotIndex,
-            OpaqueItemPayload item,
-            String facilityId);
-
-    StorageResult<StorageSlot> deposit(
             UUID operationId,
             UUID actor,
             String guildId,
@@ -34,9 +26,6 @@ public interface GuildStorageService {
             int slotIndex,
             OpaqueItemPayload item,
             String facilityId);
-
-    StorageResult<OpaqueItemPayload> withdraw(
-            UUID actor, String guildId, String tabId, int slotIndex, String facilityId);
 
     StorageResult<OpaqueItemPayload> withdraw(
             UUID operationId, UUID actor, String guildId, String tabId, int slotIndex, String facilityId);

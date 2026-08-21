@@ -114,6 +114,7 @@ class GuildStorageServiceTest {
                         SqlGuildStorageStore.SlotMutationResult.SUCCESS, saved));
 
         StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
                 memberId,
                 guildId,
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
@@ -134,6 +135,7 @@ class GuildStorageServiceTest {
         when(residentService.getResident(outsider)).thenReturn(Optional.of(member("Outsider", outsider)));
 
         StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
                 outsider,
                 guildId,
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
@@ -153,6 +155,7 @@ class GuildStorageServiceTest {
                         StorageResult.Status.PERMISSION_DENIED, "Storage facility is not governed by guild"));
 
         StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
                 memberId,
                 guildId,
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
@@ -173,7 +176,7 @@ class GuildStorageServiceTest {
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(2, occupied));
 
         StorageResult<OpaqueItemPayload> result = storageService.withdraw(
-                memberId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, "facility-1");
+                UUID.randomUUID(), memberId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, "facility-1");
 
         assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
         verify(store, never()).withdrawWithAudit(any(), any(), anyInt(), any(), anyLong(), any(), any());
@@ -193,6 +196,7 @@ class GuildStorageServiceTest {
                         Instant.parse("2026-08-21T12:00:00Z"))));
 
         StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
                 memberId,
                 guildId,
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
@@ -209,7 +213,7 @@ class GuildStorageServiceTest {
         when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
 
         StorageResult<OpaqueItemPayload> result = storageService.withdraw(
-                mayorId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 8, "facility-1");
+                UUID.randomUUID(), mayorId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 8, "facility-1");
 
         assertEquals(StorageResult.Status.SLOT_EMPTY, result.status());
     }
@@ -259,6 +263,7 @@ class GuildStorageServiceTest {
         when(store.loadPolicy(guildId)).thenThrow(new IllegalStateException("policy table missing"));
 
         StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
                 memberId,
                 guildId,
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
@@ -357,6 +362,80 @@ class GuildStorageServiceTest {
         assertEquals(StorageResult.Status.CONFLICT, result.status());
         assertTrue(compensated.get());
     }
+
+    @Test
+    void invalidPhysicalAccessFailsBeforeStorageSqlWhenDatabaseUnavailable() {
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(facilityAccess.validateMutationAccess(memberId, guildId, "foreign-facility"))
+                .thenReturn(StorageResult.failure(
+                        StorageResult.Status.PERMISSION_DENIED, "Actor is not at storage facility"));
+        when(store.loadPolicy(guildId)).thenThrow(new IllegalStateException("policy table missing"));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                "foreign-facility");
+
+        assertEquals(StorageResult.Status.PERMISSION_DENIED, result.status());
+        verify(store, never()).loadPolicy(guildId);
+        verify(store, never()).loadTabs(any());
+        verify(store, never()).loadSlots(any(), any());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void journalInsertFailureReturnsStorageErrorWithoutSlotMutation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-journal-fail", "payload");
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.findOperation(operationId)).thenReturn(Optional.empty());
+        when(store.insertPendingOperation(
+                        operationId,
+                        guildId,
+                        "DEPOSIT",
+                        memberId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        4,
+                        "facility-1"))
+                .thenReturn(false);
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                4,
+                payload,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.STORAGE_ERROR, result.status());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void depositDeniedWhenFacilityAccessFailsDoesNotTouchPolicy() {
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(facilityAccess.validateMutationAccess(memberId, guildId, "foreign-facility"))
+                .thenReturn(StorageResult.failure(
+                        StorageResult.Status.PERMISSION_DENIED, "Storage facility is not governed by guild"));
+
+        storageService.deposit(
+                UUID.randomUUID(),
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                "foreign-facility");
+
+        verify(store, never()).loadPolicy(guildId);
+    }
+
 
     private Resident member(String name, UUID uuid) {
         Resident resident = new Resident(uuid, name);

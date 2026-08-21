@@ -94,6 +94,7 @@ public final class GuildsPlugin extends JavaPlugin {
     private org.aincraft.guilds.territory.building.BuildingCommand buildingCommand;
     private org.aincraft.guilds.territory.building.FacilityMutationService facilityMutations;
     private org.aincraft.guilds.territory.building.WaystoneTravelService waystoneTravelService;
+    private org.aincraft.guilds.territory.building.FacilityAnchorValidator facilityAnchorValidator;
     private PostgresTerritoryStore store;
     private Database database;
     private GovernanceRegistry governance;
@@ -723,6 +724,8 @@ public final class GuildsPlugin extends JavaPlugin {
                     guilds.getGuildService(), guilds.getPermissionService());
             var anchors = new org.aincraft.guilds.territory.building.FacilityAnchorValidator(
                     getServer(), registry, facilities, config);
+            this.facilityAnchorValidator = anchors;
+            guilds.wireStorage(facilities, governance, anchors);
             var sessions = new org.aincraft.guilds.territory.building.BuildingPlacementSessions(
                     config.placementTimeoutMillis());
             var selections = new org.aincraft.guilds.territory.building.WaystoneSelections(

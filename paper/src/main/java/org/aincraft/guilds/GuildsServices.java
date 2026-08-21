@@ -74,6 +74,19 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.territory.economy.GuildBankCapacity;
 import org.aincraft.guilds.territory.economy.MintEconomyRail;
+import org.aincraft.guilds.storage.persist.SqlGuildStorageStore;
+import org.aincraft.guilds.storage.service.BukkitMainThreadExecutor;
+import org.aincraft.guilds.storage.service.BukkitPlayerInventoryCoordinator;
+import org.aincraft.guilds.storage.service.BukkitPlayerLocationSource;
+import org.aincraft.guilds.storage.service.GuildStorageService;
+import org.aincraft.guilds.storage.service.MainThreadExecutor;
+import org.aincraft.guilds.storage.service.PlayerInventoryCoordinator;
+import org.aincraft.guilds.storage.service.RegistryStorageFacilityAccessValidator;
+import org.aincraft.guilds.storage.service.StorageFacilityAccessValidator;
+import org.aincraft.guilds.storage.service.impl.GuildStorageServiceImpl;
+import org.aincraft.guilds.territory.building.FacilityAnchorValidator;
+import org.aincraft.guilds.territory.permission.GovernanceRegistry;
+import org.aincraft.guilds.territory.registry.FacilityRegistry;
 
 import java.io.File;
 import java.io.IOException;
@@ -82,6 +95,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.ForkJoinPool;
 
 /**
  * Manual composition root and lifecycle owner for the Guilds subsystem, hosted
@@ -155,6 +169,13 @@ public class GuildsServices {
     private final GuildBroadcastListener guildBroadcastListener;
     private final GuildChatListener guildChatListener;
     private final AllianceListener allianceListener;
+
+    // Guild item storage (deferred until territory registries are available)
+    private GuildStorageService guildStorageService;
+    private SqlGuildStorageStore guildStorageStore;
+    private MainThreadExecutor storageMainThreadExecutor;
+    private PlayerInventoryCoordinator playerInventoryCoordinator;
+    private StorageFacilityAccessValidator storageFacilityAccessValidator;
 
     // Hearthstone (deferred until BlockProtection is available)
     private org.aincraft.guilds.services.GuildHearthstoneService hearthstoneService;
@@ -546,6 +567,57 @@ public class GuildsServices {
      * territory chunks that have no plot rows (late-bound from the host
      * plugin, which owns the territory registry).
      */
+
+    /**
+     * Wire guild item storage with trusted territory registries and Bukkit schedulers.
+     * Must not use {@link StorageFacilityAccessValidator#permitAll()} in production.
+     */
+    public void wireStorage(
+            FacilityRegistry facilities,
+            GovernanceRegistry governance,
+            FacilityAnchorValidator anchors) {
+        if (facilities == null || governance == null || anchors == null) {
+            throw new IllegalArgumentException("Storage wiring requires territory registries");
+        }
+        StorageFacilityAccessValidator accessValidator = new RegistryStorageFacilityAccessValidator(
+                new BukkitPlayerLocationSource(), facilities, anchors, governance);
+        MainThreadExecutor mainThreadExecutor = new BukkitMainThreadExecutor(plugin);
+        SqlGuildStorageStore store = new SqlGuildStorageStore(
+                databaseManager, Logger.getLogger(SqlGuildStorageStore.class.getName()));
+        GuildStorageServiceImpl service = new GuildStorageServiceImpl(
+                store,
+                guildService,
+                residentService,
+                accessValidator,
+                mainThreadExecutor,
+                ForkJoinPool.commonPool());
+        this.storageFacilityAccessValidator = accessValidator;
+        this.storageMainThreadExecutor = mainThreadExecutor;
+        this.guildStorageStore = store;
+        this.guildStorageService = service;
+        this.playerInventoryCoordinator = new BukkitPlayerInventoryCoordinator(mainThreadExecutor);
+    }
+
+    public GuildStorageService getGuildStorageService() {
+        return guildStorageService;
+    }
+
+    public SqlGuildStorageStore getGuildStorageStore() {
+        return guildStorageStore;
+    }
+
+    public MainThreadExecutor getStorageMainThreadExecutor() {
+        return storageMainThreadExecutor;
+    }
+
+    public PlayerInventoryCoordinator getPlayerInventoryCoordinator() {
+        return playerInventoryCoordinator;
+    }
+
+    public StorageFacilityAccessValidator getStorageFacilityAccessValidator() {
+        return storageFacilityAccessValidator;
+    }
+
     public void wireTerritoryRegistry(org.aincraft.guilds.territory.registry.TerritoryRegistry registry) {
         if (permissionService instanceof PermissionServiceImpl impl) {
             impl.setTerritoryRegistry(registry);
