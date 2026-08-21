@@ -377,6 +377,56 @@ public class SqlGuildStorageStore {
         return findOperationsByStatus(StorageOperationStatus.PENDING);
     }
 
+    /**
+     * Returns whether durable audit evidence exists for a storage mutation at the given slot.
+     * Used to reconcile interrupted operation journal rows against committed slot/audit state.
+     */
+    public boolean hasMatchingAudit(
+            String guildId,
+            UUID actorUuid,
+            String operation,
+            String tabId,
+            int slotIndex,
+            String facilityId,
+            Instant notBefore) {
+        requireGuildId(guildId);
+        Objects.requireNonNull(actorUuid, "actorUuid");
+        if (operation == null || operation.isBlank()) {
+            throw new IllegalArgumentException("operation is required");
+        }
+        requireTabId(tabId);
+        if (facilityId == null || facilityId.isBlank()) {
+            throw new IllegalArgumentException("facilityId is required");
+        }
+        Objects.requireNonNull(notBefore, "notBefore");
+        try (Connection connection = databaseManager.getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     SELECT 1
+                     FROM guild_storage_audit
+                     WHERE guild_id = ?
+                       AND actor_uuid = ?
+                       AND operation = ?
+                       AND tab_id = ?
+                       AND slot_index = ?
+                       AND facility_id = ?
+                       AND recorded_at >= ?
+                     LIMIT 1
+                     """)) {
+            statement.setString(1, guildId.trim());
+            statement.setString(2, actorUuid.toString());
+            statement.setString(3, operation.trim());
+            statement.setString(4, tabId.trim());
+            statement.setInt(5, slotIndex);
+            statement.setString(6, facilityId.trim());
+            statement.setString(7, notBefore.toString());
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to query storage audit evidence for guild " + guildId, e);
+        }
+    }
+
     public boolean insertPendingOperation(
             UUID operationId,
             String guildId,

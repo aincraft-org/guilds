@@ -278,7 +278,100 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     }
 
     private void reconcilePendingOperations() {
-        store.findPendingOperations();
+        for (StorageOperationRecord pending : store.findPendingOperations()) {
+            reconcilePendingOperation(pending);
+        }
+    }
+
+    private void reconcilePendingOperation(StorageOperationRecord pending) {
+        try {
+            switch (pending.operationType()) {
+                case "DEPOSIT" -> reconcilePendingDeposit(pending);
+                case "WITHDRAW" -> reconcilePendingWithdraw(pending);
+                default -> finalizeReconciliationFailure(
+                        pending, "Unknown pending storage operation type: " + pending.operationType());
+            }
+        } catch (RuntimeException e) {
+            finalizeReconciliationFailure(
+                    pending, "Failed to reconcile pending storage operation: " + e.getMessage());
+        }
+    }
+
+    private void reconcilePendingDeposit(StorageOperationRecord pending) {
+        StorageSlot slot = store.loadSlots(pending.guildId(), pending.tabId()).get(pending.slotIndex());
+        boolean auditEvidence = store.hasMatchingAudit(
+                pending.guildId(),
+                pending.actorUuid(),
+                "DEPOSIT",
+                pending.tabId(),
+                pending.slotIndex(),
+                pending.facilityId(),
+                pending.createdAt());
+        if (slot != null && auditEvidence) {
+            store.finalizeOperation(
+                    pending.operationId(),
+                    StorageOperationStatus.COMMITTED,
+                    StorageResult.Status.SUCCESS.name(),
+                    null,
+                    slot,
+                    slot.item());
+            return;
+        }
+        if (slot != null) {
+            finalizeReconciliationFailure(
+                    pending,
+                    "Pending deposit left slot occupied without matching audit evidence; operator reconciliation required");
+            return;
+        }
+        if (auditEvidence) {
+            finalizeReconciliationFailure(
+                    pending,
+                    "Pending deposit audit recorded without slot contents; operator reconciliation required");
+            return;
+        }
+        finalizeReconciliationFailure(
+                pending, "Pending deposit interrupted before durable slot and audit mutation");
+    }
+
+    private void reconcilePendingWithdraw(StorageOperationRecord pending) {
+        StorageSlot slot = store.loadSlots(pending.guildId(), pending.tabId()).get(pending.slotIndex());
+        boolean auditEvidence = store.hasMatchingAudit(
+                pending.guildId(),
+                pending.actorUuid(),
+                "WITHDRAW",
+                pending.tabId(),
+                pending.slotIndex(),
+                pending.facilityId(),
+                pending.createdAt());
+        if (slot == null && auditEvidence) {
+            finalizeReconciliationFailure(
+                    pending,
+                    "Withdraw slot and audit were durably applied but item payload is unavailable for idempotent replay; operator reconciliation required");
+            return;
+        }
+        if (slot == null) {
+            finalizeReconciliationFailure(
+                    pending, "Pending withdraw slot empty without matching audit evidence");
+            return;
+        }
+        if (auditEvidence) {
+            finalizeReconciliationFailure(
+                    pending,
+                    "Pending withdraw audit recorded while slot still occupied; operator reconciliation required");
+            return;
+        }
+        finalizeReconciliationFailure(
+                pending, "Pending withdraw interrupted before durable slot and audit mutation");
+    }
+
+    private void finalizeReconciliationFailure(StorageOperationRecord pending, String errorMessage) {
+        store.finalizeOperation(
+                pending.operationId(),
+                StorageOperationStatus.COMPENSATED,
+                StorageResult.Status.STORAGE_ERROR.name(),
+                errorMessage,
+                null,
+                null);
     }
 
     private StorageResult<PreparedDeposit> prepareDeposit(

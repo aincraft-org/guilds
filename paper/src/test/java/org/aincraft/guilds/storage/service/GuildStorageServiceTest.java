@@ -92,6 +92,7 @@ class GuildStorageServiceTest {
                 .thenReturn(StorageResult.success(null));
         when(store.findOperation(any())).thenReturn(Optional.empty());
         when(store.insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any())).thenReturn(true);
+        when(store.findPendingOperations()).thenReturn(List.of());
     }
 
     @Test
@@ -434,6 +435,98 @@ class GuildStorageServiceTest {
                 "foreign-facility");
 
         verify(store, never()).loadPolicy(guildId);
+    }
+
+
+    @Test
+    void reconcilePendingDepositFinalizesCommittedWhenSlotAndAuditEvidenceMatch() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-reconcile", "payload");
+        StorageSlot slot = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                4,
+                "facility-1",
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(4, slot));
+        when(store.hasMatchingAudit(
+                        guildId,
+                        memberId,
+                        "DEPOSIT",
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        4,
+                        "facility-1",
+                        createdAt))
+                .thenReturn(true);
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.COMMITTED),
+                        eq(StorageResult.Status.SUCCESS.name()),
+                        isNull(),
+                        eq(slot),
+                        eq(payload));
+    }
+
+    @Test
+    void reconcilePendingDepositMarksCompensatedWhenEvidenceMissing() {
+        UUID operationId = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                4,
+                "facility-1",
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.hasMatchingAudit(
+                        guildId,
+                        memberId,
+                        "DEPOSIT",
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        4,
+                        "facility-1",
+                        createdAt))
+                .thenReturn(false);
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.COMPENSATED),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Pending deposit interrupted before durable slot and audit mutation"),
+                        isNull(),
+                        isNull());
     }
 
 
