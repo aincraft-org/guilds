@@ -20,7 +20,7 @@ public final class SqlSupport {
             "content", "description", "tax_rates", "prerequisites", "effects",
             "resource_costs_json", "upgrade_progress", "permissions_enum",
             "explicit_denials", "unlocked_plot_types", "metadata", "permissions",
-            "benefit_value", "schematic_data");
+            "benefit_value", "schematic_data", "item_payload");
     private static final Pattern MYSQL_TEXT_COLUMN = Pattern.compile("(?i)\\b([a-z0-9_]+)\\s+TEXT\\b");
 
     private SqlSupport() {

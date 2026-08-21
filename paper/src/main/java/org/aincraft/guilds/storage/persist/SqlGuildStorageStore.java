@@ -60,7 +60,7 @@ public class SqlGuildStorageStore {
         if (existing.isPresent()) {
             return existing.get();
         }
-        return databaseManager.executeTransactionWithResult(connection -> {
+        Optional<GuildStorageBank> created = databaseManager.executeTransactionWithResult(connection -> {
             Optional<GuildStorageBank> bank = selectBank(connection, guildId);
             if (bank.isPresent()) {
                 return bank.get();
@@ -71,7 +71,11 @@ public class SqlGuildStorageStore {
             insertTab(connection, guildId, DEFAULT_TAB_ID, "General", 0, DEFAULT_TAB_CAPACITY, true);
             insertPolicy(connection, guildId, DEFAULT_DEPOSIT_ROLE, DEFAULT_WITHDRAW_ROLE, DEFAULT_MANAGE_ROLE, nowText);
             return new GuildStorageBank(guildId, CURRENT_SCHEMA_VERSION, now, now);
-        }).orElseThrow(() -> new IllegalStateException("Failed to create guild storage bank for " + guildId));
+        });
+        if (created.isPresent()) {
+            return created.get();
+        }
+        return getBank(guildId).orElseThrow(() -> new IllegalStateException("Failed to create guild storage bank for " + guildId));
     }
 
     public List<StorageTab> loadTabs(String guildId) {
@@ -159,10 +163,17 @@ public class SqlGuildStorageStore {
                 return false;
             }
             if (item == null) {
-                deleteSlot(connection, guildId, tabId, slotIndex);
-                return true;
+                return deleteSlot(connection, guildId, tabId, slotIndex, expectedVersion);
             }
-            return updateSlot(connection, guildId, tabId, slotIndex, item, expectedVersion + 1L, Instant.now());
+            return updateSlot(
+                    connection,
+                    guildId,
+                    tabId,
+                    slotIndex,
+                    item,
+                    expectedVersion,
+                    expectedVersion + 1L,
+                    Instant.now());
         }).orElse(false);
     }
 
@@ -431,35 +442,39 @@ public class SqlGuildStorageStore {
             String tabId,
             int slotIndex,
             OpaqueItemPayload item,
-            long version,
+            long expectedVersion,
+            long newVersion,
             Instant updatedAt) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 UPDATE guild_storage_slots
                 SET item_schema = ?, item_fingerprint = ?, item_payload = ?, version = ?, updated_at = ?
-                WHERE guild_id = ? AND tab_id = ? AND slot_index = ?
+                WHERE guild_id = ? AND tab_id = ? AND slot_index = ? AND version = ?
                 """)) {
             statement.setString(1, item.schema());
             statement.setString(2, item.fingerprint());
             statement.setString(3, item.payload());
-            statement.setLong(4, version);
+            statement.setLong(4, newVersion);
             statement.setString(5, updatedAt.toString());
             statement.setString(6, guildId);
             statement.setString(7, tabId);
             statement.setInt(8, slotIndex);
+            statement.setLong(9, expectedVersion);
             return statement.executeUpdate() == 1;
         }
     }
 
-    private static void deleteSlot(Connection connection, String guildId, String tabId, int slotIndex)
+    private static boolean deleteSlot(
+            Connection connection, String guildId, String tabId, int slotIndex, long expectedVersion)
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 DELETE FROM guild_storage_slots
-                WHERE guild_id = ? AND tab_id = ? AND slot_index = ?
+                WHERE guild_id = ? AND tab_id = ? AND slot_index = ? AND version = ?
                 """)) {
             statement.setString(1, guildId);
             statement.setString(2, tabId);
             statement.setInt(3, slotIndex);
-            statement.executeUpdate();
+            statement.setLong(4, expectedVersion);
+            return statement.executeUpdate() == 1;
         }
     }
 

@@ -20,11 +20,15 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SqlGuildStorageStoreTest {
@@ -204,5 +208,118 @@ class SqlGuildStorageStoreTest {
         assertEquals(first.createdAt(), second.createdAt());
         assertEquals(1, store.loadTabs(guildId).size());
         assertTrue(store.getBank(guildId).isPresent());
+    }
+
+    @Test
+    void saveSlotDetectsOptimisticLockConflict() throws Exception {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload initial = new OpaqueItemPayload("paper-bytes-v1", "fp-initial", "initial-bytes");
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, initial, 0L));
+
+        OpaqueItemPayload firstUpdate = new OpaqueItemPayload("paper-bytes-v1", "fp-one", "first-bytes");
+        OpaqueItemPayload secondUpdate = new OpaqueItemPayload("paper-bytes-v1", "fp-two", "second-bytes");
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicBoolean firstResult = new AtomicBoolean();
+        AtomicBoolean secondResult = new AtomicBoolean();
+
+        Thread first = new Thread(() -> {
+            ready.countDown();
+            awaitLatch(start);
+            firstResult.set(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, firstUpdate, 1L));
+        });
+        Thread second = new Thread(() -> {
+            ready.countDown();
+            awaitLatch(start);
+            secondResult.set(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, secondUpdate, 1L));
+        });
+        first.start();
+        second.start();
+        ready.await();
+        start.countDown();
+        first.join();
+        second.join();
+
+        assertTrue(firstResult.get() ^ secondResult.get());
+        StorageSlot slot = store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(2);
+        assertEquals(2L, slot.version());
+        assertTrue(firstUpdate.equals(slot.item()) || secondUpdate.equals(slot.item()));
+    }
+
+    @Test
+    void saveSlotAtomicDeleteRejectsStaleVersion() throws Exception {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-abc", "payload-bytes");
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, payload, 0L));
+
+        try (Connection connection = services.databaseManager().getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     UPDATE guild_storage_slots
+                     SET version = ?
+                     WHERE guild_id = ? AND tab_id = ? AND slot_index = ?
+                     """)) {
+            statement.setLong(1, 99L);
+            statement.setString(2, guildId);
+            statement.setString(3, SqlGuildStorageStore.DEFAULT_TAB_ID);
+            statement.setInt(4, 4);
+            assertEquals(1, statement.executeUpdate());
+        }
+
+        assertFalse(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, null, 1L));
+
+        StorageSlot slot = store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID).get(4);
+        assertEquals(99L, slot.version());
+        assertEquals(payload, slot.item());
+    }
+
+    @Test
+    void getOrCreateBankRetriesAfterConcurrentCreateRace() throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicReference<GuildStorageBank> first = new AtomicReference<>();
+        AtomicReference<GuildStorageBank> second = new AtomicReference<>();
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+
+        Thread creatorOne = new Thread(() -> runConcurrentBankCreate(ready, start, first, failure));
+        Thread creatorTwo = new Thread(() -> runConcurrentBankCreate(ready, start, second, failure));
+        creatorOne.start();
+        creatorTwo.start();
+        ready.await();
+        start.countDown();
+        creatorOne.join();
+        creatorTwo.join();
+
+        if (failure.get() != null) {
+            throw new AssertionError("Concurrent bank create failed", failure.get());
+        }
+        assertNotNull(first.get());
+        assertNotNull(second.get());
+        assertEquals(first.get().guildId(), second.get().guildId());
+        assertEquals(first.get().schemaVersion(), second.get().schemaVersion());
+        assertTrue(store.getBank(guildId).isPresent());
+        assertEquals(1, store.loadTabs(guildId).size());
+    }
+
+    private void runConcurrentBankCreate(
+            CountDownLatch ready,
+            CountDownLatch start,
+            AtomicReference<GuildStorageBank> result,
+            AtomicReference<Throwable> failure) {
+        try {
+            ready.countDown();
+            awaitLatch(start);
+            result.set(store.getOrCreateBank(guildId));
+        } catch (Throwable throwable) {
+            failure.set(throwable);
+        }
+    }
+
+    private static void awaitLatch(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("Interrupted while waiting for concurrent test start", e);
+        }
     }
 }

@@ -73,6 +73,14 @@ class SqlSupportTest {
     }
 
     @Test
+    void mysqlIdTypeKeepsItemPayloadText() {
+        String mysql = SqlSupport.withIdType(true,
+                "CREATE TABLE guild_storage_slots (item_payload TEXT NOT NULL, item_schema TEXT NOT NULL)");
+        assertTrue(mysql.contains("item_payload TEXT NOT NULL"));
+        assertTrue(mysql.contains("item_schema VARCHAR(255) NOT NULL"));
+    }
+
+    @Test
     void postgresDoNothingKeepsOnConflict() {
         String sql = SqlSupport.upsertSql(false,
                 "INSERT INTO guild_level_benefits (id) VALUES (?)",
