@@ -658,6 +658,155 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         isNull());
     }
 
+    @Test
+    void reconcilePendingDepositPreservesUnknownWhenSlotContentsMismatch() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload request = new OpaqueItemPayload("paper-bytes-v1", "fp-request", "request");
+        OpaqueItemPayload slotItem = new OpaqueItemPayload("paper-bytes-v1", "fp-slot", "slot");
+        StorageSlot slot = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, slotItem, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                4,
+                "facility-1",
+                request,
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(4, slot));
+        when(store.lookupMatchingAudit(
+                        eq(operationId),
+                        eq(guildId),
+                        eq(memberId),
+                        eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(4),
+                        eq("facility-1"),
+                        eq(createdAt),
+                        eq(request)))
+                .thenReturn(AuditEvidenceLookupResult.matching());
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.UNKNOWN),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Pending deposit slot contents do not match request snapshot; operator reconciliation required"),
+                        isNull(),
+                        isNull());
+    }
+
+    @Test
+    void reconcilePendingDepositPreservesUnknownWhenAuditWithoutSlot() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-audit-only", "payload");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                4,
+                "facility-1",
+                payload,
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.lookupMatchingAudit(
+                        eq(operationId),
+                        eq(guildId),
+                        eq(memberId),
+                        eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(4),
+                        eq("facility-1"),
+                        eq(createdAt),
+                        eq(payload)))
+                .thenReturn(AuditEvidenceLookupResult.matching());
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.UNKNOWN),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Pending deposit audit recorded without slot contents; operator reconciliation required"),
+                        isNull(),
+                        isNull());
+    }
+
+    @Test
+    void reconcilePendingWithdrawPreservesUnknownWhenAuditAndSlotOccupied() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-withdraw-audit", "payload");
+        StorageSlot slot = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 6, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "WITHDRAW",
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                6,
+                "facility-1",
+                payload,
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of(6, slot));
+        when(store.lookupMatchingAudit(
+                        eq(operationId),
+                        eq(guildId),
+                        eq(mayorId),
+                        eq("WITHDRAW"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(6),
+                        eq("facility-1"),
+                        eq(createdAt),
+                        eq(payload)))
+                .thenReturn(AuditEvidenceLookupResult.matching());
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.UNKNOWN),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Pending withdraw audit recorded while slot still occupied; operator reconciliation required"),
+                        isNull(),
+                        isNull());
+    }
+
 
     @Test
     void reconcilePendingDepositMarksCompensatedWhenRequestSnapshotMissing() {
@@ -1186,6 +1335,25 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
 
         assertEquals(StorageResult.Status.INVALID_ARGUMENT, result.status());
         assertEquals("operationId is required", result.errorMessage());
+        verify(store, never()).lookupOperation(any());
+        verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
+    }
+
+    @Test
+    void depositRejectsNullItemBeforeJournalLookup() {
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                UUID.randomUUID(),
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                1,
+                null,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.INVALID_ARGUMENT, result.status());
+        assertEquals("item is required", result.errorMessage());
         verify(store, never()).lookupOperation(any());
         verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any());
     }

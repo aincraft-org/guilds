@@ -26,8 +26,7 @@ public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCo
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
                 ItemStack requested = item.clone();
-                ItemStack[] contents = player.getInventory().getContents();
-                ItemStack[] snapshot = contents == null ? new ItemStack[0] : contents.clone();
+                ItemStack[] snapshot = snapshotContents(player.getInventory().getContents());
                 Map<Integer, ItemStack> notRemoved = player.getInventory().removeItem(requested);
                 if (notRemoved.isEmpty()) {
                     success = true;
@@ -50,8 +49,7 @@ public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCo
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
                 ItemStack requested = item.clone();
-                ItemStack[] contents = player.getInventory().getContents();
-                ItemStack[] snapshot = contents == null ? new ItemStack[0] : contents.clone();
+                ItemStack[] snapshot = snapshotContents(player.getInventory().getContents());
                 Map<Integer, ItemStack> leftovers = player.getInventory().addItem(requested);
                 if (leftovers.isEmpty()) {
                     success = true;
@@ -63,5 +61,17 @@ public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCo
                 onComplete.accept(success);
             }
         });
+    }
+
+    private static ItemStack[] snapshotContents(ItemStack[] contents) {
+        if (contents == null) {
+            return new ItemStack[0];
+        }
+        ItemStack[] snapshot = new ItemStack[contents.length];
+        for (int index = 0; index < contents.length; index++) {
+            ItemStack stack = contents[index];
+            snapshot[index] = stack == null ? null : stack.clone();
+        }
+        return snapshot;
     }
 }

@@ -596,6 +596,94 @@ class SqlGuildStorageStoreTest {
     }
 
     @Test
+    void finalizeOperationPreservesCommittedOutcomeWhenConnectionCloseFails() throws Exception {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload request = new OpaqueItemPayload("paper-bytes-v1", "fp-request", "request-bytes");
+        assertTrue(store.insertPendingOperation(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                UUID.randomUUID(),
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                20,
+                "facility-close",
+                request));
+
+        DatabaseManager databaseManager = services.databaseManager();
+        java.lang.reflect.Field field = DatabaseManager.class.getDeclaredField("dataSource");
+        field.setAccessible(true);
+        javax.sql.DataSource originalDataSource = (javax.sql.DataSource) field.get(databaseManager);
+        javax.sql.DataSource failingCloseDataSource = new javax.sql.DataSource() {
+            @Override
+            public Connection getConnection() throws java.sql.SQLException {
+                Connection delegate = originalDataSource.getConnection();
+                Connection connection = org.mockito.Mockito.spy(delegate);
+                org.mockito.Mockito.doThrow(new java.sql.SQLException("close failed"))
+                        .when(connection)
+                        .close();
+                return connection;
+            }
+
+            @Override
+            public Connection getConnection(String username, String password) throws java.sql.SQLException {
+                return getConnection();
+            }
+
+            @Override
+            public java.io.PrintWriter getLogWriter() throws java.sql.SQLException {
+                return originalDataSource.getLogWriter();
+            }
+
+            @Override
+            public void setLogWriter(java.io.PrintWriter out) throws java.sql.SQLException {
+                originalDataSource.setLogWriter(out);
+            }
+
+            @Override
+            public void setLoginTimeout(int seconds) throws java.sql.SQLException {
+                originalDataSource.setLoginTimeout(seconds);
+            }
+
+            @Override
+            public int getLoginTimeout() throws java.sql.SQLException {
+                return originalDataSource.getLoginTimeout();
+            }
+
+            @Override
+            public java.util.logging.Logger getParentLogger() throws java.sql.SQLFeatureNotSupportedException {
+                return originalDataSource.getParentLogger();
+            }
+
+            @Override
+            public <T> T unwrap(Class<T> iface) throws java.sql.SQLException {
+                return originalDataSource.unwrap(iface);
+            }
+
+            @Override
+            public boolean isWrapperFor(Class<?> iface) throws java.sql.SQLException {
+                return originalDataSource.isWrapperFor(iface);
+            }
+        };
+        field.set(databaseManager, failingCloseDataSource);
+        try {
+            store.finalizeOperation(
+                    operationId,
+                    StorageOperationStatus.COMMITTED,
+                    "SUCCESS",
+                    null,
+                    null,
+                    request);
+        } finally {
+            field.set(databaseManager, originalDataSource);
+        }
+
+        StorageOperationRecord loaded = store.findOperation(operationId).orElseThrow();
+        assertEquals(StorageOperationStatus.COMMITTED, loaded.status());
+        assertEquals(request, loaded.resultItem());
+    }
+
+    @Test
     void lookupOperationDistinguishesNotFoundFromReadFailure() {
         UUID operationId = UUID.randomUUID();
         assertEquals(

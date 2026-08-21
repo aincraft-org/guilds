@@ -569,16 +569,20 @@ public class SqlGuildStorageStore {
         Objects.requireNonNull(operationId, "operationId");
         Objects.requireNonNull(status, "status");
         Instant now = Instant.now();
-        boolean committed = databaseManager.executeTransaction(connection -> updateOperationResult(
-                connection,
-                operationId.toString(),
-                status.name(),
-                resultStatus,
-                resultError,
-                resultSlot,
-                resultItem,
-                now));
-        if (!committed) {
+        DatabaseManager.TransactionExecutionResult<Void> outcome =
+                databaseManager.executeTransactionWithDetailedOutcome(connection -> {
+                    updateOperationResult(
+                            connection,
+                            operationId.toString(),
+                            status.name(),
+                            resultStatus,
+                            resultError,
+                            resultSlot,
+                            resultItem,
+                            now);
+                    return null;
+                });
+        if (outcome.outcome() != DatabaseManager.TransactionCommitOutcome.COMMITTED) {
             throw new IllegalStateException("Failed to finalize storage operation " + operationId);
         }
     }

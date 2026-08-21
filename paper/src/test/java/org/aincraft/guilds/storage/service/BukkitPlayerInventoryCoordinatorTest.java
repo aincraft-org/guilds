@@ -7,12 +7,15 @@ import org.bukkit.inventory.PlayerInventory;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
+import org.mockito.ArgumentCaptor;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -111,13 +114,16 @@ class BukkitPlayerInventoryCoordinatorTest {
         UUID playerId = UUID.randomUUID();
         ItemStack item = mock(ItemStack.class);
         ItemStack clone = mock(ItemStack.class);
+        ItemStack liveStack = mock(ItemStack.class);
+        ItemStack clonedLiveStack = mock(ItemStack.class);
         when(item.clone()).thenReturn(clone);
+        when(liveStack.clone()).thenReturn(clonedLiveStack);
         Player player = mock(Player.class);
         PlayerInventory inventory = mock(PlayerInventory.class);
-        ItemStack[] snapshot = new ItemStack[] {mock(ItemStack.class)};
+        ItemStack[] liveContents = new ItemStack[] {liveStack};
         when(player.isOnline()).thenReturn(true);
         when(player.getInventory()).thenReturn(inventory);
-        when(inventory.getContents()).thenReturn(snapshot);
+        when(inventory.getContents()).thenReturn(liveContents);
         HashMap<Integer, ItemStack> notRemoved = new HashMap<>();
         notRemoved.put(0, clone);
         when(inventory.removeItem(clone)).thenReturn(notRemoved);
@@ -128,7 +134,11 @@ class BukkitPlayerInventoryCoordinatorTest {
             coordinator.removeMatching(playerId, item, callbackResult::set);
         }
         assertFalse(callbackResult.get());
-        verify(inventory).setContents(snapshot);
+        ArgumentCaptor<ItemStack[]> restoredContents = ArgumentCaptor.forClass(ItemStack[].class);
+        verify(inventory).setContents(restoredContents.capture());
+        assertEquals(1, restoredContents.getValue().length);
+        assertEquals(clonedLiveStack, restoredContents.getValue()[0]);
+        verify(liveStack).clone();
     }
 
     @Test
@@ -136,13 +146,16 @@ class BukkitPlayerInventoryCoordinatorTest {
         UUID playerId = UUID.randomUUID();
         ItemStack item = mock(ItemStack.class);
         ItemStack clone = mock(ItemStack.class);
+        ItemStack liveStack = mock(ItemStack.class);
+        ItemStack clonedLiveStack = mock(ItemStack.class);
         when(item.clone()).thenReturn(clone);
+        when(liveStack.clone()).thenReturn(clonedLiveStack);
         Player player = mock(Player.class);
         PlayerInventory inventory = mock(PlayerInventory.class);
-        ItemStack[] snapshot = new ItemStack[] {mock(ItemStack.class)};
+        ItemStack[] liveContents = new ItemStack[] {liveStack};
         when(player.isOnline()).thenReturn(true);
         when(player.getInventory()).thenReturn(inventory);
-        when(inventory.getContents()).thenReturn(snapshot);
+        when(inventory.getContents()).thenReturn(liveContents);
         HashMap<Integer, ItemStack> leftovers = new HashMap<>();
         leftovers.put(35, clone);
         when(inventory.addItem(clone)).thenReturn(leftovers);
@@ -153,6 +166,45 @@ class BukkitPlayerInventoryCoordinatorTest {
             coordinator.giveItem(playerId, item, callbackResult::set);
         }
         assertFalse(callbackResult.get());
-        verify(inventory).setContents(snapshot);
+        ArgumentCaptor<ItemStack[]> restoredContents = ArgumentCaptor.forClass(ItemStack[].class);
+        verify(inventory).setContents(restoredContents.capture());
+        assertEquals(1, restoredContents.getValue().length);
+        assertEquals(clonedLiveStack, restoredContents.getValue()[0]);
+        verify(liveStack).clone();
+    }
+
+    @Test
+    void giveItemDeepCopySnapshotIsolatesRollbackFromLiveInventory() {
+        UUID playerId = UUID.randomUUID();
+        ItemStack item = mock(ItemStack.class);
+        ItemStack clone = mock(ItemStack.class);
+        ItemStack liveStack = mock(ItemStack.class);
+        ItemStack clonedLiveStack = mock(ItemStack.class);
+        when(item.clone()).thenReturn(clone);
+        when(liveStack.clone()).thenReturn(clonedLiveStack);
+        Player player = mock(Player.class);
+        PlayerInventory inventory = mock(PlayerInventory.class);
+        ItemStack[] liveContents = new ItemStack[] {liveStack};
+        when(player.isOnline()).thenReturn(true);
+        when(player.getInventory()).thenReturn(inventory);
+        when(inventory.getContents()).thenReturn(liveContents);
+        when(inventory.addItem(clone)).thenAnswer(invocation -> {
+            liveContents[0] = mock(ItemStack.class);
+            HashMap<Integer, ItemStack> leftovers = new HashMap<>();
+            leftovers.put(35, clone);
+            return leftovers;
+        });
+        AtomicReference<Boolean> callbackResult = new AtomicReference<>(true);
+        BukkitPlayerInventoryCoordinator coordinator = new BukkitPlayerInventoryCoordinator(Runnable::run);
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(playerId)).thenReturn(player);
+            coordinator.giveItem(playerId, item, callbackResult::set);
+        }
+        assertFalse(callbackResult.get());
+        ArgumentCaptor<ItemStack[]> restoredContents = ArgumentCaptor.forClass(ItemStack[].class);
+        verify(inventory).setContents(restoredContents.capture());
+        assertEquals(1, restoredContents.getValue().length);
+        assertEquals(clonedLiveStack, restoredContents.getValue()[0]);
+        verify(liveStack).clone();
     }
 }
