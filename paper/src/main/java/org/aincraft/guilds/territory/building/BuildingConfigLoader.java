@@ -27,6 +27,10 @@ public final class BuildingConfigLoader {
                 "buildings.waystone.anchor-materials", List.of("LODESTONE")));
         materials.put(FacilityType.TRADING_POST, materials(config,
                 "buildings.trading-post.anchor-materials", List.of("BELL", "LECTERN")));
+        if (config.isSet("buildings.storage.anchor-materials")) {
+            materials.put(FacilityType.STORAGE, materials(config,
+                    "buildings.storage.anchor-materials", List.of("BARREL", "CHEST")));
+        }
         return new BuildingConfig(
                 Math.multiplyExact(timeoutSeconds, 1_000L),
                 Map.copyOf(materials),
