@@ -1700,11 +1700,12 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
     @Test
     void compensateWithdrawPayoutUsesAuthorizedReinsertWithoutDepositValidation() {
         UUID withdrawOperationId = UUID.randomUUID();
-        UUID reinsertOperationId = UUID.nameUUIDFromBytes(
-                ("withdraw-payout-compensation:" + withdrawOperationId).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-restore", "payload");
         StorageSlot restored = new StorageSlot(
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 2, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        when(store.cancelPayoutDeliveryForReinsertion(withdrawOperationId)).thenReturn(true);
+        when(store.assignPayoutReinsertAttempt(eq(withdrawOperationId), any(UUID.class))).thenReturn(true);
+        when(store.findPayoutObligation(withdrawOperationId)).thenReturn(java.util.Optional.empty());
         when(store.lookupOperation(withdrawOperationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
                 withdrawOperationId,
                 guildId,
@@ -1721,9 +1722,30 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 null,
                 Instant.parse("2026-08-21T12:00:00Z"),
                 Instant.parse("2026-08-21T12:00:00Z"))));
-        when(store.lookupOperation(reinsertOperationId)).thenReturn(StorageOperationLookupResult.notFound());
+        when(store.lookupOperation(any(UUID.class))).thenAnswer(invocation -> {
+            UUID operationId = invocation.getArgument(0);
+            if (withdrawOperationId.equals(operationId)) {
+                return StorageOperationLookupResult.found(new StorageOperationRecord(
+                        withdrawOperationId,
+                        guildId,
+                        "WITHDRAW",
+                        mayorId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        2,
+                        "facility-1",
+                        payload,
+                        StorageOperationStatus.COMMITTED,
+                        StorageResult.Status.SUCCESS.name(),
+                        null,
+                        payload,
+                        null,
+                        Instant.parse("2026-08-21T12:00:00Z"),
+                        Instant.parse("2026-08-21T12:00:00Z")));
+            }
+            return StorageOperationLookupResult.notFound();
+        });
         when(store.insertPendingOperation(
-                eq(reinsertOperationId),
+                any(UUID.class),
                 eq(guildId),
                 eq("PAYOUT_REINSERT"),
                 eq(mayorId),
@@ -1733,7 +1755,7 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 eq(payload))).thenReturn(true);
         when(store.reinsertWithdrawPayoutWithAudit(
                 eq(withdrawOperationId),
-                eq(reinsertOperationId),
+                any(UUID.class),
                 eq(guildId),
                 eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
                 eq(2),
@@ -1756,7 +1778,7 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
         verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
         verify(store).reinsertWithdrawPayoutWithAudit(
                 eq(withdrawOperationId),
-                eq(reinsertOperationId),
+                any(UUID.class),
                 eq(guildId),
                 eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
                 eq(2),

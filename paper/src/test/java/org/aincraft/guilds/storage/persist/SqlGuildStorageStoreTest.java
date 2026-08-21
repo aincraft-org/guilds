@@ -88,6 +88,9 @@ class SqlGuildStorageStoreTest {
             if (!SqlSupport.tableExists(connection, "guild_storage_payout_obligations")) {
                 SqlScripts.apply(connection, "migrations/guilds/V29__guild-storage-payout-obligations.sql");
             }
+            if (!SqlSupport.columnExists(connection, "guild_storage_payout_obligations", "delivery_token")) {
+                SqlScripts.apply(connection, "migrations/guilds/V30__guild-storage-payout-handoff-and-deposit-restoration.sql");
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to ensure guild storage operation schema", e);
         }
@@ -929,11 +932,55 @@ class SqlGuildStorageStoreTest {
                 "facility-delivery",
                 withdrawOperationId);
 
-        assertTrue(store.claimPayoutObligationForDelivery(withdrawOperationId));
-        assertFalse(store.claimPayoutObligationForDelivery(withdrawOperationId));
-        assertFalse(store.markPayoutObligationDelivered(withdrawOperationId));
-        assertTrue(store.markPayoutObligationDelivered(withdrawOperationId));
+        java.util.Optional<java.util.UUID> deliveryToken = store.claimPayoutObligationForDelivery(withdrawOperationId);
+        assertTrue(deliveryToken.isPresent());
+        assertTrue(store.claimPayoutObligationForDelivery(withdrawOperationId).isPresent());
+        assertFalse(store.markPayoutObligationDelivered(withdrawOperationId, java.util.UUID.randomUUID()));
+        assertTrue(store.markPayoutObligationDelivered(withdrawOperationId, deliveryToken.orElseThrow()));
         assertEquals(StoragePayoutObligationStatus.DELIVERED, store.findPayoutObligation(withdrawOperationId).orElseThrow().status());
+    }
+
+    @Test
+    void cancelPayoutDeliveryBeforeReinsertionReleasesDeliveringClaim() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-cancel", "payload-bytes");
+        UUID withdrawOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        assertTrue(store.saveSlot(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 22, payload, 0L));
+        store.withdrawWithAudit(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                22,
+                payload,
+                1L,
+                actor,
+                "facility-cancel",
+                withdrawOperationId);
+
+        java.util.Optional<java.util.UUID> deliveryToken = store.claimPayoutObligationForDelivery(withdrawOperationId);
+        assertTrue(deliveryToken.isPresent());
+        assertTrue(store.cancelPayoutDeliveryForReinsertion(withdrawOperationId));
+        assertEquals(StoragePayoutObligationStatus.PENDING, store.findPayoutObligation(withdrawOperationId).orElseThrow().status());
+    }
+
+    @Test
+    void depositRestorationObligationPersistsUntilMarkedRestored() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-restore", "payload-bytes");
+        UUID depositOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        store.insertDepositRestorationObligation(
+                depositOperationId,
+                guildId,
+                actor,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                23,
+                "facility-restore",
+                payload);
+
+        assertEquals(1, store.findPendingDepositRestorations().size());
+        assertTrue(store.markDepositRestorationComplete(depositOperationId));
+        assertTrue(store.findPendingDepositRestorations().isEmpty());
     }
 
 

@@ -3,6 +3,7 @@ package org.aincraft.guilds.storage.gui;
 import net.kyori.adventure.text.Component;
 import org.aincraft.guilds.storage.persist.SqlGuildStorageStore;
 import org.aincraft.guilds.storage.service.PlayerInventoryCoordinator;
+import org.aincraft.guilds.storage.service.PayoutDeliveryHandoff;
 import org.aincraft.guilds.storage.service.StorageResult;
 import org.aincraft.guilds.storage.service.impl.GuildStorageServiceImpl;
 import org.aincraft.guilds.territory.model.FacilityType;
@@ -88,8 +89,8 @@ class GuildStorageGUITest {
         when(storageService.getSlots(playerId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID))
                 .thenReturn(StorageResult.success(Map.of()));
 
-        lenient().when(storageService.claimWithdrawPayoutDelivery(any(UUID.class)))
-                .thenReturn(StorageResult.success(null));
+        lenient().when(storageService.beginWithdrawPayoutDelivery(any(UUID.class)))
+                .thenReturn(StorageResult.success(new PayoutDeliveryHandoff(UUID.randomUUID())));
 
         gui = new GuildStorageGUI(plugin, storageService, inventoryCoordinator, Runnable::run);
     }
@@ -281,7 +282,7 @@ class GuildStorageGUITest {
                 eq(2),
                 eq(payload),
                 eq(facility.id()));
-        verify(storageService).releaseWithdrawPayoutDelivery(any(UUID.class));
+        verify(storageService).cancelWithdrawPayoutDelivery(any(UUID.class), any(UUID.class));
     }
 
 

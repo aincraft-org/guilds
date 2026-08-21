@@ -260,7 +260,16 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
             if (!restored.compareAndSet(false, true)) {
                 return;
             }
-            mainThreadExecutor.run(() -> restoreDepositItem(player, retainedItem));
+            mainThreadExecutor.run(() -> {
+                restoreDepositItem(player, retainedItem);
+                if (storageService instanceof GuildStorageServiceImpl impl) {
+                    try {
+                        CompletableFuture.runAsync(() -> impl.acknowledgeDepositRestoration(operationId), sqlExecutor);
+                    } catch (Throwable ignored) {
+                        // Leave restoration obligation pending for reconciliation.
+                    }
+                }
+            });
         };
 
         player.setItemOnCursor(null);
@@ -357,35 +366,85 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
 
         OpaqueItemPayload payload = result.value().orElseThrow();
         ItemStack decoded = codec.decode(payload);
-        GuildStorageServiceImpl payoutService = storageService instanceof GuildStorageServiceImpl impl ? impl : null;
-        if (payoutService != null) {
-            StorageResult<Void> claimed = payoutService.claimWithdrawPayoutDelivery(operationId);
-            if (!claimed.isSuccess()) {
-                if (activeSession(player, session)) {
-                    player.sendMessage(Component.text(claimed.errorMessage(), NamedTextColor.RED));
-                    refreshSession(player, session);
-                }
-                return;
-            }
-        }
-        inventoryCoordinator.giveItem(
-                player.getUniqueId(),
-                decoded,
-                payoutSuccess -> mainThreadExecutor.run(() -> {
-                    if (payoutSuccess) {
-                        if (payoutService != null) {
-                            payoutService.markWithdrawPayoutDelivered(operationId);
-                        }
-                        if (activeSession(player, session)) {
+        if (!(storageService instanceof GuildStorageServiceImpl payoutService)) {
+            inventoryCoordinator.giveItem(
+                    player.getUniqueId(),
+                    decoded,
+                    payoutSuccess -> mainThreadExecutor.run(() -> {
+                        if (payoutSuccess && activeSession(player, session)) {
                             refreshSession(player, session);
                         }
-                        return;
-                    }
-                    if (payoutService != null) {
-                        payoutService.releaseWithdrawPayoutDelivery(operationId);
-                    }
-                    restoreWithdrawPayout(player, session, operationId, slotIndex, payload);
-                }));
+                    }));
+            return;
+        }
+        CompletableFuture.supplyAsync(() -> payoutService.beginWithdrawPayoutDelivery(operationId), sqlExecutor)
+                .thenAcceptAsync(
+                        claimResult -> mainThreadExecutor.run(() -> {
+                            if (!claimResult.isSuccess()) {
+                                if (activeSession(player, session)) {
+                                    player.sendMessage(Component.text(claimResult.errorMessage(), NamedTextColor.RED));
+                                    refreshSession(player, session);
+                                }
+                                return;
+                            }
+                            UUID deliveryToken = claimResult.value().orElseThrow().deliveryToken();
+                            inventoryCoordinator.giveItem(
+                                    player.getUniqueId(),
+                                    decoded,
+                                    payoutSuccess -> mainThreadExecutor.run(() -> handlePayoutDeliveryOutcome(
+                                            player,
+                                            session,
+                                            operationId,
+                                            slotIndex,
+                                            payload,
+                                            payoutService,
+                                            deliveryToken,
+                                            payoutSuccess)));
+                        }),
+                        Runnable::run)
+                .exceptionally(error -> {
+                    mainThreadExecutor.run(() -> {
+                        if (activeSession(player, session)) {
+                            player.sendMessage(Component.text("Failed to deliver withdrawn item.", NamedTextColor.RED));
+                            refreshSession(player, session);
+                        }
+                    });
+                    return null;
+                });
+    }
+
+    private void handlePayoutDeliveryOutcome(
+            Player player,
+            Session session,
+            UUID operationId,
+            int slotIndex,
+            OpaqueItemPayload payload,
+            GuildStorageServiceImpl payoutService,
+            UUID deliveryToken,
+            boolean payoutSuccess) {
+        if (payoutSuccess) {
+            CompletableFuture.supplyAsync(
+                            () -> payoutService.confirmWithdrawPayoutDelivered(operationId, deliveryToken),
+                            sqlExecutor)
+                    .thenAcceptAsync(
+                            confirmResult -> mainThreadExecutor.run(() -> {
+                                if (!confirmResult.isSuccess() && activeSession(player, session)) {
+                                    player.sendMessage(Component.text(confirmResult.errorMessage(), NamedTextColor.RED));
+                                }
+                                if (activeSession(player, session)) {
+                                    refreshSession(player, session);
+                                }
+                            }),
+                            Runnable::run);
+            return;
+        }
+        CompletableFuture.supplyAsync(
+                        () -> payoutService.cancelWithdrawPayoutDelivery(operationId, deliveryToken),
+                        sqlExecutor)
+                .thenAcceptAsync(
+                        ignored -> mainThreadExecutor.run(() ->
+                                restoreWithdrawPayout(player, session, operationId, slotIndex, payload)),
+                        Runnable::run);
     }
 
     private void restoreWithdrawPayout(

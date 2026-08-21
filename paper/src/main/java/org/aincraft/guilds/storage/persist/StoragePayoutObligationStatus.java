@@ -4,6 +4,7 @@ package org.aincraft.guilds.storage.persist;
 public enum StoragePayoutObligationStatus {
     PENDING,
     DELIVERING,
+    UNKNOWN,
     DELIVERED,
     REINSERTED
 }

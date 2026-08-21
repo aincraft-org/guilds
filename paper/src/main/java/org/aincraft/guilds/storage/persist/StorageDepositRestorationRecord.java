@@ -5,17 +5,15 @@ import org.aincraft.guilds.territory.storage.OpaqueItemPayload;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Durable payout obligation created when a withdraw commits before player delivery. */
-public record StoragePayoutObligationRecord(
-        UUID withdrawOperationId,
+/** Durable obligation to return a deposit item to the player after a failed mutation. */
+public record StorageDepositRestorationRecord(
+        UUID depositOperationId,
         String guildId,
         UUID actorUuid,
         String tabId,
         int slotIndex,
         String facilityId,
         OpaqueItemPayload item,
-        StoragePayoutObligationStatus status,
-        UUID reinsertOperationId,
-        UUID deliveryToken,
+        StorageDepositRestorationStatus status,
         Instant createdAt,
         Instant updatedAt) {}

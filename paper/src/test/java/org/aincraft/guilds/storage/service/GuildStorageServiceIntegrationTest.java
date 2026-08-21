@@ -107,6 +107,9 @@ class GuildStorageServiceIntegrationTest {
             if (!SqlSupport.tableExists(connection, "guild_storage_payout_obligations")) {
                 SqlScripts.apply(connection, "migrations/guilds/V29__guild-storage-payout-obligations.sql");
             }
+            if (!SqlSupport.columnExists(connection, "guild_storage_payout_obligations", "delivery_token")) {
+                SqlScripts.apply(connection, "migrations/guilds/V30__guild-storage-payout-handoff-and-deposit-restoration.sql");
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to ensure guild storage schemas", e);
         }

@@ -27,3 +27,5 @@
 26 guild-storage-audit-operation Add operation identity to guild storage audit records
 27 guild-storage-operation-request-snapshot Add immutable request snapshots to storage operation journal
 29 guild-storage-payout-obligations Add durable withdrawal payout obligations
+
+30 guild-storage-payout-handoff-and-deposit-restoration Add payout delivery handoff tokens and deposit restoration obligations
