@@ -27,7 +27,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -217,6 +223,149 @@ class GuildStorageServiceTest {
                 UUID.randomUUID(), mayorId, guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 8, "facility-1");
 
         assertEquals(StorageResult.Status.SLOT_EMPTY, result.status());
+    }
+
+
+    @Test
+    void pendingOperationRetryReturnsConflictWithoutSecondMutation() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-pending", "payload");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.findOperation(operationId))
+                .thenReturn(Optional.of(new StorageOperationRecord(
+                        operationId,
+                        guildId,
+                        "DEPOSIT",
+                        memberId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        1,
+                        "facility-1",
+                        StorageOperationStatus.PENDING,
+                        null,
+                        null,
+                        null,
+                        null,
+                        createdAt,
+                        createdAt)));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                1,
+                payload,
+                "facility-1");
+
+        assertEquals(StorageResult.Status.CONFLICT, result.status());
+        assertEquals("Storage operation already in progress", result.errorMessage());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any());
+        verify(store, never()).insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void concurrentRetryWhileOperationPendingPerformsOneMutationAndReturnsConflict() throws Exception {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-concurrent", "payload");
+        StorageSlot saved = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 3, payload, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                3,
+                "facility-1",
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        AtomicInteger findCalls = new AtomicInteger();
+        when(store.findOperation(operationId)).thenAnswer(invocation -> {
+            if (findCalls.incrementAndGet() == 1) {
+                return Optional.empty();
+            }
+            return Optional.of(pending);
+        });
+        when(store.insertPendingOperation(
+                        operationId,
+                        guildId,
+                        "DEPOSIT",
+                        memberId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        3,
+                        "facility-1"))
+                .thenReturn(true);
+        CountDownLatch mutationStarted = new CountDownLatch(1);
+        CountDownLatch allowMutationComplete = new CountDownLatch(1);
+        AtomicInteger mutationCalls = new AtomicInteger();
+        when(store.depositWithAudit(
+                        guildId,
+                        SqlGuildStorageStore.DEFAULT_TAB_ID,
+                        3,
+                        payload,
+                        memberId,
+                        "facility-1"))
+                .thenAnswer(invocation -> {
+                    mutationCalls.incrementAndGet();
+                    mutationStarted.countDown();
+                    assertTrue(allowMutationComplete.await(5, TimeUnit.SECONDS));
+                    return new SqlGuildStorageStore.DepositAuditOutcome(
+                            SqlGuildStorageStore.SlotMutationResult.SUCCESS, saved);
+                });
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<StorageResult<StorageSlot>> leader =
+                    pool.submit(() -> storageService.deposit(
+                            operationId,
+                            memberId,
+                            guildId,
+                            SqlGuildStorageStore.DEFAULT_TAB_ID,
+                            3,
+                            payload,
+                            "facility-1"));
+            assertTrue(mutationStarted.await(5, TimeUnit.SECONDS));
+
+            Future<StorageResult<StorageSlot>> retry =
+                    pool.submit(() -> storageService.deposit(
+                            operationId,
+                            memberId,
+                            guildId,
+                            SqlGuildStorageStore.DEFAULT_TAB_ID,
+                            3,
+                            payload,
+                            "facility-1"));
+
+            StorageResult<StorageSlot> retryResult = retry.get(5, TimeUnit.SECONDS);
+            assertEquals(StorageResult.Status.CONFLICT, retryResult.status());
+            assertEquals("Storage operation already in progress", retryResult.errorMessage());
+
+            allowMutationComplete.countDown();
+            StorageResult<StorageSlot> leaderResult = leader.get(5, TimeUnit.SECONDS);
+            assertTrue(leaderResult.isSuccess());
+            assertEquals(1, mutationCalls.get());
+            verify(store, org.mockito.Mockito.times(1))
+                    .depositWithAudit(
+                            guildId,
+                            SqlGuildStorageStore.DEFAULT_TAB_ID,
+                            3,
+                            payload,
+                            memberId,
+                            "facility-1");
+        } finally {
+            allowMutationComplete.countDown();
+            pool.shutdownNow();
+        }
     }
 
     @Test

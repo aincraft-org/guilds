@@ -519,18 +519,13 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             java.util.function.Supplier<StorageResult<T>> mutation) {
         Optional<StorageOperationRecord> existing = store.findOperation(operationId);
         if (existing.isPresent()) {
-            StorageResult<T> replayed = replayOperation(existing.get());
-            if (replayed != null) {
-                return replayed;
-            }
-        } else if (!store.insertPendingOperation(
+            return replayOperation(existing.get());
+        }
+        if (!store.insertPendingOperation(
                 operationId, guildId, operationType, actor, tabId, slotIndex, facilityId)) {
             existing = store.findOperation(operationId);
             if (existing.isPresent()) {
-                StorageResult<T> replayed = replayOperation(existing.get());
-                if (replayed != null) {
-                    return replayed;
-                }
+                return replayOperation(existing.get());
             }
             return StorageResult.failure(
                     StorageResult.Status.STORAGE_ERROR, "Failed to record pending storage operation");
@@ -599,7 +594,8 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     @SuppressWarnings("unchecked")
     private <T> StorageResult<T> replayOperation(StorageOperationRecord operation) {
         if (operation.status() == StorageOperationStatus.PENDING) {
-            return null;
+            return StorageResult.failure(
+                    StorageResult.Status.CONFLICT, "Storage operation already in progress");
         }
         StorageResult.Status status = StorageResult.Status.valueOf(operation.resultStatus());
         if (operation.status() == StorageOperationStatus.COMMITTED && status == StorageResult.Status.SUCCESS) {
