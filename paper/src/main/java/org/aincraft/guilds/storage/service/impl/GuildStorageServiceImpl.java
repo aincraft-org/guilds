@@ -311,6 +311,9 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         for (StorageOperationRecord pending : store.findPendingOperations()) {
             reconcilePendingOperation(pending);
         }
+        for (StorageOperationRecord unknown : store.findUnknownOperations()) {
+            reconcilePendingOperation(unknown);
+        }
     }
 
     private void reconcilePendingOperation(StorageOperationRecord pending) {
@@ -354,16 +357,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
         boolean auditEvidence = auditLookup.status() == AuditEvidenceLookupResult.Status.MATCHING;
         if (auditEvidence) {
-            StorageSlot committedSlot = null;
-            if (slot != null) {
-                committedSlot = new StorageSlot(
-                        pending.guildId(),
-                        pending.tabId(),
-                        pending.slotIndex(),
-                        requestSnapshot,
-                        slot.version(),
-                        slot.updatedAt());
-            }
+            StorageSlot committedSlot = replayableDepositSlot(pending, requestSnapshot, slot);
             store.finalizeOperation(
                     pending.operationId(),
                     StorageOperationStatus.COMMITTED,
@@ -452,6 +446,27 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 null,
                 null);
     }
+
+    private static StorageSlot replayableDepositSlot(
+            StorageOperationRecord pending, OpaqueItemPayload requestSnapshot, StorageSlot liveSlot) {
+        if (liveSlot != null) {
+            return new StorageSlot(
+                    pending.guildId(),
+                    pending.tabId(),
+                    pending.slotIndex(),
+                    requestSnapshot,
+                    liveSlot.version(),
+                    liveSlot.updatedAt());
+        }
+        return new StorageSlot(
+                pending.guildId(),
+                pending.tabId(),
+                pending.slotIndex(),
+                requestSnapshot,
+                1L,
+                pending.createdAt());
+    }
+
 
 
     private StorageResult<Void> validateMutationRequest(UUID operationId, String facilityId) {
@@ -831,8 +846,15 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         }
         StorageResult.Status status = StorageResult.Status.valueOf(operation.resultStatus());
         if (operation.status() == StorageOperationStatus.COMMITTED && status == StorageResult.Status.SUCCESS) {
-            if ("DEPOSIT".equals(operation.operationType()) && operation.resultSlot() != null) {
-                return (StorageResult<T>) StorageResult.success(operation.resultSlot());
+            if ("DEPOSIT".equals(operation.operationType())) {
+                if (operation.resultSlot() != null) {
+                    return (StorageResult<T>) StorageResult.success(operation.resultSlot());
+                }
+                OpaqueItemPayload requestSnapshot = operation.requestSnapshot();
+                if (requestSnapshot != null) {
+                    return (StorageResult<T>) StorageResult.success(
+                            replayableDepositSlot(operation, requestSnapshot, null));
+                }
             }
             if ("WITHDRAW".equals(operation.operationType()) && operation.resultItem() != null) {
                 return (StorageResult<T>) StorageResult.success(operation.resultItem());

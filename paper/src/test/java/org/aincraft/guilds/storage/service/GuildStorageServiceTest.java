@@ -101,6 +101,7 @@ class GuildStorageServiceTest {
         when(store.lookupOperation(any())).thenReturn(StorageOperationLookupResult.notFound());
         when(store.insertPendingOperation(any(), any(), any(), any(), any(), anyInt(), any(), any())).thenReturn(true);
         when(store.findPendingOperations()).thenReturn(List.of());
+        when(store.findUnknownOperations()).thenReturn(List.of());
     }
 
     @Test
@@ -755,8 +756,183 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         eq(StorageOperationStatus.COMMITTED),
                         eq(StorageResult.Status.SUCCESS.name()),
                         isNull(),
-                        isNull(),
+                        eq(new StorageSlot(
+                                guildId,
+                                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                                4,
+                                payload,
+                                1L,
+                                createdAt)),
                         eq(payload));
+    }
+
+    @Test
+    void reconcilePendingDepositBuildsReplayableResultSlotWhenAuditOutlivesSlot() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-replayable", "payload");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                7,
+                "facility-1",
+                payload,
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        StorageSlot reconstructed = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 7, payload, 1L, createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.lookupMatchingAudit(
+                        eq(operationId), eq(guildId), eq(memberId), eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(7), eq("facility-1"),
+                        eq(createdAt), eq(payload)))
+                .thenReturn(AuditEvidenceLookupResult.matching());
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store).finalizeOperation(
+                eq(operationId),
+                eq(StorageOperationStatus.COMMITTED),
+                eq(StorageResult.Status.SUCCESS.name()),
+                isNull(),
+                eq(reconstructed),
+                eq(payload));
+    }
+
+    @Test
+    void reconcileUnknownDepositFinalizesCommittedWhenAuditMatches() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-unknown-deposit", "payload");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord unknown = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                9,
+                "facility-1",
+                payload,
+                StorageOperationStatus.UNKNOWN,
+                StorageResult.Status.STORAGE_ERROR.name(),
+                "Storage mutation outcome unknown; retry with same operationId",
+                null,
+                null,
+                createdAt,
+                createdAt);
+        StorageSlot reconstructed = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 9, payload, 1L, createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of());
+        when(store.findUnknownOperations()).thenReturn(List.of(unknown));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.lookupMatchingAudit(
+                        eq(operationId), eq(guildId), eq(memberId), eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(9), eq("facility-1"),
+                        eq(createdAt), eq(payload)))
+                .thenReturn(AuditEvidenceLookupResult.matching());
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store).finalizeOperation(
+                eq(operationId),
+                eq(StorageOperationStatus.COMMITTED),
+                eq(StorageResult.Status.SUCCESS.name()),
+                isNull(),
+                eq(reconstructed),
+                eq(payload));
+    }
+
+    @Test
+    void reconcileUnknownWithdrawFinalizesCommittedWhenAuditMatches() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-unknown-withdraw", "payload");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord unknown = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "WITHDRAW",
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                10,
+                "facility-1",
+                payload,
+                StorageOperationStatus.UNKNOWN,
+                StorageResult.Status.STORAGE_ERROR.name(),
+                "Storage mutation outcome unknown; retry with same operationId",
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of());
+        when(store.findUnknownOperations()).thenReturn(List.of(unknown));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.lookupMatchingAudit(
+                        eq(operationId), eq(guildId), eq(mayorId), eq("WITHDRAW"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID), eq(10), eq("facility-1"),
+                        eq(createdAt), eq(payload)))
+                .thenReturn(AuditEvidenceLookupResult.matching());
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store).finalizeOperation(
+                eq(operationId),
+                eq(StorageOperationStatus.COMMITTED),
+                eq(StorageResult.Status.SUCCESS.name()),
+                isNull(),
+                isNull(),
+                eq(payload));
+    }
+
+    @Test
+    void replayCommittedDepositBuildsResultSlotFromRequestSnapshotWhenMissing() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-replay-fallback", "payload");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageSlot reconstructed = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 11, payload, 1L, createdAt);
+        when(residentService.getResident(memberId)).thenReturn(Optional.of(member("Member", memberId)));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult.found(new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                11,
+                "facility-1",
+                payload,
+                StorageOperationStatus.COMMITTED,
+                StorageResult.Status.SUCCESS.name(),
+                null,
+                payload,
+                null,
+                createdAt,
+                createdAt)));
+
+        StorageResult<StorageSlot> result = storageService.deposit(
+                operationId,
+                memberId,
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                11,
+                payload,
+                "facility-1");
+
+        assertTrue(result.isSuccess());
+        assertEquals(reconstructed, result.value().orElseThrow());
+        verify(store, never()).depositWithAudit(any(), any(), anyInt(), any(), any(), any(), any());
     }
 
     @Test

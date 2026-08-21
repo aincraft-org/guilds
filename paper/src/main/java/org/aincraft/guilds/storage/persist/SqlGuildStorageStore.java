@@ -417,6 +417,10 @@ public class SqlGuildStorageStore {
     public List<StorageOperationRecord> findPendingOperations() {
         return findOperationsByStatus(StorageOperationStatus.PENDING);
     }
+    public List<StorageOperationRecord> findUnknownOperations() {
+        return findOperationsByStatus(StorageOperationStatus.UNKNOWN);
+    }
+
 
     /**
      * Returns whether durable audit evidence exists for a storage mutation at the given slot.
@@ -694,7 +698,7 @@ public class SqlGuildStorageStore {
                     result_item_schema = ?, result_item_fingerprint = ?, result_item_payload = ?,
                     result_slot_version = ?, result_slot_updated_at = ?, updated_at = ?
                 WHERE operation_id = ?
-                  AND (status = ? OR status = ?)
+                  AND (status = ? OR status = ? OR status = ?)
                 """)) {
             statement.setString(1, status);
             if (resultStatus == null) {
@@ -726,7 +730,8 @@ public class SqlGuildStorageStore {
             statement.setString(9, updatedAt.toString());
             statement.setString(10, operationId);
             statement.setString(11, StorageOperationStatus.PENDING.name());
-            statement.setString(12, status);
+            statement.setString(12, StorageOperationStatus.UNKNOWN.name());
+            statement.setString(13, status);
             if (statement.executeUpdate() > 0) {
                 return true;
             }

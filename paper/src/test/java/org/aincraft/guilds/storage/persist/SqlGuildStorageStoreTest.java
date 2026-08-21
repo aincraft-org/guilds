@@ -721,6 +721,52 @@ class SqlGuildStorageStoreTest {
     }
 
     @Test
+    void finalizeOperationUpgradesUnknownToCommitted() {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload request = new OpaqueItemPayload("paper-bytes-v1", "fp-unknown-recover", "request-bytes");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageSlot reconstructed = new StorageSlot(
+                guildId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                22,
+                request,
+                1L,
+                createdAt);
+        assertTrue(store.insertPendingOperation(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                UUID.randomUUID(),
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                22,
+                "facility-unknown",
+                request));
+        store.finalizeOperation(
+                operationId,
+                StorageOperationStatus.UNKNOWN,
+                StorageResult.Status.STORAGE_ERROR.name(),
+                "Storage mutation outcome unknown; retry with same operationId",
+                null,
+                null);
+
+        store.finalizeOperation(
+                operationId,
+                StorageOperationStatus.COMMITTED,
+                StorageResult.Status.SUCCESS.name(),
+                null,
+                reconstructed,
+                request);
+
+        StorageOperationRecord loaded = store.findOperation(operationId).orElseThrow();
+        assertEquals(StorageOperationStatus.COMMITTED, loaded.status());
+        assertEquals(StorageResult.Status.SUCCESS.name(), loaded.resultStatus());
+        assertEquals(request, loaded.resultItem());
+        assertEquals(reconstructed, loaded.resultSlot());
+    }
+
+
+    @Test
     void lookupOperationDistinguishesNotFoundFromReadFailure() {
         UUID operationId = UUID.randomUUID();
         assertEquals(
