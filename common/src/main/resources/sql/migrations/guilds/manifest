@@ -21,3 +21,5 @@
 20 last-online Widen residents.last_online from INTEGER to BIGINT to match the long-typed model
 21 bank-enrollment Add guild bank player enrollment tracking
 22 projects Add active guild project slot and default project skill points
+23 projects-tech-points Backfill tech_points column on legacy installs skipped by v4
+24 guild-storage Add guild storage item bank tables
