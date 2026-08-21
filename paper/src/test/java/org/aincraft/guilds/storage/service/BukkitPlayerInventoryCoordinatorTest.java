@@ -105,4 +105,54 @@ class BukkitPlayerInventoryCoordinatorTest {
         }
         assertFalse(callbackResult.get());
     }
+
+    @Test
+    void removeMatchingRollsBackPartialRemoval() {
+        UUID playerId = UUID.randomUUID();
+        ItemStack item = mock(ItemStack.class);
+        ItemStack clone = mock(ItemStack.class);
+        when(item.clone()).thenReturn(clone);
+        Player player = mock(Player.class);
+        PlayerInventory inventory = mock(PlayerInventory.class);
+        ItemStack[] snapshot = new ItemStack[] {mock(ItemStack.class)};
+        when(player.isOnline()).thenReturn(true);
+        when(player.getInventory()).thenReturn(inventory);
+        when(inventory.getContents()).thenReturn(snapshot);
+        HashMap<Integer, ItemStack> notRemoved = new HashMap<>();
+        notRemoved.put(0, clone);
+        when(inventory.removeItem(clone)).thenReturn(notRemoved);
+        AtomicReference<Boolean> callbackResult = new AtomicReference<>(true);
+        BukkitPlayerInventoryCoordinator coordinator = new BukkitPlayerInventoryCoordinator(Runnable::run);
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(playerId)).thenReturn(player);
+            coordinator.removeMatching(playerId, item, callbackResult::set);
+        }
+        assertFalse(callbackResult.get());
+        verify(inventory).setContents(snapshot);
+    }
+
+    @Test
+    void giveItemRollsBackPartialAdd() {
+        UUID playerId = UUID.randomUUID();
+        ItemStack item = mock(ItemStack.class);
+        ItemStack clone = mock(ItemStack.class);
+        when(item.clone()).thenReturn(clone);
+        Player player = mock(Player.class);
+        PlayerInventory inventory = mock(PlayerInventory.class);
+        ItemStack[] snapshot = new ItemStack[] {mock(ItemStack.class)};
+        when(player.isOnline()).thenReturn(true);
+        when(player.getInventory()).thenReturn(inventory);
+        when(inventory.getContents()).thenReturn(snapshot);
+        HashMap<Integer, ItemStack> leftovers = new HashMap<>();
+        leftovers.put(35, clone);
+        when(inventory.addItem(clone)).thenReturn(leftovers);
+        AtomicReference<Boolean> callbackResult = new AtomicReference<>(true);
+        BukkitPlayerInventoryCoordinator coordinator = new BukkitPlayerInventoryCoordinator(Runnable::run);
+        try (MockedStatic<Bukkit> bukkit = mockStatic(Bukkit.class)) {
+            bukkit.when(() -> Bukkit.getPlayer(playerId)).thenReturn(player);
+            coordinator.giveItem(playerId, item, callbackResult::set);
+        }
+        assertFalse(callbackResult.get());
+        verify(inventory).setContents(snapshot);
+    }
 }

@@ -110,4 +110,19 @@ class SqlSupportTest {
                 "");
         assertTrue(sql.contains("ON CONFLICT (id) DO NOTHING"));
     }
+
+    @Test
+    void postgresInstantTextAtOrAfterUsesTimestamptzCast() {
+        assertEquals(
+                "(recorded_at::timestamptz >= ?::timestamptz)",
+                SqlSupport.instantTextAtOrAfter(false, "recorded_at"));
+    }
+
+    @Test
+    void mysqlInstantTextAtOrAfterUsesStrToDateComparison() {
+        String predicate = SqlSupport.instantTextAtOrAfter(true, "recorded_at");
+        assertTrue(predicate.contains("STR_TO_DATE"));
+        assertTrue(predicate.contains("recorded_at"));
+        assertTrue(predicate.contains("?"));
+    }
 }

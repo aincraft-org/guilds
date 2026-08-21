@@ -401,7 +401,8 @@ class SqlGuildStorageStoreTest {
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 16,
                 "facility-audit",
-                notBefore));
+                notBefore,
+                payload));
         assertFalse(store.hasMatchingAudit(
                 otherOperationId,
                 guildId,
@@ -410,9 +411,78 @@ class SqlGuildStorageStoreTest {
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 16,
                 "facility-audit",
-                notBefore));
+                notBefore,
+                payload));
     }
 
+
+    @Test
+    void hasMatchingAuditRequiresMatchingFingerprint() {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-audit-op", "payload-bytes");
+        OpaqueItemPayload otherFingerprint = new OpaqueItemPayload("paper-bytes-v1", "fp-other", "payload-bytes");
+        Instant notBefore = Instant.parse("2026-08-21T12:00:00Z");
+
+        store.depositWithAudit(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 16, payload, actor, "facility-audit", operationId);
+
+        assertFalse(store.hasMatchingAudit(
+                operationId,
+                guildId,
+                actor,
+                "DEPOSIT",
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                16,
+                "facility-audit",
+                notBefore,
+                otherFingerprint));
+    }
+
+    @Test
+    void hasMatchingAuditHonorsChronologicalNotBeforeBound() throws Exception {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-time", "payload-bytes");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+
+        store.depositWithAudit(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 17, payload, actor, "facility-time", operationId);
+
+        try (Connection connection = services.databaseManager().getConnection();
+             PreparedStatement statement = connection.prepareStatement("""
+                     UPDATE guild_storage_audit
+                     SET recorded_at = ?
+                     WHERE operation_id = ?
+                     """)) {
+            statement.setString(1, "2026-08-21T12:00:01Z");
+            statement.setString(2, operationId.toString());
+            assertEquals(1, statement.executeUpdate());
+        }
+
+        assertFalse(store.hasMatchingAudit(
+                operationId,
+                guildId,
+                actor,
+                "DEPOSIT",
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                17,
+                "facility-time",
+                Instant.parse("2026-08-21T12:00:02Z"),
+                payload));
+        assertTrue(store.hasMatchingAudit(
+                operationId,
+                guildId,
+                actor,
+                "DEPOSIT",
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                17,
+                "facility-time",
+                createdAt,
+                payload));
+    }
     @Test
     void operationJournalPersistsAndReplaysCommittedResult() {
         store.getOrCreateBank(guildId);

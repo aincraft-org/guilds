@@ -575,7 +575,7 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 4,
                 "facility-1",
-                null,
+                payload,
                 StorageOperationStatus.PENDING,
                 null,
                 null,
@@ -593,7 +593,8 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
                         eq(4),
                         eq("facility-1"),
-                        eq(createdAt)))
+                        eq(createdAt),
+                        eq(payload)))
                 .thenReturn(AuditEvidenceLookupResult.matching());
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
@@ -611,6 +612,55 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
 
     @Test
     void reconcilePendingDepositMarksCompensatedWhenEvidenceMissing() {
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-missing-audit", "payload");
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                memberId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                4,
+                "facility-1",
+                payload,
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
+        when(store.lookupMatchingAudit(
+                        eq(operationId),
+                        eq(guildId),
+                        eq(memberId),
+                        eq("DEPOSIT"),
+                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                        eq(4),
+                        eq("facility-1"),
+                        eq(createdAt),
+                        eq(payload)))
+                .thenReturn(AuditEvidenceLookupResult.none());
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.COMPENSATED),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Pending deposit interrupted before durable slot and audit mutation"),
+                        isNull(),
+                        isNull());
+    }
+
+
+    @Test
+    void reconcilePendingDepositMarksCompensatedWhenRequestSnapshotMissing() {
         UUID operationId = UUID.randomUUID();
         Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
         StorageOperationRecord pending = new StorageOperationRecord(
@@ -630,17 +680,6 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 createdAt,
                 createdAt);
         when(store.findPendingOperations()).thenReturn(List.of(pending));
-        when(store.loadSlots(guildId, SqlGuildStorageStore.DEFAULT_TAB_ID)).thenReturn(Map.of());
-        when(store.lookupMatchingAudit(
-                        eq(operationId),
-                        eq(guildId),
-                        eq(memberId),
-                        eq("DEPOSIT"),
-                        eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
-                        eq(4),
-                        eq("facility-1"),
-                        eq(createdAt)))
-                .thenReturn(AuditEvidenceLookupResult.none());
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
                 store, guildService, residentService, facilityAccess);
@@ -650,11 +689,47 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         eq(operationId),
                         eq(StorageOperationStatus.COMPENSATED),
                         eq(StorageResult.Status.STORAGE_ERROR.name()),
-                        eq("Pending deposit interrupted before durable slot and audit mutation"),
+                        eq("Pending deposit missing request snapshot; operator reconciliation required"),
                         isNull(),
                         isNull());
+        verify(store, never()).lookupMatchingAudit(any(), any(), any(), any(), any(), anyInt(), any(), any(), any());
     }
 
+    @Test
+    void reconcilePendingWithdrawMarksCompensatedWhenRequestSnapshotMissing() {
+        UUID operationId = UUID.randomUUID();
+        Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
+        StorageOperationRecord pending = new StorageOperationRecord(
+                operationId,
+                guildId,
+                "WITHDRAW",
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                6,
+                "facility-1",
+                null,
+                StorageOperationStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt);
+        when(store.findPendingOperations()).thenReturn(List.of(pending));
+
+        GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
+                store, guildService, residentService, facilityAccess);
+
+        verify(store)
+                .finalizeOperation(
+                        eq(operationId),
+                        eq(StorageOperationStatus.COMPENSATED),
+                        eq(StorageResult.Status.STORAGE_ERROR.name()),
+                        eq("Pending withdraw missing request snapshot; operator reconciliation required"),
+                        isNull(),
+                        isNull());
+        verify(store, never()).lookupMatchingAudit(any(), any(), any(), any(), any(), anyInt(), any(), any(), any());
+    }
     @Test
     void duplicateOperationSkipsPreconditionChecksBeforeReplay() {
         UUID operationId = UUID.randomUUID();
@@ -821,7 +896,8 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
                         eq(6),
                         eq("facility-1"),
-                        eq(createdAt)))
+                        eq(createdAt),
+                        eq(payload)))
                 .thenReturn(AuditEvidenceLookupResult.matching());
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(
@@ -1016,6 +1092,7 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
     @Test
     void reconcilePendingDepositPreservesUnknownWhenAuditLookupFails() {
         UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-audit-fail", "payload");
         Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
         StorageOperationRecord pending = new StorageOperationRecord(
                 operationId,
@@ -1025,7 +1102,7 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                 SqlGuildStorageStore.DEFAULT_TAB_ID,
                 5,
                 "facility-1",
-                null,
+                payload,
                 StorageOperationStatus.PENDING,
                 null,
                 null,
@@ -1043,7 +1120,8 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
                         eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
                         eq(5),
                         eq("facility-1"),
-                        eq(createdAt)))
+                        eq(createdAt),
+                        eq(payload)))
                 .thenReturn(AuditEvidenceLookupResult.readFailure("audit read failed"));
 
         GuildStorageServiceImpl.withDirectExecutorsForUnitTests(

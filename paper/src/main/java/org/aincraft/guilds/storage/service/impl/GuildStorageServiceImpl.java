@@ -320,6 +320,12 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     }
 
     private void reconcilePendingDeposit(StorageOperationRecord pending) {
+        OpaqueItemPayload requestSnapshot = pending.requestSnapshot();
+        if (requestSnapshot == null) {
+            finalizeReconciliationFailure(
+                    pending, "Pending deposit missing request snapshot; operator reconciliation required");
+            return;
+        }
         Map<Integer, StorageSlot> slots;
         try {
             slots = store.loadSlots(pending.guildId(), pending.tabId());
@@ -337,13 +343,20 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 pending.tabId(),
                 pending.slotIndex(),
                 pending.facilityId(),
-                pending.createdAt());
+                pending.createdAt(),
+                requestSnapshot);
         if (auditLookup.status() == AuditEvidenceLookupResult.Status.READ_FAILURE) {
             finalizeReconciliationUnknown(pending, auditLookup.errorMessage());
             return;
         }
         boolean auditEvidence = auditLookup.status() == AuditEvidenceLookupResult.Status.MATCHING;
         if (slot != null && auditEvidence) {
+            if (!requestSnapshot.equals(slot.item())) {
+                finalizeReconciliationFailure(
+                        pending,
+                        "Pending deposit slot contents do not match request snapshot; operator reconciliation required");
+                return;
+            }
             store.finalizeOperation(
                     pending.operationId(),
                     StorageOperationStatus.COMMITTED,
@@ -370,6 +383,12 @@ public class GuildStorageServiceImpl implements GuildStorageService {
     }
 
     private void reconcilePendingWithdraw(StorageOperationRecord pending) {
+        OpaqueItemPayload requestSnapshot = pending.requestSnapshot();
+        if (requestSnapshot == null) {
+            finalizeReconciliationFailure(
+                    pending, "Pending withdraw missing request snapshot; operator reconciliation required");
+            return;
+        }
         Map<Integer, StorageSlot> slots;
         try {
             slots = store.loadSlots(pending.guildId(), pending.tabId());
@@ -387,29 +406,21 @@ public class GuildStorageServiceImpl implements GuildStorageService {
                 pending.tabId(),
                 pending.slotIndex(),
                 pending.facilityId(),
-                pending.createdAt());
+                pending.createdAt(),
+                requestSnapshot);
         if (auditLookup.status() == AuditEvidenceLookupResult.Status.READ_FAILURE) {
             finalizeReconciliationUnknown(pending, auditLookup.errorMessage());
             return;
         }
         boolean auditEvidence = auditLookup.status() == AuditEvidenceLookupResult.Status.MATCHING;
         if (slot == null && auditEvidence) {
-            OpaqueItemPayload replayItem = pending.requestSnapshot() != null
-                    ? pending.requestSnapshot()
-                    : pending.resultItem();
-            if (replayItem != null) {
-                store.finalizeOperation(
-                        pending.operationId(),
-                        StorageOperationStatus.COMMITTED,
-                        StorageResult.Status.SUCCESS.name(),
-                        null,
-                        null,
-                        replayItem);
-                return;
-            }
-            finalizeReconciliationFailure(
-                    pending,
-                    "Withdraw slot and audit were durably applied but item payload is unavailable for idempotent replay; operator reconciliation required");
+            store.finalizeOperation(
+                    pending.operationId(),
+                    StorageOperationStatus.COMMITTED,
+                    StorageResult.Status.SUCCESS.name(),
+                    null,
+                    null,
+                    requestSnapshot);
             return;
         }
         if (slot == null) {

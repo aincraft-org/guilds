@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -24,7 +25,15 @@ public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCo
             boolean success = false;
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
-                success = player.getInventory().removeItem(item.clone()).isEmpty();
+                ItemStack requested = item.clone();
+                ItemStack[] contents = player.getInventory().getContents();
+                ItemStack[] snapshot = contents == null ? new ItemStack[0] : contents.clone();
+                Map<Integer, ItemStack> notRemoved = player.getInventory().removeItem(requested);
+                if (notRemoved.isEmpty()) {
+                    success = true;
+                } else {
+                    player.getInventory().setContents(snapshot);
+                }
             }
             if (onComplete != null) {
                 onComplete.accept(success);
@@ -40,7 +49,15 @@ public final class BukkitPlayerInventoryCoordinator implements PlayerInventoryCo
             boolean success = false;
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
-                success = player.getInventory().addItem(item.clone()).isEmpty();
+                ItemStack requested = item.clone();
+                ItemStack[] contents = player.getInventory().getContents();
+                ItemStack[] snapshot = contents == null ? new ItemStack[0] : contents.clone();
+                Map<Integer, ItemStack> leftovers = player.getInventory().addItem(requested);
+                if (leftovers.isEmpty()) {
+                    success = true;
+                } else {
+                    player.getInventory().setContents(snapshot);
+                }
             }
             if (onComplete != null) {
                 onComplete.accept(success);

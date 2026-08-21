@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -227,5 +228,24 @@ public final class SqlSupport {
                 return resultSet.next();
             }
         }
+    }
+
+    /**
+     * SQL predicate comparing a TEXT ISO-8601 instant column against a bound instant parameter
+     * using database-native temporal ordering instead of lexical TEXT comparison.
+     */
+    public static String instantTextAtOrAfter(boolean mysql, String column) {
+        Objects.requireNonNull(column, "column");
+        if (mysql) {
+            return "STR_TO_DATE(REPLACE(REPLACE(" + column + ", 'T', ' '), 'Z', ''), '%Y-%m-%d %H:%i:%s') "
+                    + ">= STR_TO_DATE(REPLACE(REPLACE(?, 'T', ' '), 'Z', ''), '%Y-%m-%d %H:%i:%s')";
+        }
+        return "(" + column + "::timestamptz >= ?::timestamptz)";
+    }
+
+    public static void bindInstantAtOrAfter(PreparedStatement statement, int parameterIndex, Instant instant)
+            throws SQLException {
+        Objects.requireNonNull(instant, "instant");
+        statement.setString(parameterIndex, instant.toString());
     }
 }

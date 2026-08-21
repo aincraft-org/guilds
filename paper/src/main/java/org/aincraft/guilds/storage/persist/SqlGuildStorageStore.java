@@ -430,7 +430,8 @@ public class SqlGuildStorageStore {
             String tabId,
             int slotIndex,
             String facilityId,
-            Instant notBefore) {
+            Instant notBefore,
+            OpaqueItemPayload expectedSnapshot) {
         Objects.requireNonNull(operationId, "operationId");
         requireGuildId(guildId);
         Objects.requireNonNull(actorUuid, "actorUuid");
@@ -442,30 +443,36 @@ public class SqlGuildStorageStore {
             throw new IllegalArgumentException("facilityId is required");
         }
         Objects.requireNonNull(notBefore, "notBefore");
-        try (Connection connection = databaseManager.getConnection();
-             PreparedStatement statement = connection.prepareStatement("""
-                     SELECT 1
-                     FROM guild_storage_audit
-                     WHERE operation_id = ?
-                       AND guild_id = ?
-                       AND actor_uuid = ?
-                       AND operation = ?
-                       AND tab_id = ?
-                       AND slot_index = ?
-                       AND facility_id = ?
-                       AND recorded_at >= ?
-                     LIMIT 1
-                     """)) {
-            statement.setString(1, operationId.toString());
-            statement.setString(2, guildId.trim());
-            statement.setString(3, actorUuid.toString());
-            statement.setString(4, operation.trim());
-            statement.setString(5, tabId.trim());
-            statement.setInt(6, slotIndex);
-            statement.setString(7, facilityId.trim());
-            statement.setString(8, notBefore.toString());
-            try (ResultSet result = statement.executeQuery()) {
-                return result.next() ? AuditEvidenceLookupResult.matching() : AuditEvidenceLookupResult.none();
+        Objects.requireNonNull(expectedSnapshot, "expectedSnapshot");
+        try (Connection connection = databaseManager.getConnection()) {
+            boolean mysql = SqlSupport.mysql(connection);
+            String recordedAtPredicate = SqlSupport.instantTextAtOrAfter(mysql, "recorded_at");
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    SELECT 1
+                    FROM guild_storage_audit
+                    WHERE operation_id = ?
+                      AND guild_id = ?
+                      AND actor_uuid = ?
+                      AND operation = ?
+                      AND tab_id = ?
+                      AND slot_index = ?
+                      AND facility_id = ?
+                      AND fingerprint = ?
+                      AND """ + recordedAtPredicate + """
+                    LIMIT 1
+                    """)) {
+                statement.setString(1, operationId.toString());
+                statement.setString(2, guildId.trim());
+                statement.setString(3, actorUuid.toString());
+                statement.setString(4, operation.trim());
+                statement.setString(5, tabId.trim());
+                statement.setInt(6, slotIndex);
+                statement.setString(7, facilityId.trim());
+                statement.setString(8, expectedSnapshot.fingerprint());
+                SqlSupport.bindInstantAtOrAfter(statement, 9, notBefore);
+                try (ResultSet result = statement.executeQuery()) {
+                    return result.next() ? AuditEvidenceLookupResult.matching() : AuditEvidenceLookupResult.none();
+                }
             }
         } catch (SQLException e) {
             return AuditEvidenceLookupResult.readFailure(
@@ -481,7 +488,8 @@ public class SqlGuildStorageStore {
             String tabId,
             int slotIndex,
             String facilityId,
-            Instant notBefore) {
+            Instant notBefore,
+            OpaqueItemPayload expectedSnapshot) {
         Objects.requireNonNull(operationId, "operationId");
         requireGuildId(guildId);
         Objects.requireNonNull(actorUuid, "actorUuid");
@@ -493,8 +501,17 @@ public class SqlGuildStorageStore {
             throw new IllegalArgumentException("facilityId is required");
         }
         Objects.requireNonNull(notBefore, "notBefore");
+        Objects.requireNonNull(expectedSnapshot, "expectedSnapshot");
         AuditEvidenceLookupResult lookup = lookupMatchingAudit(
-                operationId, guildId, actorUuid, operation, tabId, slotIndex, facilityId, notBefore);
+                operationId,
+                guildId,
+                actorUuid,
+                operation,
+                tabId,
+                slotIndex,
+                facilityId,
+                notBefore,
+                expectedSnapshot);
         return switch (lookup.status()) {
             case MATCHING -> true;
             case NONE -> false;
