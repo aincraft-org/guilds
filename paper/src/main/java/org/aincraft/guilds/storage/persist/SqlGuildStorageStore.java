@@ -569,20 +569,19 @@ public class SqlGuildStorageStore {
         Objects.requireNonNull(operationId, "operationId");
         Objects.requireNonNull(status, "status");
         Instant now = Instant.now();
-        DatabaseManager.TransactionExecutionResult<Void> outcome =
-                databaseManager.executeTransactionWithDetailedOutcome(connection -> {
-                    updateOperationResult(
-                            connection,
-                            operationId.toString(),
-                            status.name(),
-                            resultStatus,
-                            resultError,
-                            resultSlot,
-                            resultItem,
-                            now);
-                    return null;
-                });
-        if (outcome.outcome() != DatabaseManager.TransactionCommitOutcome.COMMITTED) {
+        DatabaseManager.TransactionExecutionResult<Boolean> outcome =
+                databaseManager.executeTransactionWithDetailedOutcome(connection ->
+                        updateOperationResult(
+                                connection,
+                                operationId.toString(),
+                                status.name(),
+                                resultStatus,
+                                resultError,
+                                resultSlot,
+                                resultItem,
+                                now));
+        if (outcome.outcome() != DatabaseManager.TransactionCommitOutcome.COMMITTED
+                || !Boolean.TRUE.equals(outcome.value())) {
             throw new IllegalStateException("Failed to finalize storage operation " + operationId);
         }
     }
@@ -676,7 +675,7 @@ public class SqlGuildStorageStore {
         }
     }
 
-    private static void updateOperationResult(
+    private static boolean updateOperationResult(
             Connection connection,
             String operationId,
             String status,
@@ -695,6 +694,7 @@ public class SqlGuildStorageStore {
                     result_item_schema = ?, result_item_fingerprint = ?, result_item_payload = ?,
                     result_slot_version = ?, result_slot_updated_at = ?, updated_at = ?
                 WHERE operation_id = ?
+                  AND (status = ? OR status = ?)
                 """)) {
             statement.setString(1, status);
             if (resultStatus == null) {
@@ -725,8 +725,32 @@ public class SqlGuildStorageStore {
             }
             statement.setString(9, updatedAt.toString());
             statement.setString(10, operationId);
-            statement.executeUpdate();
+            statement.setString(11, StorageOperationStatus.PENDING.name());
+            statement.setString(12, status);
+            if (statement.executeUpdate() > 0) {
+                return true;
+            }
         }
+        return preservesTerminalJournalState(connection, operationId, status);
+    }
+
+    private static boolean preservesTerminalJournalState(
+            Connection connection, String operationId, String targetStatus) throws SQLException {
+        Optional<StorageOperationRecord> current = selectOperation(connection, operationId);
+        if (current.isEmpty()) {
+            return false;
+        }
+        String currentStatus = current.get().status().name();
+        if (currentStatus.equals(targetStatus)) {
+            return true;
+        }
+        return isPreservedTerminalStatus(currentStatus)
+                && StorageOperationStatus.UNKNOWN.name().equals(targetStatus);
+    }
+
+    private static boolean isPreservedTerminalStatus(String status) {
+        return StorageOperationStatus.COMMITTED.name().equals(status)
+                || StorageOperationStatus.COMPENSATED.name().equals(status);
     }
 
     private static StorageOperationRecord mapOperation(ResultSet result) throws SQLException {

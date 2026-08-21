@@ -659,12 +659,14 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
     }
 
     @Test
-    void reconcilePendingDepositPreservesUnknownWhenSlotContentsMismatch() {
+    void reconcilePendingDepositFinalizesCommittedWhenAuditMatchesDespiteSlotMutation() {
         UUID operationId = UUID.randomUUID();
         OpaqueItemPayload request = new OpaqueItemPayload("paper-bytes-v1", "fp-request", "request");
         OpaqueItemPayload slotItem = new OpaqueItemPayload("paper-bytes-v1", "fp-slot", "slot");
         StorageSlot slot = new StorageSlot(
                 guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, slotItem, 1L, Instant.parse("2026-08-21T12:00:00Z"));
+        StorageSlot committedSlot = new StorageSlot(
+                guildId, SqlGuildStorageStore.DEFAULT_TAB_ID, 4, request, 1L, Instant.parse("2026-08-21T12:00:00Z"));
         Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
         StorageOperationRecord pending = new StorageOperationRecord(
                 operationId,
@@ -702,15 +704,15 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
         verify(store)
                 .finalizeOperation(
                         eq(operationId),
-                        eq(StorageOperationStatus.UNKNOWN),
-                        eq(StorageResult.Status.STORAGE_ERROR.name()),
-                        eq("Pending deposit slot contents do not match request snapshot; operator reconciliation required"),
+                        eq(StorageOperationStatus.COMMITTED),
+                        eq(StorageResult.Status.SUCCESS.name()),
                         isNull(),
-                        isNull());
+                        eq(committedSlot),
+                        eq(request));
     }
 
     @Test
-    void reconcilePendingDepositPreservesUnknownWhenAuditWithoutSlot() {
+    void reconcilePendingDepositFinalizesCommittedWhenAuditMatchesWithoutSlot() {
         UUID operationId = UUID.randomUUID();
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-audit-only", "payload");
         Instant createdAt = Instant.parse("2026-08-21T12:00:00Z");
@@ -750,15 +752,15 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
         verify(store)
                 .finalizeOperation(
                         eq(operationId),
-                        eq(StorageOperationStatus.UNKNOWN),
-                        eq(StorageResult.Status.STORAGE_ERROR.name()),
-                        eq("Pending deposit audit recorded without slot contents; operator reconciliation required"),
+                        eq(StorageOperationStatus.COMMITTED),
+                        eq(StorageResult.Status.SUCCESS.name()),
                         isNull(),
-                        isNull());
+                        isNull(),
+                        eq(payload));
     }
 
     @Test
-    void reconcilePendingWithdrawPreservesUnknownWhenAuditAndSlotOccupied() {
+    void reconcilePendingWithdrawFinalizesCommittedWhenAuditMatchesDespiteOccupiedSlot() {
         UUID operationId = UUID.randomUUID();
         OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-withdraw-audit", "payload");
         StorageSlot slot = new StorageSlot(
@@ -800,11 +802,11 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
         verify(store)
                 .finalizeOperation(
                         eq(operationId),
-                        eq(StorageOperationStatus.UNKNOWN),
-                        eq(StorageResult.Status.STORAGE_ERROR.name()),
-                        eq("Pending withdraw audit recorded while slot still occupied; operator reconciliation required"),
+                        eq(StorageOperationStatus.COMMITTED),
+                        eq(StorageResult.Status.SUCCESS.name()),
                         isNull(),
-                        isNull());
+                        isNull(),
+                        eq(payload));
     }
 
 

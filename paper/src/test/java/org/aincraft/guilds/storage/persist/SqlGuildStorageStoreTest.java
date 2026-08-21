@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.UUID;
+import org.aincraft.guilds.storage.service.StorageResult;
 import org.aincraft.guilds.storage.persist.StorageOperationLookupResult;
 import org.aincraft.guilds.storage.persist.StorageOperationStatus;
 import java.time.Instant;
@@ -680,6 +681,42 @@ class SqlGuildStorageStoreTest {
 
         StorageOperationRecord loaded = store.findOperation(operationId).orElseThrow();
         assertEquals(StorageOperationStatus.COMMITTED, loaded.status());
+        assertEquals(request, loaded.resultItem());
+    }
+
+    @Test
+    void finalizeOperationPreservesTerminalJournalStateWhenDowngradingToUnknown() {
+        store.getOrCreateBank(guildId);
+        UUID operationId = UUID.randomUUID();
+        OpaqueItemPayload request = new OpaqueItemPayload("paper-bytes-v1", "fp-request", "request-bytes");
+        assertTrue(store.insertPendingOperation(
+                operationId,
+                guildId,
+                "DEPOSIT",
+                UUID.randomUUID(),
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                21,
+                "facility-terminal",
+                request));
+        store.finalizeOperation(
+                operationId,
+                StorageOperationStatus.COMMITTED,
+                "SUCCESS",
+                null,
+                null,
+                request);
+
+        store.finalizeOperation(
+                operationId,
+                StorageOperationStatus.UNKNOWN,
+                StorageResult.Status.STORAGE_ERROR.name(),
+                "fallback unknown",
+                null,
+                null);
+
+        StorageOperationRecord loaded = store.findOperation(operationId).orElseThrow();
+        assertEquals(StorageOperationStatus.COMMITTED, loaded.status());
+        assertEquals("SUCCESS", loaded.resultStatus());
         assertEquals(request, loaded.resultItem());
     }
 

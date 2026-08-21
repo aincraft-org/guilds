@@ -353,20 +353,17 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return;
         }
         boolean auditEvidence = auditLookup.status() == AuditEvidenceLookupResult.Status.MATCHING;
-        if (slot != null && auditEvidence) {
-            if (!requestSnapshot.equals(slot.item())) {
-                finalizeReconciliationUnknown(
-                        pending,
-                        "Pending deposit slot contents do not match request snapshot; operator reconciliation required");
-                return;
+        if (auditEvidence) {
+            StorageSlot committedSlot = null;
+            if (slot != null) {
+                committedSlot = new StorageSlot(
+                        pending.guildId(),
+                        pending.tabId(),
+                        pending.slotIndex(),
+                        requestSnapshot,
+                        slot.version(),
+                        slot.updatedAt());
             }
-            StorageSlot committedSlot = new StorageSlot(
-                    pending.guildId(),
-                    pending.tabId(),
-                    pending.slotIndex(),
-                    requestSnapshot,
-                    slot.version(),
-                    slot.updatedAt());
             store.finalizeOperation(
                     pending.operationId(),
                     StorageOperationStatus.COMMITTED,
@@ -380,12 +377,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             finalizeReconciliationUnknown(
                     pending,
                     "Pending deposit left slot occupied without matching audit evidence; operator reconciliation required");
-            return;
-        }
-        if (auditEvidence) {
-            finalizeReconciliationUnknown(
-                    pending,
-                    "Pending deposit audit recorded without slot contents; operator reconciliation required");
             return;
         }
         finalizeReconciliationFailure(
@@ -423,7 +414,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return;
         }
         boolean auditEvidence = auditLookup.status() == AuditEvidenceLookupResult.Status.MATCHING;
-        if (slot == null && auditEvidence) {
+        if (auditEvidence) {
             store.finalizeOperation(
                     pending.operationId(),
                     StorageOperationStatus.COMMITTED,
@@ -436,12 +427,6 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (slot == null) {
             finalizeReconciliationFailure(
                     pending, "Pending withdraw slot empty without matching audit evidence");
-            return;
-        }
-        if (auditEvidence) {
-            finalizeReconciliationUnknown(
-                    pending,
-                    "Pending withdraw audit recorded while slot still occupied; operator reconciliation required");
             return;
         }
         finalizeReconciliationFailure(
