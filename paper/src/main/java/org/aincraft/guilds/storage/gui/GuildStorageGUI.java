@@ -260,16 +260,7 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
             if (!restored.compareAndSet(false, true)) {
                 return;
             }
-            mainThreadExecutor.run(() -> {
-                restoreDepositItem(player, retainedItem);
-                if (storageService instanceof GuildStorageServiceImpl impl) {
-                    try {
-                        CompletableFuture.runAsync(() -> impl.acknowledgeDepositRestoration(operationId), sqlExecutor);
-                    } catch (Throwable ignored) {
-                        // Leave restoration obligation pending for reconciliation.
-                    }
-                }
-            });
+            mainThreadExecutor.run(() -> restoreDepositItem(player, retainedItem, operationId));
         };
 
         player.setItemOnCursor(null);
@@ -428,8 +419,15 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                             sqlExecutor)
                     .thenAcceptAsync(
                             confirmResult -> mainThreadExecutor.run(() -> {
-                                if (!confirmResult.isSuccess() && activeSession(player, session)) {
-                                    player.sendMessage(Component.text(confirmResult.errorMessage(), NamedTextColor.RED));
+                                if (!confirmResult.isSuccess()) {
+                                    CompletableFuture.runAsync(
+                                            () -> payoutService.markWithdrawPayoutDeliveryUnknown(
+                                                    operationId, deliveryToken),
+                                            sqlExecutor);
+                                    if (activeSession(player, session)) {
+                                        player.sendMessage(
+                                                Component.text(confirmResult.errorMessage(), NamedTextColor.RED));
+                                    }
                                 }
                                 if (activeSession(player, session)) {
                                     refreshSession(player, session);
@@ -486,14 +484,31 @@ public final class GuildStorageGUI implements InventoryHolder, Listener {
                         Runnable::run);
     }
 
-    private void restoreDepositItem(Player player, ItemStack item) {
+    private void restoreDepositItem(Player player, ItemStack item, UUID operationId) {
         ItemStack current = player.getItemOnCursor();
         if (current == null || current.getType() == Material.AIR) {
             player.setItemOnCursor(item.clone());
+            acknowledgeDepositRestoration(player, operationId);
             return;
         }
-        inventoryCoordinator.giveItem(player.getUniqueId(), item.clone(), ignored -> {});
+        inventoryCoordinator.giveItem(player.getUniqueId(), item.clone(), success -> {
+            if (Boolean.TRUE.equals(success)) {
+                acknowledgeDepositRestoration(player, operationId);
+            }
+        });
     }
+
+    private void acknowledgeDepositRestoration(Player player, UUID operationId) {
+        if (!(storageService instanceof GuildStorageServiceImpl impl)) {
+            return;
+        }
+        try {
+            CompletableFuture.runAsync(() -> impl.acknowledgeDepositRestoration(operationId), sqlExecutor);
+        } catch (Throwable ignored) {
+            // Leave restoration obligation pending for reconciliation.
+        }
+    }
+
 
     private boolean activeSession(Player player, Session session) {
         Session active = sessions.get(player.getUniqueId());

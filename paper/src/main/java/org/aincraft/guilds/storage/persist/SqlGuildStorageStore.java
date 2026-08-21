@@ -425,7 +425,6 @@ public class SqlGuildStorageStore {
         List<StoragePayoutObligationRecord> outstanding = new ArrayList<>();
         outstanding.addAll(findPayoutObligationsByStatus(StoragePayoutObligationStatus.PENDING));
         outstanding.addAll(findPayoutObligationsByStatus(StoragePayoutObligationStatus.DELIVERING));
-        outstanding.addAll(findPayoutObligationsByStatus(StoragePayoutObligationStatus.UNKNOWN));
         return List.copyOf(outstanding);
     }
 
@@ -435,13 +434,7 @@ public class SqlGuildStorageStore {
         Instant now = Instant.now();
         Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection ->
                 beginPayoutDelivery(connection, withdrawOperationId.toString(), deliveryToken, now));
-        if (updated.orElse(false)) {
-            return Optional.of(deliveryToken);
-        }
-        return findPayoutObligation(withdrawOperationId)
-                .filter(obligation -> obligation.status() == StoragePayoutObligationStatus.DELIVERING
-                        && obligation.deliveryToken() != null)
-                .map(StoragePayoutObligationRecord::deliveryToken);
+        return updated.orElse(false) ? Optional.of(deliveryToken) : Optional.empty();
     }
 
     public boolean releasePayoutObligationDeliveryClaim(UUID withdrawOperationId, UUID deliveryToken) {
@@ -575,6 +568,51 @@ public class SqlGuildStorageStore {
     public List<StorageDepositRestorationRecord> findPendingDepositRestorations() {
         return findDepositRestorationsByStatus(StorageDepositRestorationStatus.PENDING);
     }
+
+    public List<StorageDepositRestorationRecord> findRestoringDepositRestorations() {
+        return findDepositRestorationsByStatus(StorageDepositRestorationStatus.RESTORING);
+    }
+
+    public boolean claimDepositRestorationForDelivery(UUID depositOperationId) {
+        Objects.requireNonNull(depositOperationId, "depositOperationId");
+        Instant now = Instant.now();
+        Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE guild_storage_deposit_restoration_obligations
+                    SET status = ?, updated_at = ?
+                    WHERE deposit_operation_id = ?
+                      AND status = ?
+                    """)) {
+                statement.setString(1, StorageDepositRestorationStatus.RESTORING.name());
+                statement.setString(2, now.toString());
+                statement.setString(3, depositOperationId.toString());
+                statement.setString(4, StorageDepositRestorationStatus.PENDING.name());
+                return statement.executeUpdate() == 1;
+            }
+        });
+        return updated.orElse(false);
+    }
+
+    public boolean releaseDepositRestorationClaim(UUID depositOperationId) {
+        Objects.requireNonNull(depositOperationId, "depositOperationId");
+        Instant now = Instant.now();
+        Optional<Boolean> updated = databaseManager.executeTransactionWithResult(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE guild_storage_deposit_restoration_obligations
+                    SET status = ?, updated_at = ?
+                    WHERE deposit_operation_id = ?
+                      AND status = ?
+                    """)) {
+                statement.setString(1, StorageDepositRestorationStatus.PENDING.name());
+                statement.setString(2, now.toString());
+                statement.setString(3, depositOperationId.toString());
+                statement.setString(4, StorageDepositRestorationStatus.RESTORING.name());
+                return statement.executeUpdate() == 1;
+            }
+        });
+        return updated.orElse(false);
+    }
+
 
     public boolean markDepositRestorationComplete(UUID depositOperationId) {
         Objects.requireNonNull(depositOperationId, "depositOperationId");

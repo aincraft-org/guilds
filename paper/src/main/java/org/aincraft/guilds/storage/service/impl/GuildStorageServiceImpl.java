@@ -336,12 +336,12 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             }
             return store.findPayoutObligation(withdrawOperationId)
                     .map(obligation -> switch (obligation.status()) {
-                        case DELIVERING -> obligation.deliveryToken() == null
-                                ? StorageResult.<PayoutDeliveryHandoff>failure(
-                                        StorageResult.Status.CONFLICT, "Withdraw payout delivery handoff missing")
-                                : StorageResult.success(new PayoutDeliveryHandoff(obligation.deliveryToken()));
                         case DELIVERED -> StorageResult.<PayoutDeliveryHandoff>failure(
                                 StorageResult.Status.CONFLICT, "Withdraw payout already delivered");
+                        case DELIVERING -> StorageResult.<PayoutDeliveryHandoff>failure(
+                                StorageResult.Status.CONFLICT, "Withdraw payout delivery already in progress");
+                        case UNKNOWN -> StorageResult.<PayoutDeliveryHandoff>failure(
+                                StorageResult.Status.CONFLICT, "Withdraw payout delivery outcome unknown");
                         default -> StorageResult.<PayoutDeliveryHandoff>failure(
                                 StorageResult.Status.CONFLICT, "Withdraw payout is not pending delivery");
                     })
@@ -361,7 +361,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             }
             return store.findPayoutObligation(withdrawOperationId)
                     .map(obligation -> switch (obligation.status()) {
-                        case PENDING, DELIVERED, REINSERTED -> StorageResult.<Void>success(null);
+                        case PENDING, DELIVERED, REINSERTED, UNKNOWN -> StorageResult.<Void>success(null);
                         default -> StorageResult.<Void>failure(
                                 StorageResult.Status.CONFLICT, "Withdraw payout delivery handoff mismatch");
                     })
@@ -371,6 +371,29 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
         }
     }
+
+    public StorageResult<Void> markWithdrawPayoutDeliveryUnknown(UUID withdrawOperationId, UUID deliveryToken) {
+        Objects.requireNonNull(withdrawOperationId, "withdrawOperationId");
+        Objects.requireNonNull(deliveryToken, "deliveryToken");
+        try {
+            if (store.markPayoutObligationDeliveryUnknown(withdrawOperationId, deliveryToken)) {
+                return StorageResult.success(null);
+            }
+            return store.findPayoutObligation(withdrawOperationId)
+                    .map(obligation -> switch (obligation.status()) {
+                        case UNKNOWN -> StorageResult.<Void>success(null);
+                        case DELIVERED -> StorageResult.<Void>failure(
+                                StorageResult.Status.CONFLICT, "Withdraw payout already delivered");
+                        default -> StorageResult.<Void>failure(
+                                StorageResult.Status.CONFLICT, "Withdraw payout delivery handoff mismatch");
+                    })
+                    .orElseGet(() -> StorageResult.failure(
+                            StorageResult.Status.CONFLICT, "Withdraw payout obligation not found"));
+        } catch (RuntimeException e) {
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, e.getMessage());
+        }
+    }
+
 
     public void acknowledgeDepositRestoration(UUID depositOperationId) {
         Objects.requireNonNull(depositOperationId, "depositOperationId");
@@ -620,7 +643,13 @@ public class GuildStorageServiceImpl implements GuildStorageService {
         if (inventoryCoordinator == null) {
             return;
         }
+        for (StorageDepositRestorationRecord restoring : store.findRestoringDepositRestorations()) {
+            store.releaseDepositRestorationClaim(restoring.depositOperationId());
+        }
         for (StorageDepositRestorationRecord obligation : store.findPendingDepositRestorations()) {
+            if (!store.claimDepositRestorationForDelivery(obligation.depositOperationId())) {
+                continue;
+            }
             ItemStack item = payoutCodec.decode(obligation.item());
             CompletableFuture<Boolean> restored = new CompletableFuture<>();
             mainThreadExecutor.run(() -> inventoryCoordinator.giveItem(
@@ -628,11 +657,14 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             try {
                 if (Boolean.TRUE.equals(restored.get(5, TimeUnit.SECONDS))) {
                     acknowledgeDepositRestoration(obligation.depositOperationId());
+                } else {
+                    store.releaseDepositRestorationClaim(obligation.depositOperationId());
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                store.releaseDepositRestorationClaim(obligation.depositOperationId());
             } catch (Exception ignored) {
-                // Retry on next startup.
+                store.releaseDepositRestorationClaim(obligation.depositOperationId());
             }
         }
     }
@@ -645,11 +677,7 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return true;
         }
         if (obligation.status() == StoragePayoutObligationStatus.UNKNOWN) {
-            if (obligation.deliveryToken() == null) {
-                return false;
-            }
-            return confirmWithdrawPayoutDelivered(obligation.withdrawOperationId(), obligation.deliveryToken())
-                    .isSuccess();
+            return false;
         }
         if (obligation.status() == StoragePayoutObligationStatus.DELIVERING) {
             store.cancelPayoutDeliveryForReinsertion(obligation.withdrawOperationId());
@@ -665,30 +693,45 @@ public class GuildStorageServiceImpl implements GuildStorageService {
             return false;
         }
         UUID deliveryToken = claimed.value().orElseThrow().deliveryToken();
-        StoragePayoutObligationRecord deliveryObligation = obligation;
-        UUID actorUuid = deliveryObligation.actorUuid();
+        UUID withdrawOperationId = obligation.withdrawOperationId();
+        UUID actorUuid = obligation.actorUuid();
         CompletableFuture<Boolean> delivered = new CompletableFuture<>();
-        ItemStack item = payoutCodec.decode(deliveryObligation.item());
+        ItemStack item = payoutCodec.decode(obligation.item());
         mainThreadExecutor.run(() -> inventoryCoordinator.giveItem(
                 actorUuid, item, delivered::complete));
         try {
             if (Boolean.TRUE.equals(delivered.get(5, TimeUnit.SECONDS))) {
-                StorageResult<Void> confirmed =
-                        confirmWithdrawPayoutDelivered(deliveryObligation.withdrawOperationId(), deliveryToken);
+                if (!isPayoutDeliveryClaimActive(withdrawOperationId, deliveryToken)) {
+                    return false;
+                }
+                StorageResult<Void> confirmed = confirmWithdrawPayoutDelivered(withdrawOperationId, deliveryToken);
                 if (confirmed.isSuccess()) {
                     return true;
                 }
-                store.markPayoutObligationDeliveryUnknown(deliveryObligation.withdrawOperationId(), deliveryToken);
-                return confirmWithdrawPayoutDelivered(deliveryObligation.withdrawOperationId(), deliveryToken).isSuccess();
+                store.markPayoutObligationDeliveryUnknown(withdrawOperationId, deliveryToken);
+                return false;
             }
-            cancelWithdrawPayoutDelivery(deliveryObligation.withdrawOperationId(), deliveryToken);
+            if (isPayoutDeliveryClaimActive(withdrawOperationId, deliveryToken)) {
+                cancelWithdrawPayoutDelivery(withdrawOperationId, deliveryToken);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            cancelWithdrawPayoutDelivery(deliveryObligation.withdrawOperationId(), deliveryToken);
+            if (isPayoutDeliveryClaimActive(withdrawOperationId, deliveryToken)) {
+                cancelWithdrawPayoutDelivery(withdrawOperationId, deliveryToken);
+            }
         } catch (Exception ignored) {
-            cancelWithdrawPayoutDelivery(deliveryObligation.withdrawOperationId(), deliveryToken);
+            if (isPayoutDeliveryClaimActive(withdrawOperationId, deliveryToken)) {
+                cancelWithdrawPayoutDelivery(withdrawOperationId, deliveryToken);
+            }
         }
         return false;
+    }
+
+    private boolean isPayoutDeliveryClaimActive(UUID withdrawOperationId, UUID deliveryToken) {
+        return store.findPayoutObligation(withdrawOperationId)
+                .filter(obligation -> obligation.status() == StoragePayoutObligationStatus.DELIVERING
+                        && deliveryToken.equals(obligation.deliveryToken()))
+                .isPresent();
     }
 
     private StorageResult<StorageSlot> reinsertAuthorizedWithdrawPayout(

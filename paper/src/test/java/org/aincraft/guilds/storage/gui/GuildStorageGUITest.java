@@ -400,6 +400,78 @@ class GuildStorageGUITest {
         verify(player).setItemOnCursor(stack);
     }
 
+    @Test
+    void depositFailureAcknowledgesRestorationOnlyAfterSuccessfulRestore() {
+        ItemStack stack = mock(ItemStack.class);
+        when(stack.getType()).thenReturn(Material.DIAMOND);
+        when(stack.clone()).thenReturn(stack);
+        when(stack.serializeAsBytes()).thenReturn(new byte[] {1, 2, 3});
+        when(inventory.getItem(4)).thenReturn(null);
+        when(player.getItemOnCursor()).thenReturn(null);
+        AtomicReference<Runnable> compensation = new AtomicReference<>();
+        when(storageService.depositWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(4),
+                any(OpaqueItemPayload.class),
+                eq(facility.id()),
+                any(UUID.class),
+                any())).thenAnswer(invocation -> {
+            compensation.set(invocation.getArgument(7));
+            return StorageResult.failure(StorageResult.Status.STORAGE_ERROR, "forced failure");
+        });
+
+        gui.open(player, facility, guildId);
+        gui.onInventoryClick(click(4, stack));
+        compensation.get().run();
+
+        verify(player).setItemOnCursor(stack);
+        verify(storageService).acknowledgeDepositRestoration(any(UUID.class));
+    }
+
+    @Test
+    void withdrawMarksUnknownWhenConfirmFailsAfterSuccessfulGive() {
+        ItemStack stored = mock(ItemStack.class);
+        ItemStack decoded = mock(ItemStack.class);
+        when(stored.getType()).thenReturn(Material.EMERALD);
+        byte[] bytes = new byte[] {4, 5, 6};
+        OpaqueItemPayload payload = new OpaqueItemPayload(
+                "paper:v1", sha256(bytes), Base64.getEncoder().encodeToString(bytes));
+        UUID deliveryToken = UUID.randomUUID();
+        when(inventory.getItem(2)).thenReturn(stored);
+        when(storageService.withdrawWithCompensation(
+                eq(playerId),
+                eq(guildId),
+                eq(SqlGuildStorageStore.DEFAULT_TAB_ID),
+                eq(2),
+                eq(facility.id()),
+                any(UUID.class),
+                isNull()))
+                .thenReturn(StorageResult.success(payload));
+        when(storageService.beginWithdrawPayoutDelivery(any(UUID.class)))
+                .thenReturn(StorageResult.success(new PayoutDeliveryHandoff(deliveryToken)));
+        when(storageService.confirmWithdrawPayoutDelivered(any(UUID.class), eq(deliveryToken)))
+                .thenReturn(StorageResult.failure(StorageResult.Status.CONFLICT, "marker failed"));
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    java.util.function.Consumer<Boolean> callback = invocation.getArgument(2);
+                    callback.accept(true);
+                    return null;
+                })
+                .when(inventoryCoordinator)
+                .giveItem(eq(playerId), eq(decoded), any());
+
+        try (MockedStatic<ItemStack> itemStacks = mockStatic(ItemStack.class)) {
+            itemStacks.when(() -> ItemStack.deserializeBytes(bytes)).thenReturn(decoded);
+
+            gui.open(player, facility, guildId);
+            gui.onInventoryClick(click(2, null));
+        }
+
+        verify(storageService).markWithdrawPayoutDeliveryUnknown(any(UUID.class), eq(deliveryToken));
+    }
+
+
     private void sessionsRemove(UUID playerId) {
         try {
             java.lang.reflect.Field field = GuildStorageGUI.class.getDeclaredField("sessions");

@@ -9,6 +9,9 @@ import org.aincraft.guilds.storage.persist.AuditEvidenceLookupResult;
 import org.aincraft.guilds.storage.persist.StorageOperationLookupResult;
 import org.aincraft.guilds.storage.persist.StorageOperationRecord;
 import org.aincraft.guilds.storage.persist.StorageOperationStatus;
+import org.aincraft.guilds.storage.persist.StoragePayoutObligationRecord;
+import org.aincraft.guilds.storage.persist.StoragePayoutObligationStatus;
+import org.aincraft.guilds.storage.service.PayoutDeliveryHandoff;
 import org.aincraft.guilds.storage.service.impl.GuildStorageServiceImpl;
 import org.aincraft.guilds.territory.storage.GuildStorageBank;
 import org.aincraft.guilds.territory.storage.OpaqueItemPayload;
@@ -1818,6 +1821,79 @@ when(store.lookupOperation(operationId)).thenReturn(StorageOperationLookupResult
 
         assertEquals(StorageResult.Status.CONFLICT, result.status());
         assertEquals(1, compensationRuns.get());
+    }
+
+    @Test
+    void beginWithdrawPayoutDeliveryReturnsConflictWhenClaimAlreadyActive() {
+        UUID withdrawOperationId = UUID.randomUUID();
+        UUID deliveryToken = UUID.randomUUID();
+        when(store.claimPayoutObligationForDelivery(withdrawOperationId)).thenReturn(java.util.Optional.empty());
+        when(store.findPayoutObligation(withdrawOperationId)).thenReturn(java.util.Optional.of(new StoragePayoutObligationRecord(
+                withdrawOperationId,
+                guildId,
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                "facility-1",
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                StoragePayoutObligationStatus.DELIVERING,
+                null,
+                deliveryToken,
+                Instant.parse("2026-08-21T12:00:00Z"),
+                Instant.parse("2026-08-21T12:00:00Z"))));
+
+        StorageResult<PayoutDeliveryHandoff> result = storageService.beginWithdrawPayoutDelivery(withdrawOperationId);
+
+        assertEquals(StorageResult.Status.CONFLICT, result.status());
+        assertEquals("Withdraw payout delivery already in progress", result.errorMessage());
+    }
+
+    @Test
+    void beginWithdrawPayoutDeliveryReturnsConflictWhenOutcomeUnknown() {
+        UUID withdrawOperationId = UUID.randomUUID();
+        when(store.claimPayoutObligationForDelivery(withdrawOperationId)).thenReturn(java.util.Optional.empty());
+        when(store.findPayoutObligation(withdrawOperationId)).thenReturn(java.util.Optional.of(new StoragePayoutObligationRecord(
+                withdrawOperationId,
+                guildId,
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                "facility-1",
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                StoragePayoutObligationStatus.UNKNOWN,
+                null,
+                UUID.randomUUID(),
+                Instant.parse("2026-08-21T12:00:00Z"),
+                Instant.parse("2026-08-21T12:00:00Z"))));
+
+        StorageResult<PayoutDeliveryHandoff> result = storageService.beginWithdrawPayoutDelivery(withdrawOperationId);
+
+        assertEquals(StorageResult.Status.CONFLICT, result.status());
+        assertEquals("Withdraw payout delivery outcome unknown", result.errorMessage());
+    }
+
+    @Test
+    void markWithdrawPayoutDeliveryUnknownIsIdempotentWhenAlreadyUnknown() {
+        UUID withdrawOperationId = UUID.randomUUID();
+        UUID deliveryToken = UUID.randomUUID();
+        when(store.markPayoutObligationDeliveryUnknown(withdrawOperationId, deliveryToken)).thenReturn(false);
+        when(store.findPayoutObligation(withdrawOperationId)).thenReturn(java.util.Optional.of(new StoragePayoutObligationRecord(
+                withdrawOperationId,
+                guildId,
+                mayorId,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                2,
+                "facility-1",
+                new OpaqueItemPayload("paper-bytes-v1", "fp", "payload"),
+                StoragePayoutObligationStatus.UNKNOWN,
+                null,
+                deliveryToken,
+                Instant.parse("2026-08-21T12:00:00Z"),
+                Instant.parse("2026-08-21T12:00:00Z"))));
+
+        StorageResult<Void> result = storageService.markWithdrawPayoutDeliveryUnknown(withdrawOperationId, deliveryToken);
+
+        assertTrue(result.isSuccess());
     }
 
     private Resident member(String name, UUID uuid) {

@@ -934,7 +934,7 @@ class SqlGuildStorageStoreTest {
 
         java.util.Optional<java.util.UUID> deliveryToken = store.claimPayoutObligationForDelivery(withdrawOperationId);
         assertTrue(deliveryToken.isPresent());
-        assertTrue(store.claimPayoutObligationForDelivery(withdrawOperationId).isPresent());
+        assertTrue(store.claimPayoutObligationForDelivery(withdrawOperationId).isEmpty());
         assertFalse(store.markPayoutObligationDelivered(withdrawOperationId, java.util.UUID.randomUUID()));
         assertTrue(store.markPayoutObligationDelivered(withdrawOperationId, deliveryToken.orElseThrow()));
         assertEquals(StoragePayoutObligationStatus.DELIVERED, store.findPayoutObligation(withdrawOperationId).orElseThrow().status());
@@ -982,6 +982,30 @@ class SqlGuildStorageStoreTest {
         assertTrue(store.markDepositRestorationComplete(depositOperationId));
         assertTrue(store.findPendingDepositRestorations().isEmpty());
     }
+
+    @Test
+    void depositRestorationClaimAllowsOnlyOneConcurrentHandoff() {
+        store.getOrCreateBank(guildId);
+        OpaqueItemPayload payload = new OpaqueItemPayload("paper-bytes-v1", "fp-restore-claim", "payload-bytes");
+        UUID depositOperationId = UUID.randomUUID();
+        UUID actor = UUID.randomUUID();
+        store.insertDepositRestorationObligation(
+                depositOperationId,
+                guildId,
+                actor,
+                SqlGuildStorageStore.DEFAULT_TAB_ID,
+                24,
+                "facility-restore-claim",
+                payload);
+
+        assertTrue(store.claimDepositRestorationForDelivery(depositOperationId));
+        assertFalse(store.claimDepositRestorationForDelivery(depositOperationId));
+        assertTrue(store.releaseDepositRestorationClaim(depositOperationId));
+        assertTrue(store.claimDepositRestorationForDelivery(depositOperationId));
+        assertTrue(store.markDepositRestorationComplete(depositOperationId));
+        assertTrue(store.findPendingDepositRestorations().isEmpty());
+    }
+
 
 
 }
