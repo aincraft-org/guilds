@@ -1,7 +1,7 @@
 # Map — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-08  
+> Last updated: 2026-08-24  
 > Related: `docs/superpowers/specs/2026-08-08-admin-map-editor-design.md`
 
 ## Intent
@@ -72,6 +72,7 @@ chunk tools + existing API validation.
 - [x] Influence contest layer with owner/attacker tooltips
 - [x] Periodic refresh (~5s)
 - [x] Soft-depend wiring + `runServer` squaremap pin in README
+- [x] Local `runServer` squaremap is the ../squaremap fork (Rust sidecar), not pinned `bf7da8d` + incomplete registry patch
 
 ### Open on the current surface
 

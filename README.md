@@ -99,6 +99,7 @@ Build patched artifacts from source:
 ```bash
 ./scripts/build-squaremap-local.sh
 # optional: SQUAREMAP_ROOT=/path/to/squaremap SQUAREMAP_BACKEND_SEED=/path/to/squaremap/rust/backend
+# optional: SQUAREMAP_COMMIT=<sha> to pin an older checkout and apply scripts/patches/squaremap
 ```
 
 Install is atomic: stop the supervised **`guilds-server`** process before replacing

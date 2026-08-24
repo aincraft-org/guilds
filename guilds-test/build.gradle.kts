@@ -73,11 +73,10 @@ tasks.runServer {
 }
 
 // The local Rust-backed squaremap is mandatory: pass backend binary and
-// output root as JVM system properties. On bf7da8d the sidecar HTTP server serves
-// static files only from SQUAREMAP_OUTPUT_ROOT (rust-output), not from
-// SQUAREMAP_WEB_ROOT — syncSquaremapWebToRustOutput rsyncs the SPA into
-// rust-output before each runServer start. backendWebRoot is passed for plugin
-// wiring; it does not make / work on its own for this sidecar build.
+// output root as JVM system properties. Current squaremap serves the SPA from
+// SQUAREMAP_WEB_ROOT (plugin web dir) and tiles from SQUAREMAP_OUTPUT_ROOT
+// (rust-output). syncSquaremapWebToRustOutput still copies the SPA into
+// rust-output so a sidecar without web_root keeps working.
 val sidecarPath = providers.gradleProperty("squaremapBackendBinary")
     .orElse(layout.projectDirectory.file("run/squaremap-server").asFile.absolutePath)
 val backendOutputRoot = providers.gradleProperty("squaremapBackendOutputRoot")
