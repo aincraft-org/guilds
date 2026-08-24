@@ -39,11 +39,11 @@ require(mintPluginCoordinates.all { it == null } || mintPluginCoordinates.all { 
 }
 
 // The guilds shadow jar is the plugin under test; the guilds-test jar is the
-// test plugin loaded alongside it.
-val guildsPluginJar: java.io.File =
-    layout.projectDirectory.dir("../guilds-paper/build/libs")
-        .file("guilds-${project.version}.jar")
-        .asFile
+// test plugin loaded alongside it. The shadow jar is wired as a task provider
+// so every runServer boot builds and loads the current plugin rather than a
+// stale jar left in build/libs.
+val guildsPaperProject = project(":guilds-paper")
+val guildsShadowJar = guildsPaperProject.tasks.named<Jar>("shadowJar")
 val testPluginJar: java.io.File =
     layout.projectDirectory.dir("build/libs")
         .file("guilds-test-${project.version}.jar")
@@ -58,8 +58,8 @@ val squaremapJarFile: java.io.File =
 tasks.runServer {
     minecraftVersion("26.2")
     runDirectory.set(layout.projectDirectory.dir("run"))
-    pluginJars(guildsPluginJar, testPluginJar, squaremapJarFile)
-    dependsOn(tasks.jar)
+    pluginJars(guildsShadowJar.flatMap { it.archiveFile }, testPluginJar, squaremapJarFile)
+    dependsOn(guildsShadowJar, tasks.jar)
     downloadPlugins {
         if (mintPluginOwner != null) {
             github(
@@ -173,8 +173,8 @@ val syncSquaremapBackendManifest = tasks.register<Exec>("syncSquaremapBackendMan
 
 tasks.runServer {
     doFirst {
-        require(guildsPluginJar.isFile) {
-            "Guilds shadow jar missing: $guildsPluginJar — build it with ./gradlew :guilds-paper:shadowJar"
+        require(guildsShadowJar.get().archiveFile.get().asFile.isFile) {
+            "Guilds shadow jar missing: ${guildsShadowJar.get().archiveFile.get().asFile} — build it with ./gradlew :guilds-paper:shadowJar"
         }
         require(testPluginJar.isFile) {
             "Test plugin jar missing: $testPluginJar — build it with ./gradlew :guilds-test:jar"
