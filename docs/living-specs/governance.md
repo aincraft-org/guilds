@@ -55,7 +55,7 @@ become anarchy or wilderness; federal vs local scope is explicit.
 5. **Alliance form does not replace local land ownership** under the target
    federal model (current code still has alliance-supremacy paths — see Current open).
 6. **Policy effects** only apply when status is PASSED (economy tax path).
-7. Pure domain permission/governance types: no Bukkit in `api`/`common`.
+7. Pure domain permission/governance types: no Bukkit in `guilds-api`/`guilds-common`.
 8. **Invalid governments rejected at boundaries** (target): no silent null→anarchy
    factories for production paths.
 
@@ -63,12 +63,12 @@ become anarchy or wilderness; federal vs local scope is explicit.
 
 | Concern | Location |
 |---------|----------|
-| Forms, seats, policies | `api/.../model` (`Government`, `Policy`, `PolicyRules`) |
-| Decree effects | `api/.../decree` |
-| DTOs / rules | `api/.../permission` |
-| Registry + BlockProtection | `common/.../permission` |
-| Guild adapter | `paper/.../guilds/GuildsGovernanceSource` |
-| Listeners | `paper/.../listener/ProtectionListener`, `InteractionProtectionListener` |
+| Forms, seats, policies | `guilds-api/.../model` (`Government`, `Policy`, `PolicyRules`) |
+| Decree effects | `guilds-api/.../decree` |
+| DTOs / rules | `guilds-api/.../permission` |
+| Registry + BlockProtection | `guilds-common/.../permission` |
+| Guild adapter | `guilds-paper/.../guilds/GuildsGovernanceSource` |
+| Listeners | `guilds-paper/.../listener/ProtectionListener`, `InteractionProtectionListener` |
 
 ### Target federal model (approved design)
 

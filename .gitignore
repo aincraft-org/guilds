@@ -9,7 +9,7 @@ out/
 *.log
 .DS_Store
 run/
-paper/run*/
+guilds-paper/run*/
 bin/
 *.class
 

@@ -43,16 +43,16 @@ territory per governing guild.
 5. Harvest never regenerates full loot tables; adds bonus stacks from canonical
    event drop lists (see harvest listener contract).
 6. Load failure fails closed where engine marks unusable.
-7. Domain free of Bukkit; listeners in `paper`.
+7. Domain free of Bukkit; listeners in `guilds-paper`.
 
 ## Implementation guidance
 
 | Layer | Location |
 |-------|----------|
-| API | `api/.../standing` |
-| Engine + config + Postgres | `common/.../standing` |
-| Harvest + accrual listeners | `paper/.../standing` |
-| Seed resource | `paper` packaged `bonuses.json` |
+| API | `guilds-api/.../standing` |
+| Engine + config + Postgres | `guilds-common/.../standing` |
+| Harvest + accrual listeners | `guilds-paper/.../standing` |
+| Seed resource | `guilds-paper` packaged `bonuses.json` |
 
 - Seed `bonuses.json` on first enable without overwriting admin edits.
 - Influence asks `StandingService.influenceMultiplierFor(guildId)` — keep API stable.

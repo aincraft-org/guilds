@@ -13,7 +13,7 @@ a countdown the territory **flips** ownership to the challenger.
 Gated on **alliance membership**: both sides must be in (different) alliances;
 same-alliance and unaffiliated guilds cannot contest.
 
-Success looks like: pure-domain engine in `common`, restart-safe Postgres state,
+Success looks like: pure-domain engine in `guilds-common`, restart-safe Postgres state,
 thin Paper listeners, optional standing multiplier hook, squaremap/API readout.
 
 ## Boundaries
@@ -51,10 +51,10 @@ thin Paper listeners, optional standing multiplier hook, squaremap/API readout.
 
 | Layer | Location |
 |-------|----------|
-| API contracts | `api/.../influence` |
-| Engine + state + Postgres | `common/.../influence` |
-| Listeners / status | `paper/.../influence` |
-| Map layer | `paper/.../squaremap` (**map**) |
+| API contracts | `guilds-api/.../influence` |
+| Engine + state + Postgres | `guilds-common/.../influence` |
+| Listeners / status | `guilds-paper/.../influence` |
+| Map layer | `guilds-paper/.../squaremap` (**map**) |
 
 - Ownership flip uses `OwnershipPersister` seam into territory persistence —
   do not write guild tables from the influence package.

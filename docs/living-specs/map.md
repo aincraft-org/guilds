@@ -44,8 +44,8 @@ chunk tools + existing API validation.
 
 | Piece | Location |
 |-------|----------|
-| squaremap bridge | `paper/.../squaremap` |
-| Editor static + session | planned under `common/.../web` + resources |
+| squaremap bridge | `guilds-paper/.../squaremap` |
+| Editor static + session | planned under `guilds-common/.../web` + resources |
 | Live tiles | external squaremap plugin |
 
 - Keep layer paint cheap; don’t block tick thread on heavy geometry.

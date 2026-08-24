@@ -17,7 +17,7 @@ Checkstyle, and tests fail the build; hooks are installable in one script.
 
 ### In scope
 
-- Gradle modules: `api`, `common`, `paper` (+ root aggregation).
+- Gradle modules: `guilds-api`, `guilds-common`, `guilds-paper` (+ root aggregation).
 - Tooling: Error Prone, SpotBugs, PMD, Checkstyle (pinned versions).
 - GitHub Actions workflow(s).
 - Repository git hooks via `scripts/install-git-hooks.sh` / `.githooks`.
@@ -53,7 +53,7 @@ Checkstyle, and tests fail the build; hooks are installable in one script.
 
 ### Capability (shipped)
 
-- [x] Multi-module Gradle layout (`api` / `common` / `paper`)
+- [x] Multi-module Gradle layout (`guilds-api` / `guilds-common` / `guilds-paper`)
 - [x] Error Prone, SpotBugs, PMD, Checkstyle integrated
 - [x] GitHub Actions CI workflow
 - [x] Installable pre-commit hooks running `./gradlew check`

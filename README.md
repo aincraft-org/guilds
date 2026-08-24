@@ -36,21 +36,21 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
 ./gradlew build
 ```
 
-Multi-module Gradle layout (`api` / `common` / `paper`):
+Multi-module Gradle layout (`guilds-api` / `guilds-common` / `guilds-paper`):
 
-- **`api/`** — public API: value models (`org.aincraft.guilds.territory.model`), decree
+- **`guilds-api/`** — public API: value models (`org.aincraft.guilds.territory.model`), decree
   effects (`…decree`), registries (`…registry`), and contracts
   (`…permission` / `…economy` interfaces and DTOs). Pure Java; no Bukkit types.
-- **`common/`** — Paper-free shared implementation: persistence
+- **`guilds-common/`** — Paper-free shared implementation: persistence
   (`…persist`), economy (`…economy`), governance logic (`…permission`),
   and the JDK HTTP REST API submodule (`…web`).
-- **`paper/`** — the single Paper plugin: main class, listeners, commands,
+- **`guilds-paper/`** — the single Paper plugin: main class, listeners, commands,
   Vault/economy bridges, and the integrated Guilds subsystem
   (`org.aincraft.guilds`, including `plugin.yml` / `config.yml` /
   `guilds-config.yml` / `techtree.yml`).
 
 Produces the single Paper plugin JAR:
-`paper/build/libs/guilds-26.8.18.0.jar`
+`guilds-paper/build/libs/guilds-26.8.18.0.jar`
 (shadow/fat jar with Guilds runtime libraries: HikariCP, PostgreSQL, Caffeine).
 
 ```bash
@@ -64,7 +64,7 @@ GitHub release coordinates explicitly. The Mint API dependency alone does not
 install the server plugin:
 
 ```bash
-./gradlew :paper:runServer \
+./gradlew :guilds-paper:runServer \
   -PmintPluginOwner=OWNER \
   -PmintPluginRepository=REPOSITORY \
   -PmintPluginTag=TAG \
@@ -77,11 +77,11 @@ project-specific. Omitting all four keeps the normal Paper/squaremap server
 path unchanged.
 
 ```bash
-./gradlew :paper:runServer
+./gradlew :guilds-paper:runServer
 ```
 
 The `runServer` task (run-paper 3.0.2) downloads Paper **26.2**, loads the
-guilds shadow jar, and runs it in `paper/run/`. It also auto-downloads
+guilds shadow jar, and runs it in `guilds-paper/run/`. It also auto-downloads
 the **squaremap 1.3.15** Paper jar (the release that targets MC 26.2, pinned
 to the GitHub `v1.3.15` asset) so the live map is available out of the box at
 `http://localhost:8080`.
@@ -116,9 +116,9 @@ submodule). Features:
 
 Public squaremap stays view-only; no squaremap fork required.
 
-Accept the EULA on first run (`paper/run/eula.txt`). The plugin requires the
+Accept the EULA on first run (`guilds-paper/run/eula.txt`). The plugin requires the
 shared PostgreSQL database (see "Persistence" below) — point `database.*` in
-`paper/run/plugins/Guilds/config.yml` at a reachable instance.
+`guilds-paper/run/plugins/Guilds/config.yml` at a reachable instance.
 
 ### Local pre-commit checks
 
@@ -138,8 +138,8 @@ git config --local --unset core.hooksPath
 
 ### Integrated Guilds subsystem
 
-Guilds production sources live under the `paper/` module tree
-(`paper/src/main/java/org/aincraft/guilds/`). There is one `plugin.yml`, one
+Guilds production sources live under the `guilds-paper/` module tree
+(`guilds-paper/src/main/java/org/aincraft/guilds/`). There is one `plugin.yml`, one
 main class (`org.aincraft.guilds.GuildsPlugin`), and that main enables both
 territory behavior and the guilds subsystem (commands via Paper Brigadier,
 listeners, plain constructor-wired services via the `GuildsServices`

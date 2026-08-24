@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StorageCommandTest {
     @Test
     void guildAndTownAliasExposeLocalStorageCommand() {
-        String guildCommand = read("paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
-        String registry = read("paper/src/main/java/org/aincraft/guilds/commands/BrigadierCommandRegistry.java");
+        String guildCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
+        String registry = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/BrigadierCommandRegistry.java");
 
         assertTrue(guildCommand.contains("literal(\"storage\")"));
         assertTrue(guildCommand.contains("handleStorage"));
@@ -26,8 +26,8 @@ class StorageCommandTest {
 
     @Test
     void storageCommandNeverOpensWithoutLocalAnchorResolution() {
-        String guildCommand = read("paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
-        String opener = read("paper/src/main/java/org/aincraft/guilds/storage/StorageFacilityOpener.java");
+        String guildCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
+        String opener = read("guilds-paper/src/main/java/org/aincraft/guilds/storage/StorageFacilityOpener.java");
 
         assertTrue(guildCommand.contains("StorageFacilityOpener opener = storageFacilityOpener"));
         assertTrue(opener.contains("tryOpenAtLocation(Player player)"));
@@ -37,9 +37,9 @@ class StorageCommandTest {
 
     @Test
     void buildingListenerUsesSharedStorageOpener() {
-        String listener = read("paper/src/main/java/org/aincraft/guilds/territory/building/BuildingListener.java");
-        String plugin = read("paper/src/main/java/org/aincraft/guilds/GuildsPlugin.java");
-        String services = read("paper/src/main/java/org/aincraft/guilds/GuildsServices.java");
+        String listener = read("guilds-paper/src/main/java/org/aincraft/guilds/territory/building/BuildingListener.java");
+        String plugin = read("guilds-paper/src/main/java/org/aincraft/guilds/GuildsPlugin.java");
+        String services = read("guilds-paper/src/main/java/org/aincraft/guilds/GuildsServices.java");
 
         assertTrue(listener.contains("StorageFacilityOpener"));
         assertTrue(listener.contains("storageOpener.tryOpen(player, facility)"));

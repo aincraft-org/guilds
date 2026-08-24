@@ -74,8 +74,8 @@ jobs:
           STABLE_VERSION: ${{ inputs.stable_version }}
         run: |
           set -euo pipefail
-          plugin="paper/build/libs/guilds-${STABLE_VERSION}.jar"
-          sources="paper/build/libs/guilds-${STABLE_VERSION}-sources.jar"
+          plugin="guilds-paper/build/libs/guilds-${STABLE_VERSION}.jar"
+          sources="guilds-paper/build/libs/guilds-${STABLE_VERSION}-sources.jar"
           test -s "${plugin}"
           test -s "${sources}"
           sha256sum "${plugin}" > "${plugin}.sha256"
@@ -88,8 +88,8 @@ jobs:
           STABLE_VERSION: ${{ inputs.stable_version }}
         run: |
           set -euo pipefail
-          plugin="paper/build/libs/guilds-${STABLE_VERSION}.jar"
-          sources="paper/build/libs/guilds-${STABLE_VERSION}-sources.jar"
+          plugin="guilds-paper/build/libs/guilds-${STABLE_VERSION}.jar"
+          sources="guilds-paper/build/libs/guilds-${STABLE_VERSION}-sources.jar"
           notes="$(mktemp)"
           trap 'rm -f "${notes}"' EXIT
           cat > "${notes}" <<NOTES

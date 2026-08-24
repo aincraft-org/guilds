@@ -12,8 +12,8 @@ plugins {
 description = "Guilds Paper plugin — Bukkit glue, listeners, commands, and the integrated Guilds subsystem"
 
 dependencies {
-    implementation(project(":api"))
-    implementation(project(":common"))
+    implementation(project(":guilds-api"))
+    implementation(project(":guilds-common"))
     implementation("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
     compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
     testImplementation("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
@@ -79,7 +79,7 @@ tasks.assemble {
     dependsOn(tasks.shadowJar)
 }
 
-// Local test server: ./gradlew :paper:runServer
+// Local test server: ./gradlew :guilds-paper:runServer
 // Boots Paper 26.2 with the guilds shadow jar plus the squaremap
 // 1.3.15 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
 // serves its live web map on http://localhost:8080 by default.
@@ -99,7 +99,7 @@ require(mintPluginCoordinates.all { it == null } || mintPluginCoordinates.all { 
 }
 
 // Optional: use a locally-built squaremap jar instead of the pinned upstream release.
-// ./gradlew :paper:runServer -PsquaremapLocalJar=/path/to/squaremap-paper.jar
+// ./gradlew :guilds-paper:runServer -PsquaremapLocalJar=/path/to/squaremap-paper.jar
 val squaremapLocalJar = providers.gradleProperty("squaremapLocalJar").orNull
 
 // The squaremap Paper jar loaded by runServer. By default it is downloaded from the

@@ -5,7 +5,7 @@ plugins {
 description = "Guilds shared implementation — Paper-free persistence, economy, governance logic, and web submodule"
 
 dependencies {
-    api(project(":api"))
+    api(project(":guilds-api"))
 
     // Domain persistence + territory web payloads; Paper ships Gson at runtime
     // but we shade it for self-containment.

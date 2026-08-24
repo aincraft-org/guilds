@@ -17,7 +17,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-// api: public contracts + value models (model, decree, registry, permission/economy contracts)
-// common: Paper-free shared implementation (persistence, economy, governance logic, web submodule)
-// paper: the single Paper plugin (Bukkit glue + integrated Guilds subsystem)
-include("api", "common", "paper")
+// guilds-api: public contracts + value models (model, decree, registry, permission/economy contracts)
+// guilds-common: Paper-free shared implementation (persistence, economy, governance logic, web submodule)
+// guilds-paper: the single Paper plugin (Bukkit glue + integrated Guilds subsystem)
+include("guilds-api", "guilds-common", "guilds-paper")

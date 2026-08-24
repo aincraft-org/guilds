@@ -49,23 +49,23 @@ contracts are durable and transactional where money/items move.
 5. Level upgrade rechecks locked row; consumes XP progress once; skill points equal current level.
 6. Contract escrow: debit on post; release on fulfill; refund on cancel; no post
    without affordability.
-7. No Bukkit types in pure territory `api`/`common`; guilds code lives under
-   `paper/.../org.aincraft.guilds` and may use Paper APIs.
+7. No Bukkit types in pure territory `guilds-api`/`guilds-common`; guilds code lives under
+   `guilds-paper/.../org.aincraft.guilds` and may use Paper APIs.
 
 ## Implementation guidance
 
 | Area | Location |
 |------|----------|
-| Services | `paper/.../org.aincraft.guilds.services` (+ `impl`) |
-| Models | `paper/.../org.aincraft.guilds.models` |
-| Commands | `paper/.../org.aincraft.guilds.commands` |
-| DB / migrations | `paper/.../org.aincraft.guilds.database` |
+| Services | `guilds-paper/.../org.aincraft.guilds.services` (+ `impl`) |
+| Models | `guilds-paper/.../org.aincraft.guilds.models` |
+| Commands | `guilds-paper/.../org.aincraft.guilds.commands` |
+| DB / migrations | `guilds-paper/.../org.aincraft.guilds.database` |
 | Governance bridge | `GuildsGovernanceSource` |
 | Composition | `GuildsServices` from `GuildsPlugin` |
 
 - Prefer service interfaces for contracts/levels so territory domain stays free of guild SQL.
 - When changing form or permission defaults, update **governance** living spec and form matrices together.
-- Historical MockBukkit suite is archived under `docs/archived-guilds-test/` — new tests should live with the paper module.
+- Historical MockBukkit suite is archived under `docs/archived-guilds-test/` — new tests should live with the guilds-paper module.
 
 ### Testing
 

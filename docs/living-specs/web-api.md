@@ -46,7 +46,7 @@ safe for real deployments; token auth on mutating routes.
 
 | Piece | Location |
 |-------|----------|
-| Server / config | `common/.../web` |
+| Server / config | `guilds-common/.../web` |
 | Handler | `TerritoryApiHandler` |
 | Plugin start/stop | `GuildsPlugin` |
 | Config | `web.*` in plugin config |

@@ -1,0 +1,4 @@
+package org.aincraft.guilds.territory;
+import static org.junit.jupiter.api.Assertions.assertTrue; import java.nio.file.Files;
+import java.nio.file.Path; import org.junit.jupiter.api.Test;
+class MintGuildBankSmokeTest { @Test void documentedSurfaceIncludesTaxAndBankFlow(){ String economy=read("guilds-common/src/main/java/org/aincraft/guilds/territory/economy/EconomyBridge.java"); String commands=read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java"); assertTrue(economy.contains("reportSaleAsync")); assertTrue(economy.contains("guildBody")); assertTrue(commands.contains("literal(\"bank\")")); } private static String read(String f){try{return Files.readString(Path.of(System.getProperty("user.dir")).resolve("..",f));}catch(Exception e){throw new AssertionError(e);}}}

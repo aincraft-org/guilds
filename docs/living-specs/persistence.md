@@ -46,7 +46,7 @@ idempotent on fresh databases on both backends.
 3. **No dual write** to legacy JSON/SQLite as second truth.
 4. **Memory after durable success** for mutations that claim persistence.
 5. Schema create/migrate **idempotent** and safe on empty DB on both backends.
-6. Domain store classes remain free of Bukkit (guilds SQL may live in paper).
+6. Domain store classes remain free of Bukkit (guilds SQL may live in guilds-paper).
 
 ## Implementation guidance
 
@@ -54,9 +54,9 @@ idempotent on fresh databases on both backends.
 |-------|----------|
 | Pool / settings / dialect | `HikariDatabase` via `DatabaseFactory` |
 | Shared SQL helpers | `SqlSupport` (upsert, TEXT→VARCHAR, catalog, indexes) |
-| Versioned SQL | `common/src/main/resources/sql/migrations/{track}` |
-| Territory/economy/influence/standing stores | `common/.../persist` + domain packages |
-| Guilds schema | `paper/.../org.aincraft.guilds.database` |
+| Versioned SQL | `guilds-common/src/main/resources/sql/migrations/{track}` |
+| Territory/economy/influence/standing stores | `guilds-common/.../persist` + domain packages |
+| Guilds schema | `guilds-paper/.../org.aincraft.guilds.database` |
 | Plugin wiring | `GuildsPlugin` |
 
 - Territory document stores use `DatabaseDialect` (`JSONB`/`ON CONFLICT` vs
@@ -100,7 +100,7 @@ idempotent on fresh databases on both backends.
 - [x] `SqlSupport` helpers for upsert, identifier types, and catalog checks
 - [x] Single `HikariDatabase` pool owner
 - [x] Versioned SQL resources for persist + Guilds schema (`sql/migrations/`)
-- [x] Guilds service DML loaded from `paper/src/main/resources/sql/` via `SqlStatements`
+- [x] Guilds service DML loaded from `guilds-paper/src/main/resources/sql/` via `SqlStatements`
 
 ### Open on the current surface
 

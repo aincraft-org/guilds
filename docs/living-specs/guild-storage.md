@@ -48,7 +48,7 @@ item moves.
 ## Implementation guidance
 
 - Depend on **economy** facility registry for location resolve; do not fork facility types without catalog update.
-- Keep serialization versioned; prefer Paper item serialization APIs in `paper` module only.
+- Keep serialization versioned; prefer Paper item serialization APIs in `guilds-paper` module only.
 - Coordinate permissions with **guilds** role model and **governance** land interact rules at the facility block.
 - Write living-spec checkboxes as tasks split when implementation starts.
 

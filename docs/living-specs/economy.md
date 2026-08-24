@@ -23,7 +23,7 @@ Success looks like:
 - Tax rates are political artifacts (PASSED `DecreeEffects` on policies), not hard-coded config tables.
 - Money movement has a single seam (`PaymentRail`) with fail-closed Vault mode and an explicit non-monetary simulation mode.
 - Treasury debits (upkeep, fortification, other) are restart-safe and never double-charge for the same idempotency key.
-- Domain code in `api`/`common` stays free of Bukkit and Vault types.
+- Domain code in `guilds-api`/`guilds-common` stays free of Bukkit and Vault types.
 
 ## Boundaries
 
@@ -61,7 +61,7 @@ Settled law for this domain (plain bullets — do not “checkbox” these):
 7. **Expense idempotency.** Same non-blank key: first successful debit → later calls return `ALREADY_APPLIED` without re-debit. Restart-visible `PENDING` → `RECONCILIATION_REQUIRED`; **never** auto-retry that key (Vault may already have debited).
 8. **Governed territory required for expenses.** `chargeExpense` requires a registered territory with an assigned government.
 9. **Facilities are metadata.** A facility does not own inventory, access policy, or money; location must resolve inside its declared territory; at most one facility per block location.
-10. **Layering.** Pure domain (`common`/`api` economy, model, registry, decree, persist stores’ domain types) never imports Bukkit or Vault. Vault/Bukkit live under `paper/.../economy`.
+10. **Layering.** Pure domain (`guilds-common`/`guilds-api` economy, model, registry, decree, persist stores’ domain types) never imports Bukkit or Vault. Vault/Bukkit live under `guilds-paper/.../economy`.
 11. **Postgres is durable store.** Facilities, expenses, upkeep, and reconciliation use the shared remote PostgreSQL pool — no new JSON/SQLite fallback for these.
 
 ## Implementation guidance
@@ -70,9 +70,9 @@ Settled law for this domain (plain bullets — do not “checkbox” these):
 
 | Layer | Responsibility |
 |-------|----------------|
-| `api` — `PaymentRail`, `SettlementResult`, treasury debit types; `model` facilities; `decree` tax effects; `registry.FacilityRegistry` | Public contracts and pure models |
-| `common` — `EconomyBridge`, `TaxCalculator`, `ExpenseLedger`, `SimulationTreasury`, upkeep engine, Postgres `*Store`s | Domain logic + durable stores (no Bukkit) |
-| `paper` — `VaultTreasury`, `BukkitEconomyBridge`, `EconomyConfig`, plugin wiring, scheduled upkeep task | Platform adapters |
+| `guilds-api` — `PaymentRail`, `SettlementResult`, treasury debit types; `model` facilities; `decree` tax effects; `registry.FacilityRegistry` | Public contracts and pure models |
+| `guilds-common` — `EconomyBridge`, `TaxCalculator`, `ExpenseLedger`, `SimulationTreasury`, upkeep engine, Postgres `*Store`s | Domain logic + durable stores (no Bukkit) |
+| `guilds-paper` — `VaultTreasury`, `BukkitEconomyBridge`, `EconomyConfig`, plugin wiring, scheduled upkeep task | Platform adapters |
 
 Flow for a sale (happy path):
 
@@ -122,7 +122,7 @@ UpkeepEngine.tick (or external scheduler)
 - Treat upkeep as a fake “sale” to the treasury.
 - Infer craft prices from the goods catalog.
 - Add a second expense ledger path that bypasses `EconomyBridge.chargeExpense`.
-- Put Bukkit types into `common` economy packages.
+- Put Bukkit types into `guilds-common` economy packages.
 - Implement guild inventory storage inside the facility record.
 
 ## Current

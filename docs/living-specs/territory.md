@@ -54,11 +54,11 @@ violate spatial rules fail closed before persistence.
 
 | Layer | Location |
 |-------|----------|
-| Models | `api/.../model` (`Territory`, `Zone`, `Boundary`, …) |
-| Registry | `api/.../registry/TerritoryRegistry` |
-| JSON codec | `common/.../persist/TerritoryJson` |
-| Postgres | `common/.../persist/PostgresTerritoryStore` |
-| Commands | `paper/.../command/TerritoryCommand` |
+| Models | `guilds-api/.../model` (`Territory`, `Zone`, `Boundary`, …) |
+| Registry | `guilds-api/.../registry/TerritoryRegistry` |
+| JSON codec | `guilds-common/.../persist/TerritoryJson` |
+| Postgres | `guilds-common/.../persist/PostgresTerritoryStore` |
+| Commands | `guilds-paper/.../command/TerritoryCommand` |
 
 - Prefer constructing invalid territories to **throw at model/registry** rather
   than load silently wrong geometry.

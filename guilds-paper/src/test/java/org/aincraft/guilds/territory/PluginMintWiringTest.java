@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class PluginMintWiringTest {
     @Test
     void usesGitHubPackagesAndPinnedMintVersion() {
-        String build = read("paper/build.gradle.kts");
+        String build = read("guilds-paper/build.gradle.kts");
         String settings = read("settings.gradle.kts");
         String props = read("gradle.properties");
         assertTrue(settings.contains("maven.pkg.github.com/aincraft-org/mint"));
@@ -20,7 +20,7 @@ class PluginMintWiringTest {
 
     @Test
     void mintConfigFailsClosedWithoutBinding() {
-        String s = read("paper/src/main/java/org/aincraft/guilds/GuildsPlugin.java");
+        String s = read("guilds-paper/src/main/java/org/aincraft/guilds/GuildsPlugin.java");
         assertTrue(s.contains("Mode.MINT"));
         assertTrue(s.contains("bindMintClient"));
         assertTrue(s.contains("MintClientReceiver.class"));
@@ -30,14 +30,14 @@ class PluginMintWiringTest {
 
     @Test
     void guildServicesAcceptTrustedMintRail() {
-        String s = read("paper/src/main/java/org/aincraft/guilds/GuildsServices.java");
+        String s = read("guilds-paper/src/main/java/org/aincraft/guilds/GuildsServices.java");
         assertTrue(s.contains("MintClientLease"));
         assertTrue(s.contains("withMintLease"));
     }
 
     @Test
     void runServerUsesExplicitMintGithubCoordinates() {
-        String build = read("paper/build.gradle.kts");
+        String build = read("guilds-paper/build.gradle.kts");
         assertTrue(build.contains("mintPluginOwner"));
         assertTrue(build.contains("mintPluginRepository"));
         assertTrue(build.contains("mintPluginTag"));
@@ -47,7 +47,7 @@ class PluginMintWiringTest {
 
     @Test
     void runServerRejectsPartialMintCoordinates() {
-        String build = read("paper/build.gradle.kts");
+        String build = read("guilds-paper/build.gradle.kts");
         assertTrue(build.contains("Mint plugin coordinates must be provided together"));
         assertTrue(build.contains("mintPluginOwner"));
         assertTrue(build.contains("mintPluginAsset"));
@@ -55,14 +55,14 @@ class PluginMintWiringTest {
 
     @Test
     void runServerDoesNotInventMintCoordinates() {
-        String build = read("paper/build.gradle.kts");
+        String build = read("guilds-paper/build.gradle.kts");
         assertFalse(build.contains("github(\"aincraft-org\""));
         assertFalse(build.contains("mint-paper"));
     }
 
     @Test
     void runServerPreservesSquaremapDownload() {
-        String build = read("paper/build.gradle.kts");
+        String build = read("guilds-paper/build.gradle.kts");
         assertTrue(build.contains("verifySquaremapPlugin"));
         assertTrue(build.contains("squaremapPaperMc26JarSha512"));
         assertTrue(build.contains("squaremap-paper-mc26.2-1.3.15.jar"));
@@ -72,7 +72,7 @@ class PluginMintWiringTest {
 
     @Test
     void movementListenerReceivesTerritoryRegistry() {
-        String s = read("paper/src/main/java/org/aincraft/guilds/listeners/PlayerMovementListener.java");
+        String s = read("guilds-paper/src/main/java/org/aincraft/guilds/listeners/PlayerMovementListener.java");
         assertTrue(s.contains("TerritoryRegistry"));
         assertTrue(s.contains("sendTitle"));
     }
