@@ -4,6 +4,21 @@ plugins {
 
 description = "Guilds local test server — run-paper harness that boots Paper with the guilds shadow jar as the test plugin"
 
+dependencies {
+    compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
+}
+
+tasks.processResources {
+    val props = mapOf(
+            "version" to version,
+            "description" to (project.description ?: ""),
+    )
+    inputs.properties(props)
+    filesMatching("plugin.yml") {
+        expand(props)
+    }
+}
+
 // Local test server: ./gradlew :guilds-test:runServer
 // Boots Paper 26.2 with the guilds shadow jar plus the squaremap
 // 1.3.15 Paper jar (pinned GitHub release asset) loaded as plugins. squaremap
@@ -23,10 +38,15 @@ require(mintPluginCoordinates.all { it == null } || mintPluginCoordinates.all { 
             "mintPluginOwner, mintPluginRepository, mintPluginTag, mintPluginAsset"
 }
 
-// The guilds shadow jar is the test plugin under test.
+// The guilds shadow jar is the plugin under test; the guilds-test jar is the
+// test plugin loaded alongside it.
 val guildsPluginJar: java.io.File =
     layout.projectDirectory.dir("../guilds-paper/build/libs")
         .file("guilds-${project.version}.jar")
+        .asFile
+val testPluginJar: java.io.File =
+    layout.projectDirectory.dir("build/libs")
+        .file("guilds-test-${project.version}.jar")
         .asFile
 
 // runServer ALWAYS loads the locally-built Rust-backed squaremap jar from this
@@ -38,7 +58,8 @@ val squaremapJarFile: java.io.File =
 tasks.runServer {
     minecraftVersion("26.2")
     runDirectory.set(layout.projectDirectory.dir("run"))
-    pluginJars(guildsPluginJar, squaremapJarFile)
+    pluginJars(guildsPluginJar, testPluginJar, squaremapJarFile)
+    dependsOn(tasks.jar)
     downloadPlugins {
         if (mintPluginOwner != null) {
             github(
@@ -154,6 +175,9 @@ tasks.runServer {
     doFirst {
         require(guildsPluginJar.isFile) {
             "Guilds shadow jar missing: $guildsPluginJar — build it with ./gradlew :guilds-paper:shadowJar"
+        }
+        require(testPluginJar.isFile) {
+            "Test plugin jar missing: $testPluginJar — build it with ./gradlew :guilds-test:jar"
         }
         require(squaremapJarFile.isFile) {
             "Local squaremap jar missing: $squaremapJarFile — build it with ./scripts/build-squaremap-local.sh"

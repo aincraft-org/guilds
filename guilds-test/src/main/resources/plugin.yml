@@ -1,0 +1,8 @@
+name: GuildsTest
+version: ${version}
+main: org.aincraft.guilds.test.TestPlugin
+api-version: '26.2'
+description: ${description}
+author: Aincraft
+website: https://github.com/aincraft-org/guilds
+load: POSTWORLD
