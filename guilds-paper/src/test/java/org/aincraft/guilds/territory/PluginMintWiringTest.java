@@ -37,7 +37,7 @@ class PluginMintWiringTest {
 
     @Test
     void runServerUsesExplicitMintGithubCoordinates() {
-        String build = read("guilds-paper/build.gradle.kts");
+        String build = read("guilds-test/build.gradle.kts");
         assertTrue(build.contains("mintPluginOwner"));
         assertTrue(build.contains("mintPluginRepository"));
         assertTrue(build.contains("mintPluginTag"));
@@ -47,7 +47,7 @@ class PluginMintWiringTest {
 
     @Test
     void runServerRejectsPartialMintCoordinates() {
-        String build = read("guilds-paper/build.gradle.kts");
+        String build = read("guilds-test/build.gradle.kts");
         assertTrue(build.contains("Mint plugin coordinates must be provided together"));
         assertTrue(build.contains("mintPluginOwner"));
         assertTrue(build.contains("mintPluginAsset"));
@@ -55,19 +55,23 @@ class PluginMintWiringTest {
 
     @Test
     void runServerDoesNotInventMintCoordinates() {
-        String build = read("guilds-paper/build.gradle.kts");
+        String build = read("guilds-test/build.gradle.kts");
         assertFalse(build.contains("github(\"aincraft-org\""));
         assertFalse(build.contains("mint-paper"));
     }
 
     @Test
-    void runServerPreservesSquaremapDownload() {
-        String build = read("guilds-paper/build.gradle.kts");
-        assertTrue(build.contains("verifySquaremapPlugin"));
-        assertTrue(build.contains("squaremapPaperMc26JarSha512"));
-        assertTrue(build.contains("squaremap-paper-mc26.2-1.3.15.jar"));
-        assertTrue(build.contains("https://github.com/jpenilla/squaremap/releases/download/v1.3.15/"));
-        assertTrue(build.contains("sha512(dest)"));
+    void runServerRequiresLocalRustSquaremap() {
+        String build = read("guilds-test/build.gradle.kts");
+        String props = read("gradle.properties");
+        assertTrue(build.contains("run/squaremap-paper-rust-local.jar"));
+        assertTrue(build.contains("run/squaremap-server"));
+        assertTrue(build.contains("build-squaremap-local.sh"));
+        assertFalse(build.contains("verifySquaremapPlugin"));
+        assertFalse(build.contains("squaremapPaperMc26JarSha512"));
+        assertFalse(build.contains("releases/download/v1.3.15/squaremap-paper"));
+        assertFalse(props.contains("squaremapPaperMc26JarSha512"));
+        assertFalse(build.contains("squaremapLocalJar"));
     }
 
     @Test

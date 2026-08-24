@@ -64,7 +64,7 @@ GitHub release coordinates explicitly. The Mint API dependency alone does not
 install the server plugin:
 
 ```bash
-./gradlew :guilds-paper:runServer \
+./gradlew :guilds-test:runServer \
   -PmintPluginOwner=OWNER \
   -PmintPluginRepository=REPOSITORY \
   -PmintPluginTag=TAG \
@@ -77,14 +77,58 @@ project-specific. Omitting all four keeps the normal Paper/squaremap server
 path unchanged.
 
 ```bash
-./gradlew :guilds-paper:runServer
+./gradlew :guilds-test:runServer
 ```
 
 The `runServer` task (run-paper 3.0.2) downloads Paper **26.2**, loads the
-guilds shadow jar, and runs it in `guilds-paper/run/`. It also auto-downloads
-the **squaremap 1.3.15** Paper jar (the release that targets MC 26.2, pinned
-to the GitHub `v1.3.15` asset) so the live map is available out of the box at
-`http://localhost:8080`.
+guilds shadow jar, and runs it in `guilds-test/run/`. It always loads the locally
+built **Rust-backed squaremap** (`guilds-test/run/squaremap-paper-rust-local.jar`
+plus the `guilds-test/run/squaremap-server` sidecar) — the upstream Java squaremap
+jar is never downloaded or loaded. The live map is at
+**`http://localhost:18080/`**. If either artifact is missing, `runServer`
+fails fast before booting; build them with `./scripts/build-squaremap-local.sh`.
+
+#### Local Rust squaremap backend (dev)
+
+The Rust backend is the only squaremap `runServer` can start — there is no
+Java-squaremap fallback. Rebuild or refresh the artifacts with
+`./scripts/build-squaremap-local.sh` (see below).
+
+Build patched artifacts from source:
+
+```bash
+./scripts/build-squaremap-local.sh
+# optional: SQUAREMAP_ROOT=/path/to/squaremap SQUAREMAP_BACKEND_SEED=/path/to/squaremap/rust/backend
+```
+
+Install is atomic: stop the supervised **`guilds-server`** process before replacing
+`guilds-test/run/squaremap-server`. Prefer stopping through your process supervisor
+(for example `hub stop name=guilds-server`), then verify nothing remains:
+
+```bash
+pgrep -af 'guilds-test/run/squaremap-server bridge|gradle/wrapper/gradle-wrapper.jar --no-daemon :guilds-test:runServer'
+```
+
+If `world/session.lock` is still held, inspect the locking PID with
+`fuser guilds-test/run/world/session.lock` and stop **that PID only** (`kill <pid>`).
+Do **not** use broad `pkill -f '26.2/112.jar…'` patterns — they also match the
+supervised Paper process and can cause the same SIGTERM exit you saw earlier.
+
+For scripted installs only:
+
+```bash
+SQUAREMAP_STOP_SERVER=1 ./scripts/build-squaremap-local.sh
+```
+
+That sends SIGTERM to the repo-local `:guilds-test:runServer` Gradle launcher and, if
+needed, cleans up orphaned sidecar/session.lock holders **by PID** (not pkill).
+Restart with the supervisor (`hub start name=guilds-server`) or
+`./gradlew :guilds-test:runServer`.
+
+Live tiles are rendered by the Rust sidecar into `guilds-test/run/rust-output/tiles/`
+after map renders (for example `squaremap radiusrender minecraft:overworld 4 0 0`).
+Do not copy bundled `web/tiles` there to verify rendering; that bootstrap is
+opt-in only via `-PsquaremapBootstrapStaleTiles=true`.
 
 Territory/zone/influence boundaries are rendered as squaremap layers by the
 in-plugin bridge (`org.aincraft.guilds.territory.squaremap.TerritorySquaremapBridge`):
@@ -108,17 +152,15 @@ submodule). Features:
 
 - Login with `web.api-token` → HttpOnly `GUILDS_SESSION` cookie
   (`POST /api/session`; TTL from `web.session-ttl-seconds`)
-- Leaflet basemap from squaremap tiles (`web.squaremap-tile-base-url`, default
-  `http://localhost:8080` → tiles at
+- Leaflet basemap from squaremap tiles (`web.squaremap-tile-base-url`;
+  default `http://localhost:18080` for the local Rust backend → tiles at
   `{base}/tiles/{world}/{z}/{x}_{y}.png`, tile size 512)
-- Chunk-snapped tools: polygon, paint, rect, erase; create/edit territories
-  and nested zones; Save via `PUT /api/territories/{id}`
 
 Public squaremap stays view-only; no squaremap fork required.
 
-Accept the EULA on first run (`guilds-paper/run/eula.txt`). The plugin requires the
+Accept the EULA on first run (`guilds-test/run/eula.txt`). The plugin requires the
 shared PostgreSQL database (see "Persistence" below) — point `database.*` in
-`guilds-paper/run/plugins/Guilds/config.yml` at a reachable instance.
+`guilds-test/run/plugins/Guilds/config.yml` at a reachable instance.
 
 ### Local pre-commit checks
 

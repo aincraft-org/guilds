@@ -20,4 +20,5 @@ dependencyResolutionManagement {
 // guilds-api: public contracts + value models (model, decree, registry, permission/economy contracts)
 // guilds-common: Paper-free shared implementation (persistence, economy, governance logic, web submodule)
 // guilds-paper: the single Paper plugin (Bukkit glue + integrated Guilds subsystem)
-include("guilds-api", "guilds-common", "guilds-paper")
+// guilds-test: run-paper harness booting Paper with the guilds shadow jar as the test plugin
+include("guilds-api", "guilds-common", "guilds-paper", "guilds-test")

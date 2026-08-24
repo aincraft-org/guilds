@@ -25,8 +25,8 @@ if (requestedReleaseVersion != null && !requestedReleaseVersion.matches(releaseV
 version = requestedReleaseVersion ?: "26.8.18.0"
 description = "Guilds — large polygonal/chunk territories with Wilderness and Claimable zones, plus an integrated Guilds subsystem"
 
-// Shared configuration for the api / common / paper modules.
-// Delivery unit stays the single shadowed Paper plugin JAR built by :paper.
+// Shared configuration for the guilds-api / guilds-common / guilds-paper / guilds-test modules.
+// Delivery unit stays the single shadowed Paper plugin JAR built by :guilds-paper.
 subprojects {
     apply(plugin = "java")
 
