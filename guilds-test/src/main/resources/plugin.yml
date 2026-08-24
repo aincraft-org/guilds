@@ -1,4 +1,4 @@
-name: GuildsTest
+name: TestPlugin
 version: ${version}
 main: org.aincraft.guilds.test.TestPlugin
 api-version: '26.2'
