@@ -36,6 +36,14 @@ public final class GuildClaimScreen extends Screen {
     private int lastChunkZ = Integer.MIN_VALUE;
     private String lastWorld = "";
 
+    private int anchorX = -1;
+    private int anchorZ = -1;
+    private int currentX = -1;
+    private int currentZ = -1;
+    private boolean dragging;
+    private boolean confirmOpen;
+    private String resultFlash = "";
+
     public GuildClaimScreen(String viewerGuild, GuildService guilds,
                             PlotService plots, PermissionService permissions) {
         this.viewerGuild = viewerGuild;
@@ -70,12 +78,57 @@ public final class GuildClaimScreen extends Screen {
     }
 
     @Override
+    protected void onHold(int x, int y) {
+        if (x < 0 || y < 0) {
+            return;
+        }
+        int[] cell = cellAtCursor(x, y);
+        if (cell == null) {
+            return;
+        }
+        if (!dragging) {
+            anchorX = cell[0];
+            anchorZ = cell[1];
+            resultFlash = "";
+        }
+        currentX = cell[0];
+        currentZ = cell[1];
+        dragging = true;
+        invalidate();
+    }
+
+    @Override
+    protected void onHoldEnd() {
+        if (!dragging) {
+            return;
+        }
+        dragging = false;
+        if (anchorX == currentX && anchorZ == currentZ) {
+            confirmOpen = false;
+            resultFlash = "";
+            invalidate();
+            return;
+        }
+        if (!permissions.canClaimForGuild(player().getUniqueId(), viewerGuild)) {
+            resultFlash = "You need mayor/assistant permission to claim.";
+            confirmOpen = false;
+            invalidate();
+            return;
+        }
+        confirmOpen = true;
+        resultFlash = "";
+        invalidate();
+    }
+
+    @Override
     protected Node build() {
         return Ui.Overlay(
                 Ui.Draw(this::paintLayer)
                         .tracksCursor(true)
                         .caption(this::hoveredCaption)
                         .fill(),
+                marqueeOverlay(),
+                resultOverlay(),
                 legend()
         ).fill();
     }
@@ -124,6 +177,50 @@ public final class GuildClaimScreen extends Screen {
                 painter.rect(rect, null, 1, Color.WHITE, 0);
             }
         }
+
+        if (dragging || confirmOpen) {
+            int minX = minX();
+            int maxX = maxX();
+            int minZ = minZ();
+            int maxZ = maxZ();
+            Color selectionFill = Colors.alpha(Color.WHITE, 90);
+            Color unclaimable = new Color(255, 0, 0, 80);
+            int firstCol = -1;
+            int firstRow = -1;
+            int lastCol = -1;
+            int lastRow = -1;
+
+            for (int x = minX; x <= maxX; x++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    int col = x - layer.centerChunkX() + layer.radius();
+                    int row = z - layer.centerChunkZ() + layer.radius();
+                    if (col < 0 || row < 0 || col >= layer.size() || row >= layer.size()) {
+                        continue;
+                    }
+                    if (firstCol == -1) {
+                        firstCol = col;
+                        firstRow = row;
+                    }
+                    lastCol = col;
+                    lastRow = row;
+
+                    Rect r = new Rect(originX + col * cell, originY + row * cell, cell, cell);
+                    painter.fill(r, selectionFill);
+                    if (plots.getGuildBlock(x, z, world()).isPresent()) {
+                        painter.fill(r, unclaimable);
+                    }
+                }
+            }
+
+            if (firstCol != -1) {
+                Rect outer = new Rect(
+                        originX + firstCol * cell,
+                        originY + firstRow * cell,
+                        (lastCol - firstCol + 1) * cell,
+                        (lastRow - firstRow + 1) * cell);
+                painter.rect(outer, null, 1, Color.WHITE, 0);
+            }
+        }
     }
 
     private String hoveredCaption() {
@@ -143,6 +240,97 @@ public final class GuildClaimScreen extends Screen {
         return layer.cellAt(chunkX, chunkZ)
                 .map(claim -> labelFor(claim.kind()) + " [" + claim.chunkX() + ", " + claim.chunkZ() + "]")
                 .orElse("Guilds map");
+    }
+
+    private int[] cellAtCursor(int x, int y) {
+        ClaimLayer layer = currentLayer();
+        Rect bounds = new Rect(0, 0, width(), height());
+        int cell = Math.max(1, Math.min(bounds.width(), bounds.height()) / layer.size());
+        int grid = cell * layer.size();
+        int originX = (bounds.width() - grid) / 2;
+        int originY = (bounds.height() - grid) / 2;
+        int col = (x - originX) / cell;
+        int row = (y - originY) / cell;
+        if (col < 0 || row < 0 || col >= layer.size() || row >= layer.size()) {
+            return null;
+        }
+        int chunkX = layer.centerChunkX() - layer.radius() + col;
+        int chunkZ = layer.centerChunkZ() - layer.radius() + row;
+        return new int[] { chunkX, chunkZ };
+    }
+
+    private Node marqueeOverlay() {
+        if (dragging) {
+            return Ui.Spacer();
+        }
+        if (confirmOpen) {
+            return Ui.Column(
+                    Ui.Text("Claim " + selectionCount() + " chunks for " + viewerGuild + "?").color(Color.WHITE),
+                    Ui.Row(
+                            Ui.Button("Confirm").onClick(this::commitClaims),
+                            Ui.Button("Cancel").onClick(() -> {
+                                confirmOpen = false;
+                                resultFlash = "";
+                                invalidate();
+                            })
+                    ).gap(3).align(Align.CENTER)
+            ).gap(3).align(Align.CENTER)
+                    .padding(4)
+                    .background(Colors.alpha(Color.BLACK, 170))
+                    .radius(3)
+                    .place(Justify.CENTER, Align.CENTER);
+        }
+        return Ui.Spacer();
+    }
+
+    private Node resultOverlay() {
+        if (resultFlash.isBlank()) {
+            return Ui.Spacer();
+        }
+        return Ui.Text(resultFlash)
+                .color(Color.WHITE)
+                .background(Colors.alpha(Color.BLACK, 170))
+                .padding(2)
+                .radius(3)
+                .place(Justify.CENTER, Align.CENTER);
+    }
+
+    private int selectionCount() {
+        return (Math.abs(currentX - anchorX) + 1) * (Math.abs(currentZ - anchorZ) + 1);
+    }
+
+    private void commitClaims() {
+        confirmOpen = false;
+        MarqueeClaim.Result result = MarqueeClaim.commit(
+                plots, permissions, player().getUniqueId(), viewerGuild, world(),
+                minX(), maxX(), minZ(), maxZ());
+        if (!result.allowed()) {
+            resultFlash = "You need mayor/assistant permission to claim.";
+        } else {
+            resultFlash = "Claimed " + result.claimed() + ", skipped " + result.skipped()
+                    + " (already claimed / no permission / failed).";
+        }
+        invalidate();
+    }
+
+    private int minX() {
+        return Math.min(anchorX, currentX);
+    }
+
+    private int maxX() {
+        return Math.max(anchorX, currentX);
+    }
+
+    private int minZ() {
+        return Math.min(anchorZ, currentZ);
+    }
+
+    private int maxZ() {
+        return Math.max(anchorZ, currentZ);
+    }
+
+    private String world() {
+        return player().getLocation().getWorld().getName();
     }
 
     private Node legend() {
