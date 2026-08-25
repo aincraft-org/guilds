@@ -25,16 +25,19 @@ public class GuildsGeneralBrigadierCommand {
     private final GuildService guildService;
     private final PlotService plotService;
     private final PermissionService permissionService;
+    private final MapBrigadierCommand mapCommand;
 
 
     public GuildsGeneralBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
                                        GuildService guildService, PlotService plotService,
-                                       PermissionService permissionService) {
+                                       PermissionService permissionService,
+                                       MapBrigadierCommand mapCommand) {
         this.plugin = plugin;
         this.residentService = residentService;
         this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
+        this.mapCommand = mapCommand;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -76,6 +79,7 @@ public class GuildsGeneralBrigadierCommand {
             .then(Commands.literal("universe")
                 .requires(source -> source.getSender().hasPermission("guilds.general.universe"))
                 .executes(this::handleUniverse))
+            .then(mapCommand.buildCommand())
             .build();
     }
 

@@ -62,6 +62,7 @@ import dev.mintychochip.mint.api.id.CurrencyId;
 import org.aincraft.guilds.territory.economy.MintEconomyRail;
 import org.aincraft.guilds.territory.economy.MintGuildTaxSettlement;
 import org.aincraft.guilds.services.MintGuildBankService;
+import org.aincraft.guilds.gui.MapGuiOpener;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -363,6 +364,7 @@ public final class GuildsPlugin extends JavaPlugin {
             invasionRuntime = null;
         }
         disableGuildsSubsystem();
+        MapGuiOpener.stopIfPresent(this);
         if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
             try {
                 expenseStore.save(expenseLedger.entries());

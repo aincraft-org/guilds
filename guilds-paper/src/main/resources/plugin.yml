@@ -6,7 +6,7 @@ description: ${description}
 author: Aincraft
 website: https://github.com/aincraft-org/territories
 load: POSTWORLD
-softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap]
+softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap, MapGUI]
 commands:
   territory:
     description: Inspect territory and zone at a location

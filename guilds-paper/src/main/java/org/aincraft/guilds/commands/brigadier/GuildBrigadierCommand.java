@@ -41,6 +41,7 @@ public class GuildBrigadierCommand {
     private final PlotService plotService;
     private final PermissionService permissionService;
     private final TechTreeBrigadierCommand techTreeCommand;
+    private final MapBrigadierCommand mapCommand;
     private final PlotTypeRegistry plotTypeRegistry;
     private final GuildsGovernanceSource governanceSource;
     private volatile MintGuildBankService mintGuildBankService;
@@ -51,6 +52,7 @@ public class GuildBrigadierCommand {
                                GuildService guildService, PlotService plotService,
                                PermissionService permissionService,
                                TechTreeBrigadierCommand techTreeCommand,
+                               MapBrigadierCommand mapCommand,
                                PlotTypeRegistry plotTypeRegistry,
                                GuildsGovernanceSource governanceSource) {
         this.plugin = plugin;
@@ -59,6 +61,7 @@ public class GuildBrigadierCommand {
         this.plotService = plotService;
         this.permissionService = permissionService;
         this.techTreeCommand = techTreeCommand;
+        this.mapCommand = mapCommand;
         this.plotTypeRegistry = plotTypeRegistry;
         this.governanceSource = governanceSource;
     }
@@ -156,6 +159,7 @@ public class GuildBrigadierCommand {
                         .executes(ctx -> handleBankTransfer(ctx, false)))))
             .then(Commands.literal("storage")
                 .executes(this::handleStorage))
+            .then(mapCommand.buildCommand())
             // Tech tree subcommand
             .then(techTreeCommand.buildCommand())
             // Government subcommand: the guild (guild) picks its governance form

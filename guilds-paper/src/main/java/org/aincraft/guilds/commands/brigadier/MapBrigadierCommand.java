@@ -3,13 +3,12 @@ package org.aincraft.guilds.commands.brigadier;
 
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.aincraft.guilds.services.PermissionService;
+import org.aincraft.guilds.gui.MapGuiOpener;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.GuildService;
@@ -17,35 +16,32 @@ import org.aincraft.guilds.utils.MapRenderer;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
-import java.util.Arrays;
 import java.util.UUID;
 
 /**
- * Brigadier implementation of the guilds map command
+ * Brigadier implementation of guild map subcommands.
  */
 public class MapBrigadierCommand {
 
     private final JavaPlugin plugin;
-    private final ResidentService residentService;
     private final GuildService guildService;
     private final PlotService plotService;
-    private final PermissionService permissionService;
+    private final ResidentService residentService;
+    private final MapGuiOpener mapGuiOpener;
     private final MapRenderer mapRenderer;
 
-
-    public MapBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
-                              GuildService guildService, PlotService plotService,
-                              PermissionService permissionService) {
+    public MapBrigadierCommand(JavaPlugin plugin, GuildService guildService, PlotService plotService,
+                               ResidentService residentService, MapGuiOpener mapGuiOpener) {
         this.plugin = plugin;
-        this.residentService = residentService;
         this.guildService = guildService;
         this.plotService = plotService;
-        this.permissionService = permissionService;
+        this.residentService = residentService;
+        this.mapGuiOpener = mapGuiOpener;
         this.mapRenderer = new MapRenderer(guildService, plotService);
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
-        return Commands.literal("guildsmap")
+        return Commands.literal("map")
             .requires(source -> source.getSender().hasPermission("guilds.map"))
             .executes(this::handleFullMap)
             .then(Commands.literal("compact")
@@ -80,6 +76,14 @@ public class MapBrigadierCommand {
         }
 
         String playerGuild = getPlayerGuild(player);
+        MapGuiOpener.OpenResult openResult = mapGuiOpener.open(player, playerGuild);
+        if (openResult == MapGuiOpener.OpenResult.OPENED) {
+            return Command.SINGLE_SUCCESS;
+        }
+        if (openResult == MapGuiOpener.OpenResult.FAILED) {
+            return 0;
+        }
+
         int playerChunkX = player.getLocation().getChunk().getX();
         int playerChunkZ = player.getLocation().getChunk().getZ();
         String world = player.getLocation().getWorld().getName();
@@ -181,12 +185,13 @@ public class MapBrigadierCommand {
 
         player.sendMessage(ChatColor.YELLOW + "=== Guilds Map Help ===");
 
-        player.sendMessage(ChatColor.WHITE + "/guildsmap" + ChatColor.GRAY + " - Show full map centered on your location");
-        player.sendMessage(ChatColor.WHITE + "/guildsmap compact" + ChatColor.GRAY + " - Show compact map (7x7 chunks)");
-        player.sendMessage(ChatColor.WHITE + "/guildsmap small" + ChatColor.GRAY + " - Show compact map (7x7 chunks)");
-        player.sendMessage(ChatColor.WHITE + "/guildsmap big" + ChatColor.GRAY + " - Show full map (11x11 chunks)");
-        player.sendMessage(ChatColor.WHITE + "/guildsmap here <x> <z>" + ChatColor.GRAY + " - Show map at specific coordinates");
-        player.sendMessage(ChatColor.WHITE + "/guildsmap help" + ChatColor.GRAY + " - Show this help message");
+        player.sendMessage(ChatColor.WHITE + "/guild map" + ChatColor.GRAY + " - Show full map centered on your location");
+        player.sendMessage(ChatColor.WHITE + "/guild map compact" + ChatColor.GRAY + " - Show compact map (7x7 chunks)");
+        player.sendMessage(ChatColor.WHITE + "/guild map small" + ChatColor.GRAY + " - Show compact map (7x7 chunks)");
+        player.sendMessage(ChatColor.WHITE + "/guild map big" + ChatColor.GRAY + " - Show full map (11x11 chunks)");
+        player.sendMessage(ChatColor.WHITE + "/guild map here <x> <z>" + ChatColor.GRAY + " - Show map at specific coordinates");
+        player.sendMessage(ChatColor.WHITE + "/guild map help" + ChatColor.GRAY + " - Show this help message");
+        player.sendMessage(ChatColor.GRAY + "Aliases: /guilds map, /g map");
 
         player.sendMessage(ChatColor.GRAY + "");
         player.sendMessage(ChatColor.GRAY + "Map Legend:");

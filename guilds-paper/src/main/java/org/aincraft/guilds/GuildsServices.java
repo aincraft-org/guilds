@@ -2,6 +2,7 @@ package org.aincraft.guilds;
 
 import org.aincraft.guilds.commands.BrigadierCommandRegistry;
 import org.aincraft.guilds.commands.brigadier.ChatBrigadierCommand;
+import org.aincraft.guilds.gui.MapGuiOpener;
 import org.aincraft.guilds.commands.brigadier.MapBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.AllianceBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PermBrigadierCommand;
@@ -269,19 +270,21 @@ public class GuildsServices {
         this.hearthstoneService = null;
         this.hearthstoneListener = null;
 
+        MapGuiOpener mapGuiOpener = new MapGuiOpener(plugin, guildService, plotService, permissionService);
+        MapBrigadierCommand mapCommand = new MapBrigadierCommand(plugin, guildService, plotService,
+                residentService, mapGuiOpener);
+
         GuildBrigadierCommand guildCommand = new GuildBrigadierCommand(plugin, residentService, guildService,
-                plotService, permissionService, techTreeCommand, plotTypeRegistry, governanceSource);
+                plotService, permissionService, techTreeCommand, mapCommand, plotTypeRegistry, governanceSource);
         this.guildBrigadierCommand = guildCommand;
         this.guildBankVillagerListener = new GuildBankVillagerListener(plugin, guildService, residentService, null,
                 config.getString("bank.villager-scoreboard-tag", "GUILD_BANK"));
         PlotBrigadierCommand plotCommand = new PlotBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, plotTypeRegistry);
         GuildsGeneralBrigadierCommand guildsGeneralCommand = new GuildsGeneralBrigadierCommand(plugin,
-                residentService, guildService, plotService, permissionService);
+                residentService, guildService, plotService, permissionService, mapCommand);
         GuildLevelBrigadierCommand guildLevelCommand = new GuildLevelBrigadierCommand(plugin, residentService,
                 guildService, plotService, permissionService, guildLevelService, resourceService);
-        MapBrigadierCommand mapCommand = new MapBrigadierCommand(plugin, residentService, guildService,
-                plotService, permissionService);
         PermBrigadierCommand permCommand = new PermBrigadierCommand(plugin, permissionService, plotService, guildService);
         PlotTypeBrigadierCommand plotTypeCommand = new PlotTypeBrigadierCommand();
         GuildBroadcastBrigadierCommand guildBroadcastCommand = new GuildBroadcastBrigadierCommand();
@@ -295,7 +298,7 @@ public class GuildsServices {
         QuestBrigadierCommand questCommand = new QuestBrigadierCommand(plugin, questService, guildService, residentService);
 
         commandRegistry = new BrigadierCommandRegistry(plugin, guildCommand, plotCommand, guildsGeneralCommand,
-                guildLevelCommand, mapCommand, permCommand, plotTypeCommand, guildBroadcastCommand, guildPermCommand,
+                guildLevelCommand, permCommand, plotTypeCommand, guildBroadcastCommand, guildPermCommand,
                 techTreeCommand, chatCommand, allianceCommand, specializationCommand, questCommand);
     }
 

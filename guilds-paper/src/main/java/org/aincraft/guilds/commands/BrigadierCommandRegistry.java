@@ -10,7 +10,6 @@ import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.commands.brigadier.ChatBrigadierCommand;
-import org.aincraft.guilds.commands.brigadier.MapBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.AllianceBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PermBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PlotBrigadierCommand;
@@ -40,7 +39,6 @@ public class BrigadierCommandRegistry {
     private final PlotBrigadierCommand plotCommand;
     private final GuildsGeneralBrigadierCommand guildsGeneralCommand;
     private final GuildLevelBrigadierCommand guildLevelCommand;
-    private final MapBrigadierCommand mapCommand;
     private final PermBrigadierCommand permCommand;
     private final PlotTypeBrigadierCommand plotTypeCommand;
     private final GuildBroadcastBrigadierCommand guildBroadcastCommand;
@@ -56,7 +54,6 @@ public class BrigadierCommandRegistry {
                                     PlotBrigadierCommand plotCommand,
                                     GuildsGeneralBrigadierCommand guildsGeneralCommand,
                                     GuildLevelBrigadierCommand guildLevelCommand,
-                                    MapBrigadierCommand mapCommand,
                                     PermBrigadierCommand permCommand,
                                     PlotTypeBrigadierCommand plotTypeCommand,
                                     GuildBroadcastBrigadierCommand guildBroadcastCommand,
@@ -71,7 +68,6 @@ public class BrigadierCommandRegistry {
         this.plotCommand = plotCommand;
         this.guildsGeneralCommand = guildsGeneralCommand;
         this.guildLevelCommand = guildLevelCommand;
-        this.mapCommand = mapCommand;
         this.permCommand = permCommand;
         this.plotTypeCommand = plotTypeCommand;
         this.guildBroadcastCommand = guildBroadcastCommand;
@@ -98,6 +94,9 @@ public class BrigadierCommandRegistry {
             commands.register(Commands.literal("town")
                 .redirect(guildCommand.buildCommand())
                 .build());
+            commands.register(Commands.literal("g")
+                .redirect(guildCommand.buildCommand())
+                .build());
 
             // Register plot command
             commands.register(plotCommand.buildCommand());
@@ -107,12 +106,6 @@ public class BrigadierCommandRegistry {
 
             // Register guild level command
             commands.register(guildLevelCommand.buildCommand());
-
-            // Register map command with alias
-            commands.register(mapCommand.buildCommand());
-            commands.register(Commands.literal("map")
-                .redirect(mapCommand.buildCommand())
-                .build());
 
             // Register perm command
             commands.register(permCommand.buildCommand());
