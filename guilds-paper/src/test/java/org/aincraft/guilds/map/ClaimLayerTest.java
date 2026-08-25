@@ -1,5 +1,7 @@
 package org.aincraft.guilds.map;
 
+import de.flog99.mapgui.Screen;
+import org.aincraft.guilds.gui.GuildClaimScreen;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildBlock;
 import org.junit.jupiter.api.Test;
@@ -9,6 +11,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClaimLayerTest {
 
@@ -101,5 +104,12 @@ class ClaimLayerTest {
         assertThrows(IllegalArgumentException.class,
                 () -> ClaimLayer.classify(CENTER_X, CENTER_Z, WORLD, null, -1,
                         (x, z, w) -> Optional.empty(), id -> Optional.empty()));
+    }
+
+    @Test
+    void claimScreenIsAMapGuiScreenThatPaintsTheClassifier() throws Exception {
+        assertTrue(Screen.class.isAssignableFrom(GuildClaimScreen.class));
+        assertEquals(ClaimLayer.class, GuildClaimScreen.class
+                .getDeclaredMethod("currentLayer").getReturnType());
     }
 }
