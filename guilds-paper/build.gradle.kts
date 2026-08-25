@@ -16,6 +16,7 @@ dependencies {
     // targets Minecraft 26.2 — matches the paper-api version above. compileOnly:
     // the squaremap jar is provided by the locally-built jar runServer loads.
     compileOnly("xyz.jpenilla:squaremap-api:1.3.15")
+    compileOnly("io.github.flog99:mapgui-api:2.0.0")
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
     testImplementation("io.papermc.paper:paper-api:26.2.build.111-stable")
