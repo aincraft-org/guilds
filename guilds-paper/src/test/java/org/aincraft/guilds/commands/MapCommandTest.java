@@ -36,20 +36,25 @@ class MapCommandTest {
     }
 
     @Test
-    void mapCommandUsesLazyMapGuiOpenerBoundary() {
+    void mapCommandRequiresMapGuiDependency() {
+        String pluginYml = read("guilds-paper/src/main/resources/plugin.yml");
         String mapCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/MapBrigadierCommand.java");
-        String opener = read("guilds-paper/src/main/java/org/aincraft/guilds/gui/MapGuiOpener.java");
         String plugin = read("guilds-paper/src/main/java/org/aincraft/guilds/GuildsPlugin.java");
 
-        assertTrue(mapCommand.contains("MapGuiOpener"));
-        assertFalse(mapCommand.contains("de.flog99.mapgui"));
-        assertFalse(mapCommand.contains("GuildClaimScreen"));
-        assertFalse(mapCommand.contains("MapFollowTask"));
-        assertTrue(opener.contains("Class.forName"));
-        assertTrue(opener.contains("MapGuiRuntime"));
-        assertTrue(opener.contains("stopIfPresent"));
-        assertFalse(plugin.contains("MapFollowTask"));
-        assertTrue(plugin.contains("MapGuiOpener.stopIfPresent"));
+        assertTrue(pluginYml.contains("depend: [MapGUI]"));
+        assertFalse(pluginYml.contains("softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap, MapGUI]"));
+        assertFalse(pluginYml.contains("WorldEdit"));
+        assertFalse(pluginYml.contains("WorldGuard"));
+        assertFalse(pluginYml.contains("triumph-gui"));
+        assertTrue(mapCommand.contains("MapGui.get()"));
+        assertTrue(mapCommand.contains("GuildClaimScreen"));
+        assertTrue(mapCommand.contains("MapFollowTask"));
+        assertFalse(mapCommand.contains("MapRenderer"));
+        assertFalse(mapCommand.contains("MapGuiOpener"));
+        assertFalse(mapCommand.contains("NOT_AVAILABLE"));
+        assertFalse(mapCommand.contains("isAvailable"));
+        assertTrue(plugin.contains("MapFollowTask.stop"));
+        assertFalse(plugin.contains("MapGuiOpener"));
     }
 
     private static String read(String file) {

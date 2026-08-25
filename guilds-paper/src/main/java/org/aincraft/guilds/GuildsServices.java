@@ -2,7 +2,6 @@ package org.aincraft.guilds;
 
 import org.aincraft.guilds.commands.BrigadierCommandRegistry;
 import org.aincraft.guilds.commands.brigadier.ChatBrigadierCommand;
-import org.aincraft.guilds.gui.MapGuiOpener;
 import org.aincraft.guilds.commands.brigadier.MapBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.AllianceBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.PermBrigadierCommand;
@@ -270,9 +269,8 @@ public class GuildsServices {
         this.hearthstoneService = null;
         this.hearthstoneListener = null;
 
-        MapGuiOpener mapGuiOpener = new MapGuiOpener(plugin, guildService, plotService, permissionService);
         MapBrigadierCommand mapCommand = new MapBrigadierCommand(plugin, guildService, plotService,
-                residentService, mapGuiOpener);
+                residentService, permissionService);
 
         GuildBrigadierCommand guildCommand = new GuildBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, techTreeCommand, mapCommand, plotTypeRegistry, governanceSource);
