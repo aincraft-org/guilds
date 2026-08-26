@@ -22,6 +22,11 @@ class MapCommandTest {
         assertTrue(mapCommand.contains("literal(\"compact\")"));
         assertTrue(mapCommand.contains("literal(\"full\")"));
         assertTrue(mapCommand.contains("literal(\"here\")"));
+        assertTrue(mapCommand.contains("openMap(player, GuildClaimScreen.DEFAULT_RADIUS)"));
+        assertTrue(mapCommand.contains("openMap(player, GuildClaimScreen.COMPACT_RADIUS)"));
+        assertTrue(mapCommand.contains("IntegerArgumentType.getInteger(ctx, \"x\")"));
+        assertTrue(mapCommand.contains("IntegerArgumentType.getInteger(ctx, \"z\")"));
+        assertTrue(mapCommand.contains("openMapAt(player, chunkX, chunkZ"));
     }
 
     @Test
@@ -48,12 +53,12 @@ class MapCommandTest {
         assertFalse(pluginYml.contains("triumph-gui"));
         assertTrue(mapCommand.contains("MapGui.get()"));
         assertTrue(mapCommand.contains("GuildClaimScreen"));
-        assertTrue(mapCommand.contains("MapFollowTask"));
+        assertFalse(mapCommand.contains("MapFollowTask"));
         assertFalse(mapCommand.contains("MapRenderer"));
         assertFalse(mapCommand.contains("MapGuiOpener"));
         assertFalse(mapCommand.contains("NOT_AVAILABLE"));
         assertFalse(mapCommand.contains("isAvailable"));
-        assertTrue(plugin.contains("MapFollowTask.stop"));
+        assertFalse(plugin.contains("MapFollowTask.stop"));
         assertFalse(plugin.contains("MapGuiOpener"));
     }
 

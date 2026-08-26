@@ -62,7 +62,6 @@ import dev.mintychochip.mint.api.id.CurrencyId;
 import org.aincraft.guilds.territory.economy.MintEconomyRail;
 import org.aincraft.guilds.territory.economy.MintGuildTaxSettlement;
 import org.aincraft.guilds.services.MintGuildBankService;
-import org.aincraft.guilds.gui.MapFollowTask;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -316,13 +315,27 @@ public final class GuildsPlugin extends JavaPlugin {
         }
 
         TerritoryCommand cmd = new TerritoryCommand(this);
-        var pluginCommand = getCommand("territory");
-        if (pluginCommand != null) {
-            pluginCommand.setExecutor(cmd);
-            pluginCommand.setTabCompleter(cmd);
-        } else {
-            getLogger().warning("Command 'territory' not defined in plugin.yml");
-        }
+        var territoryBasic = new io.papermc.paper.command.brigadier.BasicCommand() {
+            @Override
+            public void execute(io.papermc.paper.command.brigadier.CommandSourceStack stack, String[] args) {
+                cmd.onCommand(stack.getSender(), null, "territory", args);
+            }
+
+            @Override
+            public java.util.Collection<String> suggest(io.papermc.paper.command.brigadier.CommandSourceStack stack, String[] args) {
+                var suggestions = cmd.onTabComplete(stack.getSender(), null, "territory", args);
+                return suggestions == null ? java.util.List.of() : suggestions;
+            }
+
+            @Override
+            public boolean canUse(org.bukkit.command.CommandSender sender) {
+                return true;
+            }
+        };
+        getLifecycleManager().registerEventHandler(
+                io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                event -> event.registrar().register("territory", "Inspect territory and zone at a location",
+                        java.util.List.of("gterritory"), territoryBasic));
 
         startWebIfEnabled();
         enableGuildsSubsystem();
@@ -364,7 +377,6 @@ public final class GuildsPlugin extends JavaPlugin {
             invasionRuntime = null;
         }
         disableGuildsSubsystem();
-        MapFollowTask.stop(this);
         if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
             try {
                 expenseStore.save(expenseLedger.entries());

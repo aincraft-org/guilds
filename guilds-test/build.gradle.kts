@@ -49,11 +49,18 @@ val testPluginJar: java.io.File =
         .file("guilds-test-${project.version}.jar")
         .asFile
 
-// runServer ALWAYS loads the locally-built Rust-backed squaremap jar from this
-// fixed path; the upstream Java squaremap release is never downloaded or loaded,
-// and there is no property override that could point at a different jar.
+// squaremap is loaded as a plugin. Default to the upstream Java squaremap release
+// (no Rust sidecar); set -PsquaremapLocalRust=true to use the locally-built
+// Rust-backed jar (run/squaremapmap-paper-rust-local.jar) with its sidecar.
+val useLocalRustSquaremap = providers.gradleProperty("squaremapLocalRust")
+    .map { it.equals("true", ignoreCase = true) }
+    .orElse(false)
 val squaremapJarFile: java.io.File =
-    layout.projectDirectory.file("run/squaremap-paper-rust-local.jar").asFile
+    if (useLocalRustSquaremap.get()) {
+        layout.projectDirectory.file("run/squaremap-paper-rust-local.jar").asFile
+    } else {
+        layout.projectDirectory.file("run/squaremap-paper-upstream.jar").asFile
+    }
 
 tasks.runServer {
     minecraftVersion("26.2")
@@ -69,6 +76,9 @@ tasks.runServer {
                     mintPluginAsset!!,
             )
         }
+        // MapGUI is a hard dependency of the Guilds plugin (plugin.yml `depend`).
+        // run-paper downloads the release jar into run/plugins so the server boots.
+        github("FloG99", "MapGUI", "v2.0.0", "MapGUI-2.0.0.jar")
     }
 }
 
@@ -181,12 +191,16 @@ tasks.runServer {
         require(squaremapJarFile.isFile) {
             "Local squaremap jar missing: $squaremapJarFile — build it with ./scripts/build-squaremap-local.sh"
         }
-        require(file(sidecarPath.get()).isFile) {
-            "Local squaremap backend missing: ${sidecarPath.get()} — build it with ./scripts/build-squaremap-local.sh"
+        if (useLocalRustSquaremap.get()) {
+            require(file(sidecarPath.get()).isFile) {
+                "Local squaremap backend missing: ${sidecarPath.get()} — build it with ./scripts/build-squaremap-local.sh"
+            }
         }
     }
-    systemProperty("squaremap.backendBinary", sidecarPath.get())
-    systemProperty("squaremap.backendOutputRoot", backendOutputRoot.get())
-    systemProperty("squaremap.backendWebRoot", backendWebRoot.get())
-    dependsOn(syncSquaremapWeb, bootstrapSquaremapTilesTask, syncSquaremapBackendManifest)
+    if (useLocalRustSquaremap.get()) {
+        systemProperty("squaremap.backendBinary", sidecarPath.get())
+        systemProperty("squaremap.backendOutputRoot", backendOutputRoot.get())
+        systemProperty("squaremap.backendWebRoot", backendWebRoot.get())
+        dependsOn(syncSquaremapWeb, bootstrapSquaremapTilesTask, syncSquaremapBackendManifest)
+    }
 }

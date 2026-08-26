@@ -1,0 +1,160 @@
+name: Guilds
+version: ${version}
+main: dev.mintychochip.guilds.GuildsPlugin
+api-version: '26.2'
+description: ${description}
+author: Guilds
+website: https://github.com/guilds/guilds
+load: POSTWORLD
+softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap, MapGUI]
+commands:
+  territory:
+    description: Inspect territory and zone at a location
+    usage: /territory [lookup|here|list|reload|save|web|govern|influence|declare|standing|upkeep|invasion|building]
+    aliases: [guildsterritory, at]
+# Guilds commands are registered dynamically via Paper Brigadier lifecycle
+permissions:
+  guilds.territory.admin:
+    description: Administer and inspect territories
+    default: op
+  guilds.territory.building.manage:
+    description: Register and remove facilities in governed territory
+    default: true
+  territory.admin.invasion:
+    description: Start, stop, and inspect guild mob invasions
+    default: op
+
+
+  guilds.*:
+    description: All Guilds permissions
+    children:
+      guilds.guild.*: true
+      guilds.resident.*: true
+      guilds.plot.*: true
+      guilds.general.*: true
+      guilds.map: true
+      guilds.admin.*: true
+      guilds.alliance.*: true
+      guilds.chat.*: true
+      guilds.techtree.*: true
+
+  guilds.guild.*:
+    description: All guild-related permissions
+    children:
+      guilds.guild.create: true
+      guilds.guild.delete: true
+      guilds.guild.join: true
+      guilds.guild.leave: true
+      guilds.guild.claim: true
+      guilds.guild.unclaim: true
+      guilds.guild.spawn: true
+      guilds.guild.set: true
+      guilds.guild.kick: true
+      guilds.guild.invite: true
+      guilds.guild.mayor: true
+      guilds.guild.assistant: true
+      guilds.guild.specialize: true
+
+  guilds.resident.*:
+    description: All resident-related permissions
+    children:
+      guilds.resident.info: true
+      guilds.resident.list: true
+      guilds.resident.friend: true
+      guilds.resident.guild: true
+
+  guilds.plot.*:
+    description: All plot-related permissions
+    children:
+      guilds.plot.claim: true
+      guilds.plot.unclaim: true
+      guilds.plot.info: true
+      guilds.plot.set: true
+      guilds.plot.perms: true
+      guilds.plot.toggle: true
+
+  guilds.broadcast:
+    description: Permission to use guild broadcast commands
+    default: true
+
+  guilds.broadcast.*:
+    description: All broadcast permissions
+    children:
+      guilds.broadcast.create: true
+      guilds.broadcast.read: true
+      guilds.broadcast.manage: true
+
+  guilds.general.*:
+    description: General guilds permissions
+    children:
+      guilds.general.info: true
+      guilds.general.chat: true
+      guilds.general.top: true
+      guilds.general.prices: true
+      guilds.general.time: true
+      guilds.general.universe: true
+      guilds.general.version: true
+
+  guilds.chat.guild:
+    description: Permission to use guild chat
+    default: true
+
+  guilds.chat.spy:
+    description: Permission to spy on guild chat
+    default: op
+
+  guilds.techtree.view:
+    description: Permission to view the tech tree
+    default: true
+
+  guilds.techtree.unlock:
+    description: Permission to unlock tech nodes
+    default: true
+
+  guilds.commands.alliance:
+    description: Permission to use alliance commands
+    default: true
+
+  guilds.alliance.*:
+    description: All alliance permissions
+    children:
+      guilds.alliance.create: true
+      guilds.alliance.invite: true
+      guilds.alliance.join: true
+      guilds.alliance.leave: true
+      guilds.alliance.kick: true
+      guilds.alliance.ally: true
+      guilds.alliance.enemy: true
+      guilds.alliance.set: true
+
+  guilds.map:
+    description: Permission to use guilds map commands
+    default: true
+
+  guilds.level:
+    description: Permission to use guild level commands
+    default: true
+
+  guilds.admin.perm:
+    description: Permission to use permission debugging commands
+    default: op
+
+  guilds.admin.*:
+    description: All admin permissions
+    children:
+      guilds.admin.reload: true
+      guilds.admin.backup: true
+      guilds.admin.purge: true
+      guilds.admin.guild: true
+      guilds.admin.resident: true
+      guilds.admin.plot: true
+      guilds.admin.plottype: true
+      guilds.admin.unclaim: true
+      guilds.admin.claim: true
+      guilds.admin.bypass: true
+      guilds.admin.alliance: true
+      guilds.admin.quest: true
+
+  guilds.admin.plottype:
+    description: Permission to use plot type management commands
+    default: op

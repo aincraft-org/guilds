@@ -1,0 +1,121 @@
+# Guilds configuration
+
+# Embedded web submodule (REST API only; the map is served by squaremap).
+# Typical production: leave tls.enabled=false and terminate HTTPS on nginx/Caddy,
+# then reverse-proxy to this port with trust-proxy: true.
+web:
+  enabled: false
+  bind: 127.0.0.1
+  port: 8765
+  public-base-url: ""
+  trust-proxy: false
+  api-token: ""
+  squaremap-tile-base-url: ""
+  session-ttl-seconds: 28800
+  cors: false
+  tls:
+    enabled: false
+    keystore: keystore.p12
+    keystore-type: PKCS12
+    password: ""
+    key-password: ""
+# All persistent state uses the shared SQL database. PostgreSQL is the default.
+# For MySQL/PebbleHost, change `type` to `mysql` and change `port` to 3306.
+database:
+  type: postgresql
+  host: 127.0.0.1
+  port: 5432
+  name: guilds_territory
+  user: guilds
+  password: ""
+  ssl: false
+  # With ssl=true, loopback hosts default to PostgreSQL `require` / MySQL `REQUIRED`.
+  # Non-loopback hosts default to PostgreSQL `verify-full` / MySQL `VERIFY_IDENTITY`.
+  # Override only with a driver-supported mode; remote fallback modes are rejected.
+  # ssl-mode: verify-full
+  # PostgreSQL only: PEM root CA used as the `sslrootcert` driver property.
+  # ssl-ca-cert: /etc/guilds/postgres-ca.crt
+  # MySQL only: JKS or PKCS12 trust store; do not provide a PEM file here.
+  # ssl-trust-store: /etc/guilds/mysql-truststore.p12
+  # ssl-trust-store-password: ""
+  # ssl-trust-store-type: PKCS12
+  pool-size: 10
+  # Optional full JDBC URL — wins over host/port/name and TLS settings above.
+  # MySQL example (secure mode and trust store can also be supplied as driver properties):
+  # type: mysql
+  # port: 3306
+  # jdbc-url: "jdbc:mysql://db.example.com:3306/guilds_territory?sslMode=VERIFY_IDENTITY"
+  jdbc-url: ""
+
+
+# Settlement economy: SIMULATION or MINT (async Mint guild accounts).
+economy:
+  mode: SIMULATION
+  mint:
+    currency: coins
+    client-binding: Guilds
+    scale: 2
+
+# Recurring treasury upkeep for governed territories.
+upkeep:
+  enabled: true
+  base-amount: 100.0
+  chunk-amount: 0.5
+  facility-amount: 10.0
+  development-level-amount: 25.0
+  interval-days: 7
+  grace-days: 2
+  check-seconds: 60
+
+# Territory influence race (New World style): rival guilds accrue influence in
+# enemy-alliance territories; at 100% they may declare and take over after a
+# countdown. Both sides must belong to alliances.
+influence:
+  enabled: true
+  cap: 100.0
+  values:
+    pvp-kill: 10.0
+    pve-kill: 0.5
+    block-break: 0.1
+    block-place: 0.1
+    craft: 0.2
+  # Defender activity pushes every attacker bar down by source value * this.
+  defender-multiplier: 1.0
+  # Hours between declare and the takeover flip.
+  declare-countdown-hours: 24
+  # Days after a flip before a new race may start on that territory.
+  post-flip-cooldown-days: 7
+  # Seconds between batched PostgreSQL flushes (bar changes only).
+  flush-seconds: 60
+# Mob invasions against guild claims.
+invasions:
+  enabled: true
+  damage:
+    block-budget: 500
+    allowlist:
+      - STONE
+      - COBBLESTONE
+      - OAK_PLANKS
+      - SPRUCE_PLANKS
+  spawn-radius: 24
+  spawn-attempts: 24
+  bossbar:
+    nearby-radius: 96
+  wave-delay-ticks: 100
+  waves:
+    - entities: [ZOMBIE]
+      counts: [5]
+    - entities: [ZOMBIE, SKELETON]
+      counts: [8, 2]
+    - entities: [ZOMBIE, SKELETON, RAVAGER]
+      counts: [10, 5, 1]
+
+# Physical facilities use one functional anchor. Surrounding RP construction is unrestricted.
+buildings:
+  placement-timeout-seconds: 60
+  waystone:
+    anchor-materials: [LODESTONE]
+    warmup-seconds: 5
+    cooldown-seconds: 60
+  trading-post:
+    anchor-materials: [BELL, LECTERN]

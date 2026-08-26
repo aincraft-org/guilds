@@ -35,7 +35,7 @@ tasks.processResources {
             "description" to (project.description ?: ""),
     )
     inputs.properties(props)
-    filesMatching("plugin.yml") {
+    filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
         expand(props)
     }
 }

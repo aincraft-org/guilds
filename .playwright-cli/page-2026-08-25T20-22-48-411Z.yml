@@ -1,0 +1,3 @@
+- generic [ref=f6e3]:
+  - button "Zoom in" [ref=f6e4] [cursor=pointer]: +
+  - button "Zoom out" [ref=f6e5] [cursor=pointer]: −

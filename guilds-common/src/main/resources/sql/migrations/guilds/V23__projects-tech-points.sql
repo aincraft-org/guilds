@@ -1,0 +1,1 @@
+-- +add-column guilds tech_points INTEGER DEFAULT 1

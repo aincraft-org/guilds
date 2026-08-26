@@ -1,0 +1,100 @@
+package dev.mintychochip.territory.web;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class WebConfigLoaderTest {
+
+    @TempDir
+    Path dataFolder;
+
+    @Test
+    void loadsEditorFieldsAndStripsTrailingSlashOnTileBase() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("web.enabled", true);
+        cfg.put("web.bind", "127.0.0.1");
+        cfg.put("web.port", 9001);
+        cfg.put("web.api-token", "tok");
+        cfg.put("web.squaremap-tile-base-url", "http://localhost:8080/");
+        cfg.put("web.session-ttl-seconds", 120);
+
+        WebConfig loaded = WebConfigLoader.fromValues(cfg, dataFolder);
+        assertTrue(loaded.enabled());
+        assertEquals("127.0.0.1", loaded.bindHost());
+        assertEquals(9001, loaded.port());
+        assertEquals("tok", loaded.apiToken());
+        assertTrue(loaded.requiresAuth());
+        assertEquals("http://localhost:8080", loaded.squaremapTileBaseUrl());
+        assertEquals(120, loaded.sessionTtlSeconds());
+    }
+
+    @Test
+    void defaultsWhenEditorKeysMissing() {
+        Map<String, Object> cfg = new HashMap<>();
+
+        WebConfig loaded = WebConfigLoader.fromValues(cfg, dataFolder);
+        assertFalse(loaded.enabled());
+        assertEquals("127.0.0.1", loaded.bindHost());
+        assertEquals("", loaded.squaremapTileBaseUrl());
+        assertEquals(WebConfig.DEFAULT_SESSION_TTL_SECONDS, loaded.sessionTtlSeconds());
+        assertFalse(loaded.requiresAuth());
+        assertFalse(loaded.corsEnabled());
+        assertFalse(loaded.trustProxy());
+    }
+
+    @Test
+    void enabledRequiresApiToken() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("web.enabled", true);
+        cfg.put("web.port", 8765);
+
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> WebConfigLoader.fromValues(cfg, dataFolder));
+        assertEquals("web.api-token is required when web.enabled is true", ex.getMessage());
+    }
+
+    @Test
+    void enabledTlsRequiresPassword() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("web.enabled", true);
+        cfg.put("web.api-token", "tok");
+        cfg.put("web.tls.enabled", true);
+
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> WebConfigLoader.fromValues(cfg, dataFolder));
+        assertEquals("web.tls.password is required when web.tls.enabled is true", ex.getMessage());
+    }
+
+    @Test
+    void enabledTlsRequiresKeyPassword() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("web.enabled", true);
+        cfg.put("web.api-token", "tok");
+        cfg.put("web.tls.enabled", true);
+        cfg.put("web.tls.password", "keystore-secret");
+
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> WebConfigLoader.fromValues(cfg, dataFolder));
+        assertEquals("web.tls.key-password is required when web.tls.enabled is true", ex.getMessage());
+    }
+
+    @Test
+    void corsRequiresPublicBaseUrl() {
+        Map<String, Object> cfg = new HashMap<>();
+        cfg.put("web.enabled", true);
+        cfg.put("web.api-token", "tok");
+        cfg.put("web.cors", true);
+
+        IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class, () -> WebConfigLoader.fromValues(cfg, dataFolder));
+        assertEquals("web.public-base-url is required when web.cors is true", ex.getMessage());
+    }
+}

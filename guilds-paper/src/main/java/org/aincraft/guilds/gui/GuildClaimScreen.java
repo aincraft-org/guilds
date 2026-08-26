@@ -1,8 +1,10 @@
 package org.aincraft.guilds.gui;
 
 import de.flog99.mapgui.HandOptions;
+import de.flog99.mapgui.Click;
 import de.flog99.mapgui.Screen;
 import de.flog99.mapgui.ui.Align;
+import de.flog99.mapgui.ui.AwtFont;
 import de.flog99.mapgui.ui.Colors;
 import de.flog99.mapgui.ui.Justify;
 import de.flog99.mapgui.ui.Node;
@@ -15,26 +17,68 @@ import org.aincraft.guilds.map.ClaimLayer;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
+import org.bukkit.entity.Player;
 
 import java.awt.Color;
+import java.awt.Font;
 
 public final class GuildClaimScreen extends Screen {
 
-    static final int RADIUS = 5;
+    public static final int DEFAULT_RADIUS = 5;
+    public static final int COMPACT_RADIUS = 3;
+
     private static final Color WILDERNESS = new Color(34, 90, 34);
     private static final Color OWN_GUILD = new Color(46, 184, 64);
     private static final Color OTHER_GUILD = new Color(212, 168, 40);
     private static final Color CENTER = new Color(230, 255, 230);
     private static final double TINT = 0.55;
 
+    private static final AwtFont COMPASS_FONT = AwtFont.named("SansSerif", Font.BOLD, 8, false);
+    private static final String[] COMPASS_DIRS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+
+    private static final AwtFont CARDINAL_FONT = AwtFont.named("SansSerif", Font.BOLD, 6, false);
+    private static final String[] CARDINALS = {"N", "E", "S", "W"};
+
+    private static final int COMPASS_RADIUS = 19;
+    private static final int COMPASS_DIAL = 2 * COMPASS_RADIUS + 2;
+    private static final int LABEL_GAP = 2;
+    private static final int COMPASS_W = COMPASS_DIAL;
+    private static final int COMPASS_H = COMPASS_DIAL + LABEL_GAP + COMPASS_FONT.lineHeight();
+
+    // Tuned against an offscreen render: the cardinal letters need a ~9px radial
+    // band, so the star has to stop short of CARDINAL_RADIUS and the needle has to
+    // stay inside the star or it hides the north spike when facing south.
+    private static final int ROSE_MAJOR = 12;
+    private static final int ROSE_MINOR = 7;
+    private static final int ROSE_WAIST = 4;
+    private static final int CARDINAL_RADIUS = 16;
+    private static final int NEEDLE_REACH = 9;
+    private static final int NEEDLE_WAIST = 3;
+
+    private static final Color COMPASS_BG = new Color(16, 18, 24, 205);
+    private static final Color COMPASS_RIM = new Color(70, 74, 86);
+    private static final Color COMPASS_RING = new Color(238, 238, 244);
+    private static final Color ROSE_NORTH = new Color(245, 246, 250);
+    private static final Color ROSE_LIGHT = new Color(196, 200, 212);
+    private static final Color ROSE_DARK = new Color(92, 98, 112);
+    private static final Color COMPASS_NEEDLE = new Color(228, 62, 62);
+    private static final Color COMPASS_TAIL = new Color(158, 162, 172);
+    private static final Color COMPASS_PIVOT = new Color(28, 30, 38);
+
     private final String viewerGuild;
     private final GuildService guilds;
     private final PlotService plots;
     private final PermissionService permissions;
+    private final int radius;
 
     private int lastChunkX = Integer.MIN_VALUE;
     private int lastChunkZ = Integer.MIN_VALUE;
     private String lastWorld = "";
+
+    private ClaimLayer cachedLayer;
+    private int cachedCenterX = Integer.MIN_VALUE;
+    private int cachedCenterZ = Integer.MIN_VALUE;
+    private String cachedWorld;
 
     private int anchorX = -1;
     private int anchorZ = -1;
@@ -43,13 +87,21 @@ public final class GuildClaimScreen extends Screen {
     private boolean dragging;
     private boolean confirmOpen;
     private String resultFlash = "";
+    private boolean suppressHold;
 
     public GuildClaimScreen(String viewerGuild, GuildService guilds,
                             PlotService plots, PermissionService permissions) {
+        this(viewerGuild, guilds, plots, permissions, DEFAULT_RADIUS);
+    }
+
+    public GuildClaimScreen(String viewerGuild, GuildService guilds,
+                            PlotService plots, PermissionService permissions,
+                            int radius) {
         this.viewerGuild = viewerGuild;
         this.guilds = guilds;
         this.plots = plots;
         this.permissions = permissions;
+        this.radius = radius;
     }
 
     @Override
@@ -67,6 +119,11 @@ public final class GuildClaimScreen extends Screen {
         return true;
     }
 
+    /**
+     * Keeps MapGUI's pitch clamp off. With it on the session pins the cursor to the
+     * middle row and forces the player's pitch, which would stop a drag selection
+     * from ever reaching another row of the grid.
+     */
     @Override
     public Boolean clampPitch() {
         return false;
@@ -74,12 +131,18 @@ public final class GuildClaimScreen extends Screen {
 
     @Override
     public HandOptions hand() {
-        return HandOptions.pinned(4);
+        return HandOptions.popup();
+    }
+
+    @Override
+    public Click activateOn() {
+        return Click.BOTH;
     }
 
     @Override
     protected void onHold(int x, int y) {
-        if (x < 0 || y < 0) {
+        if (x < 0 || y < 0 || confirmOpen || suppressHold) {
+            suppressHold = false;
             return;
         }
         int[] cell = cellAtCursor(x, y);
@@ -99,6 +162,7 @@ public final class GuildClaimScreen extends Screen {
 
     @Override
     protected void onHoldEnd() {
+        suppressHold = false;
         if (!dragging) {
             return;
         }
@@ -119,6 +183,21 @@ public final class GuildClaimScreen extends Screen {
         resultFlash = "";
         invalidate();
     }
+    @Override
+    public int fps() {
+        return 20;
+    }
+
+    @Override
+    public int loopFps() {
+        return 20;
+    }
+
+    @Override
+    protected boolean keepDrawing() {
+        return true;
+    }
+
 
     @Override
     protected Node build() {
@@ -129,35 +208,153 @@ public final class GuildClaimScreen extends Screen {
                         .fill(),
                 marqueeOverlay(),
                 resultOverlay(),
-                legend()
+                legend(),
+                compassOverlay()
         ).fill();
+    }
+    private Node compassOverlay() {
+        return Ui.Row(
+                Ui.Spacer(),
+                Ui.Column(
+                        Ui.Draw(this::paintCompass).size(COMPASS_W, COMPASS_H),
+                        Ui.Spacer()
+                ).align(Align.END)
+        ).align(Align.START).padding(4).fill();
+    }
+
+    private void paintCompass(PaintContext context) {
+        Player player = player();
+        if (player == null) {
+            return;
+        }
+
+        float yaw = player.getLocation().getYaw();
+        Rect bounds = context.bounds();
+        Painter painter = context.painter();
+        int cx = bounds.x() + bounds.width() / 2;
+        int cy = bounds.y() + COMPASS_DIAL / 2;
+
+        painter.circle(cx, cy, COMPASS_RADIUS, COMPASS_BG, COMPASS_RIM);
+
+        // Eight-point rose, each point one solid kite. Splitting a point into lit and
+        // shaded halves leaves background seams at this size, so shade whole points
+        // instead. Intercardinals go down first for the longer cardinals to overlap.
+        for (int pass = 0; pass < 2; pass++) {
+            for (int point = 0; point < 8; point++) {
+                boolean cardinal = point % 2 == 0;
+                if (cardinal != (pass == 1)) {
+                    continue;
+                }
+                int reach = cardinal ? ROSE_MAJOR : ROSE_MINOR;
+                double axis = Math.toRadians(point * 45);
+                double left = Math.toRadians((point + 7) * 45);
+                double right = Math.toRadians((point + 1) * 45);
+                painter.polygon(point == 0 ? ROSE_NORTH : cardinal ? ROSE_LIGHT : ROSE_DARK,
+                        new int[] {cx, polarX(cx, ROSE_WAIST, left), polarX(cx, reach, axis),
+                                polarX(cx, ROSE_WAIST, right)},
+                        new int[] {cy, polarY(cy, ROSE_WAIST, left), polarY(cy, reach, axis),
+                                polarY(cy, ROSE_WAIST, right)});
+            }
+        }
+
+        // N/E/S/W ride in the band between the star tips and the rim. textLine takes
+        // the glyph box top, so back off half a line height to centre each letter.
+        painter.font(CARDINAL_FONT);
+        int cardinalHalf = CARDINAL_FONT.lineHeight() / 2;
+        for (int i = 0; i < CARDINALS.length; i++) {
+            String letter = CARDINALS[i];
+            double bearing = Math.toRadians(i * 90);
+            painter.textLine(polarX(cx, CARDINAL_RADIUS, bearing) - CARDINAL_FONT.widthOf(letter) / 2,
+                    polarY(cy, CARDINAL_RADIUS, bearing) - cardinalHalf,
+                    letter, COMPASS_RING, false);
+        }
+
+        // Heading needle over the rose: red toward the player's facing, grey behind.
+        double heading = Math.toRadians(yaw + 180.0);
+        double across = heading + Math.PI / 2;
+        int[] waistX = {polarX(cx, NEEDLE_WAIST, across), polarX(cx, NEEDLE_WAIST, across + Math.PI)};
+        int[] waistY = {polarY(cy, NEEDLE_WAIST, across), polarY(cy, NEEDLE_WAIST, across + Math.PI)};
+        painter.polygon(COMPASS_NEEDLE,
+                new int[] {polarX(cx, NEEDLE_REACH, heading), waistX[0], waistX[1]},
+                new int[] {polarY(cy, NEEDLE_REACH, heading), waistY[0], waistY[1]});
+        painter.polygon(COMPASS_TAIL,
+                new int[] {polarX(cx, NEEDLE_REACH, heading + Math.PI), waistX[0], waistX[1]},
+                new int[] {polarY(cy, NEEDLE_REACH, heading + Math.PI), waistY[0], waistY[1]});
+        painter.circle(cx, cy, 2, COMPASS_PIVOT, COMPASS_RING);
+
+        // textLine takes the glyph top, not a baseline, so the label sits flush
+        // under the dial rather than hanging off the bottom of the widget.
+        painter.font(COMPASS_FONT);
+        String label = facingLabel(yaw);
+        int labelX = bounds.x() + (bounds.width() - painter.font().widthOf(label)) / 2;
+        painter.textLine(labelX, bounds.y() + COMPASS_DIAL + LABEL_GAP, label, Color.WHITE, true);
+    }
+
+    /** Screen X for a point {@code radius} out along a compass bearing (clockwise from north). */
+    private static int polarX(int cx, int radius, double bearing) {
+        return (int) Math.round(cx + radius * Math.sin(bearing));
+    }
+
+    /** Screen Y for a point {@code radius} out along a compass bearing (clockwise from north). */
+    private static int polarY(int cy, int radius, double bearing) {
+        return (int) Math.round(cy - radius * Math.cos(bearing));
+    }
+
+    static String facingLabel(float yaw) {
+        int facing = Math.floorMod(Math.round(yaw + 180f), 360);
+        int index = (int) ((facing + 22.5) / 45) % 8;
+        return COMPASS_DIRS[index];
     }
 
     ClaimLayer currentLayer() {
-        var loc = player().getLocation();
-        return ClaimLayer.classify(
-                loc.getChunk().getX(), loc.getChunk().getZ(), loc.getWorld().getName(),
-                viewerGuild, RADIUS,
-                plots::getGuildBlock,
-                guilds::getGuildById);
+        int centerChunkX;
+        int centerChunkZ;
+
+        if (lastChunkX == Integer.MIN_VALUE) {
+            var loc = player().getLocation();
+            centerChunkX = loc.getChunk().getX();
+            centerChunkZ = loc.getChunk().getZ();
+        } else {
+            centerChunkX = lastChunkX;
+            centerChunkZ = lastChunkZ;
+        }
+
+        String world = displayWorld();
+        if (cachedLayer == null
+                || cachedCenterX != centerChunkX
+                || cachedCenterZ != centerChunkZ
+                || !world.equals(cachedWorld)) {
+            cachedLayer = ClaimLayer.classify(
+                    centerChunkX, centerChunkZ, world,
+                    viewerGuild, radius,
+                    plots::getGuildBlock,
+                    guilds::getGuildById);
+            cachedCenterX = centerChunkX;
+            cachedCenterZ = centerChunkZ;
+            cachedWorld = world;
+        }
+
+        return cachedLayer;
     }
 
-    int lastChunkX() {
-        return lastChunkX;
+    String displayWorld() {
+        return lastWorld != null && !lastWorld.isEmpty()
+                ? lastWorld
+                : player().getWorld().getName();
     }
 
-    int lastChunkZ() {
-        return lastChunkZ;
-    }
-
-    String lastWorld() {
-        return lastWorld;
-    }
-
-    void setFollow(int chunkX, int chunkZ, String world) {
+    public void setFixedCenter(int chunkX, int chunkZ, String world) {
         this.lastChunkX = chunkX;
         this.lastChunkZ = chunkZ;
         this.lastWorld = world;
+        clearLayerCache();
+    }
+
+    private void clearLayerCache() {
+        cachedLayer = null;
+        cachedCenterX = Integer.MIN_VALUE;
+        cachedCenterZ = Integer.MIN_VALUE;
+        cachedWorld = null;
     }
 
     private void paintLayer(PaintContext context) {
@@ -267,8 +464,12 @@ public final class GuildClaimScreen extends Screen {
             return Ui.Column(
                     Ui.Text("Claim " + selectionCount() + " chunks for " + viewerGuild + "?").color(Color.WHITE),
                     Ui.Row(
-                            Ui.Button("Confirm").onClick(this::commitClaims),
+                            Ui.Button("Confirm").onClick(() -> {
+                                ignoreHold();
+                                commitClaims();
+                            }),
                             Ui.Button("Cancel").onClick(() -> {
+                                ignoreHold();
                                 confirmOpen = false;
                                 resultFlash = "";
                                 invalidate();
@@ -281,6 +482,15 @@ public final class GuildClaimScreen extends Screen {
                     .place(Justify.CENTER, Align.CENTER);
         }
         return Ui.Spacer();
+    }
+
+    /**
+     * Marks the next hold as already consumed by a click. MapGUI delivers a hold
+     * alongside the button press, which would otherwise start a fresh drag
+     * selection behind the confirmation dialog.
+     */
+    private void ignoreHold() {
+        this.suppressHold = true;
     }
 
     private Node resultOverlay() {
@@ -310,6 +520,7 @@ public final class GuildClaimScreen extends Screen {
             resultFlash = "Claimed " + result.claimed() + ", skipped " + result.skipped()
                     + " (already claimed / no permission / failed).";
         }
+        clearLayerCache();
         invalidate();
     }
 
@@ -330,7 +541,7 @@ public final class GuildClaimScreen extends Screen {
     }
 
     private String world() {
-        return player().getLocation().getWorld().getName();
+        return displayWorld();
     }
 
     private Node legend() {
