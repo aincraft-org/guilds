@@ -1,0 +1,72 @@
+package org.aincraft.guilds.commands;
+
+import org.junit.jupiter.api.Test;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class MapCommandTest {
+
+    @Test
+    void mapSubcommandWiredUnderGuildAndGuildsParents() {
+        String guildCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
+        String guildsGeneral = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildsGeneralBrigadierCommand.java");
+        String mapCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/MapBrigadierCommand.java");
+
+        assertTrue(guildCommand.contains("mapCommand.buildCommand()"));
+        assertTrue(guildsGeneral.contains("mapCommand.buildCommand()"));
+        assertTrue(mapCommand.contains("Commands.literal(\"map\")"));
+        assertTrue(mapCommand.contains("literal(\"compact\")"));
+        assertTrue(mapCommand.contains("literal(\"full\")"));
+        assertTrue(mapCommand.contains("literal(\"here\")"));
+    }
+
+    @Test
+    void registryRemovesStandaloneMapRootsAndAddsGAlias() {
+        String registry = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/BrigadierCommandRegistry.java");
+
+        assertTrue(registry.contains("Commands.literal(\"g\")"));
+        assertTrue(registry.contains("redirect(guildCommand.buildCommand())"));
+        assertFalse(registry.contains("guildsmap"));
+        assertFalse(registry.contains("mapCommand.buildCommand()"));
+        assertFalse(registry.contains("Commands.literal(\"map\")"));
+    }
+
+    @Test
+    void mapCommandRequiresMapGuiDependency() {
+        String pluginYml = read("guilds-paper/src/main/resources/plugin.yml");
+        String mapCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/MapBrigadierCommand.java");
+        String plugin = read("guilds-paper/src/main/java/org/aincraft/guilds/GuildsPlugin.java");
+
+        assertTrue(pluginYml.contains("depend: [MapGUI]"));
+        assertFalse(pluginYml.contains("softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap, MapGUI]"));
+        assertFalse(pluginYml.contains("WorldEdit"));
+        assertFalse(pluginYml.contains("WorldGuard"));
+        assertFalse(pluginYml.contains("triumph-gui"));
+        assertTrue(mapCommand.contains("MapGui.get()"));
+        assertTrue(mapCommand.contains("GuildClaimScreen"));
+        assertTrue(mapCommand.contains("MapFollowTask"));
+        assertFalse(mapCommand.contains("MapRenderer"));
+        assertFalse(mapCommand.contains("MapGuiOpener"));
+        assertFalse(mapCommand.contains("NOT_AVAILABLE"));
+        assertFalse(mapCommand.contains("isAvailable"));
+        assertTrue(plugin.contains("MapFollowTask.stop"));
+        assertFalse(plugin.contains("MapGuiOpener"));
+    }
+
+    private static String read(String file) {
+        try {
+            Path cwd = Path.of(System.getProperty("user.dir"));
+            Path direct = cwd.resolve(file);
+            if (Files.isRegularFile(direct)) {
+                return Files.readString(direct);
+            }
+            return Files.readString(cwd.resolve("..", file));
+        } catch (Exception e) {
+            throw new AssertionError(e);
+        }
+    }
+}
