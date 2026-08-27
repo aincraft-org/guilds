@@ -72,6 +72,16 @@ class MintEconomyRailTest {
     }
 
     @Test
+    void ensurePlayerAccountCreatesStartingUserWalletWithoutGuildAccount() {
+        var rail = new MintEconomyRail(lease, CURRENCY, 2, java.util.logging.Logger.getLogger("test"));
+        var result = rail.ensurePlayerAccount(player).toCompletableFuture().join();
+
+        assertEquals(MintOperationResult.Status.COMMITTED, result.status());
+        verify(accounts).ensure(AccountId.player(player));
+        verify(accounts, org.mockito.Mockito.never()).ensure(AccountId.of(NamespaceId.parse("guild:eldoria")));
+    }
+
+    @Test
     void mapsInsufficientFundsAndBalance() {
         when(ledger.transact(org.mockito.ArgumentMatchers.any())).thenReturn(CompletableFuture.completedFuture(
                 new Rejected<>(new Rejection(RejectionCode.INSUFFICIENT_AVAILABLE, "short", Map.of()))));

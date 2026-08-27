@@ -8,6 +8,8 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.aincraft.guilds.commands.TopRankings;
+import org.aincraft.guilds.services.AllianceService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
@@ -26,18 +28,21 @@ public class GuildsGeneralBrigadierCommand {
     private final PlotService plotService;
     private final PermissionService permissionService;
     private final MapBrigadierCommand mapCommand;
+    private final AllianceService allianceService;
 
 
     public GuildsGeneralBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
                                        GuildService guildService, PlotService plotService,
                                        PermissionService permissionService,
-                                       MapBrigadierCommand mapCommand) {
+                                       MapBrigadierCommand mapCommand,
+                                       AllianceService allianceService) {
         this.plugin = plugin;
         this.residentService = residentService;
         this.guildService = guildService;
         this.plotService = plotService;
         this.permissionService = permissionService;
         this.mapCommand = mapCommand;
+        this.allianceService = allianceService;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -61,7 +66,9 @@ public class GuildsGeneralBrigadierCommand {
                 .then(Commands.literal("guilds")
                     .executes(this::handleTopGuilds))
                 .then(Commands.literal("land")
-                    .executes(this::handleTopLand)))
+                    .executes(this::handleTopLand))
+                .then(Commands.literal("alliances")
+                    .executes(this::handleTopAlliances)))
             // Prices subcommand
             .then(Commands.literal("prices")
                 .requires(source -> source.getSender().hasPermission("guilds.general.prices"))
@@ -137,6 +144,7 @@ public class GuildsGeneralBrigadierCommand {
         sender.sendMessage("§f/guilds top residents§7 - Top residents by guild count");
         sender.sendMessage("§f/guilds top guilds§7 - Top guilds by resident count");
         sender.sendMessage("§f/guilds top land§7 - Top guilds by land count");
+        sender.sendMessage("§f/guilds top alliances§7 - Top alliances by member-guild count");
         return Command.SINGLE_SUCCESS;
     }
 
@@ -193,6 +201,29 @@ public class GuildsGeneralBrigadierCommand {
 
         if (guilds.size() > 10) {
             sender.sendMessage("§7And " + (guilds.size() - 10) + " more guilds...");
+        }
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private int handleTopAlliances(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        var alliances = TopRankings.alliancesByGuildCount(allianceService.getAllAlliances());
+
+        if (alliances.isEmpty()) {
+            sender.sendMessage("§eNo alliances found yet.");
+            return Command.SINGLE_SUCCESS;
+        }
+
+        sender.sendMessage("§e=== Top Alliances by Guilds ===");
+        for (int i = 0; i < Math.min(alliances.size(), 10); i++) {
+            var alliance = alliances.get(i);
+            sender.sendMessage("§f" + (i + 1) + ". §a" + alliance.getName()
+                    + " §7- §e" + alliance.getGuildCount() + " guilds");
+        }
+
+        if (alliances.size() > 10) {
+            sender.sendMessage("§7And " + (alliances.size() - 10) + " more alliances...");
         }
 
         return Command.SINGLE_SUCCESS;

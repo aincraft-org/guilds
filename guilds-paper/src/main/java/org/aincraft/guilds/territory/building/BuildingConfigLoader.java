@@ -29,6 +29,8 @@ public final class BuildingConfigLoader {
                 "buildings.trading-post.anchor-materials", List.of("BELL", "LECTERN")));
         materials.put(FacilityType.STORAGE, materials(config,
                 "buildings.storage.anchor-materials", List.of("BARREL", "CHEST")));
+        materials.put(FacilityType.BANK, materials(config,
+                "buildings.bank.anchor-materials", List.of("GOLD_BLOCK")));
         return new BuildingConfig(
                 Math.multiplyExact(timeoutSeconds, 1_000L),
                 Map.copyOf(materials),

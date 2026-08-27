@@ -128,11 +128,8 @@ public class BrigadierCommandRegistry {
             // Register new guild perm command
             commands.register(guildPermCommand.buildCommand());
 
-            // Register tech tree command with alias
-            commands.register(techTreeCommand.buildCommand());
-        commands.register(Commands.literal("tt")
-                .redirect(techTreeCommand.buildCommand())
-                .build());
+            // techtree top-level removed per request — use /g upgrade (redirects to tech tree)
+            // (was: commands.register(techTreeCommand.buildCommand()); + "tt" alias)
 
         // Register chat command with aliases
         commands.register(chatCommand.buildCommand());
@@ -140,9 +137,12 @@ public class BrigadierCommandRegistry {
             .redirect(chatCommand.buildCommand())
             .build());
 
-        // Register alliance command with alias
+        // Register alliance command with aliases
         commands.register(allianceCommand.buildCommand());
         commands.register(Commands.literal("n")
+                .redirect(allianceCommand.buildCommand())
+                .build());
+        commands.register(Commands.literal("a")
                 .redirect(allianceCommand.buildCommand())
                 .build());
 

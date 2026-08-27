@@ -2,6 +2,7 @@ package org.aincraft.guilds.commands.brigadier;
 
 
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
@@ -13,6 +14,8 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.aincraft.guilds.GuildsGovernanceSource;
+import org.aincraft.guilds.alliances.AllianceProposal;
+import org.aincraft.guilds.alliances.AllianceProposalStore;
 import org.aincraft.guilds.commands.arguments.GovernmentFormArgumentType;
 import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Resident;
@@ -27,8 +30,9 @@ import java.util.UUID;
 
 /**
  * Brigadier command for alliance system management.
- * /alliance create <name> — create a alliance (mayor of a guild)
- * /alliance invite <guild> — invite a guild (king/minister only)
+ * /alliance create <name> <guild> — propose an alliance; the target mayor must accept
+ * /alliance accept <name> — target mayor accepts a pending alliance
+ * /alliance invite <guild> — invite a guild to a pending or existing alliance
  * /alliance join <alliance> — accept invite (mayor only)
  * /alliance leave — leave alliance
  * /alliance list — list all alliances
@@ -49,16 +53,41 @@ public class AllianceBrigadierCommand {
     private final GuildService guildService;
     private final ResidentService residentService;
     private final GuildsGovernanceSource governanceSource;
-
+    private final AllianceProposalStore proposalStore = new AllianceProposalStore();
+    private int minimumGuilds;
 
     public AllianceBrigadierCommand(JavaPlugin plugin, AllianceService allianceService,
-                                  GuildService guildService, ResidentService residentService,
-                                  GuildsGovernanceSource governanceSource) {
+                                    GuildService guildService, ResidentService residentService,
+                                    GuildsGovernanceSource governanceSource) {
         this.plugin = plugin;
         this.allianceService = allianceService;
         this.guildService = guildService;
         this.residentService = residentService;
         this.governanceSource = governanceSource;
+        this.minimumGuilds = Math.max(2, plugin.getConfig().getInt("alliance.min-guilds", 2));
+    }
+    private boolean canOverrideRequirement(Player player) {
+        return player.isOp() || player.hasPermission("guilds.admin.alliance");
+    }
+
+    private int handleRequirement(CommandContext<CommandSourceStack> ctx) {
+        Player player = getPlayer(ctx);
+        if (player == null) return 0;
+        if (!canOverrideRequirement(player)) {
+            player.sendMessage(Component.text("You do not have permission to change the alliance requirement.", NamedTextColor.RED));
+            return 0;
+        }
+        int count = IntegerArgumentType.getInteger(ctx, "count");
+        if (count < 2) {
+            player.sendMessage(Component.text("The alliance requirement must be at least 2 guilds.", NamedTextColor.RED));
+            return 0;
+        }
+        minimumGuilds = count;
+        plugin.getConfig().set("alliance.min-guilds", count);
+        plugin.saveConfig();
+        player.sendMessage(Component.text("Alliance creation now requires " + count
+                + " guilds. This setting persists across restarts.", NamedTextColor.GREEN));
+        return Command.SINGLE_SUCCESS;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -66,8 +95,17 @@ public class AllianceBrigadierCommand {
                 .requires(source -> source.getSender().hasPermission("guilds.commands.alliance"))
                 .executes(this::handleInfoSelf)
                 .then(Commands.literal("create")
+                        .executes(this::handleCreateUsage)
                         .then(Commands.argument("name", StringArgumentType.string())
-                                .executes(this::handleCreate)))
+                                .executes(this::handleCreateUsage)
+                                .then(Commands.argument("guild", StringArgumentType.string())
+                                        .executes(this::handleCreate))))
+                .then(Commands.literal("accept")
+                        .then(Commands.argument("name", StringArgumentType.string())
+                                .executes(this::handleAccept)))
+                .then(Commands.literal("requirement")
+                        .then(Commands.argument("count", IntegerArgumentType.integer())
+                                .executes(this::handleRequirement)))
                 .then(Commands.literal("invite")
                         .then(Commands.argument("guild", StringArgumentType.string())
                                 .executes(this::handleInvite)))
@@ -152,11 +190,21 @@ public class AllianceBrigadierCommand {
 
     // ── Command Handlers ───────────────────────────────────────────────
 
+    private int handleCreateUsage(CommandContext<CommandSourceStack> ctx) {
+        Player player = getPlayer(ctx);
+        if (player == null) return 0;
+        player.sendMessage(Component.text(
+                "Usage: /alliance create <name> <guild>. The other guild's mayor must accept before the alliance is created.",
+                NamedTextColor.YELLOW));
+        return 0;
+    }
+
     private int handleCreate(CommandContext<CommandSourceStack> ctx) {
         Player player = getPlayer(ctx);
         if (player == null) return 0;
 
         String name = StringArgumentType.getString(ctx, "name");
+        String targetGuildName = StringArgumentType.getString(ctx, "guild");
 
         if (allianceService.getAlliance(name).isPresent()) {
             player.sendMessage(Component.text("A alliance with that name already exists!", NamedTextColor.RED));
@@ -175,13 +223,89 @@ public class AllianceBrigadierCommand {
             return 0;
         }
 
-        try {
-            allianceService.createAlliance(name, guild, player.getUniqueId());
-            player.sendMessage(Component.text("Alliance " + name + " created! Your guild is now the capital.", NamedTextColor.GREEN));
-        } catch (IllegalArgumentException e) {
-            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
+        if (guildAlreadyAllied(guild.getId())) {
+            player.sendMessage(Component.text("Your guild is already in a alliance!", NamedTextColor.RED));
+            return 0;
         }
 
+        Optional<Guild> targetOpt = guildService.getGuild(targetGuildName);
+        if (targetOpt.isEmpty()) {
+            player.sendMessage(Component.text("Guild not found: " + targetGuildName, NamedTextColor.RED));
+            return 0;
+        }
+
+        Guild target = targetOpt.get();
+        if (guildAlreadyAllied(target.getId())) {
+            player.sendMessage(Component.text("That guild is already in a alliance!", NamedTextColor.RED));
+            return 0;
+        }
+
+        try {
+            proposalStore.propose(name, guild.getId(), player.getUniqueId(), target.getId());
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
+            return 0;
+        }
+
+        player.sendMessage(Component.text(
+                "Proposed alliance " + name + " to " + target.getName()
+                        + ". Their mayor must run /alliance accept " + name + ".",
+                NamedTextColor.GREEN));
+        notifyMayor(target, Component.text(
+                guild.getName() + " proposed alliance " + name + ". Run /alliance accept " + name + " to join.",
+                NamedTextColor.GOLD));
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private int handleAccept(CommandContext<CommandSourceStack> ctx) {
+        Player player = getPlayer(ctx);
+        if (player == null) return 0;
+
+        String name = StringArgumentType.getString(ctx, "name");
+        Optional<Guild> guildOpt = getPlayerGuild(player);
+        if (guildOpt.isEmpty()) {
+            player.sendMessage(Component.text("You must be in a guild to accept an alliance!", NamedTextColor.RED));
+            return 0;
+        }
+
+        Guild guild = guildOpt.get();
+        if (!isMayorOfGuild(player, guild.getName())) {
+            player.sendMessage(Component.text("Only guild mayors can accept alliance proposals!", NamedTextColor.RED));
+            return 0;
+        }
+
+        Optional<AllianceProposal> pending = proposalStore.get(name);
+        if (pending.isEmpty()) {
+            player.sendMessage(Component.text("No pending alliance named " + name + ".", NamedTextColor.RED));
+            return 0;
+        }
+
+        AllianceProposalStore.AcceptOutcome outcome;
+        try {
+            outcome = proposalStore.accept(name, guild.getId(), minimumGuilds);
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
+            return 0;
+        }
+
+        if (!outcome.committed()) {
+            player.sendMessage(Component.text(
+                    name + " now has " + outcome.proposal().acceptedGuildIds().size()
+                            + " of " + minimumGuilds + " required guilds.",
+                    NamedTextColor.YELLOW));
+            return Command.SINGLE_SUCCESS;
+        }
+
+        try {
+            persistCommittedProposal(outcome.proposal());
+        } catch (IllegalArgumentException e) {
+            player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
+            return 0;
+        }
+
+        player.sendMessage(Component.text(
+                "Alliance " + name + " created with " + outcome.proposal().acceptedGuildIds().size() + " guilds.",
+                NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
     }
 
@@ -190,8 +314,46 @@ public class AllianceBrigadierCommand {
         if (player == null) return 0;
 
         String guildName = StringArgumentType.getString(ctx, "guild");
-        Optional<Alliance> allianceOpt = getPlayerAlliance(player);
+        Optional<Guild> playerGuild = getPlayerGuild(player);
+        if (playerGuild.isEmpty()) {
+            player.sendMessage(Component.text("You are not in a guild!", NamedTextColor.RED));
+            return 0;
+        }
 
+        Optional<Guild> targetGuild = guildService.getGuild(guildName);
+        if (targetGuild.isEmpty()) {
+            player.sendMessage(Component.text("Guild not found: " + guildName, NamedTextColor.RED));
+            return 0;
+        }
+
+        if (guildAlreadyAllied(targetGuild.get().getId())) {
+            player.sendMessage(Component.text("That guild is already in a alliance!", NamedTextColor.RED));
+            return 0;
+        }
+
+        Optional<AllianceProposal> pending = proposalStore.findByProposingGuild(playerGuild.get().getId());
+        if (pending.isPresent()) {
+            if (!playerGuild.get().getMayorUuid().equals(player.getUniqueId())) {
+                player.sendMessage(Component.text("Only the proposing mayor can invite guilds to a pending alliance!", NamedTextColor.RED));
+                return 0;
+            }
+            try {
+                proposalStore.invite(pending.get().name(), playerGuild.get().getId(), targetGuild.get().getId());
+            } catch (IllegalArgumentException e) {
+                player.sendMessage(Component.text(e.getMessage(), NamedTextColor.RED));
+                return 0;
+            }
+            player.sendMessage(Component.text(
+                    "Invitation sent to " + guildName + " for pending alliance " + pending.get().name() + ".",
+                    NamedTextColor.GREEN));
+            notifyMayor(targetGuild.get(), Component.text(
+                    playerGuild.get().getName() + " invited your guild to alliance " + pending.get().name()
+                            + ". Run /alliance accept " + pending.get().name() + " to join.",
+                    NamedTextColor.GOLD));
+            return Command.SINGLE_SUCCESS;
+        }
+
+        Optional<Alliance> allianceOpt = getPlayerAlliance(player);
         if (allianceOpt.isEmpty()) {
             player.sendMessage(Component.text("You are not in a alliance!", NamedTextColor.RED));
             return 0;
@@ -202,22 +364,36 @@ public class AllianceBrigadierCommand {
             return 0;
         }
 
-        Optional<Guild> targetGuild = guildService.getGuild(guildName);
-        if (targetGuild.isEmpty()) {
-            player.sendMessage(Component.text("Guild not found: " + guildName, NamedTextColor.RED));
-            return 0;
-        }
-
-        // Check if guild is already in a alliance
-        boolean alreadyInAlliance = allianceService.getAllAlliances().stream()
-                .anyMatch(n -> n.hasGuild(targetGuild.get().getId()));
-        if (alreadyInAlliance) {
-            player.sendMessage(Component.text("That guild is already in a alliance!", NamedTextColor.RED));
-            return 0;
-        }
-
         player.sendMessage(Component.text("Invitation sent to " + guildName + "!", NamedTextColor.GREEN));
         return Command.SINGLE_SUCCESS;
+    }
+
+    private boolean guildAlreadyAllied(String guildId) {
+        return allianceService.getAllAlliances().stream().anyMatch(alliance -> alliance.hasGuild(guildId));
+    }
+
+    private void persistCommittedProposal(AllianceProposal proposal) {
+        Guild capital = guildService.getGuildById(proposal.proposingGuildId())
+                .orElseThrow(() -> new IllegalArgumentException("Proposing guild no longer exists"));
+        allianceService.createAlliance(proposal.name(), capital, proposal.proposingMayorUuid());
+        Alliance alliance = allianceService.getAlliance(proposal.name())
+                .orElseThrow(() -> new IllegalArgumentException("Failed to create alliance " + proposal.name()));
+        for (String guildId : proposal.acceptedGuildIds()) {
+            if (!guildId.equals(proposal.proposingGuildId())) {
+                allianceService.addGuild(alliance, guildId);
+            }
+        }
+    }
+
+    private void notifyMayor(Guild guild, Component message) {
+        UUID mayorUuid = guild.getMayorUuid();
+        if (mayorUuid == null) {
+            return;
+        }
+        Player mayor = plugin.getServer().getPlayer(mayorUuid);
+        if (mayor != null) {
+            mayor.sendMessage(message);
+        }
     }
 
     private int handleJoin(CommandContext<CommandSourceStack> ctx) {

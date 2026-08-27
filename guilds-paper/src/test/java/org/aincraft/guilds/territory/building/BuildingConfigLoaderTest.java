@@ -22,7 +22,9 @@ class BuildingConfigLoaderTest {
                 config.anchorMaterials(FacilityType.TRADING_POST));
         assertEquals(Set.of(Material.BARREL, Material.CHEST),
                 config.anchorMaterials(FacilityType.STORAGE));
+        assertEquals(Set.of(Material.GOLD_BLOCK), config.anchorMaterials(FacilityType.BANK));
         assertTrue(config.supports(FacilityType.STORAGE));
+        assertTrue(config.supports(FacilityType.BANK));
         assertEquals(60_000L, config.placementTimeoutMillis());
         assertEquals(100L, config.waystoneWarmupTicks());
         assertEquals(60_000L, config.waystoneCooldownMillis());

@@ -1,7 +1,7 @@
 # Economy — Living Spec
 
 > Status: active
-> Last updated: 2026-08-19
+> Last updated: 2026-08-26
 > Owners: guilds
 > Index: [README.md](./README.md)
 >
@@ -136,6 +136,9 @@ Active capability surface (shipped or wired) and any open work still on that sur
 - [x] Async tax bridge entry points route taxes to the governing guild id
 - [x] Plugin registers a documented `MintClientReceiver`; received leases inject the Mint rail into territory tax settlement
 - [x] `/guild bank` balance/deposit/withdraw command surface (when a trusted Mint rail is available)
+- [x] `/g info` shows Mint guild-bank balance and level capacity limit in place of SQL `Balance`
+- [x] Starting Mint player wallet provisioned on join; guild bank account opened at a tagged banker NPC on a BANK plot or BANK building
+- [x] `/territory building create bank` registers a GOLD_BLOCK anchor and spawns a wandering banker villager
 
 - [x] `EconomyBridge.reportSale` — location resolve, government gate, PASSED tax rates, `PaymentRail.settle`
 - [x] `TaxCalculator` + `TaxReport` / `TaxOutcome` mapping from settlement status
@@ -201,6 +204,7 @@ Parked; promote to Next/Current before implementing.
 | 2026-08-06 | Expense journal PENDING then DEBITED; PENDING after restart → reconcile, never auto-retry | Closes Vault/local crash window without double-debit risk |
 | 2026-08-06+ | Facilities/expenses/upkeep/reconciliation on shared Postgres | One durable backend with guilds/territories; drop JSON dual-store drift |
 | 2026-08-08 | Upkeep schedules call `chargeExpense` only | Reuse idempotent expense path; one money model |
+| 2026-08-26 | `/g info` shows Mint guild bank + level limit; player wallets are created on join; guild accounts open at a BANK-plot banker NPC | Makes capacity and enrollment visible in the guild surface |
 
 ## Open questions
 

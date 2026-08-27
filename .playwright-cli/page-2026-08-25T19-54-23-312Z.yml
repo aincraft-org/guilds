@@ -1,0 +1,15 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - generic:
+      - generic:
+        - generic [ref=f3e3]:
+          - button "Zoom in" [ref=f3e4] [cursor=pointer]: +
+          - button "Zoom out" [ref=f3e5] [cursor=pointer]: −
+        - button "Layers" [ref=f3e7] [cursor=pointer]
+      - generic: Coordinates---, ---
+  - generic [ref=f3e11]:
+    - group "Worlds" [ref=f3e13]:
+      - generic [ref=f3e15]: minecraft:overworld
+      - generic [ref=f3e16]: minecraft:the_end
+      - generic [ref=f3e18]: minecraft:the_nether
+    - group "Players (0/0)" [ref=f3e19]

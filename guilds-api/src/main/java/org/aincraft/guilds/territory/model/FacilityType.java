@@ -4,5 +4,6 @@ package org.aincraft.guilds.territory.model;
 public enum FacilityType {
     TRADING_POST,
     STORAGE,
-    WAYSTONE
+    WAYSTONE,
+    BANK
 }

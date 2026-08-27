@@ -2,8 +2,11 @@ package org.aincraft.guilds.storage;
 
 import org.aincraft.guilds.listeners.GuildBankVillagerListener;
 import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildBlock;
+import org.aincraft.guilds.models.PlotTypes;
 import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.services.GuildBankEnrollmentService;
+import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.MintGuildBankService;
 import org.aincraft.guilds.services.MintTransferPort;
@@ -62,16 +65,20 @@ class StorageRegressionTest {
     }
 
     @Test
-    void taggedVillagerBypassesTerritoryBounds() {
+    void taggedVillagerOpensGuildAccountOnlyOnBankPlot() {
         UUID playerId = UUID.randomUUID();
         String guildId = "guild-1";
         Player player = mock(Player.class);
         Villager villager = mock(Villager.class);
         JavaPlugin plugin = mock(JavaPlugin.class);
+        org.bukkit.Location location = mock(org.bukkit.Location.class);
+        org.bukkit.World world = mock(org.bukkit.World.class);
         Resident resident = new Resident(playerId, "player");
         resident.setGuild(guildId);
         Guild guild = new Guild("Guild", playerId);
         guild.setId(guildId);
+        GuildBlock bankPlot = new GuildBlock(1, 2, "world", guildId);
+        bankPlot.setPlotType(PlotTypes.BANK);
         AtomicReference<UUID> openedPlayer = new AtomicReference<>();
         AtomicReference<String> openedGuild = new AtomicReference<>();
         CompletableFuture<Void> mintOpened = new CompletableFuture<>();
@@ -86,10 +93,17 @@ class StorageRegressionTest {
         });
         when(player.getUniqueId()).thenReturn(playerId);
         when(villager.getScoreboardTags()).thenReturn(java.util.Set.of("GUILD_BANK"));
+        when(villager.getLocation()).thenReturn(location);
+        when(location.getWorld()).thenReturn(world);
+        when(world.getName()).thenReturn("world");
+        when(location.getBlockX()).thenReturn(20);
+        when(location.getBlockZ()).thenReturn(36);
         ResidentService residents = mock(ResidentService.class);
         when(residents.getResident(playerId)).thenReturn(Optional.of(resident));
         GuildService guilds = mock(GuildService.class);
         when(guilds.getGuild(guildId)).thenReturn(Optional.of(guild));
+        PlotService plots = mock(PlotService.class);
+        when(plots.getGuildBlockAtLocation("world", 20, 36)).thenReturn(Optional.of(bankPlot));
         MintTransferPort mint = new MintTransferPort() {
             public CompletableFuture<MintOperationResult> openAccount(UUID player, String id) {
                 openedPlayer.set(player);
@@ -110,13 +124,66 @@ class StorageRegressionTest {
         };
 
         try (MintGuildBankService bank = new MintGuildBankService(mint, enrollment, id -> guild, new GuildBankCapacity())) {
-            GuildBankVillagerListener listener = new GuildBankVillagerListener(plugin, guilds, residents, bank, "GUILD_BANK");
+            GuildBankVillagerListener listener = new GuildBankVillagerListener(plugin, guilds, residents, plots, bank, "GUILD_BANK");
             listener.onPlayerInteractEntity(new PlayerInteractEntityEvent(player, villager));
             assertDoesNotThrow(() -> mintOpened.get(5, TimeUnit.SECONDS));
             assertEquals(playerId, openedPlayer.get());
             assertEquals(guildId, openedGuild.get());
         }
-        verify(villager, never()).getLocation();
+    }
+
+    @Test
+    void taggedVillagerDoesNotOpenAwayFromBankPlot() {
+        UUID playerId = UUID.randomUUID();
+        String guildId = "guild-1";
+        Player player = mock(Player.class);
+        Villager villager = mock(Villager.class);
+        JavaPlugin plugin = mock(JavaPlugin.class);
+        org.bukkit.Location location = mock(org.bukkit.Location.class);
+        org.bukkit.World world = mock(org.bukkit.World.class);
+        Resident resident = new Resident(playerId, "player");
+        resident.setGuild(guildId);
+        Guild guild = new Guild("Guild", playerId);
+        guild.setId(guildId);
+        GuildBlock farmPlot = new GuildBlock(1, 2, "world", guildId);
+        farmPlot.setPlotType(PlotTypes.FARM);
+        AtomicReference<Boolean> opened = new AtomicReference<>(false);
+
+        when(player.getUniqueId()).thenReturn(playerId);
+        when(villager.getScoreboardTags()).thenReturn(java.util.Set.of("GUILD_BANK"));
+        when(villager.getLocation()).thenReturn(location);
+        when(location.getWorld()).thenReturn(world);
+        when(world.getName()).thenReturn("world");
+        when(location.getBlockX()).thenReturn(8);
+        when(location.getBlockZ()).thenReturn(8);
+        ResidentService residents = mock(ResidentService.class);
+        when(residents.getResident(playerId)).thenReturn(Optional.of(resident));
+        GuildService guilds = mock(GuildService.class);
+        when(guilds.getGuild(guildId)).thenReturn(Optional.of(guild));
+        PlotService plots = mock(PlotService.class);
+        when(plots.getGuildBlockAtLocation("world", 8, 8)).thenReturn(Optional.of(farmPlot));
+        MintTransferPort mint = new MintTransferPort() {
+            public CompletableFuture<MintOperationResult> openAccount(UUID p, String id) {
+                opened.set(true);
+                return committed();
+            }
+            public CompletableFuture<MintOperationResult> balance(String id) { return committed(); }
+            public CompletableFuture<MintOperationResult> deposit(UUID p, String id, java.math.BigDecimal a, String k) { return committed(); }
+            public CompletableFuture<MintOperationResult> withdraw(UUID p, String id, java.math.BigDecimal a, String k) { return committed(); }
+            public CompletableFuture<MintOperationResult> creditTax(UUID p, String id, java.math.BigDecimal a, String k) { return committed(); }
+        };
+        GuildBankEnrollmentService enrollment = new GuildBankEnrollmentService() {
+            public CompletableFuture<EnrollmentResult> open(UUID p, String g) { return CompletableFuture.completedFuture(EnrollmentResult.OPENED); }
+            public CompletableFuture<Boolean> isEnrolled(UUID p, String g) { return CompletableFuture.completedFuture(true); }
+            public CompletableFuture<Boolean> deactivateForPlayerGuild(UUID p, String g) { return CompletableFuture.completedFuture(true); }
+            public CompletableFuture<Integer> deactivateForGuild(String g) { return CompletableFuture.completedFuture(1); }
+        };
+
+        try (MintGuildBankService bank = new MintGuildBankService(mint, enrollment, id -> guild, new GuildBankCapacity())) {
+            GuildBankVillagerListener listener = new GuildBankVillagerListener(plugin, guilds, residents, plots, bank, "GUILD_BANK");
+            listener.onPlayerInteractEntity(new PlayerInteractEntityEvent(player, villager));
+        }
+        assertEquals(false, opened.get());
         verify(player, never()).getLocation();
     }
 

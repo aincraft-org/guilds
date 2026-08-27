@@ -7,7 +7,7 @@ description = "Guilds Paper plugin — Bukkit glue, listeners, commands, and the
 dependencies {
     implementation(project(":guilds-api"))
     implementation(project(":guilds-common"))
-    implementation("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
+    compileOnly("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
     compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
     testImplementation("dev.mintychochip.mint:mint-api:${property("mintApiVersion")}")
 
@@ -35,7 +35,7 @@ tasks.processResources {
             "description" to (project.description ?: ""),
     )
     inputs.properties(props)
-    filesMatching("plugin.yml") {
+    filesMatching(listOf("plugin.yml", "paper-plugin.yml")) {
         expand(props)
     }
 }

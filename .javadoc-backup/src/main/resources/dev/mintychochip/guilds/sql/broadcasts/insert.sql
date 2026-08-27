@@ -1,0 +1,1 @@
+INSERT INTO broadcast_messages (id, guild_id, message_type, title, content, sender_uuid, sender_name, created_at, expires_at, is_active, priority, target_audience) VALUES (:id, :guild_id, :message_type, :title, :content, :sender_uuid, :sender_name, :created_at, :expires_at, :is_active, :priority, :target_audience)

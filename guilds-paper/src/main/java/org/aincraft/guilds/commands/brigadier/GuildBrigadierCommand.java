@@ -16,13 +16,19 @@ import org.aincraft.guilds.models.Location;
 import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.plot.PlotTypeDefinition;
 import org.aincraft.guilds.plot.PlotTypeRegistry;
+import org.aincraft.guilds.commands.TopRankings;
+import org.aincraft.guilds.services.AllianceService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.GuildService;
+import org.aincraft.guilds.services.GuildLevelService;
+import org.aincraft.guilds.services.TechTreeService;
+import org.aincraft.guilds.services.GuildProjectService;
 import org.aincraft.guilds.services.MintGuildBankService;
 import org.aincraft.guilds.services.MintTransferPort;
 import org.aincraft.guilds.storage.StorageFacilityOpener;
+import de.flog99.mapgui.MapGui;
 import java.math.BigDecimal;
 
 import java.util.List;
@@ -44,9 +50,12 @@ public class GuildBrigadierCommand {
     private final MapBrigadierCommand mapCommand;
     private final PlotTypeRegistry plotTypeRegistry;
     private final GuildsGovernanceSource governanceSource;
+    private final AllianceService allianceService;
+    private final GuildLevelService guildLevelService;
+    private final TechTreeService techTreeService;
+    private final GuildProjectService guildProjectService;
     private volatile MintGuildBankService mintGuildBankService;
     private volatile StorageFacilityOpener storageFacilityOpener;
-
 
     public GuildBrigadierCommand(JavaPlugin plugin, ResidentService residentService,
                                GuildService guildService, PlotService plotService,
@@ -54,7 +63,11 @@ public class GuildBrigadierCommand {
                                TechTreeBrigadierCommand techTreeCommand,
                                MapBrigadierCommand mapCommand,
                                PlotTypeRegistry plotTypeRegistry,
-                               GuildsGovernanceSource governanceSource) {
+                               GuildsGovernanceSource governanceSource,
+                               AllianceService allianceService,
+                               GuildLevelService guildLevelService,
+                               TechTreeService techTreeService,
+                               GuildProjectService guildProjectService) {
         this.plugin = plugin;
         this.residentService = residentService;
         this.guildService = guildService;
@@ -64,6 +77,10 @@ public class GuildBrigadierCommand {
         this.mapCommand = mapCommand;
         this.plotTypeRegistry = plotTypeRegistry;
         this.governanceSource = governanceSource;
+        this.allianceService = allianceService;
+        this.guildLevelService = guildLevelService;
+        this.techTreeService = techTreeService;
+        this.guildProjectService = guildProjectService;
     }
 
     public void setMintGuildBankService(MintGuildBankService bank) {
@@ -111,6 +128,16 @@ public class GuildBrigadierCommand {
             .then(Commands.literal("list")
                 .requires(source -> source.getSender().hasPermission("guilds.guild.list"))
                 .executes(this::handleList))
+            .then(Commands.literal("top")
+                .executes(this::showTopHelp)
+                .then(Commands.literal("residents")
+                    .executes(this::handleTopResidents))
+                .then(Commands.literal("guilds")
+                    .executes(this::handleTopGuilds))
+                .then(Commands.literal("land")
+                    .executes(this::handleTopLand))
+                .then(Commands.literal("alliances")
+                    .executes(this::handleTopAlliances)))
             // Info subcommand
             .then(Commands.literal("info")
                 .requires(source -> source.getSender().hasPermission("guilds.guild.info"))
@@ -160,8 +187,10 @@ public class GuildBrigadierCommand {
             .then(Commands.literal("storage")
                 .executes(this::handleStorage))
             .then(mapCommand.buildCommand())
-            // Tech tree subcommand
-            .then(techTreeCommand.buildCommand())
+            // "upgrade" is now the MapGUI upgrade screen — /g upgrade → GuildUpgradeScreen (MapGUI 2.0.0)
+            .then(Commands.literal("upgrade")
+                .requires(source -> source.getSender().hasPermission("guilds.techtree"))
+                .executes(this::handleUpgradeMap))
             // Government subcommand: the guild (guild) picks its governance form
             .then(Commands.literal("government")
                 .then(Commands.argument("form", GovernmentFormArgumentType.form())
@@ -618,6 +647,95 @@ public class GuildBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
+    private int showTopHelp(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        sender.sendMessage("§e=== Top Commands ===");
+        sender.sendMessage("§f/g top residents§7 - Top residents by guild count");
+        sender.sendMessage("§f/g top guilds§7 - Top guilds by resident count");
+        sender.sendMessage("§f/g top land§7 - Top guilds by land count");
+        sender.sendMessage("§f/g top alliances§7 - Top alliances by member-guild count");
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private int handleTopResidents(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        sender.sendMessage("§e=== Top Residents ===");
+        sender.sendMessage("§7This command is not yet implemented. Resident rankings will be available in a future update.");
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private int handleTopGuilds(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        var guilds = guildService.getAllGuilds();
+
+        if (guilds.isEmpty()) {
+            sender.sendMessage("§eNo guilds found yet.");
+            return Command.SINGLE_SUCCESS;
+        }
+
+        sender.sendMessage("§e=== Top Guilds by Residents ===");
+        guilds.sort((a, b) -> Integer.compare(b.getResidentCount(), a.getResidentCount()));
+
+        for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
+            var guild = guilds.get(i);
+            int residentCount = guildService.getGuildResidentCount(guild.getName());
+            sender.sendMessage("§f" + (i + 1) + ". §a" + guild.getName() + " §7- §e" + residentCount + " residents");
+        }
+
+        if (guilds.size() > 10) {
+            sender.sendMessage("§7And " + (guilds.size() - 10) + " more guilds...");
+        }
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private int handleTopLand(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        var guilds = guildService.getAllGuilds();
+
+        if (guilds.isEmpty()) {
+            sender.sendMessage("§eNo guilds found yet.");
+            return Command.SINGLE_SUCCESS;
+        }
+
+        sender.sendMessage("§e=== Top Guilds by Land ===");
+
+        for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
+            var guild = guilds.get(i);
+            int landCount = plotService.getGuildBlockCount(guild.getName());
+            sender.sendMessage("§f" + (i + 1) + ". §a" + guild.getName() + " §7- §e" + landCount + " chunks");
+        }
+
+        if (guilds.size() > 10) {
+            sender.sendMessage("§7And " + (guilds.size() - 10) + " more guilds...");
+        }
+
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private int handleTopAlliances(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        var alliances = TopRankings.alliancesByGuildCount(allianceService.getAllAlliances());
+
+        if (alliances.isEmpty()) {
+            sender.sendMessage("§eNo alliances found yet.");
+            return Command.SINGLE_SUCCESS;
+        }
+
+        sender.sendMessage("§e=== Top Alliances by Guilds ===");
+        for (int i = 0; i < Math.min(alliances.size(), 10); i++) {
+            var alliance = alliances.get(i);
+            sender.sendMessage("§f" + (i + 1) + ". §a" + alliance.getName()
+                    + " §7- §e" + alliance.getGuildCount() + " guilds");
+        }
+
+        if (alliances.size() > 10) {
+            sender.sendMessage("§7And " + (alliances.size() - 10) + " more alliances...");
+        }
+
+        return Command.SINGLE_SUCCESS;
+    }
+
     private int handleOwnInfo(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         if (!(sender instanceof org.bukkit.entity.Player player)) {
@@ -640,8 +758,9 @@ public class GuildBrigadierCommand {
                 player.sendMessage("§e=== " + guildName + " ===");
                 player.sendMessage("§fMayor: §a" + guild.getMayorUuid());
                 player.sendMessage("§fResidents: §a" + guild.getResidentCount());
-                player.sendMessage("§fBalance: §6$" + String.format("%.2f", guild.getBalance()));
+                appendGuildBank(player, guild);
                 player.sendMessage("§fOpen: " + (guild.isOpen() ? "§aYes" : "§cNo"));
+                appendGuildBank(player, guild);
                 sendPlotTypeBreakdown(player, guildName);
             } else {
                 player.sendMessage("§cGuild information could not be loaded.");
@@ -662,8 +781,9 @@ public class GuildBrigadierCommand {
             sender.sendMessage("§e=== " + guildName + " ===");
             sender.sendMessage("§fMayor: §a" + guild.getMayorUuid());
             sender.sendMessage("§fResidents: §a" + guild.getResidentCount());
-            sender.sendMessage("§fBalance: §6$" + String.format("%.2f", guild.getBalance()));
+            appendGuildBank(sender, guild);
             sender.sendMessage("§fOpen: " + (guild.isOpen() ? "§aYes" : "§cNo"));
+            appendGuildBank(sender, guild);
             sendPlotTypeBreakdown(sender, guildName);
         } else {
             sender.sendMessage("§cGuild information could not be loaded.");
@@ -1070,6 +1190,27 @@ public class GuildBrigadierCommand {
         return false; // No adjacent claims found
     }
 
+    private void appendGuildBank(org.bukkit.command.CommandSender sender, org.aincraft.guilds.models.Guild guild) {
+        MintGuildBankService bank = mintGuildBankService;
+        BigDecimal limit = bank == null
+                ? new org.aincraft.guilds.territory.economy.GuildBankCapacity().forLevel(guild.getGuildLevel())
+                : bank.limitFor(guild);
+        String limitText = limit.toPlainString();
+        if (bank == null) {
+            sender.sendMessage("§fGuild Bank: §7unavailable §8/ §6$" + limitText);
+            return;
+        }
+        bank.guildBalance(guild.getId()).thenAccept(result ->
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    if (result.status() == MintGuildBankService.Status.COMMITTED && result.value() != null) {
+                        sender.sendMessage("§fGuild Bank: §6$" + result.value().toPlainString()
+                                + " §8/ §6$" + limitText);
+                    } else {
+                        sender.sendMessage("§fGuild Bank: §7unavailable §8/ §6$" + limitText);
+                    }
+                }));
+    }
+
     private void sendPlotTypeBreakdown(org.bukkit.command.CommandSender sender, String guildName) {
         List<GuildBlock> blocks = plotService.getGuildBlocksInGuild(guildName);
 
@@ -1232,6 +1373,30 @@ public class GuildBrigadierCommand {
         }
         player.sendMessage("§c" + result.message());
         return 0;
+    }
+    private int handleUpgradeMap(CommandContext<CommandSourceStack> ctx) {
+        var sender = ctx.getSource().getSender();
+        if (!(sender instanceof org.bukkit.entity.Player player)) {
+            sender.sendMessage("§cThis command can only be used by players.");
+            return 0;
+        }
+        if (!player.hasPermission("guilds.techtree")) {
+            player.sendMessage("§cNo permission");
+            return 0;
+        }
+        var resident = residentService.getResident(player.getUniqueId());
+        if (resident.isEmpty() || !resident.get().hasGuild()) {
+            player.sendMessage("§cYou are not in a guild!");
+            return 0;
+        }
+        try {
+            MapGui.get().open(player, new org.aincraft.guilds.gui.GuildUpgradeScreen(
+                    plugin, guildService, residentService, guildLevelService, techTreeService, guildProjectService, player));
+        } catch (Exception e) {
+            player.sendMessage("§cFailed to open upgrade screen: " + e.getMessage());
+            return 0;
+        }
+        return Command.SINGLE_SUCCESS;
     }
 
 }

@@ -1,0 +1,10 @@
+name: TestPlugin
+version: ${version}
+main: org.aincraft.guilds.test.TestPlugin
+bootstrapper: org.aincraft.guilds.test.TestPluginBootstrap
+api-version: '26.2'
+description: ${description}
+authors:
+  - Aincraft
+website: https://github.com/aincraft-org/guilds
+load: POSTWORLD

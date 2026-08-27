@@ -9,7 +9,6 @@ import de.flog99.mapgui.MapGui;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import org.aincraft.guilds.gui.GuildClaimScreen;
-import org.aincraft.guilds.gui.MapFollowTask;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
@@ -75,7 +74,7 @@ public class MapBrigadierCommand {
             return 0;
         }
 
-        return openMap(player);
+        return openMap(player, GuildClaimScreen.DEFAULT_RADIUS);
     }
 
     private int handleCompactMap(CommandContext<CommandSourceStack> ctx) {
@@ -90,7 +89,7 @@ public class MapBrigadierCommand {
             return 0;
         }
 
-        return openMap(player);
+        return openMap(player, GuildClaimScreen.COMPACT_RADIUS);
     }
 
     private int handleCoordsMap(CommandContext<CommandSourceStack> ctx) {
@@ -100,15 +99,36 @@ public class MapBrigadierCommand {
             return 0;
         }
 
-        return openMap(player);
+        if (!player.hasPermission("guilds.map")) {
+            player.sendMessage(ChatColor.RED + "You don't have permission to use the guilds map!");
+            return 0;
+        }
+
+        int chunkX = IntegerArgumentType.getInteger(ctx, "x");
+        int chunkZ = IntegerArgumentType.getInteger(ctx, "z");
+        return openMapAt(player, chunkX, chunkZ, GuildClaimScreen.DEFAULT_RADIUS);
     }
 
-    private int openMap(Player player) {
+    private int openMap(Player player, int radius) {
         String playerGuild = getPlayerGuild(player);
         try {
-            MapFollowTask.start(plugin, MapGui.get());
-            MapGui.get().open(player, new GuildClaimScreen(playerGuild, guildService, plotService, permissionService));
+            MapGui.get().open(player, new GuildClaimScreen(playerGuild, guildService, plotService, permissionService, radius));
             plugin.getLogger().info("MapGUI claim map opened for player: " + player.getName());
+            return Command.SINGLE_SUCCESS;
+        } catch (Exception e) {
+            player.sendMessage(ChatColor.RED + "Failed to open map: " + e.getMessage());
+            plugin.getLogger().warning("Failed to open MapGUI map for " + player.getName() + ": " + e.getMessage());
+            return 0;
+        }
+    }
+
+    private int openMapAt(Player player, int chunkX, int chunkZ, int radius) {
+        String playerGuild = getPlayerGuild(player);
+        try {
+            GuildClaimScreen screen = new GuildClaimScreen(playerGuild, guildService, plotService, permissionService, radius);
+            screen.setFixedCenter(chunkX, chunkZ, player.getWorld().getName());
+            MapGui.get().open(player, screen);
+            plugin.getLogger().info("MapGUI fixed claim map opened for player: " + player.getName());
             return Command.SINGLE_SUCCESS;
         } catch (Exception e) {
             player.sendMessage(ChatColor.RED + "Failed to open map: " + e.getMessage());

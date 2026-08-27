@@ -273,14 +273,15 @@ public class GuildsServices {
                 residentService, permissionService);
 
         GuildBrigadierCommand guildCommand = new GuildBrigadierCommand(plugin, residentService, guildService,
-                plotService, permissionService, techTreeCommand, mapCommand, plotTypeRegistry, governanceSource);
+                plotService, permissionService, techTreeCommand, mapCommand, plotTypeRegistry, governanceSource,
+                allianceService, guildLevelService, techTreeService, guildProjectService);
         this.guildBrigadierCommand = guildCommand;
-        this.guildBankVillagerListener = new GuildBankVillagerListener(plugin, guildService, residentService, null,
+        this.guildBankVillagerListener = new GuildBankVillagerListener(plugin, guildService, residentService, plotService, null,
                 config.getString("bank.villager-scoreboard-tag", "GUILD_BANK"));
         PlotBrigadierCommand plotCommand = new PlotBrigadierCommand(plugin, residentService, guildService,
                 plotService, permissionService, plotTypeRegistry);
         GuildsGeneralBrigadierCommand guildsGeneralCommand = new GuildsGeneralBrigadierCommand(plugin,
-                residentService, guildService, plotService, permissionService, mapCommand);
+                residentService, guildService, plotService, permissionService, mapCommand, allianceService);
         GuildLevelBrigadierCommand guildLevelCommand = new GuildLevelBrigadierCommand(plugin, residentService,
                 guildService, plotService, permissionService, guildLevelService, resourceService);
         PermBrigadierCommand permCommand = new PermBrigadierCommand(plugin, permissionService, plotService, guildService);

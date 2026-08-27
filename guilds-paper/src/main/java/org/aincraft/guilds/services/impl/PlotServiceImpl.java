@@ -48,9 +48,7 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
      * the permissions table outside PermissionServiceImpl.
      */
     private PermissionService permissionService;
-
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
 
     public PlotServiceImpl(DatabaseManager databaseManager, GuildService guildService, Logger logger) {
         this.databaseManager = databaseManager;
@@ -591,7 +589,6 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
         String guildId = resultSet.getString("guild_id");
         String plotType = resultSet.getString("plot_type");
         double price = resultSet.getDouble("price");
-        String claimedAtStr = resultSet.getString("claimed_at");
         String customName = resultSet.getString("custom_name");
         int permissionsFlags = resultSet.getInt("permissions_flags");
 
@@ -606,8 +603,9 @@ public class PlotServiceImpl implements org.aincraft.guilds.services.PlotService
             guildBlock.setOwnerId(UUID.fromString(ownerUuidStr));
         }
 
-        if (claimedAtStr != null) {
-            guildBlock.setClaimedAt(LocalDateTime.parse(claimedAtStr, DATE_FORMATTER));
+        java.sql.Timestamp ts = resultSet.getTimestamp("claimed_at");
+        if (ts != null) {
+            guildBlock.setClaimedAt(ts.toLocalDateTime());
         }
 
         guildBlock.setCustomName(customName);

@@ -10,6 +10,11 @@ import java.util.concurrent.CompletionStage;
 public interface MintTransferPort {
     CompletionStage<MintOperationResult> openAccount(UUID playerUuid, String guildId);
 
+    default CompletionStage<MintOperationResult> ensurePlayerAccount(UUID playerUuid) {
+        return java.util.concurrent.CompletableFuture.completedFuture(new MintOperationResult(
+                MintOperationResult.Status.UNAVAILABLE, null, java.util.Optional.of("UNSUPPORTED"), java.util.Optional.empty()));
+    }
+
     CompletionStage<MintOperationResult> balance(String guildId);
 
     CompletionStage<MintOperationResult> deposit(UUID playerUuid, String guildId, BigDecimal amount, String idempotencyKey);

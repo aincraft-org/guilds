@@ -1,7 +1,7 @@
 # Guilds — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-19  
+> Last updated: 2026-08-26  
 > Related: archived docs under `docs/archived-guilds/docs/`;  
 > `docs/superpowers/specs/2026-08-07-guild-contracts-design.md`
 
@@ -86,6 +86,9 @@ contracts are durable and transactional where money/items move.
 
 - [x] Guild / alliance models and services on shared Postgres
 - [x] Brigadier commands (guild, alliance, plot, perm, chat, map, quests, tech, …)
+- [x] Alliance creation requires a second guild's mayor to accept (`/alliance create <name> <guild>` + `/alliance accept <name>`); default `alliance.min-guilds: 2` with operator override `/alliance requirement`
+- [x] `/a` aliases `/alliance` (existing `/n` retained)
+- [x] `/g top alliances` and `/guilds top alliances` rank alliances by member-guild count
 - [x] Plot type system and handlers
 - [x] Permission service + public access / toggle listeners
 - [x] `GuildsGovernanceSource` for territory governance
@@ -127,6 +130,7 @@ Nation vocabulary is retired in territory docs; command names may still say
 | (core) | Guilds + alliances replace nation vocabulary in domain | Clearer federal model |
 | 2026-08-07 | Contracts as service API first | Escrow correctness before UX |
 | 2026-08-06+ | Postgres only for guilds schema | Unified persistence |
+| 2026-08-26 | Alliances start as pending proposals until the configured guild count has accepted | Prevents one-guild alliances while keeping `/alliance create` usable |
 
 ## Open questions
 

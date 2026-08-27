@@ -1,0 +1,1 @@
+SELECT guild_id, specialization FROM guild_specializations

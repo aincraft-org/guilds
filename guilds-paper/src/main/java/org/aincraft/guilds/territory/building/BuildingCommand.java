@@ -76,7 +76,7 @@ public final class BuildingCommand {
         }
         if (args.length == 2 && "create".equalsIgnoreCase(args[0])) {
             String prefix = args[1].toLowerCase(Locale.ROOT);
-            return List.of("waystone", "trading_post", "storage").stream()
+            return List.of("waystone", "trading_post", "storage", "bank").stream()
                     .filter(value -> value.startsWith(prefix)).toList();
         }
         return List.of();
@@ -88,7 +88,7 @@ public final class BuildingCommand {
             return true;
         }
         if (args.length < 3) {
-            message(sender, "Usage: /" + label + " building create <waystone|trading_post|storage> <id> [name]",
+            message(sender, "Usage: /" + label + " building create <waystone|trading_post|storage|bank> <id> [name]",
                     NamedTextColor.RED);
             return true;
         }
@@ -221,12 +221,23 @@ public final class BuildingCommand {
                 .territoryId();
     }
 
-    private static FacilityType parseType(String input) {
-        return switch (input.toLowerCase(Locale.ROOT)) {
+    static FacilityType parseType(String input) {
+        if (input == null || input.isBlank()) {
+            return null;
+        }
+        String normalized = input.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return switch (normalized) {
             case "waystone" -> FacilityType.WAYSTONE;
-            case "trading_post", "trading-post" -> FacilityType.TRADING_POST;
+            case "trading_post", "tradingpost" -> FacilityType.TRADING_POST;
             case "storage" -> FacilityType.STORAGE;
-            default -> null;
+            case "bank", "guild_bank", "guildbank" -> FacilityType.BANK;
+            default -> {
+                try {
+                    yield FacilityType.valueOf(normalized.toUpperCase(Locale.ROOT));
+                } catch (IllegalArgumentException ignored) {
+                    yield null;
+                }
+            }
         };
     }
 

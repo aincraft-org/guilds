@@ -1,5 +1,9 @@
 # Guilds configuration
 
+alliance:
+  # Minimum number of guilds required before an alliance may be created.
+  min-guilds: 2
+
 # Embedded web submodule (REST API only; the map is served by squaremap).
 # Typical production: leave tls.enabled=false and terminate HTTPS on nginx/Caddy,
 # then reverse-proxy to this port with trust-proxy: true.
@@ -33,7 +37,7 @@ database:
   # Non-loopback hosts default to PostgreSQL `verify-full` / MySQL `VERIFY_IDENTITY`.
   # Override only with a driver-supported mode; remote fallback modes are rejected.
   # ssl-mode: verify-full
-  # PostgreSQL only: PEM root CA used as the `sslrootcert` driver property.
+  # PostgreSQL only: PEM root CA used for the `sslrootcert` driver property.
   # ssl-ca-cert: /etc/guilds/postgres-ca.crt
   # MySQL only: JKS or PKCS12 trust store; do not provide a PEM file here.
   # ssl-trust-store: /etc/guilds/mysql-truststore.p12
@@ -66,10 +70,14 @@ upkeep:
   interval-days: 7
   grace-days: 2
   check-seconds: 60
-
 # Territory influence race (New World style): rival guilds accrue influence in
 # enemy-alliance territories; at 100% they may declare and take over after a
 # countdown. Both sides must belong to alliances.
+buildings:
+  bank:
+    anchor-materials:
+      - GOLD_BLOCK
+
 influence:
   enabled: true
   cap: 100.0
@@ -101,23 +109,6 @@ invasions:
   spawn-attempts: 24
   bossbar:
     nearby-radius: 96
-  wave-delay-ticks: 100
-  waves:
-    - entities: [ZOMBIE]
-      counts: [5]
-    - entities: [ZOMBIE, SKELETON]
-      counts: [8, 2]
-    - entities: [ZOMBIE, SKELETON, RAVAGER]
-      counts: [10, 5, 1]
-
 # Physical facilities use one functional anchor. Surrounding RP construction is unrestricted.
-buildings:
-  placement-timeout-seconds: 60
-  waystone:
-    anchor-materials: [LODESTONE]
-    warmup-seconds: 5
-    cooldown-seconds: 60
-  trading-post:
-    anchor-materials: [BELL, LECTERN]
-  storage:
-    anchor-materials: [BARREL, CHEST]
+facilities:
+  anchor-materials: [BARREL, CHEST]

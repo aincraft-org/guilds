@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "cap": 500.0,
+  "sources": {
+    "pvp-kill": 10.0,
+    "pve-kill": 0.5,
+    "block-break": 0.15
+  },
+  "tiers": [
+    { "level": 1, "threshold": 0,     "harvest_multiplier": 1.0, "influence_multiplier": 1.0 },
+    { "level": 2, "threshold": 100,   "harvest_multiplier": 1.2, "influence_multiplier": 1.1 },
+    { "level": 3, "threshold": 300,   "harvest_multiplier": 1.5, "influence_multiplier": 1.25 }
+  ]
+}

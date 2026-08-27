@@ -61,6 +61,21 @@ public final class MintGuildBankService implements AutoCloseable {
         this(mint, enrollment, guilds, capacity, 5000);
     }
 
+    public BigDecimal limitFor(Guild guild) {
+        if (guild == null) {
+            return capacity.forLevel(0);
+        }
+        return capacity.forLevel(guild.getGuildLevel());
+    }
+
+    public CompletionStage<Result> ensurePlayerAccount(UUID player) {
+        return call(() -> mint.ensurePlayerAccount(player)).thenApply(Result::from);
+    }
+
+    public CompletionStage<Result> guildBalance(String guildId) {
+        return enqueue(guildId, () -> call(() -> mint.balance(guildId)).thenApply(Result::from));
+    }
+
     public CompletionStage<Result> openAccount(UUID player, String guildId) {
         return enqueue(guildId, () -> enrollment.open(player, guildId).thenCompose(r -> {
             if (r != GuildBankEnrollmentService.EnrollmentResult.OPENED

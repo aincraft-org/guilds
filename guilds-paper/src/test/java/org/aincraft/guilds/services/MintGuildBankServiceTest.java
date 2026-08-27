@@ -77,6 +77,33 @@ class MintGuildBankServiceTest {
         }
     }
 
+    @Test
+    void guildBalanceDoesNotRequireEnrollmentAndExposesLevelLimit() {
+        UUID player = UUID.randomUUID();
+        Guild guild = new Guild("Guild", player);
+        guild.setId("guild-1");
+        guild.setGuildLevel(2);
+        MintTransferPort mint = new MintTransferPort() {
+            public CompletableFuture<MintOperationResult> openAccount(UUID p, String id) { return committed(null); }
+            public CompletableFuture<MintOperationResult> balance(String id) { return committed(new BigDecimal("250.50")); }
+            public CompletableFuture<MintOperationResult> deposit(UUID p, String id, BigDecimal a, String k) { return committed(null); }
+            public CompletableFuture<MintOperationResult> withdraw(UUID p, String id, BigDecimal a, String k) { return committed(null); }
+            public CompletableFuture<MintOperationResult> creditTax(UUID p, String id, BigDecimal a, String k) { return committed(null); }
+        };
+        GuildBankEnrollmentService enrollment = new GuildBankEnrollmentService() {
+            public CompletableFuture<EnrollmentResult> open(UUID p, String g) { return CompletableFuture.completedFuture(EnrollmentResult.OPENED); }
+            public CompletableFuture<Boolean> isEnrolled(UUID p, String g) { return CompletableFuture.completedFuture(false); }
+            public CompletableFuture<Boolean> deactivateForPlayerGuild(UUID p, String g) { return CompletableFuture.completedFuture(true); }
+            public CompletableFuture<Integer> deactivateForGuild(String g) { return CompletableFuture.completedFuture(1); }
+        };
+        try (MintGuildBankService service = new MintGuildBankService(mint, enrollment, id -> guild, new GuildBankCapacity())) {
+            MintGuildBankService.Result result = service.guildBalance(guild.getId()).toCompletableFuture().join();
+            assertEquals(MintGuildBankService.Status.COMMITTED, result.status());
+            assertEquals(0, new BigDecimal("250.50").compareTo(result.value()));
+            assertEquals(new BigDecimal("2000.00"), service.limitFor(guild));
+        }
+    }
+
     private static CompletableFuture<MintOperationResult> committed(BigDecimal value) {
         return CompletableFuture.completedFuture(new MintOperationResult(MintOperationResult.Status.COMMITTED,
                 value, java.util.Optional.empty(), java.util.Optional.empty()));

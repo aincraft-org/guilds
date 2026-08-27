@@ -62,7 +62,6 @@ import dev.mintychochip.mint.api.id.CurrencyId;
 import org.aincraft.guilds.territory.economy.MintEconomyRail;
 import org.aincraft.guilds.territory.economy.MintGuildTaxSettlement;
 import org.aincraft.guilds.services.MintGuildBankService;
-import org.aincraft.guilds.gui.MapFollowTask;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -116,6 +115,7 @@ public final class GuildsPlugin extends JavaPlugin {
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
     private TerritorySquaremapBridge squaremapBridge;
+    private org.aincraft.guilds.territory.squaremap.GuildClaimSquaremapBridge guildClaimBridge;
     private PostgresStandingStore standingStore;
     private StandingEngine standingEngine;
     private BukkitTask influenceStatusTask;
@@ -246,12 +246,16 @@ public final class GuildsPlugin extends JavaPlugin {
 
         // squaremap integration: render territory/zone/influence boundaries as map layers.
         // Self-degrading when squaremap is absent; must start after registry load.
-        this.squaremapBridge = new TerritorySquaremapBridge(
-                this,
-                registry,
-                () -> Optional.ofNullable(influenceEngine)
-                        .map(engine -> (InfluenceService) engine));
-        this.squaremapBridge.start();
+        try {
+            this.squaremapBridge = new TerritorySquaremapBridge(
+                    this,
+                    registry,
+                    () -> Optional.ofNullable(influenceEngine)
+                            .map(engine -> (InfluenceService) engine));
+            this.squaremapBridge.start();
+        } catch (NoClassDefFoundError e) {
+            getLogger().warning("squaremap API classes not on classpath; territory map layers disabled");
+        }
 
         // Standing engine (constructed before influence so the influence hook
         // can read development tiers; listeners + flush timer wired in Task 6).
@@ -316,16 +320,40 @@ public final class GuildsPlugin extends JavaPlugin {
         }
 
         TerritoryCommand cmd = new TerritoryCommand(this);
-        var pluginCommand = getCommand("territory");
-        if (pluginCommand != null) {
-            pluginCommand.setExecutor(cmd);
-            pluginCommand.setTabCompleter(cmd);
-        } else {
-            getLogger().warning("Command 'territory' not defined in plugin.yml");
-        }
+        var territoryBasic = new io.papermc.paper.command.brigadier.BasicCommand() {
+            @Override
+            public void execute(io.papermc.paper.command.brigadier.CommandSourceStack stack, String[] args) {
+                cmd.onCommand(stack.getSender(), null, "territory", args);
+            }
+
+            @Override
+            public java.util.Collection<String> suggest(io.papermc.paper.command.brigadier.CommandSourceStack stack, String[] args) {
+                var suggestions = cmd.onTabComplete(stack.getSender(), null, "territory", args);
+                return suggestions == null ? java.util.List.of() : suggestions;
+            }
+
+            @Override
+            public boolean canUse(org.bukkit.command.CommandSender sender) {
+                return true;
+            }
+        };
+        getLifecycleManager().registerEventHandler(
+                io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents.COMMANDS,
+                event -> event.registrar().register("territory", "Inspect territory and zone at a location",
+                        java.util.List.of("gterritory"), territoryBasic));
 
         startWebIfEnabled();
         enableGuildsSubsystem();
+        // Guild claims squaremap layer — renders guild_blocks chunks as merged outlines.
+        try {
+            this.guildClaimBridge = new org.aincraft.guilds.territory.squaremap.GuildClaimSquaremapBridge(
+                    this,
+                    () -> guilds != null ? guilds.getPlotService() : null,
+                    () -> guilds != null ? guilds.getGuildService() : null);
+            this.guildClaimBridge.start();
+        } catch (NoClassDefFoundError e) {
+            getLogger().warning("squaremap API classes not on classpath; guild claim map layers disabled");
+        }
         wireInvasions();
     }
     @Override
@@ -364,7 +392,6 @@ public final class GuildsPlugin extends JavaPlugin {
             invasionRuntime = null;
         }
         disableGuildsSubsystem();
-        MapFollowTask.stop(this);
         if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
             try {
                 expenseStore.save(expenseLedger.entries());
@@ -545,6 +572,10 @@ public final class GuildsPlugin extends JavaPlugin {
             squaremapBridge.stop();
             squaremapBridge = null;
         }
+        if (guildClaimBridge != null) {
+            guildClaimBridge.stop();
+            guildClaimBridge = null;
+        }
     }
 
     /**
@@ -720,8 +751,9 @@ public final class GuildsPlugin extends JavaPlugin {
         }
         try {
             var config = org.aincraft.guilds.territory.building.BuildingConfigLoader.from(getConfig());
+            var bankers = new org.aincraft.guilds.territory.building.GuildBankerNpc(this);
             this.facilityMutations = new org.aincraft.guilds.territory.building.FacilityMutationService(
-                    facilities, facilityStore);
+                    facilities, facilityStore, bankers::spawn, bankers::despawn);
             var authorization = new org.aincraft.guilds.territory.building.BuildingAuthorization(
                     guilds.getGuildService(), guilds.getPermissionService());
             var anchors = new org.aincraft.guilds.territory.building.FacilityAnchorValidator(
@@ -749,6 +781,10 @@ public final class GuildsPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(
                     new org.aincraft.guilds.territory.building.WaystoneTravelListener(waystoneTravelService),
                     this);
+            if (guilds.getGuildBankVillagerListener() != null) {
+                guilds.getGuildBankVillagerListener().setBankBuildings(facilities, registry);
+            }
+            bankers.restore(facilities.list());
             getLogger().info("Territory anchor buildings enabled");
         } catch (RuntimeException e) {
             this.buildingCommand = null;
