@@ -740,26 +740,25 @@ public final class GuildUpgradeScreen extends Screen {
             return;
         }
         String selectedId = selectedNode.getId();
-        if (!selectedId.equals(activeProjectId)) {
-            String currentActive = projectService.getActiveProjectId(viewerGuild).orElse(null);
-            if (!Objects.equals(currentActive, activeProjectId)) {
-                refresh(player());
-                invalidate();
-                if (selectedId.equals(activeProjectId)) {
-                    return;
-                }
-            }
+        Guild actionGuild = viewerGuildName == null
+                ? viewerGuild : guildService.getGuild(viewerGuildName).orElse(null);
+        if (actionGuild == null) {
+            return;
         }
-        if (selectedId.equals(activeProjectId)) {
-            String currentActive = projectService.getActiveProjectId(viewerGuild).orElse(null);
-            if (!selectedId.equals(currentActive)) {
-                refresh(player());
-                invalidate();
+        viewerGuild = actionGuild;
+        String currentActive = projectService.getActiveProjectId(actionGuild).orElse(null);
+        if (!Objects.equals(currentActive, activeProjectId)) {
+            refresh(player());
+            invalidate();
+            if (selectedId.equals(activeProjectId)) {
                 return;
             }
-            projectService.clearActiveProject(viewerGuild);
+            actionGuild = viewerGuild;
+        }
+        if (selectedId.equals(activeProjectId)) {
+            projectService.clearActiveProject(actionGuild);
         } else if (actionAvailable(selectedNode)) {
-            projectService.startProject(viewerGuild, selectedId);
+            projectService.startProject(actionGuild, selectedId);
         } else {
             return;
         }
