@@ -19,7 +19,7 @@ public final class GuildUpgradeGraphLayout {
     public static final String HEARTH_ID = "guild_hearth";
 
     public enum ShapeType {
-        CORE, HEXAGON, SHIELD, COIN, DIAMOND
+        CORE, INVALID, HEXAGON, SHIELD, COIN, DIAMOND
     }
 
     public record LayoutNode(
@@ -68,7 +68,7 @@ public final class GuildUpgradeGraphLayout {
     private GuildUpgradeGraphLayout() {}
 
     public static ShapeType shapeForBranch(TechTreeBranch branch) {
-        if (branch == null) return ShapeType.CORE;
+        if (branch == null) return ShapeType.INVALID;
         return switch (branch) {
             case INFRASTRUCTURE -> ShapeType.HEXAGON;
             case DEFENSE -> ShapeType.SHIELD;
@@ -86,6 +86,9 @@ public final class GuildUpgradeGraphLayout {
         Set<Coord> occupied = new HashSet<>();
         occupied.add(RADIAL_COORDS.get(HEARTH_ID));
         for (TechTreeNode node : nodes) {
+            if (HEARTH_ID.equals(node.getId())) {
+                throw new IllegalArgumentException("Tech tree node id is reserved: " + HEARTH_ID);
+            }
             Coord coordinate = RADIAL_COORDS.get(node.getId());
             if (coordinate != null) {
                 occupied.add(coordinate);
@@ -131,33 +134,33 @@ public final class GuildUpgradeGraphLayout {
         int maxY;
         switch (node.getBranch()) {
             case INFRASTRUCTURE -> {
-                minX = 8;
+                minX = 10;
                 maxX = 38;
-                minY = 14;
+                minY = 22;
                 maxY = 38;
             }
             case DEFENSE -> {
                 minX = 90;
-                maxX = 120;
-                minY = 14;
+                maxX = 118;
+                minY = 22;
                 maxY = 38;
             }
             case COMMERCE -> {
-                minX = 8;
+                minX = 10;
                 maxX = 38;
                 minY = 90;
-                maxY = 120;
+                maxY = 114;
             }
             case CULTURE -> {
                 minX = 90;
-                maxX = 120;
+                maxX = 118;
                 minY = 90;
-                maxY = 120;
+                maxY = 114;
             }
             case null, default -> {
                 minX = 50;
                 maxX = 78;
-                minY = 14;
+                minY = 22;
                 maxY = 38;
             }
         }
@@ -177,8 +180,8 @@ public final class GuildUpgradeGraphLayout {
             }
         }
 
-        for (int y = 14; y <= 118; y++) {
-            for (int x = 8; x <= 120; x++) {
+        for (int y = 22; y <= 114; y++) {
+            for (int x = 10; x <= 118; x++) {
                 Coord candidate = new Coord(x, y);
                 if (isHitboxAvailable(candidate, occupied)) {
                     return candidate;

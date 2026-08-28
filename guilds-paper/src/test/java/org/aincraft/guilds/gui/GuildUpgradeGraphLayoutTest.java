@@ -73,8 +73,8 @@ class GuildUpgradeGraphLayoutTest {
         for (TechTreeNode n : nodes) {
             assertTrue(layout.containsKey(n.getId()));
             GuildUpgradeGraphLayout.LayoutNode ln = layout.get(n.getId());
-            assertTrue(ln.x() >= 8 && ln.x() <= 120);
-            assertTrue(ln.y() >= 14 && ln.y() <= 118);
+            assertTrue(ln.x() >= 10 && ln.x() <= 118);
+            assertTrue(ln.y() >= 22 && ln.y() <= 114);
         }
     }
 
@@ -153,8 +153,8 @@ class GuildUpgradeGraphLayoutTest {
             GuildUpgradeGraphLayout.LayoutNode layoutNode = layout.get(node.getId());
             assertNotNull(layoutNode);
             assertTrue(positions.add(layoutNode.x() + ":" + layoutNode.y()));
-            assertTrue(layoutNode.x() >= 8 && layoutNode.x() <= 120);
-            assertTrue(layoutNode.y() >= 14 && layoutNode.y() <= 118);
+            assertTrue(layoutNode.x() >= 10 && layoutNode.x() <= 118);
+            assertTrue(layoutNode.y() >= 22 && layoutNode.y() <= 114);
             assertFalse(layoutNode.x() == 64 && layoutNode.y() == 64);
         }
         assertEquals(nodes.size(), positions.size());
@@ -168,5 +168,47 @@ class GuildUpgradeGraphLayoutTest {
                 assertFalse(hitboxesOverlap, "%s and %s overlap".formatted(a.id(), b.id()));
             }
         }
+    }
+    @Test
+    void fallbackPlacementStaysWithinViewportBoundsAcrossBranches() {
+        List<TechTreeNode> nodes = new ArrayList<>();
+        for (TechTreeBranch branch : TechTreeBranch.values()) {
+            for (int index = 0; index < 17; index++) {
+                TechTreeNode dynamic = new TechTreeNode(
+                        "boundary_" + branch.name().toLowerCase() + "_" + index);
+                dynamic.setName("Boundary " + branch.name() + " " + index);
+                dynamic.setBranch(branch);
+                dynamic.setCost(1);
+                dynamic.setPrerequisites(List.of());
+                nodes.add(dynamic);
+            }
+        }
+
+        Map<String, GuildUpgradeGraphLayout.LayoutNode> layout =
+                GuildUpgradeGraphLayout.layout(nodes);
+        for (TechTreeNode node : nodes) {
+            GuildUpgradeGraphLayout.LayoutNode layoutNode = layout.get(node.getId());
+            assertNotNull(layoutNode);
+            assertTrue(layoutNode.x() >= 10 && layoutNode.x() <= 118);
+            assertTrue(layoutNode.y() >= 22 && layoutNode.y() <= 114);
+        }
+    }
+
+    @Test
+    void nullBranchUsesInvalidShapeInsteadOfHearthCore() {
+        TechTreeNode malformed = new TechTreeNode("malformed_null_branch");
+        malformed.setName("Malformed branch");
+        malformed.setCost(1);
+        malformed.setPrerequisites(List.of());
+
+        GuildUpgradeGraphLayout.LayoutNode layoutNode =
+                GuildUpgradeGraphLayout.layout(List.of(malformed)).get(malformed.getId());
+
+        assertNotNull(layoutNode);
+        assertNull(malformed.getBranch());
+        assertEquals(GuildUpgradeGraphLayout.ShapeType.INVALID, layoutNode.shape());
+        assertFalse(layoutNode.shape() == GuildUpgradeGraphLayout.ShapeType.CORE);
+        assertTrue(layoutNode.x() >= 10 && layoutNode.x() <= 118);
+        assertTrue(layoutNode.y() >= 22 && layoutNode.y() <= 114);
     }
 }

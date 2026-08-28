@@ -257,11 +257,22 @@ public final class GuildUpgradeScreen extends Screen {
                                 GuildUpgradeGraphLayout.ShapeType shape, NodeStyle style) {
         switch (shape) {
             case CORE -> drawPixelCore(painter, centerX, centerY, style);
+            case INVALID -> drawPixelInvalid(painter, centerX, centerY, style);
             case HEXAGON -> drawPixelHex(painter, centerX, centerY, style);
             case SHIELD -> drawPixelShield(painter, centerX, centerY, style);
             case COIN -> drawPixelCoin(painter, centerX, centerY, style);
             case DIAMOND -> drawPixelDiamond(painter, centerX, centerY, style);
         }
+    }
+
+    private void drawPixelInvalid(Painter painter, int centerX, int centerY, NodeStyle style) {
+        drawPattern(painter, centerX, centerY, style, new String[]{
+                "#######",
+                "#..+..#",
+                "#..*..#",
+                "#..+..#",
+                "#######"
+        });
     }
 
     private void drawPixelCore(Painter painter, int centerX, int centerY, NodeStyle style) {
@@ -415,12 +426,19 @@ public final class GuildUpgradeScreen extends Screen {
     }
 
     private NodeStyle styleFor(GuildUpgradeGraphLayout.LayoutNode node) {
-        if (node.shape() == GuildUpgradeGraphLayout.ShapeType.CORE) {
+        if (GuildUpgradeGraphLayout.HEARTH_ID.equals(node.id())) {
             return new NodeStyle(
                     new Color(74, 48, 14),
                     CORE_GOLD,
                     new Color(255, 241, 150),
                     Color.WHITE);
+        }
+        if (node.shape() == GuildUpgradeGraphLayout.ShapeType.INVALID) {
+            return new NodeStyle(
+                    LOCKED_FACE,
+                    LOCKED,
+                    new Color(130, 138, 156),
+                    LOCKED);
         }
         Color accent = branchAccent(node);
         if (isUnlocked(node)) {
@@ -439,6 +457,9 @@ public final class GuildUpgradeScreen extends Screen {
     }
 
     private boolean isAvailable(GuildUpgradeGraphLayout.LayoutNode node) {
+        if (node.shape() == GuildUpgradeGraphLayout.ShapeType.INVALID) {
+            return false;
+        }
         try {
             return viewerGuild != null && techTreeService.canUnlockNode(viewerGuild, node.id());
         } catch (RuntimeException ignored) {
@@ -460,8 +481,11 @@ public final class GuildUpgradeScreen extends Screen {
     }
 
     private boolean isUnlocked(GuildUpgradeGraphLayout.LayoutNode node) {
-        if (node.shape() == GuildUpgradeGraphLayout.ShapeType.CORE) {
+        if (GuildUpgradeGraphLayout.HEARTH_ID.equals(node.id())) {
             return true;
+        }
+        if (node.shape() == GuildUpgradeGraphLayout.ShapeType.INVALID) {
+            return false;
         }
         try {
             return viewerGuild != null && techTreeService.isTechNodeUnlocked(viewerGuild, node.id());
@@ -633,7 +657,7 @@ public final class GuildUpgradeScreen extends Screen {
     }
 
     private boolean actionAvailable(TechTreeNode node) {
-        if (node == null || viewerGuild == null
+        if (node == null || node.getBranch() == null || viewerGuild == null
                 || (activeProjectId != null && !activeProjectId.equals(node.getId()))
                 || !prerequisitesMet(node)
                 || viewerGuild.getTechPoints() < node.getCost()) {
@@ -663,7 +687,7 @@ public final class GuildUpgradeScreen extends Screen {
         String name = raw.getName() == null ? raw.getId() : raw.getName();
         String status = isUnlocked(node) ? "[Owned]"
                 : node.id().equals(activeProjectId) ? "[Active]"
-                : techTreeService.canUnlockNode(viewerGuild, node.id()) ? "[Available]" : "[Locked]";
+                : isAvailable(node) ? "[Available]" : "[Locked]";
         return name + " - Cost " + raw.getCost() + " pts " + status;
     }
 
