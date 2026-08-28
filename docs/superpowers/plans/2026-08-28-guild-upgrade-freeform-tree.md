@@ -401,3 +401,32 @@ Expected: PASS when the repository dependency and Java toolchain are available; 
 git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java
 git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "feat: refine Minecraft pixel nodes and straight tech web edges"
 ```
+
+---
+
+### Task 6: Finalize Modal Action State and Bounds
+
+**Files:**
+- Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java`
+
+**Interfaces:**
+- Consumes: current `activeProjectId`, `GuildProjectService.getActiveProjectId(Guild)`
+- Produces: modal action bounds at `y=98..110` and safe single-active-project action state
+
+- [ ] **Step 1: Align modal action rectangle and hitbox**
+
+Set `ACTION_Y` to `98` and keep `ACTION_HEIGHT` at `12`, so the painted action rectangle and `withinInclusive` click test cover the specified `y=98..110` range. Preserve the prerequisite rows ending at `y=74`.
+
+- [ ] **Step 2: Disable starts while another project is active**
+
+Update `actionAvailable(TechTreeNode node)` to return false when `activeProjectId` is non-null and differs from `node.getId()`. Render a specific non-action label such as `[PROJECT ACTIVE]` for this case rather than `[START]` or `[LOCKED PREREQS]`; do not call `startProject` for a second project.
+
+- [ ] **Step 3: Run focused verification and commit**
+
+Run: `./gradlew :guilds-paper:test --tests "org.aincraft.guilds.gui.GuildUpgradeGraphLayoutTest"`
+Expected: PASS when repository dependency credentials/toolchain are available; otherwise record the exact blocker.
+
+```bash
+git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java
+git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "fix: align modal action bounds and guard active project state"
+```
