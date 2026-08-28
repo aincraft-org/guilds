@@ -48,7 +48,7 @@ public final class GuildUpgradeScreen extends Screen {
     private static final int MODAL_CLOSE_WIDTH = 10;
     private static final int MODAL_CLOSE_HEIGHT = 9;
     private static final int ACTION_X = 14;
-    private static final int ACTION_Y = 96;
+    private static final int ACTION_Y = 98;
     private static final int ACTION_WIDTH = 100;
     private static final int ACTION_HEIGHT = 12;
     private static final Color BACKGROUND = new Color(22, 24, 30);
@@ -489,6 +489,7 @@ public final class GuildUpgradeScreen extends Screen {
                 ? null : layoutNodes.get(selectedNode.getId());
         boolean unlocked = layoutNode != null && isUnlocked(layoutNode);
         boolean active = selectedNode.getId().equals(activeProjectId);
+        boolean anotherProjectActive = activeProjectId != null && !active;
         boolean prerequisitesMet = prerequisitesMet(selectedNode);
         boolean affordable = viewerGuild.getTechPoints() >= selectedNode.getCost();
         boolean startAvailable = affordable && actionAvailable(selectedNode);
@@ -499,7 +500,7 @@ public final class GuildUpgradeScreen extends Screen {
         if (description == null || description.isBlank()) {
             description = "No description";
         }
-        // Two description rows at y=30 and y=38 leave a fixed gap before the action at y=96.
+        // Two description rows at y=30 and y=38 leave a fixed gap before the action at y=98.
         paintWrapped(painter, description, x + 4, y + 16, 96, TEXT, 2);
         painter.textLine(x + 4, y + 34,
                 painter.ellipsize("EFFECT: " + effectSummary(selectedNode), 96), TEXT, true);
@@ -534,6 +535,10 @@ public final class GuildUpgradeScreen extends Screen {
         } else if (active) {
             actionLabel = "[CLEAR ACTIVE]";
             actionColor = ACTION_RED;
+        } else if (anotherProjectActive) {
+            actionLabel = "[PROJECT ACTIVE]";
+            actionColor = ACTION_GRAY;
+            actionTextColor = MUTED;
         } else if (!prerequisitesMet) {
             actionLabel = "[LOCKED PREREQS]";
             actionColor = LOCKED;
@@ -627,7 +632,9 @@ public final class GuildUpgradeScreen extends Screen {
     }
 
     private boolean actionAvailable(TechTreeNode node) {
-        if (node == null || viewerGuild == null || !prerequisitesMet(node)
+        if (node == null || viewerGuild == null
+                || (activeProjectId != null && !activeProjectId.equals(node.getId()))
+                || !prerequisitesMet(node)
                 || viewerGuild.getTechPoints() < node.getCost()) {
             return false;
         }
