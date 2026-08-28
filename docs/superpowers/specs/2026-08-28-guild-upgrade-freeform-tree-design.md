@@ -8,7 +8,7 @@
 
 ## 1. Summary
 
-Replace the downward-flowing grid in `/g upgrade` with a **$360^\circ$ Organic Radial Minecraft Ley-Line Web** on a native $128 \times 128$ MapGUI canvas. The entire tech tree is one interconnected constellation expanding outward in all directions from a central **Guild Hearth** lodestone anchor at $(X: 64, Y: 64)$. Sector disciplines are distinguished strictly by **pixel geometric node shapes** (Infrastructure: Hexagon, Defense: Shield, Commerce: Coin, Culture: Diamond) connected by curved stepped splines and live energy sparks. The bottom legend and top-right upgrade button are removed so the full $128 \times 128$ viewport is dedicated entirely to the expansive web.
+Replace the downward-flowing grid in `/g upgrade` with a **$360^\circ$ Organic Radial Minecraft Ley-Line Web** on a native $128 \times 128$ MapGUI canvas. The entire tech tree is one interconnected constellation expanding outward in all directions from a central **Guild Hearth** lodestone anchor at $(X: 64, Y: 64)$. Sector disciplines are distinguished strictly by **pixel geometric node shapes** (Infrastructure: Hexagon, Defense: Shield, Commerce: Coin, Culture: Diamond) connected by direct, straight one-pixel Bresenham edges and live energy sparks. The bottom legend and top-right upgrade button are removed so the full $128 \times 128$ viewport is dedicated entirely to the expansive web.
 
 ---
 
@@ -21,6 +21,7 @@ Replace the downward-flowing grid in `/g upgrade` with a **$360^\circ$ Organic R
    - 🛡 **Shield:** `DEFENSE`
    - 🪙 **Coin:** `COMMERCE`
    - ✦ **Diamond:** `CULTURE`
+- **Malformed branch:** Null or unknown branch values use a locked `INVALID` sprite; only the synthetic `guild_hearth` may use `CORE`.
 4. **Self-Contained In-Map Modal:** Clicking any node brings up an in-map slate overlay ($X: 10..118, Y: 14..114$) with lore, prerequisites checklist, cost, and action button.
 
 ---
@@ -32,7 +33,7 @@ Replace the downward-flowing grid in `/g upgrade` with a **$360^\circ$ Organic R
   - **Inner Ring (Layer 1):** Foundational perks at NW $(42, 44)$, NE $(86, 44)$, SW $(42, 84)$, SE $(86, 84)$.
   - **Mid Ring (Layer 2):** Expanding branch perks along the perimeter.
   - **Outer Apexes (Layer 3):** High-tier masteries at the canvas extremities: W $(10, 64)$, E $(118, 64)$, SW $(50, 114)$, SE $(78, 114)$.
-- **Stepped Radial Splines:** Rasterized cubic Bezier curves with organic tangent curvature bending around the center, featuring traveling energy spark particles.
+- **Straight Radial Edges:** Rasterized direct one-pixel Bresenham lines between prerequisite node centers. Mastered links are solid emerald, available/active frontier links are dashed amber, and locked links are solid dim slate; traveling sparks use linear interpolation along frontier links.
 - **In-Map Modal Overlay:** $108 \times 100\text{px}$ in-map slate overlay for inspecting node lore and toggling active research.
 - **Click Hitboxes:** $\pm 6\text{px}$ generous hitboxes around each node for effortless map cursor interaction.
 
@@ -73,13 +74,13 @@ Replace the downward-flowing grid in `/g upgrade` with a **$360^\circ$ Organic R
 
 ## 5. Visual Specifications & Progression States
 
-| State | Fill Color | Border Color | Spline Path Style |
+| State | Fill Color | Border Color | Edge Style |
 | :--- | :--- | :--- | :--- |
 | **Guild Hearth (Core)** | `#451a03` (Deep Amber) | `#fbbf24` (Gold) + White Spark | Radiating Anchor |
 | **Mastered / Unlocked** | `#143820` (Dark Emerald) | `#22c55e` (Bright Emerald) | Solid Green Line (`#22c55e`) |
 | **Active Research** | `#381f08` (Dark Amber) | `#f59e0b` (Bright Amber) + Pulsing Ring | Dashed Amber Line (`#f59e0b`) + White Sparks |
-| **Available to Unlock** | `#0d1829` (Deep Navy) | Branch Color (Cyan/Rose/Amber/Violet) | Dashed Amber Line (`#f59e0b`) |
-| **Locked** | `#0d1017` (Dark Slate) | `#3a4254` (Muted Slate) | Dim Slate Line (`#252a38`) |
+| **Available to Unlock** | `#0d1829` (Deep Navy) | Branch Color (Cyan/Rose/Amber/Violet) | Dashed Amber Line (`#f59e0b`) only when target is actually available |
+| **Locked** | `#0d1017` (Dark Slate) | `#3a4254` (Muted Slate) | Solid Dim Slate Line (`#252a38`) |
 
 ---
 
