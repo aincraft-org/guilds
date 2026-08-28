@@ -135,6 +135,31 @@ class GuildProjectServiceImplTest {
         assertEquals("fast_travel", result.getActiveProjectId());
     }
 
+    @Test
+    void clearActiveProject_rejectsMismatchedExpectedProjectId() {
+        StatefulProjectStore store = new StatefulProjectStore(1, "replacement_project");
+        GuildProjectService service = store.service();
+        Guild guild = guildWithPoints(1);
+        guild.setActiveProjectId("stale_project");
+
+        assertFalse(service.clearActiveProject(guild, "stale_project"));
+        assertEquals("replacement_project", store.activeProject);
+        assertEquals("stale_project", guild.getActiveProjectId());
+        assertEquals(0, store.clearUpdates);
+    }
+
+    @Test
+    void clearActiveProject_clearsWhenExpectedProjectIdMatches() {
+        StatefulProjectStore store = new StatefulProjectStore(1, "active_project");
+        GuildProjectService service = store.service();
+        Guild guild = guildWithPoints(1);
+        guild.setActiveProjectId("active_project");
+
+        assertTrue(service.clearActiveProject(guild, "active_project"));
+        assertNull(store.activeProject);
+        assertEquals(1, store.clearUpdates);
+    }
+
     private static Guild guildWithPoints(int unspent) {
         Guild guild = new Guild("Project Guild", UUID.randomUUID());
         guild.setGuildLevel(2);
@@ -218,6 +243,7 @@ class GuildProjectServiceImplTest {
     private static final class StatefulProjectStore {
         private int unspent;
         private String activeProject;
+        private int clearUpdates;
         private final Set<String> unlocked = new java.util.LinkedHashSet<>();
         private final DatabaseManager database = mock(DatabaseManager.class);
         private final Connection connection = mock(Connection.class);
@@ -280,6 +306,7 @@ class GuildProjectServiceImplTest {
                         return 1;
                     }
                     if (sql.contains("active_project_id = NULL") || sql.contains("active_project_id = null")) {
+                        clearUpdates++;
                         activeProject = null;
                         return 1;
                     }

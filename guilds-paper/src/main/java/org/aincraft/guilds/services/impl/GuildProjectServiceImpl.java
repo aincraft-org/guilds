@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
@@ -156,12 +157,22 @@ public class GuildProjectServiceImpl implements GuildProjectService {
 
     @Override
     public boolean clearActiveProject(Guild guild) {
+        return clearActiveProject(guild, null, false);
+    }
+
+    @Override
+    public boolean clearActiveProject(Guild guild, String expectedProjectId) {
+        return clearActiveProject(guild, expectedProjectId, true);
+    }
+
+    private boolean clearActiveProject(Guild guild, String expectedProjectId, boolean checkExpectedProjectId) {
         if (guild == null) {
             return false;
         }
         try {
             Optional<Boolean> cleared = databaseManager.executeTransactionWithResult(
-                    connection -> clearInTransaction(connection, guild.getId()));
+                    connection -> clearInTransaction(
+                            connection, guild.getId(), expectedProjectId, checkExpectedProjectId));
             if (cleared != null && cleared.orElse(false)) {
                 guild.setActiveProjectId(null);
                 return true;
@@ -173,7 +184,9 @@ public class GuildProjectServiceImpl implements GuildProjectService {
         }
     }
 
-    private Boolean clearInTransaction(Connection connection, String guildId) throws SQLException {
+    private Boolean clearInTransaction(
+            Connection connection, String guildId, String expectedProjectId, boolean checkExpectedProjectId)
+            throws SQLException {
         String activeProjectId;
         try (PreparedStatement statement = connection.prepareStatement(
                 SqlStatements.load("projects/select-active-for-update.sql"))) {
@@ -184,6 +197,9 @@ public class GuildProjectServiceImpl implements GuildProjectService {
                 }
                 activeProjectId = result.getString("active_project_id");
             }
+        }
+        if (checkExpectedProjectId && !Objects.equals(activeProjectId, expectedProjectId)) {
+            return false;
         }
         if (!GuildProjectRules.canClear(activeProjectId)) {
             return false;

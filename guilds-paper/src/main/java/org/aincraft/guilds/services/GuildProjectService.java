@@ -15,6 +15,8 @@ public interface GuildProjectService {
 
     boolean clearActiveProject(Guild guild);
 
+    boolean clearActiveProject(Guild guild, String expectedProjectId);
+
     Optional<String> getActiveProjectId(Guild guild);
 
     Optional<TechTreeNode> getProject(String nodeId);
