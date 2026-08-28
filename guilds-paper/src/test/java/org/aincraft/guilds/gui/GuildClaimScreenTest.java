@@ -104,6 +104,15 @@ class GuildClaimScreenTest {
 
         assertEquals(9, ((AwtFont) screen.font()).awt().getSize());
     }
+    @Test
+    void compassOverlayUsesCompactMinecraftItemFootprint() {
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), mock(PlotService.class), mock(PermissionService.class), 1);
+
+        assertEquals(32, screen.compassWidth());
+        assertEquals(32, screen.compassHeight());
+    }
+
 
     @Test
     void facingLabelConvertsYawToCompassPoints() {

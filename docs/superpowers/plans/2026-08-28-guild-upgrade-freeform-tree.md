@@ -299,7 +299,7 @@ git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github
 
 ---
 
-### Task 4: In-Map Modal Inspector & Interactive Action Dispatch
+### Task 3: In-Map Modal Inspector & Interactive Action Dispatch
 
 **Files:**
 - Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java`
@@ -329,7 +329,7 @@ git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github
 
 ---
 
-### Task 5: Full Suite Integration & Verification
+### Task 4: Full Suite Integration & Verification
 
 **Files:**
 - Test: `guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java`

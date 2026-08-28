@@ -36,35 +36,24 @@ public final class GuildClaimScreen extends Screen {
     /** Slightly larger humanist map font for readable legend and feedback text. */
     private static final TextFont FONT = AwtFont.named("Carlito", Font.PLAIN, 9, false);
 
-    private static final AwtFont COMPASS_FONT = AwtFont.named("SansSerif", Font.BOLD, 9, false);
     private static final String[] COMPASS_DIRS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-
     private static final AwtFont CARDINAL_FONT = AwtFont.named("SansSerif", Font.BOLD, 7, false);
     private static final String[] CARDINALS = {"N", "E", "S", "W"};
 
-    private static final int COMPASS_RADIUS = 19;
-    private static final int COMPASS_DIAL = 2 * COMPASS_RADIUS + 2;
-    private static final int LABEL_GAP = 2;
-    private static final int COMPASS_W = COMPASS_DIAL;
-    private static final int COMPASS_H = COMPASS_DIAL + LABEL_GAP + COMPASS_FONT.lineHeight();
-
-    // Tuned against an offscreen render: the cardinal letters need a ~9px radial
-    // band, so the star has to stop short of CARDINAL_RADIUS and the needle has to
-    // stay inside the star or it hides the north spike when facing south.
-    private static final int ROSE_MAJOR = 12;
-    private static final int ROSE_MINOR = 7;
-    private static final int ROSE_WAIST = 4;
-    private static final int CARDINAL_RADIUS = 16;
+    private static final int COMPASS_W = 32;
+    private static final int COMPASS_H = 32;
+    private static final int COMPASS_RADIUS = 13;
+    private static final int CARDINAL_RADIUS = 9;
     private static final int NEEDLE_REACH = 9;
     private static final int NEEDLE_WAIST = 3;
 
-    private static final Color CARDINAL_LABEL = new Color(32, 58, 118);
-    private static final Color ROSE_NORTH = new Color(245, 246, 250);
-    private static final Color ROSE_LIGHT = new Color(196, 200, 212);
-    private static final Color ROSE_DARK = new Color(92, 98, 112);
-    private static final Color COMPASS_NEEDLE = new Color(228, 62, 62);
-    private static final Color COMPASS_TAIL = new Color(24, 26, 32);
-
+    private static final Color CASING_FILL = new Color(18, 21, 30);
+    private static final Color CASING_BORDER = new Color(74, 82, 102);
+    private static final Color CARDINAL_NORTH = new Color(255, 213, 79);
+    private static final Color CARDINAL_LABEL = new Color(128, 138, 158);
+    private static final Color COMPASS_NEEDLE = new Color(229, 57, 53);
+    private static final Color COMPASS_TAIL = new Color(42, 48, 62);
+    private static final Color PIVOT_COLOR = new Color(160, 170, 190);
     private final String viewerGuild;
     private final GuildService guilds;
     private final PlotService plots;
@@ -236,43 +225,25 @@ public final class GuildClaimScreen extends Screen {
         float yaw = player.getLocation().getYaw();
         Rect bounds = context.bounds();
         Painter painter = context.painter();
-        int cx = bounds.x() + bounds.width() / 2;
-        int cy = bounds.y() + COMPASS_DIAL / 2;
+        int cx = bounds.x() + COMPASS_W / 2;
+        int cy = bounds.y() + COMPASS_H / 2;
 
-        // Eight-point rose, each point one solid kite. Splitting a point into lit and
-        // shaded halves leaves background seams at this size, so shade whole points
-        // instead. Intercardinals go down first for the longer cardinals to overlap.
-        for (int pass = 0; pass < 2; pass++) {
-            for (int point = 0; point < 8; point++) {
-                boolean cardinal = point % 2 == 0;
-                if (cardinal != (pass == 1)) {
-                    continue;
-                }
-                int reach = cardinal ? ROSE_MAJOR : ROSE_MINOR;
-                double axis = Math.toRadians(point * 45);
-                double left = Math.toRadians((point + 7) * 45);
-                double right = Math.toRadians((point + 1) * 45);
-                painter.polygon(point == 0 ? ROSE_NORTH : cardinal ? ROSE_LIGHT : ROSE_DARK,
-                        new int[] {cx, polarX(cx, ROSE_WAIST, left), polarX(cx, reach, axis),
-                                polarX(cx, ROSE_WAIST, right)},
-                        new int[] {cy, polarY(cy, ROSE_WAIST, left), polarY(cy, reach, axis),
-                                polarY(cy, ROSE_WAIST, right)});
-            }
-        }
+        // Clean circular casing plate (uncluttered dark dial with metallic border)
+        painter.circle(cx, cy, COMPASS_RADIUS, CASING_FILL, CASING_BORDER);
 
-        // N/E/S/W sit just outside the rose tips. textLine takes the glyph box top,
-        // so back off half a line height to centre each letter.
+        // 4 Cardinal markers at N, E, S, W
         painter.font(CARDINAL_FONT);
         int cardinalHalf = CARDINAL_FONT.lineHeight() / 2;
         for (int i = 0; i < CARDINALS.length; i++) {
             String letter = CARDINALS[i];
             double bearing = Math.toRadians(i * 90);
+            Color letterColor = (i == 0) ? CARDINAL_NORTH : CARDINAL_LABEL;
             painter.textLine(polarX(cx, CARDINAL_RADIUS, bearing) - CARDINAL_FONT.widthOf(letter) / 2,
                     polarY(cy, CARDINAL_RADIUS, bearing) - cardinalHalf,
-                    letter, CARDINAL_LABEL, false);
+                    letter, letterColor, false);
         }
 
-        // Solid heading needle over the rose: red toward facing, black behind.
+        // Bold two-tone heading needle: red facing tip, dark steel tail
         double heading = Math.toRadians(yaw + 180.0);
         double across = heading + Math.PI / 2;
         int[] waistX = {polarX(cx, NEEDLE_WAIST, across), polarX(cx, NEEDLE_WAIST, across + Math.PI)};
@@ -284,12 +255,17 @@ public final class GuildClaimScreen extends Screen {
                 new int[] {polarX(cx, NEEDLE_REACH, heading), waistX[0], waistX[1], cx},
                 new int[] {polarY(cy, NEEDLE_REACH, heading), waistY[0], waistY[1], cy});
 
-        // textLine takes the glyph top, not a baseline, so the label sits flush
-        // under the dial rather than hanging off the bottom of the widget.
-        painter.font(COMPASS_FONT);
-        String label = facingLabel(yaw);
-        int labelX = bounds.x() + (bounds.width() - painter.font().widthOf(label)) / 2;
-        painter.textLine(labelX, bounds.y() + COMPASS_DIAL + LABEL_GAP, label, Color.WHITE, true);
+        // Center pivot pin
+        painter.circle(cx, cy, 2, PIVOT_COLOR, CASING_FILL);
+        painter.pixel(cx, cy, CASING_FILL);
+    }
+
+    int compassWidth() {
+        return COMPASS_W;
+    }
+
+    int compassHeight() {
+        return COMPASS_H;
     }
 
     /** Screen X for a point {@code radius} out along a compass bearing (clockwise from north). */
