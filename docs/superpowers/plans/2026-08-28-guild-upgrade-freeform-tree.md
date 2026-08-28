@@ -430,3 +430,37 @@ Expected: PASS when repository dependency credentials/toolchain are available; o
 git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java
 git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "fix: align modal action bounds and guard active project state"
 ```
+
+---
+
+### Task 7: Harden Dynamic Layout Bounds and Invalid Branches
+
+**Files:**
+- Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayout.java`
+- Test: `guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java`
+
+**Interfaces:**
+- Consumes: dynamic `TechTreeNode` snapshots and `TechTreeBranch` values
+- Produces: fallback centers within the accepted viewport margins and a non-Hearth shape for null/invalid branches
+
+- [ ] **Step 1: Constrain fallback coordinates**
+
+Change all fallback candidate regions and the global scan to centers in `x=10..118` and `y=22..114`. Preserve the ±6 hitbox non-overlap guarantee and explicit capacity failure.
+
+- [ ] **Step 2: Reserve CORE for the synthetic Hearth**
+
+Add a non-core invalid/unknown shape (or explicitly reject malformed nodes) so `shapeForBranch(null)` cannot return `CORE`. Ensure `GuildUpgradeScreen.isUnlocked` and the Hearth style check by `GuildUpgradeGraphLayout.HEARTH_ID`, not by shape alone. Add a locked renderer case for the invalid shape if one is introduced.
+
+- [ ] **Step 3: Add boundary and malformed-branch tests**
+
+Use `new TechTreeNode(id)` plus setters. Assert fallback centers stay within `x=10..118, y=22..114`, and a null-branch node is not assigned `CORE` or treated as unlocked. Keep all fixed YAML IDs and existing edge tests.
+
+- [ ] **Step 4: Run focused verification and commit**
+
+Run: `./gradlew :guilds-paper:test --tests "org.aincraft.guilds.gui.GuildUpgradeGraphLayoutTest"`
+Expected: PASS when credentials/toolchain are available; otherwise record the exact blocker.
+
+```bash
+git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayout.java guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java
+git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "fix: constrain dynamic layout bounds and reserve Hearth shape"
+```
