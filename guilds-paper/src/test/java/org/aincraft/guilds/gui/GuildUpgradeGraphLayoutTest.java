@@ -135,7 +135,7 @@ class GuildUpgradeGraphLayoutTest {
         );
     }
     @Test
-    void fallbackPlacementUsesDistinctCoordinatesForLargeCustomBranch() {
+    void fallbackPlacementKeepsLargeCustomBranchHitboxesDisjoint() {
         List<TechTreeNode> nodes = new ArrayList<>();
         for (int index = 0; index < 101; index++) {
             nodes.add(node("custom_infrastructure_" + index, "Custom " + index,
@@ -153,6 +153,18 @@ class GuildUpgradeGraphLayoutTest {
             assertThat(layoutNode.x() == 64 && layoutNode.y() == 64).isFalse();
         }
         assertThat(positions).hasSize(nodes.size());
+        List<GuildUpgradeGraphLayout.LayoutNode> placed = new ArrayList<>(layout.values());
+        for (int first = 0; first < placed.size(); first++) {
+            for (int second = first + 1; second < placed.size(); second++) {
+                GuildUpgradeGraphLayout.LayoutNode a = placed.get(first);
+                GuildUpgradeGraphLayout.LayoutNode b = placed.get(second);
+                boolean hitboxesOverlap = Math.abs(a.x() - b.x()) <= 6
+                        && Math.abs(a.y() - b.y()) <= 6;
+                assertThat(hitboxesOverlap)
+                        .as("%s and %s overlap", a.id(), b.id())
+                        .isFalse();
+            }
+        }
     }
 }
 

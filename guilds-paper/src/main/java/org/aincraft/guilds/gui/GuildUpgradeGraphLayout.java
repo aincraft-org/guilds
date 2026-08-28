@@ -172,7 +172,7 @@ public final class GuildUpgradeGraphLayout {
                     minX + (candidateIndex % columns) * 8,
                     minY + (candidateIndex / columns) * 8
             );
-            if (!occupied.contains(candidate)) {
+            if (isHitboxAvailable(candidate, occupied)) {
                 return candidate;
             }
         }
@@ -180,15 +180,23 @@ public final class GuildUpgradeGraphLayout {
         for (int y = 14; y <= 118; y++) {
             for (int x = 8; x <= 120; x++) {
                 Coord candidate = new Coord(x, y);
-                if ((x == 64 && y == 64) || occupied.contains(candidate)) {
-                    continue;
+                if (isHitboxAvailable(candidate, occupied)) {
+                    return candidate;
                 }
-                return candidate;
             }
         }
         throw new IllegalStateException("Tech tree layout canvas capacity exceeded");
     }
 
+    private static boolean isHitboxAvailable(Coord candidate, Set<Coord> occupied) {
+        for (Coord existing : occupied) {
+            if (Math.abs(candidate.x() - existing.x()) <= 6
+                    && Math.abs(candidate.y() - existing.y()) <= 6) {
+                return false;
+            }
+        }
+        return true;
+    }
     public static List<SplineEdge> edges(Collection<TechTreeNode> nodes) {
         Set<String> knownIds = new HashSet<>();
         knownIds.add(HEARTH_ID);
