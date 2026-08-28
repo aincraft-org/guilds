@@ -4,11 +4,10 @@ import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,6 +29,28 @@ class GuildUpgradeGraphLayoutTest {
             node("reinforced_walls", "Reinforced Walls", TechTreeBranch.DEFENSE, 2, List.of()),
             node("market_stall", "Market Stall", TechTreeBranch.COMMERCE, 2, List.of()),
             node("heritage_monument", "Heritage Monument", TechTreeBranch.CULTURE, 2, List.of())
+        );
+    }
+
+    private List<TechTreeNode> configuredNodes() {
+        return List.of(
+            node("better_storage", "Better Storage", TechTreeBranch.INFRASTRUCTURE, 2, List.of()),
+            node("fast_travel", "Fast Travel", TechTreeBranch.INFRASTRUCTURE, 3, List.of("better_storage")),
+            node("advanced_farming", "Advanced Farming", TechTreeBranch.INFRASTRUCTURE, 3, List.of("better_storage")),
+            node("auto_sorter", "Auto Sorter", TechTreeBranch.INFRASTRUCTURE, 5,
+                    List.of("fast_travel", "advanced_farming")),
+            node("reinforced_walls", "Reinforced Walls", TechTreeBranch.DEFENSE, 2, List.of()),
+            node("guard_posts", "Guard Posts", TechTreeBranch.DEFENSE, 3, List.of("reinforced_walls")),
+            node("siege_shields", "Siege Shields", TechTreeBranch.DEFENSE, 4, List.of("guard_posts")),
+            node("fortification", "Fortification", TechTreeBranch.DEFENSE, 6, List.of("siege_shields")),
+            node("marketplace", "Marketplace", TechTreeBranch.COMMERCE, 2, List.of()),
+            node("trade_routes", "Trade Routes", TechTreeBranch.COMMERCE, 3, List.of("marketplace")),
+            node("tax_optimization", "Tax Optimization", TechTreeBranch.COMMERCE, 4, List.of("trade_routes")),
+            node("merchant_guild", "Merchant Guild", TechTreeBranch.COMMERCE, 6, List.of("tax_optimization")),
+            node("guild_banner", "Guild Banner", TechTreeBranch.CULTURE, 1, List.of()),
+            node("broadcast_tower", "Broadcast Tower", TechTreeBranch.CULTURE, 3, List.of("guild_banner")),
+            node("guild_hall", "Guild Hall", TechTreeBranch.CULTURE, 4, List.of("broadcast_tower")),
+            node("monument", "Monument", TechTreeBranch.CULTURE, 6, List.of("guild_hall"))
         );
     }
 
@@ -81,5 +102,35 @@ class GuildUpgradeGraphLayoutTest {
 
         GuildUpgradeGraphLayout.LayoutNode miss = GuildUpgradeGraphLayout.findNodeAt(layout, 0, 0);
         assertThat(miss).isNull();
+    }
+
+    @Test
+    void layoutMapsEveryConfiguredNodeToDistinctPositionAndEdgesRemainConnected() {
+        List<TechTreeNode> nodes = configuredNodes();
+        Map<String, GuildUpgradeGraphLayout.LayoutNode> layout = GuildUpgradeGraphLayout.layout(nodes);
+
+        Set<String> positions = new HashSet<>();
+        for (TechTreeNode node : nodes) {
+            GuildUpgradeGraphLayout.LayoutNode layoutNode = layout.get(node.getId());
+            assertThat(layoutNode).isNotNull();
+            assertThat(positions.add(layoutNode.x() + ":" + layoutNode.y())).isTrue();
+            assertThat(layoutNode.x() == 64 && layoutNode.y() == 64).isFalse();
+        }
+
+        assertThat(positions).hasSize(nodes.size());
+        assertThat(GuildUpgradeGraphLayout.edges(nodes)).contains(
+                new GuildUpgradeGraphLayout.SplineEdge("guild_hearth", "better_storage"),
+                new GuildUpgradeGraphLayout.SplineEdge("better_storage", "advanced_farming"),
+                new GuildUpgradeGraphLayout.SplineEdge("fast_travel", "auto_sorter"),
+                new GuildUpgradeGraphLayout.SplineEdge("reinforced_walls", "guard_posts"),
+                new GuildUpgradeGraphLayout.SplineEdge("guard_posts", "siege_shields"),
+                new GuildUpgradeGraphLayout.SplineEdge("siege_shields", "fortification"),
+                new GuildUpgradeGraphLayout.SplineEdge("marketplace", "trade_routes"),
+                new GuildUpgradeGraphLayout.SplineEdge("trade_routes", "tax_optimization"),
+                new GuildUpgradeGraphLayout.SplineEdge("tax_optimization", "merchant_guild"),
+                new GuildUpgradeGraphLayout.SplineEdge("guild_banner", "broadcast_tower"),
+                new GuildUpgradeGraphLayout.SplineEdge("broadcast_tower", "guild_hall"),
+                new GuildUpgradeGraphLayout.SplineEdge("guild_hall", "monument")
+        );
     }
 }
