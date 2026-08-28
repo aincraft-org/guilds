@@ -48,7 +48,7 @@ public final class GuildUpgradeScreen extends Screen {
     private static final int MODAL_CLOSE_WIDTH = 10;
     private static final int MODAL_CLOSE_HEIGHT = 9;
     private static final int ACTION_X = 14;
-    private static final int ACTION_Y = 98;
+    private static final int ACTION_Y = 96;
     private static final int ACTION_WIDTH = 100;
     private static final int ACTION_HEIGHT = 12;
     private static final Color BACKGROUND = new Color(22, 24, 30);
@@ -439,27 +439,19 @@ public final class GuildUpgradeScreen extends Screen {
         boolean startAvailable = affordable && actionAvailable(selectedNode);
         String name = selectedNode.getName() == null || selectedNode.getName().isBlank()
                 ? selectedNode.getId() : selectedNode.getName();
-        painter.textLine(x + 4, y + 4, painter.ellipsize(name, 84), TEXT, true);
-        String state = unlocked ? "MASTERED" : active ? "ACTIVE"
-                : !prerequisitesMet ? "LOCKED" : startAvailable ? "AVAILABLE" : "NEED TP";
-        painter.textLine(x + 4, y + 14, state, unlocked ? MAXED : active ? ACTIVE
-                : !prerequisitesMet ? LOCKED : AVAILABLE, true);
-
-        painter.textLine(x + 4, y + 24, "LORE", MUTED, true);
+        painter.textLine(x + 4, y + 6, painter.ellipsize(name, 84), TEXT, true);
         String description = selectedNode.getDescription();
         if (description == null || description.isBlank()) {
             description = "No description";
         }
-        // Two description rows leave a fixed gap for the prerequisite checklist above y=98.
-        int nextY = paintWrapped(painter, description, x + 4, y + 32, 96, TEXT, 2);
-        painter.textLine(x + 4, nextY + 2, "EFFECT BONUS", MUTED, true);
-        painter.textLine(x + 4, nextY + 11,
-                painter.ellipsize(effectSummary(selectedNode), 96), TEXT, true);
-        int prereqY = nextY + 20;
-        painter.textLine(x + 4, prereqY, "PREREQUISITES", MUTED, true);
+        // Two description rows at y=30 and y=38 leave a fixed gap before the action at y=96.
+        paintWrapped(painter, description, x + 4, y + 16, 96, TEXT, 2);
+        painter.textLine(x + 4, y + 34,
+                painter.ellipsize("EFFECT: " + effectSummary(selectedNode), 96), TEXT, true);
+        painter.textLine(x + 4, y + 44, "PREREQUISITES", MUTED, true);
         List<String> prerequisites = selectedNode.getEffectivePrerequisites();
         if (prerequisites.isEmpty()) {
-            painter.textLine(x + 4, prereqY + 9, "None (met)", MAXED, true);
+            painter.textLine(x + 4, y + 52, "None (met)", MAXED, true);
         } else {
             int row = 0;
             for (String prerequisite : prerequisites) {
@@ -470,7 +462,7 @@ public final class GuildUpgradeScreen extends Screen {
                 String prerequisiteName = techTreeService.getNode(prerequisite)
                         .map(TechTreeNode::getName).orElse(prerequisite);
                 String line = (met ? "[OK] " : "[MISSING] ") + prerequisiteName;
-                painter.textLine(x + 4, prereqY + 9 + row * 7,
+                painter.textLine(x + 4, y + 52 + row * 8,
                         painter.ellipsize(line, 96), met ? MAXED : ACTION_RED, true);
                 row++;
             }
@@ -532,10 +524,10 @@ public final class GuildUpgradeScreen extends Screen {
             if (line == maxLines - 1 && !remaining.isEmpty()) {
                 candidate = painter.ellipsize(candidate, width);
             }
-            painter.textLine(x, y + line * 7, candidate, color, false);
+            painter.textLine(x, y + line * 8, candidate, color, false);
             line++;
         }
-        return y + line * 7;
+        return y + line * 8;
     }
 
     private String effectSummary(TechTreeNode node) {
