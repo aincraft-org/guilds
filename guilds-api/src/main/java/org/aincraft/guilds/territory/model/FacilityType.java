@@ -5,5 +5,9 @@ public enum FacilityType {
     TRADING_POST,
     STORAGE,
     WAYSTONE,
-    BANK
+    BANK,
+    GUILD_CRYSTAL,
+    TELEPORT_TERMINAL,
+    BOAT,
+    AIRSHIP
 }
