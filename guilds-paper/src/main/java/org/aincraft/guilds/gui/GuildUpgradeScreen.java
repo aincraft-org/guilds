@@ -750,13 +750,10 @@ public final class GuildUpgradeScreen extends Screen {
         if (!Objects.equals(currentActive, activeProjectId)) {
             refresh(player());
             invalidate();
-            if (selectedId.equals(activeProjectId)) {
-                return;
-            }
-            actionGuild = viewerGuild;
+            return;
         }
         if (selectedId.equals(activeProjectId)) {
-            projectService.clearActiveProject(actionGuild);
+            projectService.clearActiveProject(actionGuild, selectedId);
         } else if (actionAvailable(selectedNode)) {
             projectService.startProject(actionGuild, selectedId);
         } else {
