@@ -24,6 +24,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static de.flog99.mapgui.ui.Ui.Draw;
@@ -711,6 +712,16 @@ public final class GuildUpgradeScreen extends Screen {
             return;
         }
         String selectedId = selectedNode.getId();
+        if (!selectedId.equals(activeProjectId)) {
+            String currentActive = projectService.getActiveProjectId(viewerGuild).orElse(null);
+            if (!Objects.equals(currentActive, activeProjectId)) {
+                refresh(player());
+                invalidate();
+                if (selectedId.equals(activeProjectId)) {
+                    return;
+                }
+            }
+        }
         if (selectedId.equals(activeProjectId)) {
             String currentActive = projectService.getActiveProjectId(viewerGuild).orElse(null);
             if (!selectedId.equals(currentActive)) {
