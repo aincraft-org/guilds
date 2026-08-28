@@ -228,7 +228,7 @@ public final class GuildUpgradeScreen extends Screen {
             boolean active = to.id().equals(activeProjectId);
             boolean frontier = !targetUnlocked && (sourceUnlocked || active);
             Color edgeColor = targetUnlocked ? EDGE_MASTERED : frontier ? EDGE_FRONTIER : EDGE_LOCKED;
-            drawPixelLine(painter, from.x(), from.y(), to.x(), to.y(), edgeColor, !targetUnlocked);
+            drawPixelLine(painter, from.x(), from.y(), to.x(), to.y(), edgeColor, frontier);
             if (frontier) {
                 drawEnergySpark(painter, from, to, now, edgeIndex++);
             }
