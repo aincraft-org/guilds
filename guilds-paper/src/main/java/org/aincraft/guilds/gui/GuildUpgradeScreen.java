@@ -52,11 +52,23 @@ public final class GuildUpgradeScreen extends Screen {
     private static final int ACTION_WIDTH = 100;
     private static final int ACTION_HEIGHT = 12;
     private static final Color BACKGROUND = new Color(22, 24, 30);
-    private static final Color EDGE_DIM = new Color(72, 77, 91);
-    private static final Color EDGE_LIT = new Color(205, 210, 224);
+    private static final Color EDGE_MASTERED = new Color(50, 174, 94);
+    private static final Color EDGE_FRONTIER = new Color(230, 158, 42);
+    private static final Color EDGE_LOCKED = new Color(66, 77, 94);
+    private static final Color NODE_OUTLINE = new Color(15, 18, 24);
+    private static final Color CORE_GOLD = new Color(218, 169, 57);
+    private static final Color HEX_CYAN = new Color(48, 194, 208);
+    private static final Color SHIELD_ROSE = new Color(214, 92, 125);
+    private static final Color COIN_AMBER = new Color(232, 166, 49);
+    private static final Color DIAMOND_VIOLET = new Color(174, 105, 220);
+    private static final Color MASTERED_FACE = new Color(24, 82, 47);
+    private static final Color MASTERED_BORDER = new Color(88, 220, 120);
+    private static final Color ACTIVE_FACE = new Color(92, 55, 19);
+    private static final Color ACTIVE = new Color(255, 150, 40);
+    private static final Color AVAILABLE_FACE = new Color(27, 31, 42);
+    private static final Color LOCKED_FACE = new Color(10, 13, 19);
     private static final Color LOCKED = new Color(112, 118, 135);
     private static final Color AVAILABLE = new Color(230, 190, 60);
-    private static final Color ACTIVE = new Color(255, 150, 40);
     private static final Color MAXED = new Color(80, 190, 90);
     private static final Color TEXT = new Color(238, 240, 245);
     private static final Color MUTED = new Color(150, 158, 175);
@@ -85,6 +97,8 @@ public final class GuildUpgradeScreen extends Screen {
     private List<GuildUpgradeGraphLayout.SplineEdge> edges;
     private String activeProjectId;
     private TechTreeNode selectedNode;
+    private record NodeStyle(Color fill, Color outline, Color highlight, Color detail) {
+    }
 
     public GuildUpgradeScreen(JavaPlugin plugin,
                               GuildService guildService,
@@ -210,9 +224,12 @@ public final class GuildUpgradeScreen extends Screen {
                 continue;
             }
             boolean sourceUnlocked = isUnlocked(from);
-            drawSteppedSpline(painter, from.x(), from.y(), to.x(), to.y(),
-                    sourceUnlocked ? EDGE_LIT : EDGE_DIM);
-            if (sourceUnlocked && !isUnlocked(to)) {
+            boolean targetUnlocked = isUnlocked(to);
+            boolean active = to.id().equals(activeProjectId);
+            boolean frontier = !targetUnlocked && (sourceUnlocked || active);
+            Color edgeColor = targetUnlocked ? EDGE_MASTERED : frontier ? EDGE_FRONTIER : EDGE_LOCKED;
+            drawPixelLine(painter, from.x(), from.y(), to.x(), to.y(), edgeColor, !targetUnlocked);
+            if (frontier) {
                 drawEnergySpark(painter, from, to, now, edgeIndex++);
             }
         }
@@ -220,75 +237,114 @@ public final class GuildUpgradeScreen extends Screen {
 
     private void paintNodes(Painter painter, long now) {
         for (GuildUpgradeGraphLayout.LayoutNode node : layoutNodes.values()) {
-            Color color = colorFor(node);
+            NodeStyle style = styleFor(node);
             if (node.id().equals(activeProjectId)) {
                 drawPixelOutline(painter, node.x(), node.y(), 8, ACTIVE);
                 if ((now / 280) % 2 == 0) {
                     drawPixelOutline(painter, node.x(), node.y(), 9, ACTIVE);
                 }
             }
-            drawPixelShape(painter, node.x(), node.y(), node.shape(), color);
+            drawPixelShape(painter, node.x(), node.y(), node.shape(), style);
             if (cursorIn(node)) {
                 drawPixelOutline(painter, node.x(), node.y(), 8, Color.WHITE);
             }
         }
     }
 
-    /** Dispatches a branch shape to a hard-edged one-bit pixel renderer. */
+    /** Dispatches a branch shape to a hard-edged Minecraft pixel sprite. */
     private void drawPixelShape(Painter painter, int centerX, int centerY,
-                                GuildUpgradeGraphLayout.ShapeType shape, Color color) {
+                                GuildUpgradeGraphLayout.ShapeType shape, NodeStyle style) {
         switch (shape) {
-            case CORE -> drawPixelCore(painter, centerX, centerY, color);
-            case HEXAGON -> drawPixelHex(painter, centerX, centerY, color);
-            case SHIELD -> drawPixelShield(painter, centerX, centerY, color);
-            case COIN -> drawPixelCoin(painter, centerX, centerY, color);
-            case DIAMOND -> drawPixelDiamond(painter, centerX, centerY, color);
+            case CORE -> drawPixelCore(painter, centerX, centerY, style);
+            case HEXAGON -> drawPixelHex(painter, centerX, centerY, style);
+            case SHIELD -> drawPixelShield(painter, centerX, centerY, style);
+            case COIN -> drawPixelCoin(painter, centerX, centerY, style);
+            case DIAMOND -> drawPixelDiamond(painter, centerX, centerY, style);
         }
     }
 
-    private void drawPixelCore(Painter painter, int centerX, int centerY, Color color) {
-        drawPattern(painter, centerX, centerY, color, new String[]{
-                "001000100", "001111100", "011111110", "111111111", "011111110",
-                "001111100", "001111100", "011111110", "001000100"
+    private void drawPixelCore(Painter painter, int centerX, int centerY, NodeStyle style) {
+        drawPattern(painter, centerX, centerY, style, new String[]{
+                "    ###    ",
+                "   #...#   ",
+                "  #.....#  ",
+                " #.......# ",
+                "##...*...##",
+                "##...*...##",
+                " #.......# ",
+                "  #.....#  ",
+                "   #...#   ",
+                "    ###    "
         });
     }
 
-    private void drawPixelHex(Painter painter, int centerX, int centerY, Color color) {
-        drawPattern(painter, centerX, centerY, color, new String[]{
-                "001111100", "011111110", "111000111", "110000011", "110000011",
-                "111000111", "011111110", "001111100"
+    private void drawPixelHex(Painter painter, int centerX, int centerY, NodeStyle style) {
+        drawPattern(painter, centerX, centerY, style, new String[]{
+                "  #####  ",
+                " ##...## ",
+                "##..+..##",
+                "##.....##",
+                "##..+..##",
+                " ##...## ",
+                "  #####  "
         });
     }
 
-    private void drawPixelShield(Painter painter, int centerX, int centerY, Color color) {
-        drawPattern(painter, centerX, centerY, color, new String[]{
-                "011111110", "111111111", "111111111", "111111111", "011111110",
-                "011111110", "001111100", "001111100", "000110000"
+    private void drawPixelShield(Painter painter, int centerX, int centerY, NodeStyle style) {
+        drawPattern(painter, centerX, centerY, style, new String[]{
+                "  #####  ",
+                " ##...## ",
+                "##..+..##",
+                "##.....##",
+                " ##...## ",
+                "  ##.##  ",
+                "   ###   ",
+                "    #    "
         });
     }
 
-    private void drawPixelCoin(Painter painter, int centerX, int centerY, Color color) {
-        drawPattern(painter, centerX, centerY, color, new String[]{
-                "001111100", "011111110", "111111111", "111011111", "111111111",
-                "111011111", "111111111", "011111110", "001111100"
+    private void drawPixelCoin(Painter painter, int centerX, int centerY, NodeStyle style) {
+        drawPattern(painter, centerX, centerY, style, new String[]{
+                "  #####  ",
+                " ##...## ",
+                "##..+..##",
+                "##.+.+.##",
+                "##..+..##",
+                " ##...## ",
+                "  #####  "
         });
     }
 
-    private void drawPixelDiamond(Painter painter, int centerX, int centerY, Color color) {
-        drawPattern(painter, centerX, centerY, color, new String[]{
-                "000010000", "000111000", "001111100", "011111110", "111111111",
-                "011111110", "001111100", "000111000", "000010000"
+    private void drawPixelDiamond(Painter painter, int centerX, int centerY, NodeStyle style) {
+        drawPattern(painter, centerX, centerY, style, new String[]{
+                "    #    ",
+                "   ###   ",
+                "  ##.##  ",
+                " ##...## ",
+                "##..+..##",
+                " ##...## ",
+                "  ##.##  ",
+                "   ###   ",
+                "    #    "
         });
     }
 
-    private void drawPattern(Painter painter, int centerX, int centerY, Color color, String[] pattern) {
+    private void drawPattern(Painter painter, int centerX, int centerY,
+                             NodeStyle style, String[] pattern) {
         int left = centerX - pattern[0].length() / 2;
         int top = centerY - pattern.length / 2;
         for (int row = 0; row < pattern.length; row++) {
             String pixels = pattern[row];
             for (int column = 0; column < pixels.length(); column++) {
-                if (pixels.charAt(column) == '1') {
-                    painter.fill(new Rect(left + column, top + row, 1, 1), color);
+                Color pixel = switch (pixels.charAt(column)) {
+                    case '#' -> style.outline();
+                    case '.' -> style.fill();
+                    case '+' -> style.detail();
+                    case '*' -> style.highlight();
+                    default -> null;
+                };
+                if (pixel != null) {
+                    painter.fill(new Rect(left + column, top + row, 1, 1), pixel);
                 }
             }
         }
@@ -305,45 +361,19 @@ public final class GuildUpgradeScreen extends Screen {
         painter.fill(new Rect(right, top, 1, bottom - top + 1), color);
     }
 
-    /** Rasterizes a cubic Bezier into one-pixel, axis-stepped segments. */
-    private void drawSteppedSpline(Painter painter, int x1, int y1, int x2, int y2, Color color) {
-        int dx = x2 - x1;
-        int dy = y2 - y1;
-        int distance = Math.max(Math.abs(dx), Math.abs(dy));
-        int bend = Math.max(4, Math.min(14, distance / 4));
-        int control1X = x1 + dx / 3 - Integer.signum(dy) * bend;
-        int control1Y = y1 + dy / 3 + Integer.signum(dx) * bend;
-        int control2X = x1 + dx * 2 / 3 - Integer.signum(dy) * bend;
-        int control2Y = y1 + dy * 2 / 3 + Integer.signum(dx) * bend;
-        int previousX = x1;
-        int previousY = y1;
-        int steps = Math.max(12, distance * 2);
-        for (int step = 1; step <= steps; step++) {
-            double t = (double) step / steps;
-            int currentX = bezier(x1, control1X, control2X, x2, t);
-            int currentY = bezier(y1, control1Y, control2Y, y2, t);
-            drawPixelLine(painter, previousX, previousY, currentX, currentY, color);
-            previousX = currentX;
-            previousY = currentY;
-        }
-    }
-
-    private static int bezier(int p0, int p1, int p2, int p3, double t) {
-        double inverse = 1.0 - t;
-        return (int) Math.round(inverse * inverse * inverse * p0
-                + 3 * inverse * inverse * t * p1
-                + 3 * inverse * t * t * p2
-                + t * t * t * p3);
-    }
-
-    private void drawPixelLine(Painter painter, int x1, int y1, int x2, int y2, Color color) {
+    /** Draws a direct, straight one-pixel Bresenham edge. */
+    private void drawPixelLine(Painter painter, int x1, int y1, int x2, int y2,
+                               Color color, boolean dashed) {
         int dx = Math.abs(x2 - x1);
         int sx = x1 < x2 ? 1 : -1;
         int dy = -Math.abs(y2 - y1);
         int sy = y1 < y2 ? 1 : -1;
         int error = dx + dy;
+        int pixel = 0;
         while (true) {
-            painter.fill(new Rect(x1, y1, 1, 1), color);
+            if (!dashed || (pixel / 3) % 2 == 0) {
+                painter.fill(new Rect(x1, y1, 1, 1), color);
+            }
             if (x1 == x2 && y1 == y2) {
                 return;
             }
@@ -356,6 +386,7 @@ public final class GuildUpgradeScreen extends Screen {
                 error += dx;
                 y1 += sy;
             }
+            pixel++;
         }
     }
 
@@ -370,37 +401,55 @@ public final class GuildUpgradeScreen extends Screen {
         }
     }
 
+    /** Places a spark by linear interpolation along the straight edge. */
     private void drawSparkAt(Painter painter,
                              GuildUpgradeGraphLayout.LayoutNode from,
                              GuildUpgradeGraphLayout.LayoutNode to,
                              double phase, Color color) {
-        int x = splinePoint(from.x(), from.y(), to.x(), to.y(), phase, true);
-        int y = splinePoint(from.x(), from.y(), to.x(), to.y(), phase, false);
+        int x = (int) Math.round(from.x() + (to.x() - from.x()) * phase);
+        int y = (int) Math.round(from.y() + (to.y() - from.y()) * phase);
         painter.fill(new Rect(x, y, 2, 2), color);
     }
 
-    private int splinePoint(int x1, int y1, int x2, int y2, double phase, boolean horizontal) {
-        int dx = x2 - x1;
-        int dy = y2 - y1;
-        int distance = Math.max(Math.abs(dx), Math.abs(dy));
-        int bend = Math.max(4, Math.min(14, distance / 4));
-        int control1 = horizontal
-                ? x1 + dx / 3 - Integer.signum(dy) * bend
-                : y1 + dy / 3 + Integer.signum(dx) * bend;
-        int control2 = horizontal
-                ? x1 + dx * 2 / 3 - Integer.signum(dy) * bend
-                : y1 + dy * 2 / 3 + Integer.signum(dx) * bend;
-        return bezier(horizontal ? x1 : y1, control1, control2, horizontal ? x2 : y2, phase);
-    }
-
-    private Color colorFor(GuildUpgradeGraphLayout.LayoutNode node) {
-        if (node.shape() == GuildUpgradeGraphLayout.ShapeType.CORE || isUnlocked(node)) {
-            return MAXED;
+    private NodeStyle styleFor(GuildUpgradeGraphLayout.LayoutNode node) {
+        if (node.shape() == GuildUpgradeGraphLayout.ShapeType.CORE) {
+            return new NodeStyle(
+                    new Color(74, 48, 14),
+                    CORE_GOLD,
+                    new Color(255, 241, 150),
+                    Color.WHITE);
+        }
+        Color accent = branchAccent(node);
+        if (isUnlocked(node)) {
+            return new NodeStyle(MASTERED_FACE, MASTERED_BORDER,
+                    new Color(167, 255, 188), accent);
         }
         if (node.id().equals(activeProjectId)) {
-            return ACTIVE;
+            return new NodeStyle(ACTIVE_FACE, ACTIVE,
+                    new Color(255, 220, 125), accent);
         }
-        return techTreeService.canUnlockNode(viewerGuild, node.id()) ? AVAILABLE : LOCKED;
+        boolean available = false;
+        try {
+            available = viewerGuild != null && techTreeService.canUnlockNode(viewerGuild, node.id());
+        } catch (RuntimeException ignored) {
+            // Treat service failures as locked in the paint path.
+        }
+        if (available) {
+            return new NodeStyle(AVAILABLE_FACE, accent, accent.brighter(), accent);
+        }
+        return new NodeStyle(LOCKED_FACE, LOCKED, new Color(130, 138, 156), accent);
+    }
+
+    private Color branchAccent(GuildUpgradeGraphLayout.LayoutNode node) {
+        if (node.branch() == null) {
+            return CORE_GOLD;
+        }
+        return switch (node.branch()) {
+            case INFRASTRUCTURE -> HEX_CYAN;
+            case DEFENSE -> SHIELD_ROSE;
+            case COMMERCE -> COIN_AMBER;
+            case CULTURE -> DIAMOND_VIOLET;
+        };
     }
 
     private boolean isUnlocked(GuildUpgradeGraphLayout.LayoutNode node) {
