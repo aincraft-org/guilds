@@ -39,6 +39,18 @@ public final class GuildUpgradeScreen extends Screen {
 
     private static final int NODE_SIDE = 12;
     private static final int HEADER_HEIGHT = 10;
+    private static final int MODAL_X = 10;
+    private static final int MODAL_Y = 14;
+    private static final int MODAL_WIDTH = 108;
+    private static final int MODAL_HEIGHT = 100;
+    private static final int MODAL_CLOSE_X = 106;
+    private static final int MODAL_CLOSE_Y = 18;
+    private static final int MODAL_CLOSE_WIDTH = 10;
+    private static final int MODAL_CLOSE_HEIGHT = 9;
+    private static final int ACTION_X = 14;
+    private static final int ACTION_Y = 98;
+    private static final int ACTION_WIDTH = 100;
+    private static final int ACTION_HEIGHT = 12;
     private static final Color BACKGROUND = new Color(22, 24, 30);
     private static final Color EDGE_DIM = new Color(72, 77, 91);
     private static final Color EDGE_LIT = new Color(205, 210, 224);
@@ -49,6 +61,9 @@ public final class GuildUpgradeScreen extends Screen {
     private static final Color TEXT = new Color(238, 240, 245);
     private static final Color MUTED = new Color(150, 158, 175);
     private static final Color TOP_BG = new Color(45, 45, 55);
+    private static final Color MODAL_BG = new Color(47, 53, 68);
+    private static final Color ACTION_RED = new Color(190, 68, 68);
+    private static final Color ACTION_GRAY = new Color(92, 96, 108);
     private static final Color PULSE = new Color(255, 255, 255);
     private static final Color PULSE_TAIL = new Color(255, 210, 150);
     private static final TextFont FONT = AwtFont.named("Carlito", Font.PLAIN, 8, false);
@@ -69,8 +84,7 @@ public final class GuildUpgradeScreen extends Screen {
     private Map<String, GuildUpgradeGraphLayout.LayoutNode> layoutNodes;
     private List<GuildUpgradeGraphLayout.SplineEdge> edges;
     private String activeProjectId;
-    private String statusMessage = "";
-    private long statusUntil;
+    private TechTreeNode selectedNode;
 
     public GuildUpgradeScreen(JavaPlugin plugin,
                               GuildService guildService,
@@ -175,7 +189,9 @@ public final class GuildUpgradeScreen extends Screen {
         paintEdges(painter, now);
         paintNodes(painter, now);
         paintHeader(painter, bounds);
-        paintStatus(painter, bounds);
+        if (selectedNode != null) {
+            paintModal(painter, bounds);
+        }
     }
 
     private void paintHeader(Painter painter, Rect bounds) {
@@ -184,15 +200,6 @@ public final class GuildUpgradeScreen extends Screen {
         painter.textLine(bounds.x() + 3, bounds.y() + 2, label, TEXT, true);
     }
 
-    private void paintStatus(Painter painter, Rect bounds) {
-        if (statusMessage.isEmpty() || System.currentTimeMillis() > statusUntil) {
-            statusMessage = "";
-            return;
-        }
-        // Feedback is deliberately text-only; unlike the old screen it does not add a footer bar.
-        painter.textLine(bounds.x() + 3, bounds.y() + bounds.height() - 8,
-                painter.ellipsize(statusMessage, Math.max(12, bounds.width() - 6)), AVAILABLE, true);
-    }
 
     private void paintEdges(Painter painter, long now) {
         int edgeIndex = 0;
@@ -213,8 +220,6 @@ public final class GuildUpgradeScreen extends Screen {
 
     private void paintNodes(Painter painter, long now) {
         for (GuildUpgradeGraphLayout.LayoutNode node : layoutNodes.values()) {
-            int x = node.x() - NODE_SIDE / 2;
-            int y = node.y() - NODE_SIDE / 2;
             Color color = colorFor(node);
             if (node.id().equals(activeProjectId)) {
                 drawPixelOutline(painter, node.x(), node.y(), 8, ACTIVE);
@@ -223,7 +228,7 @@ public final class GuildUpgradeScreen extends Screen {
                 }
             }
             drawPixelShape(painter, node.x(), node.y(), node.shape(), color);
-            if (cursorIn(x, y)) {
+            if (cursorIn(node)) {
                 drawPixelOutline(painter, node.x(), node.y(), 8, Color.WHITE);
             }
         }
@@ -409,9 +414,184 @@ public final class GuildUpgradeScreen extends Screen {
         }
     }
 
-    private boolean cursorIn(int x, int y) {
-        return cursorX() >= x && cursorX() < x + NODE_SIDE
-                && cursorY() >= y && cursorY() < y + NODE_SIDE;
+    private void paintModal(Painter painter, Rect bounds) {
+        if (selectedNode == null || viewerGuild == null) {
+            return;
+        }
+        int x = bounds.x() + MODAL_X;
+        int y = bounds.y() + MODAL_Y;
+        painter.fill(new Rect(x, y, MODAL_WIDTH, MODAL_HEIGHT), MODAL_BG);
+        painter.fill(new Rect(x, y, MODAL_WIDTH, 1), TEXT);
+        painter.fill(new Rect(x, y + MODAL_HEIGHT - 1, MODAL_WIDTH, 1), TEXT);
+        painter.fill(new Rect(x, y, 1, MODAL_HEIGHT), TEXT);
+        painter.fill(new Rect(x + MODAL_WIDTH - 1, y, 1, MODAL_HEIGHT), TEXT);
+        int closeX = bounds.x() + MODAL_CLOSE_X;
+        int closeY = bounds.y() + MODAL_CLOSE_Y;
+        painter.fill(new Rect(closeX, closeY, MODAL_CLOSE_WIDTH, MODAL_CLOSE_HEIGHT), ACTION_GRAY);
+        painter.textLine(closeX + 3, closeY + 1, "X", TEXT, true);
+
+        GuildUpgradeGraphLayout.LayoutNode layoutNode = layoutNodes == null
+                ? null : layoutNodes.get(selectedNode.getId());
+        boolean unlocked = layoutNode != null && isUnlocked(layoutNode);
+        boolean active = selectedNode.getId().equals(activeProjectId);
+        boolean prerequisitesMet = prerequisitesMet(selectedNode);
+        boolean affordable = viewerGuild.getTechPoints() >= selectedNode.getCost();
+        boolean startAvailable = affordable && actionAvailable(selectedNode);
+        String name = selectedNode.getName() == null || selectedNode.getName().isBlank()
+                ? selectedNode.getId() : selectedNode.getName();
+        painter.textLine(x + 4, y + 4, painter.ellipsize(name, 84), TEXT, true);
+        String state = unlocked ? "MASTERED" : active ? "ACTIVE"
+                : !prerequisitesMet ? "LOCKED" : startAvailable ? "AVAILABLE" : "NEED TP";
+        painter.textLine(x + 4, y + 14, state, unlocked ? MAXED : active ? ACTIVE
+                : !prerequisitesMet ? LOCKED : AVAILABLE, true);
+
+        painter.textLine(x + 4, y + 24, "LORE", MUTED, true);
+        String description = selectedNode.getDescription();
+        if (description == null || description.isBlank()) {
+            description = "No description";
+        }
+        int nextY = paintWrapped(painter, description, x + 4, y + 32, 96, TEXT, 2);
+        painter.textLine(x + 4, nextY + 2, "EFFECT BONUS", MUTED, true);
+        painter.textLine(x + 4, nextY + 11,
+                painter.ellipsize(effectSummary(selectedNode), 96), TEXT, true);
+        int prereqY = nextY + 20;
+        painter.textLine(x + 4, prereqY, "PREREQUISITES", MUTED, true);
+        List<String> prerequisites = selectedNode.getEffectivePrerequisites();
+        if (prerequisites.isEmpty()) {
+            painter.textLine(x + 4, prereqY + 9, "None (met)", MAXED, true);
+        } else {
+            int row = 0;
+            for (String prerequisite : prerequisites) {
+                if (row >= 2) {
+                    break;
+                }
+                boolean met = prerequisiteMet(prerequisite);
+                String prerequisiteName = techTreeService.getNode(prerequisite)
+                        .map(TechTreeNode::getName).orElse(prerequisite);
+                String line = (met ? "[OK] " : "[MISSING] ") + prerequisiteName;
+                painter.textLine(x + 4, prereqY + 9 + row * 7,
+                        painter.ellipsize(line, 96), met ? MAXED : ACTION_RED, true);
+                row++;
+            }
+        }
+
+        int actionX = bounds.x() + ACTION_X;
+        int actionY = bounds.y() + ACTION_Y;
+        Color actionColor;
+        Color actionTextColor = TEXT;
+        String actionLabel;
+        if (unlocked) {
+            actionLabel = "[MASTERED]";
+            actionColor = new Color(45, 110, 60);
+        } else if (active) {
+            actionLabel = "[CLEAR ACTIVE]";
+            actionColor = ACTION_RED;
+        } else if (!prerequisitesMet) {
+            actionLabel = "[LOCKED PREREQS]";
+            actionColor = LOCKED;
+            actionTextColor = MUTED;
+        } else if (!affordable) {
+            actionLabel = "[NEED " + (selectedNode.getCost() - viewerGuild.getTechPoints()) + " TP]";
+            actionColor = ACTION_GRAY;
+            actionTextColor = MUTED;
+        } else if (startAvailable) {
+            actionLabel = "[START (" + selectedNode.getCost() + " TP)]";
+            actionColor = AVAILABLE;
+            actionTextColor = new Color(30, 30, 30);
+        } else {
+            actionLabel = "[LOCKED PREREQS]";
+            actionColor = LOCKED;
+            actionTextColor = MUTED;
+        }
+        painter.fill(new Rect(actionX, actionY, ACTION_WIDTH, ACTION_HEIGHT), actionColor);
+        painter.textLine(actionX + 3, actionY + 2,
+                painter.ellipsize(actionLabel, ACTION_WIDTH - 6), actionTextColor, true);
+    }
+
+    private int paintWrapped(Painter painter, String text, int x, int y, int width,
+                             Color color, int maxLines) {
+        String remaining = text.trim();
+        int line = 0;
+        while (!remaining.isEmpty() && line < maxLines) {
+            String candidate = remaining;
+            if (font().widthOf(candidate) > width) {
+                int split = candidate.length();
+                while (split > 1 && font().widthOf(candidate.substring(0, split)) > width) {
+                    split--;
+                }
+                int space = candidate.lastIndexOf(' ', split - 1);
+                if (space > 0) {
+                    split = space;
+                }
+                candidate = candidate.substring(0, split);
+                remaining = remaining.substring(split).trim();
+            } else {
+                remaining = "";
+            }
+            if (line == maxLines - 1 && !remaining.isEmpty()) {
+                candidate = painter.ellipsize(candidate, width);
+            }
+            painter.textLine(x, y + line * 7, candidate, color, false);
+            line++;
+        }
+        return y + line * 7;
+    }
+
+    private String effectSummary(TechTreeNode node) {
+        if (node.getEffects() == null || node.getEffects().isEmpty()) {
+            return "None";
+        }
+        return node.getEffects().entrySet().stream()
+                .map(entry -> formatEffect(entry.getKey(), entry.getValue()))
+                .reduce((first, second) -> first + ", " + second)
+                .orElse("None");
+    }
+
+    private String formatEffect(String key, Object value) {
+        String[] parts = key.split("_", -1);
+        StringBuilder name = new StringBuilder();
+        for (String part : parts) {
+            if (!name.isEmpty()) {
+                name.append(' ');
+            }
+            if (!part.isEmpty()) {
+                name.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+            }
+        }
+        return name + ": " + value;
+    }
+
+    private boolean prerequisitesMet(TechTreeNode node) {
+        for (String prerequisite : node.getEffectivePrerequisites()) {
+            if (!prerequisiteMet(prerequisite)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean prerequisiteMet(String prerequisite) {
+        try {
+            return viewerGuild != null && techTreeService.isTechNodeUnlocked(viewerGuild, prerequisite);
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    private boolean actionAvailable(TechTreeNode node) {
+        if (node == null || viewerGuild == null || !prerequisitesMet(node)
+                || viewerGuild.getTechPoints() < node.getCost()) {
+            return false;
+        }
+        try {
+            return techTreeService.canUnlockNode(viewerGuild, node.getId());
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+    private boolean cursorIn(GuildUpgradeGraphLayout.LayoutNode node) {
+        return Math.abs(cursorX() - node.x()) <= NODE_SIDE / 2
+                && Math.abs(cursorY() - node.y()) <= NODE_SIDE / 2;
     }
 
     private String caption() {
@@ -432,26 +612,65 @@ public final class GuildUpgradeScreen extends Screen {
     }
 
     private void clickAt(int x, int y) {
-        if (viewerGuild == null || layoutNodes == null) {
+        handleClick(x, y);
+    }
+
+    void handleClick(int x, int y) {
+        if (selectedNode != null) {
+            if (within(x, y, MODAL_CLOSE_X, MODAL_CLOSE_Y,
+                    MODAL_CLOSE_WIDTH, MODAL_CLOSE_HEIGHT)) {
+                selectedNode = null;
+                invalidate();
+                return;
+            }
+            if (withinInclusive(x, y, ACTION_X, ACTION_Y, ACTION_WIDTH, ACTION_HEIGHT)) {
+                dispatchAction();
+            }
+            return;
+        }
+        if (y < HEADER_HEIGHT || viewerGuild == null || layoutNodes == null) {
             return;
         }
         GuildUpgradeGraphLayout.LayoutNode node = GuildUpgradeGraphLayout.findNodeAt(layoutNodes, x, y);
         if (node != null && node.rawNode() != null) {
-            handleNodeClick(node.rawNode());
+            selectedNode = node.rawNode();
+            invalidate();
         }
     }
 
-    private void handleNodeClick(TechTreeNode node) {
-        if (player() == null || viewerGuild == null) {
+    private boolean within(int x, int y, int left, int top, int width, int height) {
+        return x >= left && x < left + width && y >= top && y < top + height;
+    }
+
+    private boolean withinInclusive(int x, int y, int left, int top, int width, int height) {
+        return x >= left && x <= left + width && y >= top && y <= top + height;
+    }
+
+    private void dispatchAction() {
+        if (player() == null || viewerGuild == null || selectedNode == null) {
             return;
         }
-        session().push(new GuildUpgradeNodeScreen(
-                guildService, techTreeService, projectService, this, viewerGuild, node));
-    }
-
-    private void setStatus(String message) {
-        statusMessage = message;
-        statusUntil = System.currentTimeMillis() + 4000;
+        GuildUpgradeGraphLayout.LayoutNode layoutNode = layoutNodes == null
+                ? null : layoutNodes.get(selectedNode.getId());
+        if (layoutNode != null && isUnlocked(layoutNode)) {
+            return;
+        }
+        String selectedId = selectedNode.getId();
+        if (selectedId.equals(activeProjectId)) {
+            projectService.clearActiveProject(viewerGuild);
+        } else if (actionAvailable(selectedNode)) {
+            projectService.startProject(viewerGuild, selectedId);
+        } else {
+            return;
+        }
+        Player viewer = player();
+        refresh(viewer);
+        if (allNodes != null) {
+            selectedNode = allNodes.stream()
+                    .filter(node -> node.getId().equals(selectedId))
+                    .findFirst()
+                    .orElse(selectedNode);
+        }
         invalidate();
     }
 
@@ -459,8 +678,12 @@ public final class GuildUpgradeScreen extends Screen {
         refresh(player);
     }
 
+    /**
+     * Compatibility hook for the previous node screen. Modal actions are rendered in-map, so
+     * this no longer stores or paints a footer status message.
+     */
     void setStatusOnReturn(String message) {
-        setStatus(message);
+        invalidate();
     }
 
     @Override
