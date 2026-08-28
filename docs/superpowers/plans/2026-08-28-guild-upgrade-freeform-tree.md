@@ -51,13 +51,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class GuildUpgradeGraphLayoutTest {
 
+    private TechTreeNode node(String id, String name, TechTreeBranch branch, int cost, List<String> prereqs) {
+        TechTreeNode n = new TechTreeNode(id);
+        n.setName(name);
+        n.setBranch(branch);
+        n.setCost(cost);
+        n.setPrerequisites(prereqs);
+        return n;
+    }
+
     private List<TechTreeNode> sampleNodes() {
         return List.of(
-            new TechTreeNode("better_storage", "Better Storage", "Desc", TechTreeBranch.INFRASTRUCTURE, 2, null, List.of(), Map.of(), 0, 0),
-            new TechTreeNode("fast_travel", "Fast Travel", "Desc", TechTreeBranch.INFRASTRUCTURE, 3, "better_storage", List.of("better_storage"), Map.of(), 1, 0),
-            new TechTreeNode("reinforced_walls", "Reinforced Walls", "Desc", TechTreeBranch.DEFENSE, 2, null, List.of(), Map.of(), 0, 1),
-            new TechTreeNode("market_stall", "Market Stall", "Desc", TechTreeBranch.COMMERCE, 2, null, List.of(), Map.of(), 0, 2),
-            new TechTreeNode("heritage_monument", "Heritage Monument", "Desc", TechTreeBranch.CULTURE, 2, null, List.of(), Map.of(), 0, 3)
+            node("better_storage", "Better Storage", TechTreeBranch.INFRASTRUCTURE, 2, List.of()),
+            node("fast_travel", "Fast Travel", TechTreeBranch.INFRASTRUCTURE, 3, List.of("better_storage")),
+            node("reinforced_walls", "Reinforced Walls", TechTreeBranch.DEFENSE, 2, List.of()),
+            node("market_stall", "Market Stall", TechTreeBranch.COMMERCE, 2, List.of()),
+            node("heritage_monument", "Heritage Monument", TechTreeBranch.CULTURE, 2, List.of())
         );
     }
 
@@ -290,7 +299,7 @@ git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github
 
 ---
 
-### Task 3: In-Map Modal Inspector & Interactive Action Dispatch
+### Task 4: In-Map Modal Inspector & Interactive Action Dispatch
 
 **Files:**
 - Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java`
@@ -320,7 +329,7 @@ git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github
 
 ---
 
-### Task 4: Full Suite Integration & Verification
+### Task 5: Full Suite Integration & Verification
 
 **Files:**
 - Test: `guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java`
