@@ -10,7 +10,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GuildUpgradeGraphLayoutTest {
 
@@ -60,17 +64,17 @@ class GuildUpgradeGraphLayoutTest {
         List<TechTreeNode> nodes = sampleNodes();
         Map<String, GuildUpgradeGraphLayout.LayoutNode> layout = GuildUpgradeGraphLayout.layout(nodes);
 
-        assertThat(layout).containsKey("guild_hearth");
+        assertTrue(layout.containsKey("guild_hearth"));
         GuildUpgradeGraphLayout.LayoutNode hearth = layout.get("guild_hearth");
-        assertThat(hearth.x()).isEqualTo(64);
-        assertThat(hearth.y()).isEqualTo(64);
-        assertThat(hearth.shape()).isEqualTo(GuildUpgradeGraphLayout.ShapeType.CORE);
+        assertEquals(64, hearth.x());
+        assertEquals(64, hearth.y());
+        assertEquals(GuildUpgradeGraphLayout.ShapeType.CORE, hearth.shape());
 
         for (TechTreeNode n : nodes) {
-            assertThat(layout).containsKey(n.getId());
+            assertTrue(layout.containsKey(n.getId()));
             GuildUpgradeGraphLayout.LayoutNode ln = layout.get(n.getId());
-            assertThat(ln.x()).isBetween(8, 120);
-            assertThat(ln.y()).isBetween(14, 118);
+            assertTrue(ln.x() >= 8 && ln.x() <= 120);
+            assertTrue(ln.y() >= 14 && ln.y() <= 118);
         }
     }
 
@@ -79,13 +83,13 @@ class GuildUpgradeGraphLayoutTest {
         List<TechTreeNode> nodes = sampleNodes();
         List<GuildUpgradeGraphLayout.SplineEdge> edges = GuildUpgradeGraphLayout.edges(nodes);
 
-        assertThat(edges).contains(
+        assertTrue(edges.containsAll(List.of(
             new GuildUpgradeGraphLayout.SplineEdge("guild_hearth", "better_storage"),
             new GuildUpgradeGraphLayout.SplineEdge("guild_hearth", "reinforced_walls"),
             new GuildUpgradeGraphLayout.SplineEdge("guild_hearth", "market_stall"),
             new GuildUpgradeGraphLayout.SplineEdge("guild_hearth", "heritage_monument"),
             new GuildUpgradeGraphLayout.SplineEdge("better_storage", "fast_travel")
-        );
+        )));
     }
 
     @Test
@@ -94,15 +98,15 @@ class GuildUpgradeGraphLayoutTest {
         Map<String, GuildUpgradeGraphLayout.LayoutNode> layout = GuildUpgradeGraphLayout.layout(nodes);
 
         GuildUpgradeGraphLayout.LayoutNode found = GuildUpgradeGraphLayout.findNodeAt(layout, 64, 64);
-        assertThat(found).isNotNull();
-        assertThat(found.id()).isEqualTo("guild_hearth");
+        assertNotNull(found);
+        assertEquals("guild_hearth", found.id());
 
         GuildUpgradeGraphLayout.LayoutNode hitEdge = GuildUpgradeGraphLayout.findNodeAt(layout, 69, 64);
-        assertThat(hitEdge).isNotNull();
-        assertThat(hitEdge.id()).isEqualTo("guild_hearth");
+        assertNotNull(hitEdge);
+        assertEquals("guild_hearth", hitEdge.id());
 
         GuildUpgradeGraphLayout.LayoutNode miss = GuildUpgradeGraphLayout.findNodeAt(layout, 0, 0);
-        assertThat(miss).isNull();
+        assertNull(miss);
     }
 
     @Test
@@ -113,13 +117,13 @@ class GuildUpgradeGraphLayoutTest {
         Set<String> positions = new HashSet<>();
         for (TechTreeNode node : nodes) {
             GuildUpgradeGraphLayout.LayoutNode layoutNode = layout.get(node.getId());
-            assertThat(layoutNode).isNotNull();
-            assertThat(positions.add(layoutNode.x() + ":" + layoutNode.y())).isTrue();
-            assertThat(layoutNode.x() == 64 && layoutNode.y() == 64).isFalse();
+            assertNotNull(layoutNode);
+            assertTrue(positions.add(layoutNode.x() + ":" + layoutNode.y()));
+            assertFalse(layoutNode.x() == 64 && layoutNode.y() == 64);
         }
 
-        assertThat(positions).hasSize(nodes.size());
-        assertThat(GuildUpgradeGraphLayout.edges(nodes)).contains(
+        assertEquals(nodes.size(), positions.size());
+        assertTrue(GuildUpgradeGraphLayout.edges(nodes).containsAll(List.of(
                 new GuildUpgradeGraphLayout.SplineEdge("guild_hearth", "better_storage"),
                 new GuildUpgradeGraphLayout.SplineEdge("better_storage", "advanced_farming"),
                 new GuildUpgradeGraphLayout.SplineEdge("fast_travel", "auto_sorter"),
@@ -132,8 +136,9 @@ class GuildUpgradeGraphLayoutTest {
                 new GuildUpgradeGraphLayout.SplineEdge("guild_banner", "broadcast_tower"),
                 new GuildUpgradeGraphLayout.SplineEdge("broadcast_tower", "guild_hall"),
                 new GuildUpgradeGraphLayout.SplineEdge("guild_hall", "monument")
-        );
+        )));
     }
+
     @Test
     void fallbackPlacementKeepsLargeCustomBranchHitboxesDisjoint() {
         List<TechTreeNode> nodes = new ArrayList<>();
@@ -146,13 +151,13 @@ class GuildUpgradeGraphLayoutTest {
         Set<String> positions = new HashSet<>();
         for (TechTreeNode node : nodes) {
             GuildUpgradeGraphLayout.LayoutNode layoutNode = layout.get(node.getId());
-            assertThat(layoutNode).isNotNull();
-            assertThat(positions.add(layoutNode.x() + ":" + layoutNode.y())).isTrue();
-            assertThat(layoutNode.x()).isBetween(8, 120);
-            assertThat(layoutNode.y()).isBetween(14, 118);
-            assertThat(layoutNode.x() == 64 && layoutNode.y() == 64).isFalse();
+            assertNotNull(layoutNode);
+            assertTrue(positions.add(layoutNode.x() + ":" + layoutNode.y()));
+            assertTrue(layoutNode.x() >= 8 && layoutNode.x() <= 120);
+            assertTrue(layoutNode.y() >= 14 && layoutNode.y() <= 118);
+            assertFalse(layoutNode.x() == 64 && layoutNode.y() == 64);
         }
-        assertThat(positions).hasSize(nodes.size());
+        assertEquals(nodes.size(), positions.size());
         List<GuildUpgradeGraphLayout.LayoutNode> placed = new ArrayList<>(layout.values());
         for (int first = 0; first < placed.size(); first++) {
             for (int second = first + 1; second < placed.size(); second++) {
@@ -160,11 +165,8 @@ class GuildUpgradeGraphLayoutTest {
                 GuildUpgradeGraphLayout.LayoutNode b = placed.get(second);
                 boolean hitboxesOverlap = Math.abs(a.x() - b.x()) <= 6
                         && Math.abs(a.y() - b.y()) <= 6;
-                assertThat(hitboxesOverlap)
-                        .as("%s and %s overlap", a.id(), b.id())
-                        .isFalse();
+                assertFalse(hitboxesOverlap, "%s and %s overlap".formatted(a.id(), b.id()));
             }
         }
     }
 }
-

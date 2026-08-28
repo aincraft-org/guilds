@@ -40,7 +40,9 @@ class ClaimLayerTest {
                 (x, z, world) -> x == plot.getX() && z == plot.getZ() && WORLD.equals(world)
                         ? Optional.of(plot) : Optional.empty(),
                 id -> own.getId().equals(id) ? Optional.of(own) : Optional.empty());
-        assertEquals(ClaimLayer.Kind.OWN_GUILD, layer.cellAt(plot.getX(), plot.getZ()).orElseThrow().kind());
+        ClaimLayer.Cell cell = layer.cellAt(plot.getX(), plot.getZ()).orElseThrow();
+        assertEquals(ClaimLayer.Kind.OWN_GUILD, cell.kind());
+        assertEquals("Alpha", cell.guildName());
     }
 
     @Test
@@ -52,18 +54,22 @@ class ClaimLayerTest {
                 (x, z, world) -> x == plot.getX() && z == plot.getZ() && WORLD.equals(world)
                         ? Optional.of(plot) : Optional.empty(),
                 id -> other.getId().equals(id) ? Optional.of(other) : Optional.empty());
-        assertEquals(ClaimLayer.Kind.OTHER_GUILD, layer.cellAt(plot.getX(), plot.getZ()).orElseThrow().kind());
+        ClaimLayer.Cell cell = layer.cellAt(plot.getX(), plot.getZ()).orElseThrow();
+        assertEquals(ClaimLayer.Kind.OTHER_GUILD, cell.kind());
+        assertEquals("Beta", cell.guildName());
     }
 
     @Test
-    void classifiesCenterEvenWhenThatChunkIsClaimed() {
+    void classifiesCenterChunkByActualOwnership() {
         Guild own = new Guild("Alpha", UUID.randomUUID());
         GuildBlock plot = new GuildBlock(CENTER_X, CENTER_Z, WORLD, own.getId());
         ClaimLayer layer = ClaimLayer.classify(
                 CENTER_X, CENTER_Z, WORLD, "Alpha", 1,
                 (x, z, world) -> Optional.of(plot),
                 id -> Optional.of(own));
-        assertEquals(ClaimLayer.Kind.CENTER, layer.cellAt(CENTER_X, CENTER_Z).orElseThrow().kind());
+        ClaimLayer.Cell cell = layer.cellAt(CENTER_X, CENTER_Z).orElseThrow();
+        assertEquals(ClaimLayer.Kind.OWN_GUILD, cell.kind());
+        assertEquals("Alpha", cell.guildName());
     }
 
     @Test

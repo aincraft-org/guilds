@@ -1,4 +1,10 @@
-pluginManagement { repositories { gradlePluginPortal(); mavenCentral() } }
+pluginManagement {
+    includeBuild("../plugin-multiplexer/network")
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
 dependencyResolutionManagement {
     repositories {
         if (providers.gradleProperty("useLocalMintRepo").orNull == "true") {

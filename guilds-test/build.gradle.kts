@@ -1,5 +1,6 @@
 plugins {
     id("xyz.jpenilla.run-paper") version "3.0.2"
+    id("io.github.development-network")
 }
 
 description = "Guilds local test server — run-paper harness that boots Paper with the guilds shadow jar as the test plugin"
@@ -163,6 +164,7 @@ val squaremapJarFile: java.io.File =
 tasks.runServer {
     minecraftVersion("26.2")
     runDirectory.set(layout.projectDirectory.dir("run"))
+    args("--port", providers.gradleProperty("networkBackendPort").orElse("30070").get())
     pluginJars(guildsShadowJar.flatMap { it.archiveFile }, testPluginJar, squaremapJarFile, mintPaperJarFile)
     dependsOn(guildsShadowJar, tasks.jar, writeMintConfigs)
     downloadPlugins {

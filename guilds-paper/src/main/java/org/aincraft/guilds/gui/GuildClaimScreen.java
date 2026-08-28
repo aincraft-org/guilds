@@ -14,6 +14,8 @@ import de.flog99.mapgui.ui.Rect;
 import de.flog99.mapgui.ui.Ui;
 import de.flog99.mapgui.ui.TextFont;
 import net.kyori.adventure.text.Component;
+import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.models.GuildBlock;
 import org.aincraft.guilds.map.ClaimLayer;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.PermissionService;
@@ -22,7 +24,8 @@ import org.bukkit.entity.Player;
 
 import java.awt.Color;
 import java.awt.Font;
-
+import java.util.Objects;
+import java.util.Optional;
 public final class GuildClaimScreen extends Screen {
 
     public static final int DEFAULT_RADIUS = 5;
@@ -31,7 +34,16 @@ public final class GuildClaimScreen extends Screen {
     private static final Color WILDERNESS = new Color(34, 90, 34);
     private static final Color OWN_GUILD = new Color(46, 184, 64);
     private static final Color OTHER_GUILD = new Color(212, 168, 40);
-    private static final Color CENTER = new Color(230, 255, 230);
+    private static final Color[] GUILD_PALETTE = {
+        new Color(59, 130, 246),  // Azure Blue
+        new Color(212, 168, 40),  // Royal Gold
+        new Color(168, 85, 247),  // Mystic Purple
+        new Color(249, 115, 22),  // Ember Orange
+        new Color(236, 72, 153),  // Crimson Pink
+        new Color(6, 182, 212),   // Sky Cyan
+        new Color(234, 179, 8),   // Amber
+        new Color(133, 77, 14)    // Bronze Brown
+    };
     private static final double TINT = 0.55;
     /** Slightly larger humanist map font for readable legend and feedback text. */
     private static final TextFont FONT = AwtFont.named("Carlito", Font.PLAIN, 9, false);
@@ -338,18 +350,67 @@ public final class GuildClaimScreen extends Screen {
     private void paintLayer(PaintContext context) {
         ClaimLayer layer = currentLayer();
         Rect bounds = context.bounds();
-        int cell = Math.max(1, Math.min(bounds.width(), bounds.height()) / layer.size());
-        int grid = cell * layer.size();
-        int originX = bounds.x() + (bounds.width() - grid) / 2;
-        int originY = bounds.y() + (bounds.height() - grid) / 2;
+        int size = layer.size();
         Painter painter = context.painter();
+
+        // Pass 1: Tint territory fills completely flush to bounds
         for (ClaimLayer.Cell claim : layer.cells()) {
             int col = claim.chunkX() - layer.centerChunkX() + layer.radius();
             int row = claim.chunkZ() - layer.centerChunkZ() + layer.radius();
-            Rect rect = new Rect(originX + col * cell, originY + row * cell, cell, cell);
-            tint(painter, rect, colorFor(claim.kind()));
-            if (claim.kind() == ClaimLayer.Kind.CENTER) {
-                painter.rect(rect, null, 1, Color.WHITE, 0);
+            Rect rect = cellRect(bounds, size, col, row);
+            if (claim.kind() != ClaimLayer.Kind.WILDERNESS) {
+                tint(painter, rect, colorForCell(claim));
+            }
+        }
+
+        // Pass 2: Connected territory borders (samples outside layer to avoid false edge lines)
+        for (ClaimLayer.Cell claim : layer.cells()) {
+            if (claim.kind() == ClaimLayer.Kind.WILDERNESS) {
+                continue;
+            }
+            int col = claim.chunkX() - layer.centerChunkX() + layer.radius();
+            int row = claim.chunkZ() - layer.centerChunkZ() + layer.radius();
+            Rect r = cellRect(bounds, size, col, row);
+            Color c = colorForCell(claim);
+
+            if (!sameOwnerAt(claim, claim.chunkX(), claim.chunkZ() - 1, layer.world())) {
+                painter.line(r.x(), r.y(), r.x() + r.width(), r.y(), c);
+            }
+            if (!sameOwnerAt(claim, claim.chunkX(), claim.chunkZ() + 1, layer.world())) {
+                painter.line(r.x(), r.y() + r.height(), r.x() + r.width(), r.y() + r.height(), c);
+            }
+            if (!sameOwnerAt(claim, claim.chunkX() - 1, claim.chunkZ(), layer.world())) {
+                painter.line(r.x(), r.y(), r.x(), r.y() + r.height(), c);
+            }
+            if (!sameOwnerAt(claim, claim.chunkX() + 1, claim.chunkZ(), layer.world())) {
+                painter.line(r.x() + r.width(), r.y(), r.x() + r.width(), r.y() + r.height(), c);
+            }
+        }
+
+        // Player position marker (directional chevron at player's current chunk)
+        Player player = player();
+        if (player != null && player.getWorld().getName().equals(layer.world())) {
+            int playerChunkX = player.getLocation().getChunk().getX();
+            int playerChunkZ = player.getLocation().getChunk().getZ();
+            int pCol = playerChunkX - layer.centerChunkX() + layer.radius();
+            int pRow = playerChunkZ - layer.centerChunkZ() + layer.radius();
+            if (pCol >= 0 && pRow >= 0 && pCol < size && pRow < size) {
+                Rect pr = cellRect(bounds, size, pCol, pRow);
+                int px = pr.x() + pr.width() / 2;
+                int py = pr.y() + pr.height() / 2;
+                double heading = Math.toRadians(player.getLocation().getYaw() + 180.0);
+                int reach = Math.max(3, pr.width() / 4);
+                int base = Math.max(2, pr.width() / 5);
+                int tipX = polarX(px, reach, heading);
+                int tipY = polarY(py, reach, heading);
+                int leftX = polarX(px, base, heading + 2.3);
+                int leftY = polarY(py, base, heading + 2.3);
+                int rightX = polarX(px, base, heading - 2.3);
+                int rightY = polarY(py, base, heading - 2.3);
+                painter.polygon(Color.WHITE,
+                        new int[] {tipX, leftX, px, rightX},
+                        new int[] {tipY, leftY, py, rightY});
+                painter.pixel(px, py, Color.RED);
             }
         }
 
@@ -372,14 +433,7 @@ public final class GuildClaimScreen extends Screen {
                     if (col < 0 || row < 0 || col >= layer.size() || row >= layer.size()) {
                         continue;
                     }
-                    if (firstCol == -1) {
-                        firstCol = col;
-                        firstRow = row;
-                    }
-                    lastCol = col;
-                    lastRow = row;
-
-                    Rect r = new Rect(originX + col * cell, originY + row * cell, cell, cell);
+                    Rect r = cellRect(bounds, size, col, row);
                     painter.fill(r, selectionFill);
                     if (plots.getGuildBlock(x, z, world()).isPresent()) {
                         painter.fill(r, unclaimable);
@@ -388,11 +442,13 @@ public final class GuildClaimScreen extends Screen {
             }
 
             if (firstCol != -1) {
+                Rect rFirst = cellRect(bounds, size, firstCol, firstRow);
+                Rect rLast = cellRect(bounds, size, lastCol, lastRow);
                 Rect outer = new Rect(
-                        originX + firstCol * cell,
-                        originY + firstRow * cell,
-                        (lastCol - firstCol + 1) * cell,
-                        (lastRow - firstRow + 1) * cell);
+                        rFirst.x(),
+                        rFirst.y(),
+                        rLast.x() + rLast.width() - rFirst.x(),
+                        rLast.y() + rLast.height() - rFirst.y());
                 painter.rect(outer, null, 1, Color.WHITE, 0);
             }
         }
@@ -400,38 +456,35 @@ public final class GuildClaimScreen extends Screen {
 
     private String hoveredCaption() {
         ClaimLayer layer = currentLayer();
-        Rect bounds = new Rect(0, 0, width(), height());
-        int cell = Math.max(1, Math.min(bounds.width(), bounds.height()) / layer.size());
-        int grid = cell * layer.size();
-        int originX = (bounds.width() - grid) / 2;
-        int originY = (bounds.height() - grid) / 2;
-        int col = (cursorX() - originX) / cell;
-        int row = (cursorY() - originY) / cell;
-        if (col < 0 || row < 0 || col >= layer.size() || row >= layer.size()) {
+        int size = layer.size();
+        int cx = cursorX();
+        int cy = cursorY();
+        if (cx < 0 || cy < 0 || cx >= width() || cy >= height() || size <= 0) {
             return "Guilds map";
         }
+        int col = Math.min(size - 1, (cx * size) / width());
+        int row = Math.min(size - 1, (cy * size) / height());
         int chunkX = layer.centerChunkX() - layer.radius() + col;
         int chunkZ = layer.centerChunkZ() - layer.radius() + row;
         return layer.cellAt(chunkX, chunkZ)
-                .map(claim -> labelFor(claim.kind()) + " [" + claim.chunkX() + ", " + claim.chunkZ() + "]")
+                .map(claim -> {
+                    String owner = claim.guildName() != null ? claim.guildName() : labelFor(claim.kind());
+                    return owner + " [" + claim.chunkX() + ", " + claim.chunkZ() + "]";
+                })
                 .orElse("Guilds map");
     }
 
     private int[] cellAtCursor(int x, int y) {
         ClaimLayer layer = currentLayer();
-        Rect bounds = new Rect(0, 0, width(), height());
-        int cell = Math.max(1, Math.min(bounds.width(), bounds.height()) / layer.size());
-        int grid = cell * layer.size();
-        int originX = (bounds.width() - grid) / 2;
-        int originY = (bounds.height() - grid) / 2;
-        int col = (x - originX) / cell;
-        int row = (y - originY) / cell;
-        if (col < 0 || row < 0 || col >= layer.size() || row >= layer.size()) {
+        int size = layer.size();
+        if (x < 0 || y < 0 || x >= width() || y >= height() || size <= 0) {
             return null;
         }
+        int col = Math.min(size - 1, (x * size) / width());
+        int row = Math.min(size - 1, (y * size) / height());
         int chunkX = layer.centerChunkX() - layer.radius() + col;
         int chunkZ = layer.centerChunkZ() - layer.radius() + row;
-        return new int[] { chunkX, chunkZ };
+        return new int[] {chunkX, chunkZ};
     }
 
     private Node marqueeOverlay() {
@@ -527,9 +580,9 @@ public final class GuildClaimScreen extends Screen {
                 Ui.Spacer(),
                 Ui.Row(
                         swatch(OWN_GUILD, "Your guild"),
-                        swatch(OTHER_GUILD, "Other guild"),
+                        swatch(OTHER_GUILD, "Other guilds"),
                         swatch(WILDERNESS, "Wilderness"),
-                        swatch(CENTER, "You")
+                        swatch(Color.WHITE, "You")
                 ).gap(3).justify(Justify.CENTER)
                         .padding(2)
                         .background(Colors.alpha(Color.BLACK, 170))
@@ -553,13 +606,57 @@ public final class GuildClaimScreen extends Screen {
         }
     }
 
-    private static Color colorFor(ClaimLayer.Kind kind) {
-        return switch (kind) {
-            case WILDERNESS -> WILDERNESS;
-            case OWN_GUILD -> OWN_GUILD;
-            case OTHER_GUILD -> OTHER_GUILD;
-            case CENTER -> CENTER;
-        };
+    private static Color colorForCell(ClaimLayer.Cell cell) {
+        if (cell.kind() == ClaimLayer.Kind.OWN_GUILD) {
+            return OWN_GUILD;
+        }
+        if (cell.kind() == ClaimLayer.Kind.OTHER_GUILD) {
+            if (cell.guildName() == null || cell.guildName().isBlank()) {
+                return OTHER_GUILD;
+            }
+            int index = Math.floorMod(cell.guildName().hashCode(), GUILD_PALETTE.length);
+            return GUILD_PALETTE[index];
+        }
+        return WILDERNESS;
+    }
+
+    static boolean sameOwner(ClaimLayer.Cell cell, Optional<ClaimLayer.Cell> neighbor) {
+        if (neighbor.isEmpty()) {
+            return false;
+        }
+        ClaimLayer.Cell other = neighbor.get();
+        if (cell.kind() != other.kind()) {
+            return false;
+        }
+        if (cell.kind() == ClaimLayer.Kind.OWN_GUILD) {
+            return true;
+        }
+        return Objects.equals(cell.guildName(), other.guildName());
+    }
+
+    static Rect cellRect(Rect bounds, int size, int col, int row) {
+        int x0 = bounds.x() + (col * bounds.width()) / size;
+        int x1 = bounds.x() + ((col + 1) * bounds.width()) / size;
+        int y0 = bounds.y() + (row * bounds.height()) / size;
+        int y1 = bounds.y() + ((row + 1) * bounds.height()) / size;
+        return new Rect(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    private boolean sameOwnerAt(ClaimLayer.Cell cell, int chunkX, int chunkZ, String world) {
+        Optional<ClaimLayer.Cell> cached = currentLayer().cellAt(chunkX, chunkZ);
+        if (cached.isPresent()) {
+            return sameOwner(cell, cached);
+        }
+        Optional<GuildBlock> block = plots.getGuildBlock(chunkX, chunkZ, world);
+        if (block.isEmpty()) {
+            return false;
+        }
+        Optional<Guild> guild = guilds.getGuild(block.get().getGuildId());
+        String name = guild.map(Guild::getName).orElse(null);
+        if (cell.kind() == ClaimLayer.Kind.OWN_GUILD) {
+            return viewerGuild != null && viewerGuild.equals(name);
+        }
+        return Objects.equals(cell.guildName(), name);
     }
 
     private static String labelFor(ClaimLayer.Kind kind) {

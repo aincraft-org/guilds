@@ -26,7 +26,12 @@ public final class ClaimLayer {
     }
 
     /** Immutable data carrier for cell. */
-    public record Cell(int chunkX, int chunkZ, Kind kind) {
+    public record Cell(int chunkX, int chunkZ, Kind kind, String guildName) {
+        /** Creates a new cell instance without an explicit guild name. */
+        public Cell(int chunkX, int chunkZ, Kind kind) {
+            this(chunkX, chunkZ, kind, null);
+        }
+
         /** Creates a new cell instance. */
         public Cell {
             Objects.requireNonNull(kind, "kind");
@@ -115,26 +120,23 @@ public final class ClaimLayer {
             for (int dx = -radius; dx <= radius; dx++) {
                 int chunkX = centerChunkX + dx;
                 int chunkZ = centerChunkZ + dz;
-                Kind kind = (dx == 0 && dz == 0)
-                        ? Kind.CENTER
-                        : classifyOwned(chunkX, chunkZ, world, viewerGuild, plots, guilds);
-                cells.add(new Cell(chunkX, chunkZ, kind));
+                cells.add(classifyCell(chunkX, chunkZ, world, viewerGuild, plots, guilds));
             }
         }
         return new ClaimLayer(centerChunkX, centerChunkZ, world, radius, List.copyOf(cells));
     }
 
     /**
-     * Performs the classify owned operation.
+     * Performs the classify cell operation.
      * @param chunkX the chunk x
      * @param chunkZ the chunk z
      * @param world the world
      * @param viewerGuild the viewer guild
      * @param plots the plots
      * @param guilds the guilds
-     * @return the result
+     * @return the classified cell
      */
-    private static Kind classifyOwned(
+    private static Cell classifyCell(
             int chunkX,
             int chunkZ,
             String world,
@@ -143,15 +145,15 @@ public final class ClaimLayer {
             GuildLookup guilds) {
         Optional<GuildBlock> plot = plots.plotAt(chunkX, chunkZ, world);
         if (plot.isEmpty()) {
-            return Kind.WILDERNESS;
+            return new Cell(chunkX, chunkZ, Kind.WILDERNESS, null);
         }
         Optional<Guild> guild = guilds.byId(plot.get().getGuildId());
-        if (guild.isPresent() && viewerGuild != null && viewerGuild.equals(guild.get().getName())) {
-            return Kind.OWN_GUILD;
+        String name = guild.map(Guild::getName).orElse(null);
+        if (guild.isPresent() && viewerGuild != null && viewerGuild.equals(name)) {
+            return new Cell(chunkX, chunkZ, Kind.OWN_GUILD, name);
         }
-        return Kind.OTHER_GUILD;
+        return new Cell(chunkX, chunkZ, Kind.OTHER_GUILD, name);
     }
-
     /**
      * Performs the center chunk x operation.
      * @return the result

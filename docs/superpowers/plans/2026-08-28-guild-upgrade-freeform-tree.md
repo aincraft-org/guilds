@@ -282,7 +282,7 @@ git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github
 In `GuildUpgradeScreen.java`:
 - Replace old `slots`, `laneCells`, `panX`, `panY` with `Map<String, GuildUpgradeGraphLayout.LayoutNode> layoutNodes`.
 - Implement `drawPixelCore`, `drawPixelHex`, `drawPixelShield`, `drawPixelCoin`, `drawPixelDiamond`.
-- Implement `drawSteppedSpline` for curved raster splines.
+- Implement direct straight one-pixel Bresenham edges between node centers with state-specific solid/dashed rendering; do not bend or curve prerequisite links.
 - Render minimal top bar `VALHALLA • LVL X • Y TP` without button or legend clutter.
 
 - [ ] **Step 2: Compile and verify clean cutover**
@@ -344,4 +344,60 @@ Expected: BUILD SUCCESSFUL (all tests pass).
 
 ```bash
 git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit --allow-empty -m "chore: verify full test suite on dynamic radial upgrade web"
+```
+
+---
+
+### Task 5: Pixel Shape and Straight Edge Refinement
+
+**Files:**
+- Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java`
+- Test: `guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java`
+
+**Interfaces:**
+- Consumes: `GuildUpgradeGraphLayout.LayoutNode`, `GuildUpgradeGraphLayout.SplineEdge`, dynamic `TechTreeNode` snapshots
+- Produces: clear Minecraft-readable pixel node glyphs and straight prerequisite edges on the native 128x128 surface
+
+- [ ] **Step 1: Replace curved splines with straight pixel edges**
+
+In `GuildUpgradeScreen.java`, remove cubic Bezier control-point and spline-point helpers. Draw every prerequisite link with a direct one-pixel Bresenham line from source center to target center. Keep the web topology unchanged so every existing cross-discipline edge remains visible.
+
+Render edge state independently from node shape:
+- mastered target: solid emerald `EDGE_MASTERED`
+- active or available target from an unlocked source: dashed amber `EDGE_FRONTIER`
+- otherwise: dim slate `EDGE_LOCKED`
+
+Animate a small square spark by linear interpolation along mastered/frontier edges only.
+
+- [ ] **Step 2: Replace shape patterns with readable Minecraft pixel glyphs**
+
+In `GuildUpgradeScreen.java`, use hard-edged 1px raster patterns with a dark outline, colored face, one-pixel highlight, and a distinct silhouette:
+- `CORE`: gold lodestone/hearth diamond with white center spark
+- `HEXAGON`: cyan chiseled hexagonal stone
+- `SHIELD`: rose iron shield with pointed lower edge
+- `COIN`: amber emerald/gold octagonal coin with inset center mark
+- `DIAMOND`: violet amethyst diamond with a highlight corner
+
+Keep progression state orthogonal to category shape:
+- mastered: dark green face + bright green border
+- active: dark amber face + amber pulse outline
+- available: dark face + category-colored border
+- locked: near-black face + muted slate border
+
+Do not add sector labels, filters, bottom legends, or a top-right upgrade button.
+
+- [ ] **Step 3: Add pure renderer/layout assertions**
+
+Extend `GuildUpgradeGraphLayoutTest.java` with assertions that all configured cross-discipline edges remain in `edges(nodes)` and all fixed 16-node positions remain distinct from the hearth. Keep the fixture constructor as `new TechTreeNode(id)` followed by real setters.
+
+- [ ] **Step 4: Run focused verification**
+
+Run: `./gradlew :guilds-paper:test --tests "org.aincraft.guilds.gui.GuildUpgradeGraphLayoutTest"`
+Expected: PASS when the repository dependency and Java toolchain are available; otherwise record the exact dependency/toolchain blocker.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java
+git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "feat: refine Minecraft pixel nodes and straight tech web edges"
 ```
