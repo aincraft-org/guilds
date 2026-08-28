@@ -177,16 +177,16 @@ public final class GuildUpgradeGraphLayout {
             }
         }
 
-        // Keep a deterministic, distinct coordinate even for unusually large custom trees.
-        for (int y = minY; y <= maxY; y++) {
-            for (int x = minX; x <= maxX; x++) {
+        for (int y = 14; y <= 118; y++) {
+            for (int x = 8; x <= 120; x++) {
                 Coord candidate = new Coord(x, y);
-                if (!occupied.contains(candidate)) {
-                    return candidate;
+                if ((x == 64 && y == 64) || occupied.contains(candidate)) {
+                    continue;
                 }
+                return candidate;
             }
         }
-        return new Coord(minX, minY);
+        throw new IllegalStateException("Tech tree layout canvas capacity exceeded");
     }
 
     public static List<SplineEdge> edges(Collection<TechTreeNode> nodes) {

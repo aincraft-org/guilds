@@ -4,6 +4,7 @@ import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -133,4 +134,25 @@ class GuildUpgradeGraphLayoutTest {
                 new GuildUpgradeGraphLayout.SplineEdge("guild_hall", "monument")
         );
     }
+    @Test
+    void fallbackPlacementUsesDistinctCoordinatesForLargeCustomBranch() {
+        List<TechTreeNode> nodes = new ArrayList<>();
+        for (int index = 0; index < 101; index++) {
+            nodes.add(node("custom_infrastructure_" + index, "Custom " + index,
+                    TechTreeBranch.INFRASTRUCTURE, 1, List.of()));
+        }
+
+        Map<String, GuildUpgradeGraphLayout.LayoutNode> layout = GuildUpgradeGraphLayout.layout(nodes);
+        Set<String> positions = new HashSet<>();
+        for (TechTreeNode node : nodes) {
+            GuildUpgradeGraphLayout.LayoutNode layoutNode = layout.get(node.getId());
+            assertThat(layoutNode).isNotNull();
+            assertThat(positions.add(layoutNode.x() + ":" + layoutNode.y())).isTrue();
+            assertThat(layoutNode.x()).isBetween(8, 120);
+            assertThat(layoutNode.y()).isBetween(14, 118);
+            assertThat(layoutNode.x() == 64 && layoutNode.y() == 64).isFalse();
+        }
+        assertThat(positions).hasSize(nodes.size());
+    }
 }
+
