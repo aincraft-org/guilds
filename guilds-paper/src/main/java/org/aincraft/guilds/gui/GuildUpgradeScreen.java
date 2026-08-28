@@ -226,7 +226,7 @@ public final class GuildUpgradeScreen extends Screen {
             boolean sourceUnlocked = isUnlocked(from);
             boolean targetUnlocked = isUnlocked(to);
             boolean active = to.id().equals(activeProjectId);
-            boolean frontier = !targetUnlocked && (sourceUnlocked || active);
+            boolean frontier = !targetUnlocked && (active || (sourceUnlocked && isAvailable(to)));
             Color edgeColor = targetUnlocked ? EDGE_MASTERED : frontier ? EDGE_FRONTIER : EDGE_LOCKED;
             drawPixelLine(painter, from.x(), from.y(), to.x(), to.y(), edgeColor, frontier);
             if (frontier) {
@@ -280,20 +280,20 @@ public final class GuildUpgradeScreen extends Screen {
 
     private void drawPixelHex(Painter painter, int centerX, int centerY, NodeStyle style) {
         drawPattern(painter, centerX, centerY, style, new String[]{
-                "  #####  ",
-                " ##...## ",
-                "##..+..##",
-                "##.....##",
-                "##..+..##",
-                " ##...## ",
-                "  #####  "
+                "   ###   ",
+                "  #...#  ",
+                " #..*..# ",
+                "#...+...#",
+                " #..+..# ",
+                "  #...#  ",
+                "   ###   "
         });
     }
 
     private void drawPixelShield(Painter painter, int centerX, int centerY, NodeStyle style) {
         drawPattern(painter, centerX, centerY, style, new String[]{
                 "  #####  ",
-                " ##...## ",
+                " ##.*.## ",
                 "##..+..##",
                 "##.....##",
                 " ##...## ",
@@ -305,20 +305,22 @@ public final class GuildUpgradeScreen extends Screen {
 
     private void drawPixelCoin(Painter painter, int centerX, int centerY, NodeStyle style) {
         drawPattern(painter, centerX, centerY, style, new String[]{
-                "  #####  ",
-                " ##...## ",
-                "##..+..##",
-                "##.+.+.##",
-                "##..+..##",
-                " ##...## ",
-                "  #####  "
+                "   ###   ",
+                "  #...#  ",
+                " #..+..# ",
+                "#...*...#",
+                "#..+++..#",
+                "#...+...#",
+                " #..+..# ",
+                "  #...#  ",
+                "   ###   "
         });
     }
 
     private void drawPixelDiamond(Painter painter, int centerX, int centerY, NodeStyle style) {
         drawPattern(painter, centerX, centerY, style, new String[]{
                 "    #    ",
-                "   ###   ",
+                "   #*#   ",
                 "  ##.##  ",
                 " ##...## ",
                 "##..+..##",
@@ -428,16 +430,20 @@ public final class GuildUpgradeScreen extends Screen {
             return new NodeStyle(ACTIVE_FACE, ACTIVE,
                     new Color(255, 220, 125), accent);
         }
-        boolean available = false;
-        try {
-            available = viewerGuild != null && techTreeService.canUnlockNode(viewerGuild, node.id());
-        } catch (RuntimeException ignored) {
-            // Treat service failures as locked in the paint path.
-        }
+        boolean available = isAvailable(node);
         if (available) {
             return new NodeStyle(AVAILABLE_FACE, accent, accent.brighter(), accent);
         }
         return new NodeStyle(LOCKED_FACE, LOCKED, new Color(130, 138, 156), accent);
+    }
+
+    private boolean isAvailable(GuildUpgradeGraphLayout.LayoutNode node) {
+        try {
+            return viewerGuild != null && techTreeService.canUnlockNode(viewerGuild, node.id());
+        } catch (RuntimeException ignored) {
+            // Treat service failures as locked in the paint path.
+            return false;
+        }
     }
 
     private Color branchAccent(GuildUpgradeGraphLayout.LayoutNode node) {
