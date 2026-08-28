@@ -465,3 +465,38 @@ Expected: PASS when credentials/toolchain are available; otherwise record the ex
 git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayout.java guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java
 git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "fix: constrain dynamic layout bounds and reserve Hearth shape"
 ```
+
+---
+
+### Task 8: Make Active Project Clearing Conditional
+
+**Files:**
+- Modify: `guilds-paper/src/main/java/org/aincraft/guilds/services/GuildProjectService.java`
+- Modify: `guilds-paper/src/main/java/org/aincraft/guilds/services/impl/GuildProjectServiceImpl.java`
+- Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java`
+- Test: `guilds-paper/src/test/java/org/aincraft/guilds/services/GuildProjectServiceImplTest.java`
+
+**Interfaces:**
+- Produces: `GuildProjectService.clearActiveProject(Guild guild, String expectedProjectId)` with an atomic expected-ID check
+
+- [ ] **Step 1: Add the conditional clear contract and transaction guard**
+
+Add an overload `boolean clearActiveProject(Guild guild, String expectedProjectId)`. Its implementation must select the current active ID under the existing transaction lock, return `false` when it differs from `expectedProjectId`, and only execute the clear update when they match. Keep the existing one-argument method for existing command compatibility.
+
+- [ ] **Step 2: Use fresh state and conditional clear in the upgrade modal**
+
+In `GuildUpgradeScreen.dispatchAction`, if the fresh active ID differs from the cached screen ID, refresh and return without dispatching. For a selected active node whose IDs still match, call `clearActiveProject(actionGuild, selectedId)`, never the unconditional overload. A concurrent replacement therefore fails safely instead of clearing the replacement; an externally cleared node does not restart from a stale clear click.
+
+- [ ] **Step 3: Add service regression coverage**
+
+Extend `GuildProjectServiceImplTest` with an expected-ID mismatch case that leaves the active project intact and does not execute the clear update, plus a matching-ID case that clears successfully. Use the existing transaction harness and JUnit assertions.
+
+- [ ] **Step 4: Run focused service/UI verification and commit**
+
+Run: `./gradlew :guilds-paper:test --tests "org.aincraft.guilds.services.GuildProjectServiceImplTest" --tests "org.aincraft.guilds.gui.GuildUpgradeGraphLayoutTest"`
+Expected: PASS when credentials/toolchain are available; otherwise record the exact blocker.
+
+```bash
+git add guilds-paper/src/main/java/org/aincraft/guilds/services/GuildProjectService.java guilds-paper/src/main/java/org/aincraft/guilds/services/impl/GuildProjectServiceImpl.java guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java guilds-paper/src/test/java/org/aincraft/guilds/services/GuildProjectServiceImplTest.java
+git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "fix: make active project clearing conditional and atomic"
+```
