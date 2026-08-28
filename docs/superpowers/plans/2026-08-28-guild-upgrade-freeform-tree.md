@@ -437,6 +437,7 @@ git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github
 
 **Files:**
 - Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayout.java`
+- Modify: `guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java`
 - Test: `guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java`
 
 **Interfaces:**
@@ -461,6 +462,6 @@ Run: `./gradlew :guilds-paper:test --tests "org.aincraft.guilds.gui.GuildUpgrade
 Expected: PASS when credentials/toolchain are available; otherwise record the exact blocker.
 
 ```bash
-git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayout.java guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java
+git add guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayout.java guilds-paper/src/main/java/org/aincraft/guilds/gui/GuildUpgradeScreen.java guilds-paper/src/test/java/org/aincraft/guilds/gui/GuildUpgradeGraphLayoutTest.java
 git -c user.name="mintychochip" -c user.email="mintychochip@users.noreply.github.com" commit -m "fix: constrain dynamic layout bounds and reserve Hearth shape"
 ```
