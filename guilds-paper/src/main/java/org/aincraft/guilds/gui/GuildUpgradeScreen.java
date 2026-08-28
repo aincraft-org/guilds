@@ -732,6 +732,10 @@ public final class GuildUpgradeScreen extends Screen {
         }
         GuildUpgradeGraphLayout.LayoutNode layoutNode = layoutNodes == null
                 ? null : layoutNodes.get(selectedNode.getId());
+        if (layoutNode != null
+                && layoutNode.shape() == GuildUpgradeGraphLayout.ShapeType.INVALID) {
+            return;
+        }
         if (layoutNode != null && isUnlocked(layoutNode)) {
             return;
         }
