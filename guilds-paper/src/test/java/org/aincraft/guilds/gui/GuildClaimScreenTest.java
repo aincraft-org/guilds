@@ -1,6 +1,7 @@
 package org.aincraft.guilds.gui;
 
 import de.flog99.mapgui.Session;
+import de.flog99.mapgui.ui.AwtFont;
 import org.aincraft.guilds.map.ClaimLayer;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.PermissionService;
@@ -94,6 +95,14 @@ class GuildClaimScreenTest {
         GuildClaimScreen screen = new GuildClaimScreen("Alpha", guilds, plots, permissions, 1);
 
         assertEquals(HandOptions.popup(), screen.hand());
+    }
+
+    @Test
+    void mapUsesSlightlyLargerReadableFont() {
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), mock(PlotService.class), mock(PermissionService.class), 1);
+
+        assertEquals(9, ((AwtFont) screen.font()).awt().getSize());
     }
 
     @Test

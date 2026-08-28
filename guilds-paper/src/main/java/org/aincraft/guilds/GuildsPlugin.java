@@ -46,6 +46,7 @@ import org.aincraft.guilds.territory.upkeep.UpkeepEngine;
 import org.aincraft.guilds.territory.standing.HarvestBonusListener;
 import org.aincraft.guilds.territory.standing.StandingListener;
 import org.aincraft.guilds.territory.squaremap.TerritorySquaremapBridge;
+import org.aincraft.guilds.territory.worldguard.TerritoryWorldGuardBridge;
 import org.aincraft.guilds.territory.web.TerritoryWebServer;
 import org.aincraft.guilds.territory.web.WebConfig;
 import org.aincraft.guilds.territory.web.WebConfigLoader;
@@ -62,6 +63,7 @@ import dev.mintychochip.mint.api.id.CurrencyId;
 import org.aincraft.guilds.territory.economy.MintEconomyRail;
 import org.aincraft.guilds.territory.economy.MintGuildTaxSettlement;
 import org.aincraft.guilds.services.MintGuildBankService;
+import org.aincraft.guilds.placeholder.GuildsPlaceholderExpansion;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -115,12 +117,14 @@ public final class GuildsPlugin extends JavaPlugin {
     private InfluenceEngine influenceEngine;
     private PostgresInfluenceStore influenceStore;
     private TerritorySquaremapBridge squaremapBridge;
+    private TerritoryWorldGuardBridge worldGuardBridge;
     private org.aincraft.guilds.territory.squaremap.GuildClaimSquaremapBridge guildClaimBridge;
     private PostgresStandingStore standingStore;
     private StandingEngine standingEngine;
     private BukkitTask influenceStatusTask;
     private org.aincraft.guilds.territory.invasion.InvasionRuntime invasionRuntime;
     private BukkitTask invasionBossBarTask;
+    private GuildsPlaceholderExpansion placeholderExpansion;
 
     @Override
     public void onEnable() {
@@ -257,6 +261,20 @@ public final class GuildsPlugin extends JavaPlugin {
             getLogger().warning("squaremap API classes not on classpath; territory map layers disabled");
         }
 
+        // WorldGuard integration: mirror territory boundaries into real WorldGuard
+        // regions (informational only -- Guilds' own governance-aware BlockProtection
+        // remains the sole enforcer of build/PvP rules). Self-degrading when
+        // WorldGuard is absent; must start after registry load.
+        try {
+            this.worldGuardBridge = new TerritoryWorldGuardBridge(
+                    this,
+                    registry,
+                    () -> Optional.ofNullable(this.guilds).map(GuildsServices::getGuildService));
+            this.worldGuardBridge.start();
+        } catch (NoClassDefFoundError e) {
+            getLogger().warning("WorldGuard API classes not on classpath; territory region mirroring disabled");
+        }
+
         // Standing engine (constructed before influence so the influence hook
         // can read development tiers; listeners + flush timer wired in Task 6).
         StandingConfig standingConfig = StandingConfigLoader.load(
@@ -344,6 +362,7 @@ public final class GuildsPlugin extends JavaPlugin {
 
         startWebIfEnabled();
         enableGuildsSubsystem();
+        registerPlaceholderExpansion();
         // Guild claims squaremap layer — renders guild_blocks chunks as merged outlines.
         try {
             this.guildClaimBridge = new org.aincraft.guilds.territory.squaremap.GuildClaimSquaremapBridge(
@@ -391,6 +410,7 @@ public final class GuildsPlugin extends JavaPlugin {
             invasionRuntime.disable(System.currentTimeMillis());
             invasionRuntime = null;
         }
+        unregisterPlaceholderExpansion();
         disableGuildsSubsystem();
         if (expenseStore != null && expenseLedger != null && expenseLedgerLoaded) {
             try {
@@ -576,6 +596,10 @@ public final class GuildsPlugin extends JavaPlugin {
             guildClaimBridge.stop();
             guildClaimBridge = null;
         }
+        if (worldGuardBridge != null) {
+            worldGuardBridge.stop();
+            worldGuardBridge = null;
+        }
     }
 
     /**
@@ -620,6 +644,33 @@ public final class GuildsPlugin extends JavaPlugin {
                 getLogger().log(Level.SEVERE, "Failed to stop guilds subsystem", e);
             }
             guilds = null;
+        }
+    }
+
+    private void registerPlaceholderExpansion() {
+        if (guilds == null || !guilds.isEnabled()) {
+            return;
+        }
+        if (!Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            getLogger().info("PlaceholderAPI not found; Guilds placeholders disabled");
+            return;
+        }
+
+        GuildsPlaceholderExpansion expansion = new GuildsPlaceholderExpansion(
+                this, guilds.getGuildService(), guilds.getResidentService());
+        if (expansion.register()) {
+            this.placeholderExpansion = expansion;
+            getLogger().info("Registered PlaceholderAPI expansion (guilds)");
+        } else {
+            getLogger().warning("Could not register PlaceholderAPI expansion (guilds)");
+        }
+    }
+
+    private void unregisterPlaceholderExpansion() {
+        GuildsPlaceholderExpansion expansion = this.placeholderExpansion;
+        this.placeholderExpansion = null;
+        if (expansion != null && Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) {
+            expansion.unregister();
         }
     }
 

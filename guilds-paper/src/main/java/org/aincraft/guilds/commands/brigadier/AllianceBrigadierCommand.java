@@ -17,6 +17,7 @@ import org.aincraft.guilds.GuildsGovernanceSource;
 import org.aincraft.guilds.alliances.AllianceProposal;
 import org.aincraft.guilds.alliances.AllianceProposalStore;
 import org.aincraft.guilds.commands.arguments.GovernmentFormArgumentType;
+import org.aincraft.guilds.commands.arguments.ResidentArgumentType;
 import org.aincraft.guilds.models.Alliance;
 import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.models.Guild;
@@ -131,7 +132,7 @@ public class AllianceBrigadierCommand {
                                 .executes(this::handleKick)))
                 .then(Commands.literal("set")
                         .then(Commands.literal("king")
-                                .then(Commands.argument("player", StringArgumentType.string())
+                                .then(Commands.argument("player", ResidentArgumentType.resident(residentService))
                                         .executes(this::handleSetKing)))
                         .then(Commands.literal("tax")
                                 .then(Commands.argument("rate", DoubleArgumentType.doubleArg(0.0, 100.0))
@@ -141,10 +142,10 @@ public class AllianceBrigadierCommand {
                                         .executes(this::handleSetOpen))))
                 .then(Commands.literal("minister")
                         .then(Commands.literal("add")
-                                .then(Commands.argument("player", StringArgumentType.string())
+                                .then(Commands.argument("player", ResidentArgumentType.resident(residentService))
                                         .executes(this::handleMinisterAdd)))
                         .then(Commands.literal("remove")
-                                .then(Commands.argument("player", StringArgumentType.string())
+                                .then(Commands.argument("player", ResidentArgumentType.resident(residentService))
                                         .executes(this::handleMinisterRemove))))
                 .then(Commands.literal("government")
                         .then(Commands.argument("form", GovernmentFormArgumentType.form())
@@ -161,6 +162,27 @@ public class AllianceBrigadierCommand {
             return null;
         }
         return player;
+    }
+
+    /**
+     * Resolve a named resident from the persistent Guilds database.
+     *
+     * <p>Player objects are only available while a player is online. Identity
+     * and membership operations must therefore resolve the UUID from the
+     * resident store, then optionally notify an online player.</p>
+     */
+    private Optional<Resident> resolveResident(String name) {
+        if (name == null || name.isBlank()) {
+            return Optional.empty();
+        }
+        Optional<Resident> exact = residentService.getResident(name);
+        if (exact.isPresent()) {
+            return exact;
+        }
+        return residentService.searchResidents(name, 50).stream()
+                .filter(resident -> resident.getName() != null
+                        && resident.getName().equalsIgnoreCase(name))
+                .findFirst();
     }
 
     private Optional<Guild> getPlayerGuild(Player player) {
@@ -619,15 +641,19 @@ public class AllianceBrigadierCommand {
             return 0;
         }
 
-        Player target = plugin.getServer().getPlayer(targetName);
-        if (target == null) {
+        Resident targetResident = resolveResident(targetName).orElse(null);
+        if (targetResident == null || targetResident.getUuid() == null) {
             player.sendMessage(Component.text("Player not found: " + targetName, NamedTextColor.RED));
             return 0;
         }
 
-        allianceService.setKing(allianceOpt.get(), target.getUniqueId());
+        UUID targetUuid = targetResident.getUuid();
+        allianceService.setKing(allianceOpt.get(), targetUuid);
         player.sendMessage(Component.text("Kingship transferred to " + targetName + "!", NamedTextColor.GREEN));
-        target.sendMessage(Component.text("You are now the king of " + allianceOpt.get().getName() + "!", NamedTextColor.GOLD));
+        Player target = plugin.getServer().getPlayer(targetUuid);
+        if (target != null && target.isOnline()) {
+            target.sendMessage(Component.text("You are now the king of " + allianceOpt.get().getName() + "!", NamedTextColor.GOLD));
+        }
         return Command.SINGLE_SUCCESS;
     }
 
@@ -677,16 +703,20 @@ public class AllianceBrigadierCommand {
             return 0;
         }
 
-        Player target = plugin.getServer().getPlayer(targetName);
-        if (target == null) {
+        Resident targetResident = resolveResident(targetName).orElse(null);
+        if (targetResident == null || targetResident.getUuid() == null) {
             player.sendMessage(Component.text("Player not found: " + targetName, NamedTextColor.RED));
             return 0;
         }
 
-        allianceOpt.get().addMinister(target.getUniqueId());
-        allianceService.addMinister(allianceOpt.get(), target.getUniqueId());
+        UUID targetUuid = targetResident.getUuid();
+        allianceOpt.get().addMinister(targetUuid);
+        allianceService.addMinister(allianceOpt.get(), targetUuid);
         player.sendMessage(Component.text(targetName + " has been promoted to minister.", NamedTextColor.GREEN));
-        target.sendMessage(Component.text("You are now a minister of " + allianceOpt.get().getName() + "!", NamedTextColor.GOLD));
+        Player target = plugin.getServer().getPlayer(targetUuid);
+        if (target != null && target.isOnline()) {
+            target.sendMessage(Component.text("You are now a minister of " + allianceOpt.get().getName() + "!", NamedTextColor.GOLD));
+        }
         return Command.SINGLE_SUCCESS;
     }
 
@@ -702,16 +732,20 @@ public class AllianceBrigadierCommand {
             return 0;
         }
 
-        Player target = plugin.getServer().getPlayer(targetName);
-        if (target == null) {
+        Resident targetResident = resolveResident(targetName).orElse(null);
+        if (targetResident == null || targetResident.getUuid() == null) {
             player.sendMessage(Component.text("Player not found: " + targetName, NamedTextColor.RED));
             return 0;
         }
 
-        allianceOpt.get().removeMinister(target.getUniqueId());
-        allianceService.removeMinister(allianceOpt.get(), target.getUniqueId());
+        UUID targetUuid = targetResident.getUuid();
+        allianceOpt.get().removeMinister(targetUuid);
+        allianceService.removeMinister(allianceOpt.get(), targetUuid);
         player.sendMessage(Component.text(targetName + " has been removed from ministers.", NamedTextColor.YELLOW));
-        target.sendMessage(Component.text("You are no longer a minister of " + allianceOpt.get().getName() + ".", NamedTextColor.YELLOW));
+        Player target = plugin.getServer().getPlayer(targetUuid);
+        if (target != null && target.isOnline()) {
+            target.sendMessage(Component.text("You are no longer a minister of " + allianceOpt.get().getName() + ".", NamedTextColor.YELLOW));
+        }
         return Command.SINGLE_SUCCESS;
     }
 

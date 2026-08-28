@@ -12,6 +12,7 @@ import de.flog99.mapgui.ui.PaintContext;
 import de.flog99.mapgui.ui.Painter;
 import de.flog99.mapgui.ui.Rect;
 import de.flog99.mapgui.ui.Ui;
+import de.flog99.mapgui.ui.TextFont;
 import net.kyori.adventure.text.Component;
 import org.aincraft.guilds.map.ClaimLayer;
 import org.aincraft.guilds.services.GuildService;
@@ -32,11 +33,13 @@ public final class GuildClaimScreen extends Screen {
     private static final Color OTHER_GUILD = new Color(212, 168, 40);
     private static final Color CENTER = new Color(230, 255, 230);
     private static final double TINT = 0.55;
+    /** Slightly larger humanist map font for readable legend and feedback text. */
+    private static final TextFont FONT = AwtFont.named("Carlito", Font.PLAIN, 9, false);
 
-    private static final AwtFont COMPASS_FONT = AwtFont.named("SansSerif", Font.BOLD, 8, false);
+    private static final AwtFont COMPASS_FONT = AwtFont.named("SansSerif", Font.BOLD, 9, false);
     private static final String[] COMPASS_DIRS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
-    private static final AwtFont CARDINAL_FONT = AwtFont.named("SansSerif", Font.BOLD, 6, false);
+    private static final AwtFont CARDINAL_FONT = AwtFont.named("SansSerif", Font.BOLD, 7, false);
     private static final String[] CARDINALS = {"N", "E", "S", "W"};
 
     private static final int COMPASS_RADIUS = 19;
@@ -104,6 +107,11 @@ public final class GuildClaimScreen extends Screen {
     @Override
     public Component title() {
         return Component.text("Guilds Map");
+    }
+
+    @Override
+    public TextFont font() {
+        return FONT;
     }
 
     @Override

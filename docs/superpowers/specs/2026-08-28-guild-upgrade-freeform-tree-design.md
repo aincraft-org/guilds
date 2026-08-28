@@ -1,4 +1,4 @@
-# Guild Upgrade Freeform Tech Web Design
+# Guild Upgrade Freeform Radial Tech Web Design
 
 **Date:** 2026-08-28
 **Status:** Draft for review
@@ -8,152 +8,84 @@
 
 ## 1. Summary
 
-Replace the rigid 4-column lane grid layout in the `/g upgrade` **MapGUI 2.0.0** screen with an organic, freeform **Minecraft Lodestone Ley-Line Tech Web**. The entire progression system is rendered as a single continuous, interconnected graph originating from a central **Guild Hearth** root node. Sector branches are distinguished strictly by **distinct pixel geometric node shapes** (Infrastructure: Hexagon, Defense: Shield, Commerce: Coin, Culture: Diamond) connected by flowy, stepped raster Bezier splines and live traveling energy sparks. All elements, including the top bar, graph canvas, bottom legend, and detail inspection, operate strictly within a native $128 \times 128$ pixel MapGUI viewport.
+Replace the downward-flowing grid in `/g upgrade` with a **$360^\circ$ Organic Radial Minecraft Ley-Line Web** on a native $128 \times 128$ MapGUI canvas. The entire tech tree is one interconnected constellation expanding outward in all directions from a central **Guild Hearth** lodestone anchor at $(X: 64, Y: 64)$. Sector disciplines are distinguished strictly by **pixel geometric node shapes** (Infrastructure: Hexagon, Defense: Shield, Commerce: Coin, Culture: Diamond) connected by curved stepped splines and live energy sparks. The bottom legend and top-right upgrade button are removed so the full $128 \times 128$ viewport is dedicated entirely to the expansive web.
 
 ---
 
 ## 2. Intent & Goals
 
-1. **Minecraft Fantasy & Theme:** Ground the upgrade screen in Minecraft lore as an enchanted guild cartography chart showing the ancient ley-line conduits flowing from the guild's central lodestone hearth.
-2. **Single Interconnected Graph:** Unify all 16 progression perks into one cohesive web rather than 4 isolated columns or separate sector buckets.
-3. **Geometry-Based Sector Identification:** Encode disciplines by distinct geometric pixel shapes rather than artificial sector borders or headers.
-4. **Strict 128x128 Native Resolution:** Deliver crisp, pixel-perfect rendering on Minecraft maps with $10\times10\text{px}$ generous click hitboxes and paginated in-map node inspection.
+1. **True Radial Web Layout:** Radiate all 16 tech perks outward from the central Guild Hearth $(X: 64, Y: 64)$ across 3 concentric rings ($360^\circ$ layout) instead of a top-to-bottom waterfall.
+2. **Dedicated Full-Canvas Surface:** Eliminate external and in-frame bottom status bars and button clutter; use a minimal single-line top header (`VALHALLA • LVL 3 • 4 TP`).
+3. **Geometry-Based Sector Identity:** Differentiate disciplines purely through crisp pixel geometries:
+   - ⬡ **Hexagon:** `INFRASTRUCTURE`
+   - 🛡 **Shield:** `DEFENSE`
+   - 🪙 **Coin:** `COMMERCE`
+   - ✦ **Diamond:** `CULTURE`
+4. **Self-Contained In-Map Modal:** Clicking any node brings up an in-map slate overlay ($X: 10..118, Y: 14..114$) with lore, prerequisites checklist, cost, and action button.
 
 ---
 
 ## 3. Scope
 
 ### In Scope
-- **Graph Topology:** Introduce a root `guild_hearth` lodestone anchor node at $(X: 64, Y: 22)$ that branches into the 4 foundational perks (`better_storage`, `reinforced_walls`, `market_stall`, `heritage_monument`), forming a single connected DAG of 17 total nodes.
-- **Node Geometry & Renderers:** Implement 4 custom pixel-art shape rasterizers in `GuildUpgradeGraphLayout` / `GuildUpgradeScreen`:
-  - ⬡ **Hexagon ($7\times7\text{px}$):** `INFRASTRUCTURE`
-  - 🛡 **Shield ($7\times8\text{px}$):** `DEFENSE`
-  - 🪙 **Octagonal Coin ($7\times7\text{px}$):** `COMMERCE`
-  - ✦ **Diamond ($9\times9\text{px}$):** `CULTURE`
-- **Stepped Raster Splines:** Draw organic, curved Bezier splines using stepped Bresenham rasterization with traveling pixel energy sparks along active/frontier research lines.
-- **128x128 Layout & Hitboxes:** Position all 17 nodes within bounds $[10..118] \times [20..108]$ with $10\times10\text{px}$ hitboxes for responsive cursor hover and clicks.
-- **In-Map Node Inspection:** Sub-screen transition / modal overlay rendering full node details, prerequisite checks, cost, and interactive action buttons (`[START RESEARCH]`, `[CLEAR ACTIVE]`, `[BACK]`).
+- **Radial Graph Topology:** 1 Central Hearth Root $(64, 64)$ + 16 Tech Nodes forming a single connected $360^\circ$ DAG.
+  - **Inner Ring (Layer 1):** Foundational perks at NW $(42, 44)$, NE $(86, 44)$, SW $(42, 84)$, SE $(86, 84)$.
+  - **Mid Ring (Layer 2):** Expanding branch perks along the perimeter.
+  - **Outer Apexes (Layer 3):** High-tier masteries at the canvas extremities: W $(10, 64)$, E $(118, 64)$, SW $(50, 114)$, SE $(78, 114)$.
+- **Stepped Radial Splines:** Rasterized cubic Bezier curves with organic tangent curvature bending around the center, featuring traveling energy spark particles.
+- **In-Map Modal Overlay:** $108 \times 100\text{px}$ in-map slate overlay for inspecting node lore and toggling active research.
+- **Click Hitboxes:** $\pm 6\text{px}$ generous hitboxes around each node for effortless map cursor interaction.
 
 ### Out of Scope
-- Modifying underlying SQL database schemas or database tables.
-- Changes to `techtree.yml` cost and reward formulas.
-- Modifying `GuildLevelService.performGuildUpgrade` logic or level reward progression.
+- Modifying SQL persistence schema or table definitions.
+- Changing `techtree.yml` point costs or reward effects.
+- Modifying `GuildLevelService` core upgrade calculations.
 
 ---
 
-## 4. Architecture & Topology
-
-### Graph Nodes Mapping
-The tech tree consists of 1 Central Root + 16 Tech Nodes = 17 Nodes mapped across the $128\times128$ pixel grid:
+## 4. Radial Coordinates & Topology
 
 ```text
-===================================================================
-[Y: 0..13]   VALHALLA Lv.3 • 4 TP                         [UPGRADE]
-===================================================================
-                           [ ⚔ GUILD HEARTH ] (X:64, Y:22)
-                           /    /     \    \
-                         /     /       \     \
-             [⬡ Storage]     /           \     [🛡 Walls]
-             (X:42, Y:38)   /             \   (X:86, Y:38)
-                  |     [🪙 Market]   [✦ Heritage]    |
-                  |     (X:52, Y:54)  (X:76, Y:54)    |
-             [⬡ Travel]      |              |     [🛡 Healing]
-            (X:30, Y:56)  [🪙 Bulk]    [✦ Library](X:98, Y:56)
-             /        \   (X:38, Y:72) (X:90, Y:72)   /        \
-   [⬡ Farming]   [⬡ Sorter]  |              |   [🛡 Towers] [🛡 Turret]
-   (X:18, Y:46) (X:14, Y:72) [🪙 Caravan] [✦ Festival] (X:110, Y:46)(X:114, Y:72)
-                             (X:46, Y:90) (X:82, Y:90)
-                                 |              |
-                          [🪙 Trade Empire]  [✦ Nexus]
-                          (X:40, Y:104)      (X:88, Y:104)
-===================================================================
-[Y:115..127]  ⬡:INF   🛡:DEF   🪙:COM   ✦:CUL  | Fast Travel [READY]
-===================================================================
++-------------------------------------------------------------+
+| VALHALLA • LVL 3 • 4 TP                        [Y: 0..11]   |
++-------------------------------------------------------------+
+|               [⬡ Travel]         [🛡 Towers]                |
+|                (26, 32)           (102, 32)                 |
+|                                                             |
+|   [⬡ Farming]    [⬡ Storage]   [🛡 Walls]    [🛡 Healing]    |
+|    (22, 52)       (42, 44)       (86, 44)      (106, 52)    |
+|            \          \           /          /              |
+| [⬡ Sorter]  -------- [ ⚔ HEARTH ] -------- [🛡 Turret]     |
+|  (10, 64)             (64, 64)               (118, 64)      |
+|            /          /           \          \              |
+|   [🪙 Bulk]      [🪙 Market]   [✦ Heritage]  [✦ Library]    |
+|    (22, 76)       (42, 84)       (86, 84)      (106, 76)    |
+|                                                             |
+|               [🪙 Caravan]       [✦ Festival]               |
+|                (30, 100)          (98, 100)                 |
+|                                                             |
+|           [🪙 Trade Empire]     [✦ Nexus]                   |
+|              (50, 114)          (78, 114)                   |
++-------------------------------------------------------------+
 ```
 
 ---
 
-## 5. Visual Specifications
-
-### Colors & States
+## 5. Visual Specifications & Progression States
 
 | State | Fill Color | Border Color | Spline Path Style |
 | :--- | :--- | :--- | :--- |
+| **Guild Hearth (Core)** | `#451a03` (Deep Amber) | `#fbbf24` (Gold) + White Spark | Radiating Anchor |
 | **Mastered / Unlocked** | `#143820` (Dark Emerald) | `#22c55e` (Bright Emerald) | Solid Green Line (`#22c55e`) |
 | **Active Research** | `#381f08` (Dark Amber) | `#f59e0b` (Bright Amber) + Pulsing Ring | Dashed Amber Line (`#f59e0b`) + White Sparks |
-| **Available to Unlock** | `#0d1829` (Deep Navy) | Branch Accent Color | Dashed Amber Line (`#f59e0b`) |
-| **Locked** | `#0d1017` (Dark Slate) | `#3e4659` (Muted Slate) | Dim Slate Line (`#2c3242`) |
-
-### Branch Accent Colors
-- **Infrastructure (⬡):** Cyan `#38bdf8`
-- **Defense (🛡):** Rose `#f43f5e`
-- **Commerce (🪙):** Amber `#f59e0b`
-- **Culture (✦):** Violet `#c084fc`
-- **Guild Hearth (⚔):** Gold `#fbbf24`
+| **Available to Unlock** | `#0d1829` (Deep Navy) | Branch Color (Cyan/Rose/Amber/Violet) | Dashed Amber Line (`#f59e0b`) |
+| **Locked** | `#0d1017` (Dark Slate) | `#3a4254` (Muted Slate) | Dim Slate Line (`#252a38`) |
 
 ---
 
-## 6. Interaction Flow & Hitbox Handling
+## 6. Testing & Verification
 
-1. **Canvas Coordinate Translation:**
-   $$\text{Map } X = \text{round}\left(\frac{\text{screen } x - \text{rect.left}}{\text{rect.width}} \times 128\right)$$
-   $$\text{Map } Y = \text{round}\left(\frac{\text{screen } y - \text{rect.top}}{\text{rect.height}} \times 128\right)$$
-2. **Generous Hitbox Resolution:**
-   Each node has an effective hit region of $\pm 5\text{px}$ ($\text{width} = 11\text{px}, \text{height} = 11\text{px}$), allowing players using Minecraft map cursors to easily select small pixel nodes without precision frustration.
-3. **Detail View Modal Sub-Screen:**
-   - Clicking a node opens an in-map sub-screen overlay ($X: 10..118, Y: 18..110$).
-   - Shows: Node Badge, Discipline Name, Lore (line-wrapped at 20 chars), Effect Bonus, Prerequisite Checklist (`[OK]` / `[NO]`), and Action Button.
-   - Action Button dynamically displays: `[MASTERED]` (disabled), `[START (N TP)]` (active amber), `[NEED N TP]` (disabled gray), or `[CLEAR ACTIVE]` (red).
-   - Pressing `[X]` or clicking outside returns to the main tech web.
-
----
-
-## 7. Data Flow & Service Integration
-
-```text
-Player executes /g upgrade
-       |
-       v
-GuildUpgradeScreen (MapGUI 2.0.0)
-       |
-       +---> TechTreeService.getAllNodes() (Load 16 nodes from techtree.yml)
-       +---> GuildProjectService.getActiveProjectId(guild)
-       +---> GuildLevelService.getGuildLevel() / getMaxLevel()
-       |
-       +---> Screen.paint() (Pure raster render onto 128x128 map buffer)
-       |
-       v
-Click Node / Upgrade Action
-       |
-       +---> GuildProjectService.startProject(guild, nodeId) / clearActiveProject()
-       +---> GuildLevelService.performGuildUpgrade(guild)
-       |
-       v
-Re-fetch Snapshot & Repaint Canvas
-```
-
----
-
-## 8. Testing & Verification Plan
-
-### Unit Tests
-- **Geometry Coordinates & Bounds:** Assert that all 17 nodes reside strictly within $[10..118] \times [20..108]$ and have no overlapping hitboxes.
-- **DAG Connectivity:** Test that from `guild_hearth`, traversing effective prerequisites visits all 16 configured nodes (0 disconnected components).
-- **Stepped Bezier Rasterizer:** Verify that rasterized spline steps remain within $[0..127]$ without buffer index overflow.
-
-### Integration & Manual Verification
-- Verify `/g upgrade` opens the 128x128 MapGUI within $<1\text{s}$.
-- Verify clicking yellow available node starts project and triggers active pulsing ring with traveling sparks.
-- Verify clicking active node allows clearing.
-- Verify green `[UPGRADE]` button performs guild level promotion and updates available TP.
-
----
-
-## 9. Decisions & Trade-Offs
-
-| Decision | Alternative Considered | Why Chosen |
-| :--- | :--- | :--- |
-| **Central Guild Hearth Root Node** | 4 Disconnected Chains | Unifies the whole tree into one continuous, connected graph rooted in Minecraft guild identity |
-| **Geometric Pixel Shapes** | Text Labels / Sector Boxes | Keeps the $128\times128$ map uncluttered while providing distinct, accessible discipline cues |
-| **In-Map Modal Overlay** | External Chest Inventory GUI | Keeps the entire experience within MapGUI without breaking immersion |
-| **Stepped Raster Splines** | Straight Orthogonal Lines | Provides an organic, fluid ley-line visual feel matching the freeform layout |
+1. **Bounds Verification:** Assert all 17 nodes reside within $[10..118] \times [22..114]$ with no hitbox collisions.
+2. **DAG Connectivity:** Assert 100% reachability from `guild_hearth` across all 16 tech nodes.
+3. **Modal Hit-Test Verification:** Verify boundary click handling on modal close $[106..115] \times [18..26]$ and action button $[14..114] \times [98..110]$.
+4. **Performance:** Ensure pure raster rendering in `Screen.paint()` with zero main-thread database blocking.

@@ -1,7 +1,7 @@
 # Guilds — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-26  
+> Last updated: 2026-08-27
 > Related: archived docs under `docs/archived-guilds/docs/`;  
 > `docs/superpowers/specs/2026-08-07-guild-contracts-design.md`
 
@@ -51,6 +51,11 @@ contracts are durable and transactional where money/items move.
    without affordability.
 7. No Bukkit types in pure territory `guilds-api`/`guilds-common`; guilds code lives under
    `guilds-paper/.../org.aincraft.guilds` and may use Paper APIs.
+8. Player identity and membership lookups use persisted UUID/resident records;
+   Bukkit live-player objects are only required for delivery or physical
+   interactions.
+9. Offline residents must remain eligible for data-only operations such as
+   role, alliance, and bank-account checks.
 
 ## Implementation guidance
 
@@ -96,6 +101,7 @@ contracts are durable and transactional where money/items move.
 - [x] Tech tree projects (one active at a time) / specialization / quest services
 - [x] Guild contracts service + migration (`GuildContractService`)
 - [x] Integrated enable path from `GuildsPlugin`
+- [x] Offline resident name resolution uses the persistent resident store
 
 ### Open on the current surface
 

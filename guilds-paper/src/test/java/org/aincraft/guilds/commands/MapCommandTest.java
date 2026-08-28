@@ -49,8 +49,11 @@ class MapCommandTest {
         assertTrue(pluginYml.contains("depend: [MapGUI]"));
         assertFalse(pluginYml.contains("softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap, MapGUI]"));
         assertFalse(pluginYml.contains("WorldEdit"));
-        assertFalse(pluginYml.contains("WorldGuard"));
         assertFalse(pluginYml.contains("triumph-gui"));
+        // WorldGuard is a deliberate, current softdepend (TerritoryWorldGuardBridge
+        // mirrors territories into real WG regions) — unlike WorldEdit/triumph-gui,
+        // it must stay.
+        assertTrue(pluginYml.contains("softdepend: [squaremap, WorldGuard, Mint]"));
         assertTrue(mapCommand.contains("MapGui.get()"));
         assertTrue(mapCommand.contains("GuildClaimScreen"));
         assertFalse(mapCommand.contains("MapFollowTask"));

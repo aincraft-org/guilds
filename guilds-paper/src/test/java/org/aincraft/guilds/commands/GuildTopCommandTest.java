@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class GuildTopCommandTest {
 
@@ -31,6 +32,19 @@ class GuildTopCommandTest {
         assertTrue(command.contains("TopRankings.alliancesByGuildCount"));
     }
 
+
+    @Test
+    void topPopulationAndLandHandlersAreImplemented() {
+        String guildCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
+        String guildsGeneral = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildsGeneralBrigadierCommand.java");
+
+        for (String command : new String[]{guildCommand, guildsGeneral}) {
+            assertFalse(command.contains("not yet implemented"));
+            assertTrue(command.contains("getGuildsByPopulation()"));
+            assertTrue(command.contains("TopRankings.guildsByResidentCount"));
+            assertTrue(command.contains("TopRankings.guildsByLandCount"));
+        }
+    }
     private static String read(String file) {
         try {
             Path cwd = Path.of(System.getProperty("user.dir"));

@@ -3,6 +3,7 @@ plugins {
 }
 
 description = "Guilds local test server — run-paper harness that boots Paper with the guilds shadow jar as the test plugin"
+val placeholderApiVersion = rootProject.property("placeholderApiVersion").toString()
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.2.build.111-stable")
@@ -64,7 +65,7 @@ val writeMintConfigs = tasks.register("writeMintConfigs") {
               policies: []
             database:
               enabled: true
-              jdbc-url: jdbc:postgresql://localhost:5432/mint
+              jdbc-url: jdbc:mysql://localhost:3306/mint
               username: mint
               password: mint
               pool-size: 10
@@ -168,6 +169,12 @@ tasks.runServer {
         // MapGUI is a hard dependency of the Guilds plugin (plugin.yml `depend`).
         // run-paper downloads the release jar into run/plugins so the server boots.
         github("FloG99", "MapGUI", "v2.0.0", "MapGUI-2.0.0.jar")
+        github(
+            "PlaceholderAPI",
+            "PlaceholderAPI",
+            placeholderApiVersion,
+            "PlaceholderAPI-$placeholderApiVersion.jar",
+        )
     }
 }
 

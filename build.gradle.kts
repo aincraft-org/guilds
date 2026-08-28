@@ -98,10 +98,14 @@ subprojects {
             }
         }
         mavenCentral()
+        // PlaceholderAPI's provided API artifact (the server supplies the plugin).
+        maven("https://repo.extendedclip.com/releases/")
         maven("https://repo.papermc.io/repository/maven-releases/")
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://oss.sonatype.org/content/repositories/snapshots")
         maven("https://jitpack.io")
+        // WorldGuard (soft dependency; territory-to-region mirroring).
+        maven("https://maven.enginehub.org/repo/")
     }
 
     tasks.named<Test>("test") {

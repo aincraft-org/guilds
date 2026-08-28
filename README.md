@@ -163,6 +163,17 @@ Accept the EULA on first run (`guilds-test/run/eula.txt`). The plugin requires t
 shared PostgreSQL database (see "Persistence" below) — point `database.*` in
 `guilds-test/run/plugins/Guilds/config.yml` at a reachable instance.
 
+### Vercel React web frontend
+
+The optional React/Vite client under [`web/`](web/) provides the public Guilds
+landing page and a responsive territory editor. It talks to the Paper API
+through same-origin `/api/*` requests and a server-only Vercel proxy; the
+operator enters `web.api-token` only in the editor login form.
+
+See [`web/README.md`](web/README.md) for local development, Vercel project
+configuration, DNS, and production verification. The Paper-hosted static
+editor and API remain supported independently.
+
 ### Local pre-commit checks
 
 Install the repository-managed pre-commit hook once per clone:
@@ -193,6 +204,38 @@ do not overwrite the territory `config.yml`. The historical `guilds/` directory
 was fully merged into the root `src/` tree and removed; the archived MockBukkit
 test suite lives under `docs/archived-guilds-test/` and the historical Guilds
 docs/plans under `docs/archived-guilds/docs/` for reference.
+
+### PlaceholderAPI integration
+
+PlaceholderAPI is an optional dependency. When PlaceholderAPI is installed and
+enabled, Guilds registers the internal `guilds` expansion during startup; no
+separate expansion jar is required. Values are plain text so the chat plugin
+owning the format can apply its own colors and styling.
+
+Use these placeholders in a PlaceholderAPI-aware chat formatter:
+
+| Placeholder | Value |
+|---|---|
+| `%guilds_guild%` / `%guilds_guild_name%` | Player's guild name |
+| `%guilds_role%` / `%guilds_guild_role%` | `mayor`, `assistant`, `resident`, or `none` |
+| `%guilds_level%` / `%guilds_guild_level%` | Guild level |
+| `%guilds_balance%` / `%guilds_guild_balance%` | Guild SQL balance with two decimal places |
+| `%guilds_members%` / `%guilds_guild_members%` | Guild resident count |
+| `%guilds_open%` / `%guilds_guild_open%` | Whether the guild accepts residents |
+| `%guilds_in_guild%` / `%guilds_has_guild%` | `true` or `false` |
+| `%guilds_guild_id%` | Guild database id |
+| `%guilds_chat_prefix%` | `[GuildName]`, or empty when the player has no guild |
+
+Players without a guild receive empty text values, `none` for role, `0` for
+counts/level, `0.00` for balance, and `false` for boolean values. For example:
+
+```text
+%guilds_chat_prefix% &f%player_name%&7: &r%message%
+```
+
+The test server downloads PlaceholderAPI `2.12.3` automatically through
+`:guilds-test:runServer`. On another server, install the PlaceholderAPI plugin
+and restart Guilds before testing with `/papi parse <player> %guilds_guild%`.
 
 ### Guild progression
 

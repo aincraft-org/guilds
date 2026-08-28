@@ -150,33 +150,45 @@ public class GuildsGeneralBrigadierCommand {
 
     private int handleTopResidents(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
+        var ranked = TopRankings.guildsByResidentCount(guildService.getGuildsByPopulation());
+
+        if (ranked.isEmpty()) {
+            sender.sendMessage("§eNo guilds found yet.");
+            return Command.SINGLE_SUCCESS;
+        }
+
         sender.sendMessage("§e=== Top Residents ===");
-        sender.sendMessage("§7This command is not yet implemented. Resident rankings will be available in a future update.");
+        for (int i = 0; i < Math.min(ranked.size(), 10); i++) {
+            var ranking = ranked.get(i);
+            sender.sendMessage("§f" + (i + 1) + ". §a" + ranking.guild().getName()
+                    + " §7- §e" + ranking.value() + " residents");
+        }
+
+        if (ranked.size() > 10) {
+            sender.sendMessage("§7And " + (ranked.size() - 10) + " more guilds...");
+        }
+
         return Command.SINGLE_SUCCESS;
     }
 
     private int handleTopGuilds(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        var guilds = guildService.getAllGuilds();
+        var ranked = TopRankings.guildsByResidentCount(guildService.getAllGuilds());
 
-        if (guilds.isEmpty()) {
+        if (ranked.isEmpty()) {
             sender.sendMessage("§eNo guilds found yet.");
             return Command.SINGLE_SUCCESS;
         }
 
         sender.sendMessage("§e=== Top Guilds by Residents ===");
-
-        // Sort guilds by resident count
-        guilds.sort((a, b) -> Integer.compare(b.getResidentCount(), a.getResidentCount()));
-
-        for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
-            var guild = guilds.get(i);
-            int residentCount = guildService.getGuildResidentCount(guild.getName());
-            sender.sendMessage("§f" + (i + 1) + ". §a" + guild.getName() + " §7- §e" + residentCount + " residents");
+        for (int i = 0; i < Math.min(ranked.size(), 10); i++) {
+            var ranking = ranked.get(i);
+            sender.sendMessage("§f" + (i + 1) + ". §a" + ranking.guild().getName()
+                    + " §7- §e" + ranking.value() + " residents");
         }
 
-        if (guilds.size() > 10) {
-            sender.sendMessage("§7And " + (guilds.size() - 10) + " more guilds...");
+        if (ranked.size() > 10) {
+            sender.sendMessage("§7And " + (ranked.size() - 10) + " more guilds...");
         }
 
         return Command.SINGLE_SUCCESS;
@@ -184,23 +196,24 @@ public class GuildsGeneralBrigadierCommand {
 
     private int handleTopLand(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
-        var guilds = guildService.getAllGuilds();
+        var ranked = TopRankings.guildsByLandCount(
+                guildService.getAllGuilds(),
+                guild -> plotService.getGuildBlockCount(guild.getName()));
 
-        if (guilds.isEmpty()) {
+        if (ranked.isEmpty()) {
             sender.sendMessage("§eNo guilds found yet.");
             return Command.SINGLE_SUCCESS;
         }
 
         sender.sendMessage("§e=== Top Guilds by Land ===");
-
-        for (int i = 0; i < Math.min(guilds.size(), 10); i++) {
-            var guild = guilds.get(i);
-            int landCount = plotService.getGuildBlockCount(guild.getName());
-            sender.sendMessage("§f" + (i + 1) + ". §a" + guild.getName() + " §7- §e" + landCount + " chunks");
+        for (int i = 0; i < Math.min(ranked.size(), 10); i++) {
+            var ranking = ranked.get(i);
+            sender.sendMessage("§f" + (i + 1) + ". §a" + ranking.guild().getName()
+                    + " §7- §e" + ranking.value() + " chunks");
         }
 
-        if (guilds.size() > 10) {
-            sender.sendMessage("§7And " + (guilds.size() - 10) + " more guilds...");
+        if (ranked.size() > 10) {
+            sender.sendMessage("§7And " + (ranked.size() - 10) + " more guilds...");
         }
 
         return Command.SINGLE_SUCCESS;

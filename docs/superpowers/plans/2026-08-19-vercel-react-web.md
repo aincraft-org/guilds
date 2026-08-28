@@ -83,7 +83,7 @@ web/
 - Produces: route contract `/` → `HomePage`, `/editor` → lazy `EditorPage` placeholder until Task 5.
 - Consumes: no prior web interfaces.
 
-- [ ] **Step 1: Initialize the package manifest and lockfile**
+- [x] **Step 1: Initialize the package manifest and lockfile**
 
 Create `web/package.json` with scripts `dev`, `build`, `preview`, `test`, and `typecheck`. Pin React, React DOM, React Router, Leaflet, Vite, TypeScript, Vitest, jsdom, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, and required type packages. Run:
 
@@ -93,7 +93,7 @@ cd web && npm install
 
 Expected: `package-lock.json` is created and `npm audit` does not change the requested dependency graph.
 
-- [ ] **Step 2: Write failing landing and theme tests**
+- [x] **Step 2: Write failing landing and theme tests**
 
 In `HomePage.test.tsx`, render through a memory router and assert:
 
@@ -120,7 +120,7 @@ cd web && npm test -- --run src/pages/HomePage.test.tsx src/components/ThemeProv
 
 Expected: FAIL because the app and providers do not exist.
 
-- [ ] **Step 4: Implement the shell and landing page**
+- [x] **Step 4: Implement the shell and landing page**
 
 Implement `ThemeProvider` with a `'guilds-theme'` local-storage key used only for the theme. On first load, derive the theme from `matchMedia('(prefers-color-scheme: light)')`; apply `data-theme` to `document.documentElement`; expose `toggleTheme`.
 
@@ -144,7 +144,7 @@ Implement a `SiteHeader` with a Guilds home link, Editor link, theme button, and
 
 Define an equivalent accessible light theme. Use locally available/system fallback fonts rather than introducing a runtime font CDN dependency.
 
-- [ ] **Step 5: Run focused tests, typecheck, and production build**
+- [x] **Step 5: Run focused tests, typecheck, and production build**
 
 Run:
 
@@ -156,7 +156,7 @@ cd web && npm run build
 
 Expected: all tests PASS, TypeScript reports no errors, and Vite writes `web/dist/`.
 
-- [ ] **Step 6: Browser-check the index page**
+- [x] **Step 6: Browser-check the index page**
 
 Start `npm run dev -- --host 127.0.0.1` through the process supervisor. Open `/` at 1440×1000 and 390×844. Verify the content column, theme toggle, keyboard focus, real links, no horizontal overflow, and visual similarity to the restrained jobs reference.
 
@@ -185,7 +185,7 @@ git commit -m "feat: add Guilds React landing page"
 - Produces: catch-all Vercel route `/api/:path*` before SPA fallback.
 - Consumes: the backend API paths unchanged; server-only `GUILDS_API_ORIGIN`.
 
-- [ ] **Step 1: Write failing proxy security tests**
+- [x] **Step 1: Write failing proxy security tests**
 
 Use standard `Request` objects and mock `globalThis.fetch`. Cover:
 
@@ -214,7 +214,7 @@ cd web && npm test -- --run api/proxy.test.ts
 
 Expected: FAIL because proxy functions are undefined.
 
-- [ ] **Step 3: Implement the server-only proxy**
+- [x] **Step 3: Implement the server-only proxy**
 
 `normalizeUpstream` must reject credentials, query, and fragment, strip a trailing slash from the pathname, and never return the configured origin to clients.
 
@@ -229,7 +229,7 @@ Forward safe end-to-end headers and request body for non-GET/HEAD methods. Remov
 
 The Vercel handler adapts its request to `proxyRequest`. `vercel.json` routes `/api/(.*)` to the function first, static assets normally, then all remaining paths to `/index.html`.
 
-- [ ] **Step 4: Run proxy tests, typecheck, and build**
+- [x] **Step 4: Run proxy tests, typecheck, and build**
 
 Run:
 
@@ -241,7 +241,7 @@ cd web && npm run build
 
 Expected: PASS; the browser build contains no `GUILDS_API_ORIGIN` string value from test fixtures.
 
-- [ ] **Step 5: Inspect the generated bundle for secret channels**
+- [x] **Step 5: Inspect the generated bundle for secret channels**
 
 Run a repository search over `web/dist` for `GUILDS_API_ORIGIN`, `web.api-token`, `X-Api-Token`, and fixture token values. Expected: no embedded environment value or credential; endpoint copy may mention only the user-facing session flow.
 
@@ -272,7 +272,7 @@ git commit -m "feat: proxy Guilds API through Vercel"
 - Produces immutable functions `loadTerritories`, `markDirty`, `clearDirty`, `updateTerritory`, `updateZone`, `toggleChunk`, `addChunkRect`, `eraseChunk`, `removePolygonVertexNear`, `toApiDocument`, `hasGeometry`, `boundaryStats`, and `newTerritoryId`.
 - Produces geometry functions `blockToChunk`, `snapBlockToChunkCorner`, `bukkitToSquaremapWorld`, `toLeafletPoint`, and `fromLeafletPoint`.
 
-- [ ] **Step 1: Write failing API client tests**
+- [x] **Step 1: Write failing API client tests**
 
 Mock `fetch` and assert exact requests:
 
@@ -287,7 +287,7 @@ expect(fetch).toHaveBeenCalledWith('/api/session', expect.objectContaining({
 
 Assert every call is relative and credentialed, non-JSON error bodies become `ApiError`, and `401` retains `status === 401`. Assert the API module never accesses `localStorage` or `sessionStorage`.
 
-- [ ] **Step 2: Write failing model and geometry tests**
+- [x] **Step 2: Write failing model and geometry tests**
 
 Port observable invariants from the current `model.js` and `map.js`:
 
@@ -311,7 +311,7 @@ cd web && npm test -- --run src/editor/api.test.ts src/editor/model.test.ts src/
 
 Expected: FAIL because the editor modules do not exist.
 
-- [ ] **Step 4: Define exact API and editor types**
+- [x] **Step 4: Define exact API and editor types**
 
 Define:
 
@@ -343,7 +343,7 @@ export interface Selection { territoryId: string; zoneId?: string }
 
 Draft types add `dirty: boolean` only to territory drafts; `EditorState` contains `territories`, `dirtyIds: ReadonlySet<string>`, and `selection`.
 
-- [ ] **Step 5: Implement client, immutable model, and geometry helpers**
+- [x] **Step 5: Implement client, immutable model, and geometry helpers**
 
 Use a single internal `request<T>` that always sets `credentials: 'include'`, parses JSON or text safely, and throws `ApiError`. Login token exists only as the argument and serialized request body. Implement pure cloning/updating helpers; never mutate a previous state or caller-owned document.
 
@@ -355,7 +355,7 @@ export const toLeafletPoint = (x: number, z: number) => ({ lat: -z * SCALE, lng:
 export const fromLeafletPoint = (lat: number, lng: number) => ({ x: lng / SCALE, z: -lat / SCALE });
 ```
 
-- [ ] **Step 6: Run focused tests and typecheck**
+- [x] **Step 6: Run focused tests and typecheck**
 
 Run:
 
@@ -386,7 +386,7 @@ git commit -m "feat: add typed territory editor model"
 - `EditorController` exposes `status: 'loading' | 'login-required' | 'ready' | 'offline'`, `meta`, `state`, `selection`, `error`, `savingIds`, and actions `login`, `logout`, `retry`, `select`, `createTerritory`, `createZone`, `updateSelected`, `updateBoundary`, `save`, `removeSelected`.
 - Consumes: Task 3 API/model/types functions.
 
-- [ ] **Step 1: Write failing controller behavior tests**
+- [x] **Step 1: Write failing controller behavior tests**
 
 Use `renderHook` with a fake `GuildsApi`. Cover:
 
@@ -410,7 +410,7 @@ cd web && npm test -- --run src/editor/useEditorState.test.tsx
 
 Expected: FAIL because `useEditorState` does not exist.
 
-- [ ] **Step 3: Implement the controller state machine**
+- [x] **Step 3: Implement the controller state machine**
 
 Keep one reducer-controlled state so auth transitions do not discard drafts. Bootstrap order is `getMeta()` then `listTerritories()`. Treat only `ApiError(401)` as login-required; other failures become offline/error states. Save one territory document at a time and refresh the saved document from the returned response only when it has the expected shape; otherwise retain the draft and clear dirty after the confirmed 2xx.
 
@@ -428,7 +428,7 @@ const zone: ZoneDraft = {
 
 Block save when the selected territory boundary lacks geometry; expose a specific validation message instead of issuing a request.
 
-- [ ] **Step 4: Run focused tests and typecheck**
+- [x] **Step 4: Run focused tests and typecheck**
 
 Run:
 
@@ -465,7 +465,7 @@ git commit -m "feat: manage authenticated editor drafts"
 - Produces: `MapSurfaceProps { controller: EditorController; activeTool: EditorTool; onToolChange(tool): void }` seam.
 - Consumes: `useEditorState` and shared theme/header interfaces.
 
-- [ ] **Step 1: Write failing editor component tests**
+- [x] **Step 1: Write failing editor component tests**
 
 Render with a fake controller and assert:
 
@@ -488,7 +488,7 @@ cd web && npm test -- --run src/editor/EditorPage.test.tsx
 
 Expected: FAIL because components do not exist.
 
-- [ ] **Step 3: Implement accessible editor composition**
+- [x] **Step 3: Implement accessible editor composition**
 
 Compose the header, left tree, center map seam, toolbar, right inspector, banners, and dialogs. `LoginDialog` owns only a transient controlled `token` string:
 
@@ -505,11 +505,11 @@ Never pass the token to global state. Use buttons for all tools, visible focus r
 
 Use CSS grid columns `minmax(220px, 280px) minmax(0, 1fr) minmax(220px, 280px)`. Below 900px, panels become fixed drawers controlled by header buttons; the map remains full width. Respect `prefers-reduced-motion`.
 
-- [ ] **Step 4: Wire `/editor` in the route table**
+- [x] **Step 4: Wire `/editor` in the route table**
 
 Replace the placeholder with a lazy import of `EditorPage`. Keep `/` and a deterministic not-found route. Ensure refreshing `/editor` works with Vercel SPA routing from Task 2.
 
-- [ ] **Step 5: Run focused tests, typecheck, and build**
+- [x] **Step 5: Run focused tests, typecheck, and build**
 
 Run:
 
@@ -521,7 +521,7 @@ cd web && npm run build
 
 Expected: PASS.
 
-- [ ] **Step 6: Browser-check editor shell with controlled API routes**
+- [x] **Step 6: Browser-check editor shell with controlled API routes**
 
 Start Vite and use browser request interception for `/api/meta` and `/api/territories`. Verify desktop and mobile layouts, login rejection, token input clearing, drawers, focus order, dirty labels, confirmation dialog, and no browser storage values besides `guilds-theme`.
 
@@ -552,7 +552,7 @@ git commit -m "feat: add responsive territory editor UI"
 - Produces: `createMapController(element, options): MapController` with `setViewModel`, `setTool`, and `destroy` methods.
 - Consumes: Task 3 geometry/model helpers and Task 5 `MapSurfaceProps`.
 
-- [ ] **Step 1: Write failing map-controller tests**
+- [x] **Step 1: Write failing map-controller tests**
 
 Mock Leaflet factory methods and test lifecycle and behavior, not pixel output:
 
@@ -576,7 +576,7 @@ cd web && npm test -- --run src/editor/mapController.test.ts src/editor/EditorMa
 
 Expected: FAIL because map components do not exist.
 
-- [ ] **Step 3: Implement the imperative Leaflet controller**
+- [x] **Step 3: Implement the imperative Leaflet controller**
 
 Keep Leaflet objects out of React state. `mapController.ts` owns the map, tile layer, shape/draft/grid groups, and pointer listeners. Cap chunk-grid work using the existing 80×80 visible-cell threshold. Use non-interactive layers except active draft handles. Track painted chunk keys per drag to prevent repeated toggles from move events.
 
@@ -592,15 +592,15 @@ erase    click chunk → eraseChunk; otherwise removePolygonVertexNear(..., 8)
 
 The erase tool name remains `erase` in code and UI. A tile error threshold of five displays the basemap warning while leaving the grid and editing active.
 
-- [ ] **Step 4: Implement the React lifecycle wrapper**
+- [x] **Step 4: Implement the React lifecycle wrapper**
 
 `EditorMap.tsx` creates one controller in an effect tied only to the container, destroys it on unmount, and sends changing view-model/tool values through controller methods. Avoid rebuilding the Leaflet map on each draft edit.
 
-- [ ] **Step 5: Wire the real map into `EditorPage`**
+- [x] **Step 5: Wire the real map into `EditorPage`**
 
 Pass current world, meta tile URL, selected boundary, territory layers, active tool, and immutable boundary callbacks. Display block/chunk coordinates and basemap status in accessible live regions.
 
-- [ ] **Step 6: Run focused tests, typecheck, and build**
+- [x] **Step 6: Run focused tests, typecheck, and build**
 
 Run:
 
@@ -612,7 +612,7 @@ cd web && npm run build
 
 Expected: PASS.
 
-- [ ] **Step 7: Exercise tools in a real browser**
+- [x] **Step 7: Exercise tools in a real browser**
 
 With controlled API and tile routes, draw a polygon, paint chunks, create a rectangle, erase a chunk/vertex, switch selections, and save. Inspect the outbound JSON and confirm block vertices are multiples of 16 and chunk coordinates remain integer chunk coordinates. Confirm the map remains usable when tiles return 404.
 
@@ -636,7 +636,7 @@ git commit -m "feat: add chunk-based Leaflet editor tools"
 - Produces: exact local, Vercel, DNS, proxy, and production verification instructions.
 - Consumes: all prior tasks and the existing Paper `web.*` configuration.
 
-- [ ] **Step 1: Document local and production configuration**
+- [x] **Step 1: Document local and production configuration**
 
 `web/README.md` must document:
 
@@ -660,12 +660,15 @@ cd web && npm ci
 cd web && npm test -- --run
 cd web && npm run typecheck
 cd web && npm run build
-./gradlew :common:test --tests 'org.aincraft.guilds.territory.web.*'
+./gradlew :guilds-common:test --tests 'org.aincraft.guilds.territory.web.*'
 ```
 
 Expected: all frontend tests pass, TypeScript passes, production build succeeds, and existing backend web/session tests pass.
+> Blocked: the corrected backend command could not resolve
+> `dev.mintychochip.mint:mint-paper:26.8.12.10` because GitHub Packages returned
+> HTTP 401; frontend verification passed.
 
-- [ ] **Step 3: Run final local production smoke verification**
+- [x] **Step 3: Run final local production smoke verification**
 
 Serve `web/dist` with the configured Vercel-compatible runtime or `vercel dev`, not the source dev server. Browser-check `/` and `/editor` at desktop and mobile widths. Verify direct refresh, theme persistence, relative API requests, login input clearing, drawer accessibility, editor tool behavior, save errors, and no token in cookies readable by JavaScript, local storage, session storage, console, or generated asset text.
 
@@ -681,6 +684,8 @@ git commit -m "docs: document Guilds web deployment"
 Authenticate with the existing Vercel account, link/create the intended project using `web/` as root, set server-only `GUILDS_API_ORIGIN`, and deploy production. Attach `guilds.mintychochip.dev`; apply the exact DNS record requested by Vercel if repository-accessible DNS tooling is available. Never store or print the API token.
 
 Expected: Vercel reports a production deployment and the custom domain shows a valid HTTPS certificate. If account or DNS access is unavailable, record the precise missing access and leave deployment status blocked.
+> Blocked: no Vercel CLI/account or DNS-management access is available in this
+> checkout; `guilds.mintychochip.dev` currently fails DNS resolution.
 
 - [ ] **Step 6: Verify the named production URL**
 
@@ -692,8 +697,10 @@ https://guilds.mintychochip.dev/editor
 ```
 
 Verify both routes and direct refresh, inspect actual network requests for same-origin `/api/*`, and check the session cookie flags after an operator provides a safe credential. Exercise a non-destructive save only against an approved test territory. Capture exact HTTP/browser evidence. Do not claim authenticated production integration if safe credentials or upstream access are missing.
+> Blocked for the same production-access reason; local controlled-API browser
+> verification is recorded in `web/README.md`.
 
-- [ ] **Step 7: Review commit boundaries and repository state**
+- [x] **Step 7: Review commit boundaries and repository state**
 
 Run `git status --short`, review every remaining path, and leave the user's pre-existing `.javadoc-backup/` untouched and uncommitted. Confirm each commit contains one logical change and no secret or generated deployment state.
 

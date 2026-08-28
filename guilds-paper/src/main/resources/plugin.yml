@@ -6,7 +6,7 @@ description: ${description}
 author: Aincraft
 website: https://github.com/aincraft-org/territories
 load: POSTWORLD
-softdepend: [squaremap, Mint]
+softdepend: [squaremap, WorldGuard, Mint, PlaceholderAPI]
 depend: [MapGUI]
 commands:
   territory:

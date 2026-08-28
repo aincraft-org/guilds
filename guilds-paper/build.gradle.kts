@@ -17,15 +17,35 @@ dependencies {
     // the squaremap jar is provided by the locally-built jar runServer loads.
     compileOnly("xyz.jpenilla:squaremap-api:1.3.15")
     compileOnly("io.github.flog99:mapgui-api:2.0.0")
+    // PlaceholderAPI is optional at runtime; the server supplies the plugin jar.
+    compileOnly("me.clip:placeholderapi:${property("placeholderApiVersion")}")
+    // WorldGuard integration (mirrors territory boundaries into real WG regions).
+    // Soft dependency: worldguard-bukkit bundles the API (com.sk89q.worldguard.*)
+    // plus its WorldEdit dependency (com.sk89q.worldedit.*) needed for region math.
+    // compileOnly: the actual jar is provided by the server's plugins/ folder at
+    // runtime. WorldGuard/WorldEdit pin "strictly" to the Guava/Gson versions
+    // Mojang bundled in the Paper version they were built against; that strict
+    // constraint conflicts with this project's newer paper-api. Since these are
+    // never on the runtime classpath here (compileOnly), drop those transitive
+    // constraints rather than the classes we actually need.
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.18") {
+        exclude(group = "com.google.guava", module = "guava")
+        exclude(group = "com.google.code.gson", module = "gson")
+    }
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
     testImplementation("io.papermc.paper:paper-api:26.2.build.111-stable")
     testImplementation("xyz.jpenilla:squaremap-api:1.3.15")
     testImplementation("io.github.flog99:mapgui-api:2.0.0")
+    testImplementation("com.sk89q.worldguard:worldguard-bukkit:7.0.18") {
+        exclude(group = "com.google.guava", module = "guava")
+        exclude(group = "com.google.code.gson", module = "gson")
+    }
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("me.clip:placeholderapi:${property("placeholderApiVersion")}")
     testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
 }
 

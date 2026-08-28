@@ -531,15 +531,18 @@ public class PlotBrigadierCommand {
         player.sendMessage("§fWorld: §7" + plot.getWorld());
 
         if (plot.getOwnerId() != null) {
-            // Try to get owner name
+            // Resolve the canonical name from persistent Guilds data. Bukkit's
+            // offline-player cache is not guaranteed to contain old residents.
             try {
-                String ownerName = org.bukkit.Bukkit.getOfflinePlayer(plot.getOwnerId()).getName();
+                String ownerName = residentService.getResident(plot.getOwnerId())
+                        .map(resident -> resident.getName())
+                        .orElse(null);
                 if (ownerName != null) {
                     player.sendMessage("§fOwner: §a" + ownerName);
                 } else {
                     player.sendMessage("§fOwner: §7" + plot.getOwnerId());
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 player.sendMessage("§fOwner: §7" + plot.getOwnerId());
             }
         } else {

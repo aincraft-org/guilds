@@ -14,6 +14,7 @@ public class TechTreeNode {
     private String description;
     private TechTreeBranch branch;
     private int cost;
+    private String parent;
     private List<String> prerequisites;
     private Map<String, Object> effects;
     private int positionX;
@@ -68,6 +69,30 @@ public class TechTreeNode {
     public void setPrerequisites(List<String> prerequisites) {
         this.prerequisites = prerequisites;
     }
+
+    public String getParent() {
+        if (parent != null && !parent.isBlank()) return parent;
+        if (prerequisites != null && !prerequisites.isEmpty()) return prerequisites.get(0);
+        return null;
+    }
+
+    public void setParent(String parent) {
+        this.parent = parent;
+    }
+
+    /**
+     * The effective prerequisite list, falling back to the singleton {@code parent} field when
+     * {@code prerequisites} is unset or empty. Mirrors {@link #getParent()}'s fallback direction
+     * so configs that only ever set {@code parent:} (no {@code prerequisites:} list) still count
+     * as having a prerequisite — e.g. for graph edge rendering.
+     */
+    public List<String> getEffectivePrerequisites() {
+        if (prerequisites != null && !prerequisites.isEmpty()) return prerequisites;
+        if (parent != null && !parent.isBlank()) return List.of(parent);
+        return List.of();
+    }
+
+
 
     public Map<String, Object> getEffects() {
         return effects;

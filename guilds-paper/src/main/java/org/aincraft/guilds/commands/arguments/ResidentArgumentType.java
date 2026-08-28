@@ -12,9 +12,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.argument.CustomArgumentType;
 import org.aincraft.guilds.models.Resident;
 import org.aincraft.guilds.services.ResidentService;
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -45,7 +43,8 @@ public class ResidentArgumentType implements CustomArgumentType<String, String> 
     public String parse(StringReader reader) throws CommandSyntaxException {
         String residentName = reader.readUnquotedString();
 
-        // Validate that the resident exists (either online or in database)
+        // Validate against the persistent resident database; Bukkit's live
+        // player list is not an identity source for offline residents.
         if (!residentExists(residentName)) {
             throw RESIDENT_NOT_FOUND.createWithContext(reader);
         }
@@ -59,17 +58,9 @@ public class ResidentArgumentType implements CustomArgumentType<String, String> 
     }
 
     private boolean residentExists(String name) {
-        // Check if player is online
-        Player player = Bukkit.getPlayerExact(name);
-        if (player != null) {
-            return true;
-        }
-
-        // Check in resident service database
         try {
-            UUID uuid = Bukkit.getOfflinePlayer(name).getUniqueId();
-            return residentService.getResident(uuid).isPresent();
-        } catch (Exception e) {
+            return residentService.getResident(name).isPresent();
+        } catch (RuntimeException e) {
             return false;
         }
     }
@@ -78,14 +69,9 @@ public class ResidentArgumentType implements CustomArgumentType<String, String> 
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
         String remaining = builder.getRemainingLowerCase();
 
-        // Online players first, then offline residents from the database
-        // (bounded prefix search; deduplicated, prefix-filtered).
+        // Resident names come from persistent Guilds data so offline residents
+        // are suggested exactly like players currently online.
         Set<String> names = new LinkedHashSet<>();
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            if (player.getName().toLowerCase().startsWith(remaining)) {
-                names.add(player.getName());
-            }
-        }
         for (Resident resident : residentService.searchResidents(remaining, 50)) {
             names.add(resident.getName());
         }
@@ -109,11 +95,11 @@ public class ResidentArgumentType implements CustomArgumentType<String, String> 
     }
 
     /**
-     * Get the resident UUID from the command context
+     * Resolve a resident argument through the persistent resident service.
+     * This deliberately does not ask Bukkit for a live or cached player.
      */
-    public static UUID getResidentUuid(CommandContext<CommandSourceStack> context, String name) {
+    public UUID resolveResidentUuid(CommandContext<CommandSourceStack> context, String name) {
         String residentName = context.getArgument(name, String.class);
-        Player player = Bukkit.getPlayerExact(residentName);
-        return player != null ? player.getUniqueId() : Bukkit.getOfflinePlayer(residentName).getUniqueId();
+        return residentService.getResident(residentName).map(Resident::getUuid).orElse(null);
     }
 }

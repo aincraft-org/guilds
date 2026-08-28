@@ -1,13 +1,13 @@
 # Map — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-24  
+> Last updated: 2026-08-27
 > Related: `docs/superpowers/specs/2026-08-08-admin-map-editor-design.md`
 
 ## Intent
 
 Give operators and players a **live cartographic view** of territories, zones,
-and influence, and (planned) an **admin-only draw editor** for boundaries —
+and influence, and an **admin-only draw editor** for boundaries —
 without forking squaremap or turning the REST port into a second Minecraft map
 stack.
 
@@ -22,7 +22,7 @@ chunk tools + existing API validation.
 - `TerritorySquaremapBridge` layers: territories, zones, influence.
 - Chunk outline helpers; ~5s refresh loop.
 - Soft dependency on squaremap (Paper).
-- Admin Leaflet SPA (planned): polygon/paint/rect/erase on chunk medium;
+- Admin Leaflet editor: polygon/paint/rect/erase on chunk medium;
   squaremap tiles as basemap; saves via **web-api** territory routes.
 
 ### Out of scope / non-goals
@@ -45,12 +45,13 @@ chunk tools + existing API validation.
 | Piece | Location |
 |-------|----------|
 | squaremap bridge | `guilds-paper/.../squaremap` |
-| Editor static + session | planned under `guilds-common/.../web` + resources |
+| Editor static + session | `guilds-common/.../web` + resources |
+| React/Vite editor + Vercel proxy | `web/` |
 | Live tiles | external squaremap plugin |
 
 - Keep layer paint cheap; don’t block tick thread on heavy geometry.
 - Editor auth: paste API token → HttpOnly session cookie (short TTL).
-- Config for squaremap tile base URL when editor lands.
+- Configure the Paper tile base URL; the React editor consumes it from `/api/meta`.
 
 ### Testing
 
@@ -73,21 +74,27 @@ chunk tools + existing API validation.
 - [x] Periodic refresh (~5s)
 - [x] Soft-depend wiring + `runServer` squaremap pin in README
 - [x] Local `runServer` squaremap is the ../squaremap fork (Rust sidecar), not pinned `bf7da8d` + incomplete registry patch
+- [x] Paper-hosted static editor with the existing territory API
+- [x] React/Vite editor implementation with same-origin session proxy
+- [x] Session auth, draft tracking, explicit saves, and delete confirmation
+- [x] Editor configuration keys: enable, tile base URL, and session TTL
 
 ### Open on the current surface
 
 - [ ] Standing visualization layer? (product — default no)
-- [ ] Document tile URL assumptions for reverse-proxy deploys
+- [x] Document tile URL assumptions for reverse-proxy deploys
 
 ### Current notes
 
-Admin editor is **approved design**, not implemented — track under Next.
+The Paper static editor and the React/Vite editor implementation are shipped.
+The React deployment at `guilds.mintychochip.dev` remains unverified until a
+Vercel project, DNS record, upstream API, and safe operator credential are
+available.
 
 ## Next
 
-- [ ] Admin map editor v1 (Leaflet SPA, chunk tools, session auth) per design
-- [ ] Config keys: editor enable, tile base URL, session TTL
-- [ ] Delete-shape confirm UX
+- [ ] Deploy and verify the Vercel frontend and custom domain
+- [ ] Verify the production session-cookie flags and a safe non-destructive save
 
 ## Future
 

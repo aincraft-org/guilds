@@ -66,4 +66,11 @@ class ResidentServiceImplSearchTest {
     void searchNoMatchReturnsEmpty() {
         assertTrue(names("zz", 10).isEmpty());
     }
+
+    @Test
+    void getResidentResolvesOfflineNameWithoutBukkitLookup() {
+        Resident resident = residents.getResident("ALICE").orElseThrow();
+
+        assertEquals("alice", resident.getName());
+    }
 }

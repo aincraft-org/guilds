@@ -66,6 +66,7 @@ public class TechTreeConfigLoader {
             node.setDescription(nodeSection.getString("description", ""));
             node.setBranch(TechTreeBranch.fromString(nodeSection.getString("branch")));
             node.setCost(nodeSection.getInt("cost", 1));
+            node.setParent(nodeSection.getString("parent"));
             node.setPrerequisites(nodeSection.getStringList("prerequisites"));
             node.setPositionX(nodeSection.getInt("position-x", 0));
             node.setPositionY(nodeSection.getInt("position-y", 0));
@@ -139,6 +140,7 @@ public class TechTreeConfigLoader {
                 description: "Reduces teleport cooldown to guild spawn by 50%"
                 branch: INFRASTRUCTURE
                 cost: 3
+                parent: better_storage
                 prerequisites: [better_storage]
                 effects:
                   teleport_cooldown_reduction: 0.5
@@ -150,6 +152,7 @@ public class TechTreeConfigLoader {
                 description: "Farm plots within guild produce 25% more crops"
                 branch: INFRASTRUCTURE
                 cost: 3
+                parent: better_storage
                 prerequisites: [better_storage]
                 effects:
                   farm_yield_bonus: 0.25
@@ -161,6 +164,7 @@ public class TechTreeConfigLoader {
                 description: "Unlocks automatic chest sorting in guild plots"
                 branch: INFRASTRUCTURE
                 cost: 5
+                parent: fast_travel
                 prerequisites: [fast_travel, advanced_farming]
                 effects:
                   auto_sort: true
@@ -184,6 +188,7 @@ public class TechTreeConfigLoader {
                 description: "Guild border alerts for non-residents"
                 branch: DEFENSE
                 cost: 3
+                parent: reinforced_walls
                 prerequisites: [reinforced_walls]
                 effects:
                   border_alerts: true
@@ -195,6 +200,7 @@ public class TechTreeConfigLoader {
                 description: "Guild is immune to siege for 1 hour after being attacked"
                 branch: DEFENSE
                 cost: 4
+                parent: guard_posts
                 prerequisites: [guard_posts]
                 effects:
                   siege_immunity_minutes: 60
@@ -206,6 +212,7 @@ public class TechTreeConfigLoader {
                 description: "All defense bonuses doubled while at war"
                 branch: DEFENSE
                 cost: 6
+                parent: siege_shields
                 prerequisites: [siege_shields]
                 effects:
                   war_defense_bonus: 2.0
@@ -229,6 +236,7 @@ public class TechTreeConfigLoader {
                 description: "Daily guild income increased by 15%"
                 branch: COMMERCE
                 cost: 3
+                parent: marketplace
                 prerequisites: [marketplace]
                 effects:
                   income_bonus: 0.15
@@ -240,6 +248,7 @@ public class TechTreeConfigLoader {
                 description: "Guild collects 10% more from resident taxes"
                 branch: COMMERCE
                 cost: 4
+                parent: trade_routes
                 prerequisites: [trade_routes]
                 effects:
                   tax_bonus: 0.1
@@ -251,6 +260,7 @@ public class TechTreeConfigLoader {
                 description: "Residents can set up NPC merchants in shop plots"
                 branch: COMMERCE
                 cost: 6
+                parent: tax_optimization
                 prerequisites: [tax_optimization]
                 effects:
                   npc_merchants: true
@@ -275,6 +285,7 @@ public class TechTreeConfigLoader {
                 description: "Guild-wide announcements reach all residents instantly"
                 branch: CULTURE
                 cost: 3
+                parent: guild_banner
                 prerequisites: [guild_banner]
                 effects:
                   broadcast_range: "global"
@@ -286,6 +297,7 @@ public class TechTreeConfigLoader {
                 description: "Unlocks guild hall plot type with meeting room features"
                 branch: CULTURE
                 cost: 4
+                parent: broadcast_tower
                 prerequisites: [broadcast_tower]
                 effects:
                   guild_hall: true
@@ -297,6 +309,7 @@ public class TechTreeConfigLoader {
                 description: "Grants +2 claim limit and boosts resident morale"
                 branch: CULTURE
                 cost: 6
+                parent: guild_hall
                 prerequisites: [guild_hall]
                 effects:
                   extra_claims: 2
