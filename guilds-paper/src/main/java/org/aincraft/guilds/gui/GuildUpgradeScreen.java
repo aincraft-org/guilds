@@ -450,6 +450,7 @@ public final class GuildUpgradeScreen extends Screen {
         if (description == null || description.isBlank()) {
             description = "No description";
         }
+        // Two description rows leave a fixed gap for the prerequisite checklist above y=98.
         int nextY = paintWrapped(painter, description, x + 4, y + 32, 96, TEXT, 2);
         painter.textLine(x + 4, nextY + 2, "EFFECT BONUS", MUTED, true);
         painter.textLine(x + 4, nextY + 11,
@@ -657,6 +658,12 @@ public final class GuildUpgradeScreen extends Screen {
         }
         String selectedId = selectedNode.getId();
         if (selectedId.equals(activeProjectId)) {
+            String currentActive = projectService.getActiveProjectId(viewerGuild).orElse(null);
+            if (!selectedId.equals(currentActive)) {
+                refresh(player());
+                invalidate();
+                return;
+            }
             projectService.clearActiveProject(viewerGuild);
         } else if (actionAvailable(selectedNode)) {
             projectService.startProject(viewerGuild, selectedId);
