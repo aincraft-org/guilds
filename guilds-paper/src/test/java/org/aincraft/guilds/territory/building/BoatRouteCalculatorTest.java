@@ -66,6 +66,24 @@ class BoatRouteCalculatorTest {
     }
 
     @Test
+    void rejectsWaterCellsOutsideDeclaredChunk() {
+        BoatWaterMask.Cell foreignCell = new BoatWaterMask.Cell(16, 62, 0);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new BoatWaterMask(0, 0, Set.of(foreignCell)));
+    }
+    @Test
+    void rejectsSnapshotClearSpaceOutsideDeclaredChunk() {
+        BoatWaterMask.Cell local = new BoatWaterMask.Cell(0, 62, 0);
+        BoatWaterMask.Cell foreign = new BoatWaterMask.Cell(16, 62, 0);
+        BoatWaterMask mask = new BoatWaterMask(0, 0, Set.of(local));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new BoatWaterSnapshot(WORLD, 0, 0, mask, Set.of(foreign)));
+    }
+
+
+    @Test
     void snapshotsDefensivelyCopyWaterCells() {
         BoatWaterMask.Cell cell = new BoatWaterMask.Cell(0, 62, 0);
         BoatWaterMask mask = new BoatWaterMask(0, 0, Set.of(cell));

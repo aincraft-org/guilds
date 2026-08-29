@@ -6,7 +6,12 @@ import org.aincraft.guilds.territory.building.boat.BoatRouteResult;
 import org.aincraft.guilds.territory.building.boat.BoatRouteService;
 import org.aincraft.guilds.territory.building.boat.BoatWaterMask;
 import org.aincraft.guilds.territory.building.boat.BoatWaterSnapshot;
-import org.junit.jupiter.api.Test;
+import org.bukkit.Chunk;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
+import org.bukkit.event.block.BlockBreakEvent;
 
 import java.util.List;
 import java.util.Set;
@@ -18,6 +23,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class BoatRouteServiceTest {
     private static final UUID WORLD = UUID.fromString("00000000-0000-0000-0000-000000000003");
@@ -86,6 +94,35 @@ class BoatRouteServiceTest {
             service.close();
             worker.shutdownNow();
         }
+    }
+
+    @Test
+    void clearSpaceHeightChangesInvalidateWaterRoute() {
+        BoatRouteCache cache = new BoatRouteCache();
+        BoatWaterMask.Cell start = new BoatWaterMask.Cell(0, 62, 0);
+        BoatWaterMask.Cell end = new BoatWaterMask.Cell(1, 62, 0);
+        cache.put(WORLD, start, end, BoatRouteResult.connected(1.0));
+
+        World world = mock(World.class);
+        Chunk chunk = mock(Chunk.class);
+        Block changed = mock(Block.class);
+        Block air = mock(Block.class);
+        Block water = mock(Block.class);
+        when(world.getUID()).thenReturn(WORLD);
+        when(chunk.getX()).thenReturn(0);
+        when(chunk.getZ()).thenReturn(0);
+        when(changed.getWorld()).thenReturn(world);
+        when(changed.getChunk()).thenReturn(chunk);
+        when(changed.getType()).thenReturn(Material.STONE);
+        when(air.getType()).thenReturn(Material.AIR);
+        when(water.getType()).thenReturn(Material.WATER);
+        when(changed.getRelative(anyInt(), anyInt(), anyInt())).thenReturn(air);
+        when(changed.getRelative(0, -2, 0)).thenReturn(water);
+
+        BoatWaterChangeListener listener = new BoatWaterChangeListener(cache, 2);
+        listener.onBlockBreak(new BlockBreakEvent(changed, mock(Player.class)));
+
+        assertTrue(cache.get(WORLD, start, end).isEmpty());
     }
 
     @Test

@@ -21,9 +21,15 @@ public record BoatWaterSnapshot(
             throw new IllegalArgumentException("water mask chunk does not match snapshot chunk");
         }
         Objects.requireNonNull(endpointClearSpaceCells, "endpointClearSpaceCells");
+        BoatWaterMask.Chunk declaredChunk = new BoatWaterMask.Chunk(chunkX, chunkZ);
         LinkedHashSet<BoatWaterMask.Cell> copy = new LinkedHashSet<>();
         for (BoatWaterMask.Cell cell : endpointClearSpaceCells) {
-            copy.add(Objects.requireNonNull(cell, "endpoint clear-space cell"));
+            Objects.requireNonNull(cell, "endpoint clear-space cell");
+            if (!declaredChunk.equals(cell.chunk())) {
+                throw new IllegalArgumentException(
+                        "endpoint clear-space cell does not belong to snapshot chunk");
+            }
+            copy.add(cell);
         }
         endpointClearSpaceCells = Set.copyOf(copy);
     }

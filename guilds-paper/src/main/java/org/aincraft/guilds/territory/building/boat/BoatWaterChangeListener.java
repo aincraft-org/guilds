@@ -17,18 +17,24 @@ import java.util.HashSet;
 
 /** Invalidates boat geometry after water, shoreline, or clear-space changes. */
 public final class BoatWaterChangeListener implements Listener {
-    private static final int[][] NEIGHBORS = {
-            {0, -1, 0}, {0, 1, 0}, {-1, 0, 0}, {1, 0, 0},
-            {0, 0, -1}, {0, 0, 1}
-    };
-
     private final BoatRouteCache cache;
+    private final int clearBoatSpaceHeight;
 
     public BoatWaterChangeListener(BoatRouteCache cache) {
-        this.cache = java.util.Objects.requireNonNull(cache, "cache");
+        this(cache, 2);
     }
+
+    public BoatWaterChangeListener(BoatRouteCache cache, int clearBoatSpaceHeight) {
+        this.cache = java.util.Objects.requireNonNull(cache, "cache");
+        if (clearBoatSpaceHeight <= 0) {
+            throw new IllegalArgumentException("clearBoatSpaceHeight must be positive");
+        }
+        this.clearBoatSpaceHeight = clearBoatSpaceHeight;
+    }
+
     public BoatWaterChangeListener(BoatRouteService service) {
-        this(java.util.Objects.requireNonNull(service, "service").cache());
+        this(java.util.Objects.requireNonNull(service, "service").cache(),
+                service.clearBoatSpaceHeight());
     }
 
 
@@ -92,13 +98,20 @@ public final class BoatWaterChangeListener implements Listener {
         cache.invalidateChunk(block.getWorld().getUID(), block.getChunk().getX(), block.getChunk().getZ());
     }
 
-    private static boolean waterAffecting(Block block) {
+    private boolean waterAffecting(Block block) {
         if (isWater(block.getType())) {
             return true;
         }
-        for (int[] offset : NEIGHBORS) {
-            if (isWater(block.getRelative(offset[0], offset[1], offset[2]).getType())) {
-                return true;
+        for (int x = -1; x <= 1; x++) {
+            for (int y = -clearBoatSpaceHeight; y <= clearBoatSpaceHeight; y++) {
+                for (int z = -1; z <= 1; z++) {
+                    if (x == 0 && y == 0 && z == 0) {
+                        continue;
+                    }
+                    if (isWater(block.getRelative(x, y, z).getType())) {
+                        return true;
+                    }
+                }
             }
         }
         return false;

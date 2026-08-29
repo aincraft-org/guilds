@@ -22,9 +22,14 @@ public final class BoatWaterMask {
         this.chunkX = chunkX;
         this.chunkZ = chunkZ;
         Objects.requireNonNull(navigableSurfaceCells, "navigableSurfaceCells");
+        Chunk declaredChunk = new Chunk(chunkX, chunkZ);
         LinkedHashSet<Cell> copy = new LinkedHashSet<>();
         for (Cell cell : navigableSurfaceCells) {
-            copy.add(Objects.requireNonNull(cell, "navigable surface cell"));
+            Objects.requireNonNull(cell, "navigable surface cell");
+            if (!declaredChunk.equals(cell.chunk())) {
+                throw new IllegalArgumentException("water cell does not belong to mask chunk");
+            }
+            copy.add(cell);
         }
         this.navigableSurfaceCells = Set.copyOf(copy);
     }
