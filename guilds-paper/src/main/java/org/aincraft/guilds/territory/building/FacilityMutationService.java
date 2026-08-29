@@ -112,6 +112,7 @@ public final class FacilityMutationService {
         }
         FacilityRegistry candidate = live.copy();
         candidate.unregister(normalized);
+        validateCandidate(existing, candidate);
         durableThenPublish(candidate);
         afterRemove.accept(existing);
         return Optional.of(existing);

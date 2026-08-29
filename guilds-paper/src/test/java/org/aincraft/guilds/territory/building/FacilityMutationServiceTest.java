@@ -84,6 +84,32 @@ class FacilityMutationServiceTest {
         assertEquals(2, store.saves);
     }
 
+    @Test
+    void removalValidatesCandidateBeforeSaveAndPublication() throws Exception {
+        Territory territory = new Territory("t1", "Territory", "world", Boundary.ofPolygon(List.of(
+                new BlockPos(0, 0), new BlockPos(100, 0),
+                new BlockPos(100, 100), new BlockPos(0, 100))));
+        FacilityRegistry live = new FacilityRegistry(new TerritoryRegistry(List.of(territory)));
+        SettlementFacility facility = new SettlementFacility(
+                "facility", "Facility", "t1", FacilityType.BANK, "world", 5, 64, 5);
+        live.register(facility);
+        FastTravelFacilityValidator validator = org.mockito.Mockito.mock(FastTravelFacilityValidator.class);
+        org.mockito.Mockito.when(validator.validateCandidate(
+                org.mockito.Mockito.eq(facility), org.mockito.Mockito.any())).thenReturn(
+                new FastTravelFacilityValidator.ValidationResult(
+                        AnchorStatus.CAPABILITY_MISSING, "candidate rejected"));
+        MemoryStore store = new MemoryStore();
+        FacilityMutationService mutations = new FacilityMutationService(live, store, validator);
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> mutations.remove("facility"));
+
+        assertEquals(List.of(facility), live.list());
+        assertEquals(0, store.saves);
+        org.mockito.Mockito.verify(validator).validateCandidate(
+                org.mockito.Mockito.eq(facility), org.mockito.Mockito.any());
+    }
+
     private static final class MemoryStore implements FacilityStore {
         private int saves;
 
