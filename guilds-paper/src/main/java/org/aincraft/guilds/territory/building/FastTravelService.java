@@ -57,6 +57,7 @@ public final class FastTravelService {
     private volatile boolean stopped;
     private final Object stopLock = new Object();
     private volatile CompletableFuture<Void> stopCompletion;
+    private boolean stopCompletionClaimed;
     private final Map<Long, OperationToken> inFlight = new HashMap<>();
     private long nextOperationId;
     private boolean stopEnumerationComplete;
@@ -647,10 +648,12 @@ public final class FastTravelService {
                 attempt.outcome.complete(StartResult.RESERVATION_FAILED);
             }
         });
+        StopCompletion stopResult;
         synchronized (stopLock) {
             stopEnumerationComplete = true;
-            completeStopIfReady();
+            stopResult = claimStopCompletionIfReady();
         }
+        completeStop(stopResult);
         return completion;
     }
 
@@ -786,12 +789,14 @@ public final class FastTravelService {
     }
 
     private void finishOperation(OperationToken token) {
+        StopCompletion stopResult;
         synchronized (stopLock) {
             inFlight.remove(token.id());
-            completeStopIfReady();
+            stopResult = claimStopCompletionIfReady();
         }
-    }
+        completeStop(stopResult);
 
+    }
     private CompletionStage<Void> releaseQuietly(String reservationId, long nowMillis) {
         if (currency == null || reservationId == null) {
             return CompletableFuture.completedFuture(null);
@@ -819,24 +824,35 @@ public final class FastTravelService {
     }
 
     private void finishRelease(OperationToken token, Throwable failure) {
+        StopCompletion stopResult;
         synchronized (stopLock) {
             if (failure != null && shutdownFailure == null) {
                 shutdownFailure = failure;
             }
             inFlight.remove(token.id());
-            completeStopIfReady();
+            stopResult = claimStopCompletionIfReady();
         }
+        completeStop(stopResult);
     }
 
-    private void completeStopIfReady() {
+    /** Must be called while holding {@link #stopLock}. */
+    private StopCompletion claimStopCompletionIfReady() {
         if (!stopEnumerationComplete || !inFlight.isEmpty()
-                || stopCompletion == null || stopCompletion.isDone()) {
+                || stopCompletion == null || stopCompletionClaimed) {
+            return null;
+        }
+        stopCompletionClaimed = true;
+        return new StopCompletion(stopCompletion, shutdownFailure);
+    }
+
+    private static void completeStop(StopCompletion result) {
+        if (result == null) {
             return;
         }
-        if (shutdownFailure != null) {
-            stopCompletion.completeExceptionally(shutdownFailure);
+        if (result.failure() != null) {
+            result.future().completeExceptionally(result.failure());
         } else {
-            stopCompletion.complete(null);
+            result.future().complete(null);
         }
     }
 
@@ -1035,6 +1051,8 @@ public final class FastTravelService {
     }
 
     private record OperationToken(long id) {
+    }
+    private record StopCompletion(CompletableFuture<Void> future, Throwable failure) {
     }
 
     private static final class TravelAttempt {

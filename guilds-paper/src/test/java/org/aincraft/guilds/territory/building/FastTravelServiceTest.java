@@ -295,13 +295,17 @@ class FastTravelServiceTest {
                         .toCompletableFuture().join());
 
         CompletionStage<Void> stopped = harness.service.stopAsync();
+        CompletionStage<Void> callback = stopped.thenRun(() -> {
+            assertEquals(stopped, harness.service.stopAsync());
+            assertTrue(!harness.service.isPending(harness.playerId));
+        });
         assertEquals(1, currency.releaseCount);
         assertTrue(!stopped.toCompletableFuture().isDone());
         currency.release.complete(new TravelCurrencyService.ReservationResult(
                 TravelCurrencyService.ReservationStatus.RELEASED));
         stopped.toCompletableFuture().join();
+        callback.toCompletableFuture().join();
         assertTrue(stopped.toCompletableFuture().isDone());
-        assertTrue(!harness.service.isPending(harness.playerId));
     }
     private static TravelHarness harness(RecordingCurrency currency) {
         JavaPlugin plugin = mock(JavaPlugin.class);

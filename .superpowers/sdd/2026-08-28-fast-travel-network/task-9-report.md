@@ -110,3 +110,32 @@ Passed (`BUILD SUCCESSFUL`): 40 tests (6 integration, 1 Brigadier command, 6 boa
 - Database-backed wiring remains skipped in this environment and must be run with `GUILDS_TEST_JDBC_URL`.
 - Full project validation remains deferred to Task 10.
 - Existing Mockito dynamic-agent/JVM and Error Prone warnings remain non-failing.
+
+## Fix round 3
+
+### Changes
+
+- Refactored shutdown completion to claim the success/failure outcome while holding `stopLock`, then complete the `CompletableFuture` only after releasing the lock. Completion is claimed exactly once, preserving idempotency and reentrant safety for non-async callbacks.
+- Added a regression assertion that a completion callback can re-enter `stopAsync()` and inspect service state without lock-held callback execution.
+
+### Fix-round 3 verification
+
+```text
+./gradlew --offline :guilds-paper:compileJava :guilds-paper:compileTestJava
+```
+
+Passed (`BUILD SUCCESSFUL`).
+
+```text
+./gradlew --offline :guilds-paper:test --tests 'org.aincraft.guilds.GuildsServicesWiringTest' --tests 'org.aincraft.guilds.territory.building.BuildingLifecycleWiringTest' --tests 'org.aincraft.guilds.commands.brigadier.GuildBrigadierCommandTest' --tests 'org.aincraft.guilds.territory.building.BuildingCommandTypeTest' --tests 'org.aincraft.guilds.GuildsIntegrationTest' --tests 'org.aincraft.guilds.territory.building.FastTravelServiceTest'
+```
+
+Passed (`BUILD SUCCESSFUL`): 22 tests (6 integration, 1 Brigadier command, 2 facility-type, 2 lifecycle, and 11 fast-travel service). The 5 database-backed `GuildsServicesWiringTest` tests were skipped because `GUILDS_TEST_JDBC_URL` is not configured. No test failed.
+
+`git diff --check` produced no diagnostics.
+
+### Fix-round 3 concerns
+
+- Database-backed wiring remains skipped without `GUILDS_TEST_JDBC_URL`.
+- Full project validation remains deferred to Task 10.
+- Existing Mockito dynamic-agent/JVM and Error Prone warnings remain non-failing.
