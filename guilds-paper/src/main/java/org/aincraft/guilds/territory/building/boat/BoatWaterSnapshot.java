@@ -15,8 +15,8 @@ public record BoatWaterSnapshot(
         Set<BoatWaterMask.Cell> endpointClearSpaceCells
 ) {
     public BoatWaterSnapshot {
-        worldId = Objects.requireNonNull(worldId, "worldId");
-        waterMask = Objects.requireNonNull(waterMask, "waterMask");
+        Objects.requireNonNull(worldId, "worldId");
+        Objects.requireNonNull(waterMask, "waterMask");
         if (waterMask.chunkX() != chunkX || waterMask.chunkZ() != chunkZ) {
             throw new IllegalArgumentException("water mask chunk does not match snapshot chunk");
         }

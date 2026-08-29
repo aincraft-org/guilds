@@ -67,6 +67,7 @@ class BuildingListenerTest {
         store = new MemoryStore();
         listener = new BuildingListener(sessions, config, territories, facilities,
                 authorization, new FacilityMutationService(facilities, store),
+                new FacilityAnchorValidator(mock(org.bukkit.Server.class), territories, facilities, config),
                 mock(FastTravelAccess.class),
                 new FastTravelSelections(60_000L), mock(org.bukkit.plugin.PluginManager.class), null);
     }

@@ -14,6 +14,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Set;
 
 /** Invalidates boat geometry after water, shoreline, or clear-space changes. */
 public final class BoatWaterChangeListener implements Listener {

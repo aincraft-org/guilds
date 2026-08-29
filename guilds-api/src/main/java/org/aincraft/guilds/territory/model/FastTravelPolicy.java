@@ -69,7 +69,7 @@ public record FastTravelPolicy(
         Objects.requireNonNull(modes, "crossTerritoryModes");
         Set<FastTravelMode> copy = new LinkedHashSet<>();
         for (FastTravelMode mode : modes) {
-            mode = Objects.requireNonNull(mode, "crossTerritoryModes contains null mode");
+            Objects.requireNonNull(mode, "crossTerritoryModes contains null mode");
             if (mode == FastTravelMode.LOCAL_TERMINAL) {
                 throw new IllegalArgumentException("LOCAL_TERMINAL cannot cross territory boundaries");
             }

@@ -46,7 +46,7 @@ class BoatRouteServiceTest {
         BoatRouteService service = new BoatRouteService(
                 new BoatRouteCache(), new BoatRouteCalculator(), worker,
                 Runnable::run,
-                request -> {
+                (request, maxChunks) -> {
                     captures.incrementAndGet();
                     captureThread.set(Thread.currentThread().getName());
                     return BoatRouteService.SnapshotBatch.complete(List.of(snapshot));
@@ -84,7 +84,7 @@ class BoatRouteServiceTest {
         };
         BoatRouteService service = new BoatRouteService(
                 new BoatRouteCache(), calculator, worker, Runnable::run,
-                request -> BoatRouteService.SnapshotBatch.unavailable(),
+                (request, maxChunks) -> BoatRouteService.SnapshotBatch.unavailable(),
                 32, 256, 32, 8);
         try {
             BoatRouteResult result = service.route(
@@ -173,7 +173,7 @@ class BoatRouteServiceTest {
         ExecutorService worker = Executors.newSingleThreadExecutor();
         BoatRouteService service = new BoatRouteService(
                 new BoatRouteCache(), new BoatRouteCalculator(), worker, Runnable::run,
-                request -> BoatRouteService.SnapshotBatch.incomplete(List.of()),
+                (request, maxChunks) -> BoatRouteService.SnapshotBatch.incomplete(List.of()),
                 32, 1, 32, 1);
         try {
             BoatRouteResult result = service.route(

@@ -20,6 +20,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -447,6 +448,7 @@ public final class FastTravelService {
                             finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
                             return;
                         }
+                        attempt.state.set(AttemptState.ARRIVED);
                         commit(playerId, attempt, trip, refreshed);
                     } catch (RuntimeException exception) {
                         failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
@@ -461,18 +463,18 @@ public final class FastTravelService {
     private void commit(UUID playerId, TravelAttempt attempt, PendingTravel trip,
                         FastTravelAccess.AccessDecision decision) {
         if (currency == null) {
-            finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+            retainAfterArrival(playerId, attempt, trip);
             return;
         }
         CompletionStage<TravelCurrencyService.ReservationResult> result;
         try {
             result = currency.commit(trip.reservationId(), System.currentTimeMillis());
         } catch (RuntimeException exception) {
-            finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+            retainAfterArrival(playerId, attempt, trip);
             return;
         }
         if (result == null) {
-            finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+            retainAfterArrival(playerId, attempt, trip);
             return;
         }
         result.whenComplete((commit, error) -> {
@@ -482,7 +484,7 @@ public final class FastTravelService {
                             || (commit.status() != TravelCurrencyService.ReservationStatus.COMMITTED
                             && commit.status()
                             != TravelCurrencyService.ReservationStatus.ALREADY_COMMITTED)) {
-                        finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                        retainAfterArrival(playerId, attempt, trip);
                         return;
                     }
                     if (attempts.remove(playerId, attempt)) {
@@ -493,7 +495,7 @@ public final class FastTravelService {
                     }
                 });
             } catch (RuntimeException exception) {
-                finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                retainAfterArrival(playerId, attempt, trip);
             }
         });
     }
@@ -558,6 +560,13 @@ public final class FastTravelService {
                     attempt.outcome.complete(StartResult.RESERVATION_FAILED);
                 }
             }
+            if (attempt.state.get() == AttemptState.ARRIVED
+                    && attempt.expiresAtMillis <= nowMillis) {
+                PendingTravel trip = attempt.trip;
+                if (trip != null) {
+                    retainAfterArrival(playerId, attempt, trip);
+                }
+            }
         });
     }
     public void stop() {
@@ -573,9 +582,30 @@ public final class FastTravelService {
                 if (attempt.outcome != null) {
                     attempt.outcome.complete(StartResult.RESERVATION_FAILED);
                 }
+            } else if (attempt.state.get() == AttemptState.COMMITTING) {
+                PendingTravel trip = attempt.trip;
+                if (trip != null) {
+                    finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                }
+                if (attempt.outcome != null) {
+                    attempt.outcome.complete(StartResult.RESERVATION_FAILED);
+                }
+            } else if (attempt.state.get() == AttemptState.ARRIVED) {
+                PendingTravel trip = attempt.trip;
+                if (trip != null) {
+                    retainAfterArrival(playerId, attempt, trip);
+                }
             }
         });
     }
+    /** Returns eligible destinations for an interactive endpoint (command suggestions). */
+    public List<SettlementFacility> destinations(UUID playerId, SettlementFacility origin) {
+        if (access == null) {
+            return List.of();
+        }
+        return access.destinations(playerId, origin);
+    }
+
 
     private CompletionStage<BoatRouteResult> route(FastTravelMode mode,
                                                    SettlementFacility origin,
@@ -650,6 +680,14 @@ public final class FastTravelService {
         }
     }
 
+    private void retainAfterArrival(UUID playerId, TravelAttempt attempt, PendingTravel trip) {
+        if (attempts.remove(playerId, attempt)) {
+            attempt.state.set(AttemptState.TERMINAL);
+            pending.remove(playerId, trip);
+            cancelTask(trip.task());
+        }
+    }
+
     private void finishAndRelease(UUID playerId, TravelAttempt attempt,
                                   PendingTravel trip, long nowMillis) {
         if (attempts.remove(playerId, attempt)) {
@@ -699,10 +737,10 @@ public final class FastTravelService {
         }
         try {
             long expiry = Math.addExact(nowMillis, duration);
-            cooldowns.computeIfAbsent(playerId, ignored -> new EnumMap<>(FastTravelMode.class))
+            cooldowns.computeIfAbsent(playerId, key -> new EnumMap<>(FastTravelMode.class))
                     .put(mode, expiry);
-        } catch (ArithmeticException ignored) {
-            cooldowns.computeIfAbsent(playerId, ignored -> new EnumMap<>(FastTravelMode.class))
+        } catch (ArithmeticException overflow) {
+            cooldowns.computeIfAbsent(playerId, key -> new EnumMap<>(FastTravelMode.class))
                     .put(mode, Long.MAX_VALUE);
         }
     }
@@ -861,6 +899,7 @@ public final class FastTravelService {
     private enum AttemptState {
         ACTIVE,
         COMMITTING,
+        ARRIVED,
         TERMINAL
     }
 

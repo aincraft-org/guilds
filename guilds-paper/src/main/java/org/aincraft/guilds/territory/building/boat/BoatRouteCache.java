@@ -136,9 +136,9 @@ public final class BoatRouteCache {
                       BoatWaterMask.Cell second,
                       long waterRevision) {
         public Key {
-            worldId = requireWorld(worldId);
-            first = java.util.Objects.requireNonNull(first, "first endpoint");
-            second = java.util.Objects.requireNonNull(second, "second endpoint");
+            requireWorld(worldId);
+            java.util.Objects.requireNonNull(first, "first endpoint");
+            java.util.Objects.requireNonNull(second, "second endpoint");
             if (compare(first, second) > 0) {
                 BoatWaterMask.Cell swap = first;
                 first = second;

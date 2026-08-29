@@ -319,9 +319,9 @@ public final class BoatRouteService implements AutoCloseable {
                                int searchChunkRadius,
                                Set<BoatWaterMask.Chunk> capturedChunks) {
         public RouteRequest {
-            worldId = Objects.requireNonNull(worldId, "worldId");
-            origin = Objects.requireNonNull(origin, "origin");
-            destination = Objects.requireNonNull(destination, "destination");
+            Objects.requireNonNull(worldId, "worldId");
+            Objects.requireNonNull(origin, "origin");
+            Objects.requireNonNull(destination, "destination");
             if (searchChunkRadius <= 0) {
                 throw new IllegalArgumentException("searchChunkRadius must be positive");
             }
