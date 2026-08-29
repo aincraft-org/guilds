@@ -92,7 +92,8 @@ These use the existing root `config.yml` and block-material anchor convention. B
 ## Commits
 
 - `d5994cc` — `feat: add fast travel building and tech capabilities`
-- The report is added in the follow-up documentation commit after this report is written.
+- `4fc5dbc` — `docs: report fast travel config capability task` (initial report commit)
+- A final metadata update commit follows to record this report commit hash.
 
 ## Concerns
 
