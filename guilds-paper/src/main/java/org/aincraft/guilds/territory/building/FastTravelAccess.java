@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 /** Pure endpoint filtering and authorization policy for all fast-travel modes. */
 public final class FastTravelAccess {
@@ -28,15 +29,15 @@ public final class FastTravelAccess {
     private final FastTravelFacilityValidator facilityValidator;
     private final GuildService guilds;
     private final ResidentService residents;
+    private final Function<UUID, FastTravelSnapshot> snapshots;
     private final TechTreeService techTree;
     private final AllianceService alliances;
 
-    /** Constructor retained for callers that only need existing waystone filtering. */
     public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
                             FacilityAnchorValidator anchors, BuildingAuthorization authorization) {
         this(facilities, territories, anchors, authorization, null,
-                (GuildService) null, (ResidentService) null,
-                (TechTreeService) null, (AllianceService) null);
+                (TechTreeService) null, (GuildService) null,
+                (ResidentService) null, (AllianceService) null);
     }
 
     /** Full dependency constructor in the service-oriented parameter order. */
@@ -47,30 +48,50 @@ public final class FastTravelAccess {
         this(facilities, territories, anchors, authorization, null,
                 guilds, residents, techTree, alliances);
     }
-
-    /** Full composition seam including live transport-facility validation. */
+    /** Full composition seam including live activity. */
     public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
                             FacilityAnchorValidator anchors, BuildingAuthorization authorization,
                             FastTravelFacilityValidator facilityValidator,
                             TechTreeService techTree, GuildService guilds,
                             ResidentService residents, AllianceService alliances) {
         this(facilities, territories, anchors, authorization, facilityValidator,
-                guilds, residents, techTree, alliances);
+                guilds, residents, techTree, alliances, null);
     }
+
+    /** Full composition seam including live activity and immutable identity snapshots. */
+    public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
+                            FacilityAnchorValidator anchors, BuildingAuthorization authorization,
+                            FastTravelFacilityValidator facilityValidator,
+                            TechTreeService techTree, GuildService guilds,
+                            ResidentService residents, AllianceService alliances,
+                            Function<UUID, FastTravelSnapshot> snapshots) {
+        this(facilities, territories, anchors, authorization, facilityValidator,
+                guilds, residents, techTree, alliances, snapshots);
+    }
+    public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
+                            FacilityAnchorValidator anchors, BuildingAuthorization authorization,
+                            FastTravelFacilityValidator facilityValidator,
+                            GuildService guilds, ResidentService residents,
+                            TechTreeService techTree, AllianceService alliances) {
+        this(facilities, territories, anchors, authorization, facilityValidator,
+                guilds, residents, techTree, alliances, null);
+    }
+
 
     public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
                             FacilityAnchorValidator anchors, BuildingAuthorization authorization,
                             GuildService guilds, ResidentService residents,
                             TechTreeService techTree, AllianceService alliances) {
         this(facilities, territories, anchors, authorization, null,
-                guilds, residents, techTree, alliances);
+                guilds, residents, techTree, alliances, null);
     }
 
     private FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
                              FacilityAnchorValidator anchors, BuildingAuthorization authorization,
                              FastTravelFacilityValidator facilityValidator,
                              GuildService guilds, ResidentService residents,
-                             TechTreeService techTree, AllianceService alliances) {
+                             TechTreeService techTree, AllianceService alliances,
+                             Function<UUID, FastTravelSnapshot> snapshots) {
         this.facilities = Objects.requireNonNull(facilities, "facilities");
         this.territories = Objects.requireNonNull(territories, "territories");
         this.anchors = Objects.requireNonNull(anchors, "anchors");
@@ -78,6 +99,7 @@ public final class FastTravelAccess {
         this.facilityValidator = facilityValidator;
         this.guilds = guilds;
         this.residents = residents;
+        this.snapshots = snapshots;
         this.techTree = techTree;
         this.alliances = alliances;
     }
@@ -173,11 +195,11 @@ public final class FastTravelAccess {
                     originTerritory, destinationTerritory);
         }
 
-        String travelerGuild = travelerGuild(playerId).orElse(null);
+        FastTravelSnapshot snapshot = snapshotFor(playerId);
+        String travelerGuild = travelerGuild(playerId, snapshot).orElse(null);
         if (travelerGuild == null) {
             return denied(AccessResult.MISSING_MEMBERSHIP, mode);
         }
-
         if (originGuild == null || destinationGuild == null) {
             return denied(AccessResult.MISSING_MEMBERSHIP, mode);
         }
@@ -187,18 +209,17 @@ public final class FastTravelAccess {
             case AIRSHIP -> "airship_travel";
             case WAYSTONE -> "fast_travel";
         };
-        if (!hasCapability(travelerGuild, travelerCapability)
-                || !hasCapability(originGuild, endpointCapability(mode))
-                || !hasCapability(destinationGuild, endpointCapability(mode))) {
+        if (!hasCapability(travelerGuild, travelerCapability, snapshot)
+                || !hasCapability(originGuild, endpointCapability(mode), snapshot)
+                || !hasCapability(destinationGuild, endpointCapability(mode), snapshot)) {
             return denied(AccessResult.MISSING_CAPABILITY, mode);
         }
-
         boolean sameGuild = travelerGuild.equals(originGuild) && travelerGuild.equals(destinationGuild);
         if (mode == FastTravelMode.CRYSTAL && !sameGuild
-                && !hasCapability(travelerGuild, "remote_crystal")) {
+                && !hasCapability(travelerGuild, "remote_crystal", snapshot)) {
             return denied(AccessResult.MISSING_CAPABILITY, mode);
         }
-        boolean allied = sameGuild || allied(originGuild, destinationGuild);
+        boolean allied = sameGuild || allied(originGuild, destinationGuild, snapshot);
         if (!allied) {
             return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
         }
@@ -242,15 +263,15 @@ public final class FastTravelAccess {
         };
     }
 
-    private boolean hasCapability(String guildId, String nodeId) {
-        if (techTree == null || guilds == null) {
-            return false;
-        }
-        Guild guild = guilds.getGuildById(guildId).orElse(null);
-        return guild != null && techTree.hasCapability(guild, nodeId);
+
+    private FastTravelSnapshot snapshotFor(UUID playerId) {
+        return snapshots == null || playerId == null ? null : snapshots.apply(playerId);
     }
 
-    private Optional<String> travelerGuild(UUID playerId) {
+    private Optional<String> travelerGuild(UUID playerId, FastTravelSnapshot snapshot) {
+        if (snapshot != null) {
+            return snapshot.travelerGuildId();
+        }
         if (playerId == null || residents == null || guilds == null) {
             return Optional.empty();
         }
@@ -261,7 +282,21 @@ public final class FastTravelAccess {
                 .map(Guild::getId);
     }
 
-    private boolean allied(String firstGuildId, String secondGuildId) {
+    private boolean hasCapability(String guildId, String nodeId, FastTravelSnapshot snapshot) {
+        if (snapshot != null) {
+            return snapshot.hasCapability(guildId, nodeId);
+        }
+        if (techTree == null || guilds == null) {
+            return false;
+        }
+        Guild guild = guilds.getGuildById(guildId).orElse(null);
+        return guild != null && techTree.hasCapability(guild, nodeId);
+    }
+
+    private boolean allied(String firstGuildId, String secondGuildId, FastTravelSnapshot snapshot) {
+        if (snapshot != null) {
+            return snapshot.allied(firstGuildId, secondGuildId);
+        }
         if (alliances == null) {
             return false;
         }
@@ -269,7 +304,6 @@ public final class FastTravelAccess {
                 .anyMatch(alliance -> alliance.hasGuild(firstGuildId)
                         && alliance.hasGuild(secondGuildId));
     }
-
     private static AccessDecision denied(AccessResult result, FastTravelMode mode) {
         return new AccessDecision(result, mode, null, null, null, null, null, null);
     }
@@ -280,6 +314,18 @@ public final class FastTravelAccess {
         return new AccessDecision(AccessResult.ALLOWED, mode, travelerGuild, originGuild,
                 destinationGuild, originTerritory, destinationTerritory, null);
     }
+    /**
+     * Immutable, preloaded authorization data. Implementations must not touch
+     * Bukkit or JDBC; composition roots may populate it asynchronously.
+     */
+    public interface FastTravelSnapshot {
+        Optional<String> travelerGuildId();
+
+        boolean hasCapability(String guildId, String nodeId);
+
+        boolean allied(String firstGuildId, String secondGuildId);
+    }
+
 
     public enum AccessResult {
         ALLOWED,

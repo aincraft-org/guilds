@@ -43,11 +43,13 @@ public final class FastTravelService {
     private final FastTravelCostCalculator costs;
     private final BoatRouteService boatRoutes;
     private final TechTreeService techTree;
+    private final GuildService guilds;
     private final ConcurrentMap<UUID, PendingTravel> pending = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, TravelAttempt> attempts = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, EnumMap<FastTravelMode, Long>> cooldowns = new ConcurrentHashMap<>();
     private final EnumMap<FastTravelMode, Long> modeCooldowns;
     private final long reservationDurationMillis;
+    private volatile boolean stopped;
 
     /**
      * Legacy wiring constructor. It deliberately has no currency rail, so it
@@ -371,40 +373,54 @@ public final class FastTravelService {
         routeStage.whenComplete((route, error) -> {
             try {
                 onMain(() -> {
-                    if (error != null || route == null
-                            || (trip.mode() == FastTravelMode.BOAT
-                            && route.status() != BoatRouteResult.Status.CONNECTED)) {
-                        failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
-                        return;
-                    }
-                    Location landing = landings.find(destination).orElse(null);
-                    if (landing == null || !protection.canTeleportInto(destination.worldId(),
-                            landing.getBlockX(), landing.getBlockZ(), playerId.toString())) {
-                        failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
-                        return;
-                    }
-                    double distance = route.status() == BoatRouteResult.Status.CONNECTED
-                            ? route.scalarDistance() : endpointDistance(origin, destination);
-                    final long recalculatedCost;
                     try {
-                        if (costs == null) {
-                            throw new IllegalStateException("travel cost calculator unavailable");
+                        if (error != null || route == null
+                                || (trip.mode() == FastTravelMode.BOAT
+                                && route.status() != BoatRouteResult.Status.CONNECTED)) {
+                            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                            return;
                         }
-                        recalculatedCost = costs.calculate(trip.mode(), distance);
+                        FastTravelAccess.AccessDecision refreshed =
+                                access.authorize(playerId, origin, destination);
+                        if (refreshed == null) {
+                            refreshed = legacyWaystoneDecision(playerId, origin, destination);
+                        }
+                        if (!refreshed.allowed() || refreshed.mode() != trip.mode()) {
+                            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                            return;
+                        }
+                        Location landing = landings.find(destination).orElse(null);
+                        if (landing == null || !protection.canTeleportInto(destination.worldId(),
+                                landing.getBlockX(), landing.getBlockZ(), playerId.toString())) {
+                            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                            return;
+                        }
+                        double distance = route.status() == BoatRouteResult.Status.CONNECTED
+                                ? route.scalarDistance() : endpointDistance(origin, destination);
+                        final long recalculatedCost;
+                        try {
+                            if (costs == null) {
+                                throw new IllegalStateException("travel cost calculator unavailable");
+                            }
+                            recalculatedCost = costs.calculate(trip.mode(), distance);
+                        } catch (RuntimeException exception) {
+                            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                            return;
+                        }
+                        if (recalculatedCost != trip.amount()
+                                || !attempt.state.compareAndSet(
+                                AttemptState.ACTIVE, AttemptState.COMMITTING)) {
+                            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                            return;
+                        }
+                        if (!player.teleport(landing)) {
+                            finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                            return;
+                        }
+                        commit(playerId, attempt, trip, refreshed);
                     } catch (RuntimeException exception) {
                         failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
-                        return;
                     }
-                    if (recalculatedCost != trip.amount()
-                            || !attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.COMMITTING)) {
-                        failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
-                        return;
-                    }
-                    if (!player.teleport(landing)) {
-                        finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
-                        return;
-                    }
-                    commit(playerId, attempt, trip, finalDecision);
                 });
             } catch (RuntimeException exception) {
                 failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
