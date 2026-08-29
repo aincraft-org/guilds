@@ -116,16 +116,28 @@ Focused regressions were rerun after these corrections with the same required Gr
 
 Focused regressions were rerun after this round with the required selector command; Gradle failed before execution in 5s (`4 actionable tasks: 4 up-to-date`) on the known Mint HTTP 401 dependency blocker.
 
+## Round-three review corrections
+
+- Boat route endpoints now resolve an adjacent liquid entry cell on the Paper thread instead of routing from the persisted structural anchor block.
+- Alliance authorization now requires the traveler guild and both endpoint guilds to share the current alliance; same-guild travel remains valid.
+- In-flight attempts carry expiry and outcome state; recovery, cancellation, and stop invalidate unresolved work, complete returned futures, and release reservations exactly once.
+- Final completion rechecks endpoint records, authorization, and reservation expiry immediately before teleport; stale replacements, governance changes, and expired trips fail without teleport/commit. Fresh final authorization identity drives WAYSTONE cooldown reduction.
+- Added a preloaded `FastTravelSnapshot` seam for resident membership, capabilities, alliances, and WAYSTONE authorization, plus preloaded cooldown-reduction data to avoid production JDBC reads on main callbacks.
+- Building travel is available without the management permission gate, and terminal interaction starts an eligible own crystal while retaining optional remote destinations.
+
+Focused selector verification was rerun after these changes; Gradle failed before execution in 3s (`4 actionable tasks: 4 up-to-date`) because the Mint dependency remained unavailable with HTTP 401.
+
 ## Commit
 
 - `d22cd1c` — `feat: generalize waystone travel into fast travel`
 - `05b45dc` — `fix: enforce transport validation before fast travel`
 - `ccb2b9b` — `fix: make fast travel attempts cancellable`
 - `37c11c4` — `fix: revalidate fast travel completion`
+- `be01f11` — `fix: harden fast travel routing and recovery`
 
 ## Concerns
 
-- **Mint private dependency credentials** — the required focused Gradle command and compile could not reach test compilation/execution because GitHub Packages returned HTTP 401 for the known private Mint dependency.
-- **Java 26 compiler unavailable** — the environment has no independently usable Java 26 compiler; no build/toolchain change was made.
-- **Task 9 composition wiring** — GuildsPlugin currently constructs the legacy-compatible no-currency FastTravelService constructor. Task 9 must inject the shared TravelCurrencyService, FastTravelCostCalculator, BoatRouteService, TechTreeService, GuildService, ResidentService, and AllianceService, pass the configured reservation duration through the explicit constructor seam, preload/provide FastTravelSnapshot data for synchronous main-thread access, and invoke startup recovery.
-- **Dedicated LSP/rename_file tool unavailable** — active references were exhaustively searched and migrated with filesystem rename operations; no Waystone class aliases or deprecated wrappers were left in active Java sources.
+- **Mint private dependency credentials** — required focused tests remain blocked before compilation/execution by GitHub Packages HTTP 401.
+- **Java 26 compiler unavailable** — no build/toolchain change was made.
+- **Task 9 composition wiring** — production must inject configured reservation duration, preloaded FastTravelSnapshot, cooldown reductions, shared services, and startup recovery; no Task 9 wiring was changed.
+- **Dedicated LSP/rename_file tool unavailable** — active references were manually verified and migrated without aliases or deprecated wrappers.
