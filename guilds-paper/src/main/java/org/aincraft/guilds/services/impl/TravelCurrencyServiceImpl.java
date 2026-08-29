@@ -95,15 +95,11 @@ public final class TravelCurrencyServiceImpl implements TravelCurrencyService {
             return CompletableFuture.completedFuture(new ReservationResult(ReservationStatus.NOT_FOUND));
         }
         return supplyAsync(() -> {
-            try {
-                ReservationResult result = databaseManager.executeTransactionWithResult(
-                        connection -> commitInTransaction(connection, reservationId, nowMillis))
-                        .orElseThrow(() -> new IllegalStateException("commit transaction failed"));
-                removeActiveTrip(reservationId, result.status());
-                return result;
-            } catch (RuntimeException e) {
-                return new ReservationResult(ReservationStatus.NOT_FOUND);
-            }
+            ReservationResult result = databaseManager.executeTransactionWithResult(
+                            connection -> commitInTransaction(connection, reservationId, nowMillis))
+                    .orElseThrow(() -> new IllegalStateException("commit transaction failed"));
+            removeActiveTrip(reservationId, result.status());
+            return result;
         });
     }
 
@@ -113,15 +109,11 @@ public final class TravelCurrencyServiceImpl implements TravelCurrencyService {
             return CompletableFuture.completedFuture(new ReservationResult(ReservationStatus.NOT_FOUND));
         }
         return supplyAsync(() -> {
-            try {
-                ReservationResult result = databaseManager.executeTransactionWithResult(
-                        connection -> releaseInTransaction(connection, reservationId, nowMillis))
-                        .orElseThrow(() -> new IllegalStateException("release transaction failed"));
-                removeActiveTrip(reservationId, result.status());
-                return result;
-            } catch (RuntimeException e) {
-                return new ReservationResult(ReservationStatus.NOT_FOUND);
-            }
+            ReservationResult result = databaseManager.executeTransactionWithResult(
+                            connection -> releaseInTransaction(connection, reservationId, nowMillis))
+                    .orElseThrow(() -> new IllegalStateException("release transaction failed"));
+            removeActiveTrip(reservationId, result.status());
+            return result;
         });
     }
 
@@ -154,17 +146,13 @@ public final class TravelCurrencyServiceImpl implements TravelCurrencyService {
     @Override
     public CompletionStage<Integer> recoverExpired(long nowMillis) {
         return supplyAsync(() -> {
-            try {
-                RecoveryResult result = databaseManager.executeTransactionWithResult(
-                                connection -> recoverInTransaction(connection, nowMillis))
-                        .orElseThrow(() -> new IllegalStateException("recovery transaction failed"));
-                for (String reservationId : result.reservationIds()) {
-                    removeActiveTrip(reservationId, ReservationStatus.EXPIRED);
-                }
-                return result.count();
-            } catch (RuntimeException e) {
-                return 0;
+            RecoveryResult result = databaseManager.executeTransactionWithResult(
+                            connection -> recoverInTransaction(connection, nowMillis))
+                    .orElseThrow(() -> new IllegalStateException("recovery transaction failed"));
+            for (String reservationId : result.reservationIds()) {
+                removeActiveTrip(reservationId, ReservationStatus.EXPIRED);
             }
+            return result.count();
         });
     }
 
@@ -177,13 +165,11 @@ public final class TravelCurrencyServiceImpl implements TravelCurrencyService {
     private ReserveResult reserveInTransaction(UUID playerId, String tripId, long amount,
                                                 long nowMillis, long expiresAt) {
         return databaseManager.executeTransactionWithResult(connection -> {
+            WalletSnapshot wallet = ensureWallet(connection, playerId, nowMillis);
             Optional<ReservationRecord> duplicate = selectReservationByTrip(connection, tripId);
             if (duplicate.isPresent()) {
-                long balance = selectWallet(connection, playerId)
-                        .map(WalletSnapshot::balance).orElse(0L);
-                return new ReserveResult(ReserveStatus.DUPLICATE_TRIP, null, balance);
+                return new ReserveResult(ReserveStatus.DUPLICATE_TRIP, null, wallet.balance());
             }
-            WalletSnapshot wallet = ensureWallet(connection, playerId, nowMillis);
             int updated = debitWallet(connection, playerId, amount, nowMillis);
             if (updated == 0) {
                 WalletSnapshot unchanged = selectWallet(connection, playerId)

@@ -2,6 +2,7 @@ package org.aincraft.guilds.services;
 
 import org.aincraft.guilds.GuildsServiceTestFixture;
 import org.aincraft.guilds.config.TravelCurrencyConfig;
+import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.services.impl.TravelCurrencyServiceImpl;
 import org.aincraft.guilds.services.travel.TravelCurrencyRewardSource;
 import org.aincraft.guilds.services.travel.TravelCurrencyService;
@@ -13,11 +14,17 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 
 class TravelCurrencyServiceImplTest {
     @TempDir
@@ -62,9 +69,14 @@ class TravelCurrencyServiceImplTest {
     @Test
     void concurrentReservationsCannotOverspendAndRejectedReserveLeavesWalletUnchanged() {
         UUID player = UUID.randomUUID();
-        CompletableFuture<TravelCurrencyService.ReserveResult> first = currency.reserve(
+        currency.wallet(player).toCompletableFuture().join();
+        TravelCurrencyService firstService = new TravelCurrencyServiceImpl(
+                services.databaseManager(), TravelCurrencyConfig.defaults());
+        TravelCurrencyService secondService = new TravelCurrencyServiceImpl(
+                services.databaseManager(), TravelCurrencyConfig.defaults());
+        CompletableFuture<TravelCurrencyService.ReserveResult> first = firstService.reserve(
                 player, "trip-a", 7L, 10L).toCompletableFuture();
-        CompletableFuture<TravelCurrencyService.ReserveResult> second = currency.reserve(
+        CompletableFuture<TravelCurrencyService.ReserveResult> second = secondService.reserve(
                 player, "trip-b", 7L, 10L).toCompletableFuture();
         CompletableFuture.allOf(first, second).join();
 
@@ -77,6 +89,31 @@ class TravelCurrencyServiceImplTest {
                 player, "trip-invalid", 0L, 10L).toCompletableFuture().join();
         assertEquals(TravelCurrencyService.ReserveStatus.INVALID_AMOUNT, invalid.status());
         assertEquals(3L, currency.wallet(player).toCompletableFuture().join().balance());
+    }
+
+    @Test
+    void duplicateTripCreatesRequestedStarterWalletWithoutDebit() throws Exception {
+        UUID requestedPlayer = UUID.randomUUID();
+        UUID existingPlayer = UUID.randomUUID();
+        try (Connection connection = services.databaseManager().getDataSource().getConnection();
+             var statement = connection.prepareStatement("""
+                     INSERT INTO travel_currency_reservations
+                         (reservation_id, trip_id, player_uuid, amount, status, expires_at, created_at)
+                     VALUES (?, ?, ?, ?, 'RESERVED', ?, ?)
+                     """)) {
+            statement.setString(1, UUID.randomUUID().toString());
+            statement.setString(2, "trip-existing");
+            statement.setString(3, existingPlayer.toString());
+            statement.setLong(4, 1L);
+            statement.setLong(5, 100_000L);
+            statement.setLong(6, 1L);
+            statement.executeUpdate();
+        }
+
+        TravelCurrencyService.ReserveResult duplicate = currency.reserve(
+                requestedPlayer, "trip-existing", 4L, 10L).toCompletableFuture().join();
+        assertEquals(TravelCurrencyService.ReserveStatus.DUPLICATE_TRIP, duplicate.status());
+        assertEquals(10L, currency.wallet(requestedPlayer).toCompletableFuture().join().balance());
     }
 
     @Test
@@ -116,6 +153,30 @@ class TravelCurrencyServiceImplTest {
         assertEquals(0, currency.recoverExpired(31_002L).toCompletableFuture().join());
         assertEquals(TravelCurrencyService.ReservationStatus.ALREADY_RELEASED,
                 currency.release(reserved.reservationId(), 31_003L).toCompletableFuture().join().status());
+    }
+
+    @Test
+    void commitAndReleasePropagateTransactionFailure() {
+        DatabaseManager failedDatabase = mock(DatabaseManager.class);
+        doReturn(Optional.empty()).when(failedDatabase).executeTransactionWithResult(any());
+        TravelCurrencyService failedService = new TravelCurrencyServiceImpl(
+                failedDatabase, TravelCurrencyConfig.defaults(), Runnable::run);
+
+        assertThrows(CompletionException.class,
+                () -> failedService.commit("reservation", 1L).toCompletableFuture().join());
+        assertThrows(CompletionException.class,
+                () -> failedService.release("reservation", 1L).toCompletableFuture().join());
+    }
+
+    @Test
+    void recoveryPropagatesTransactionFailure() {
+        DatabaseManager failedDatabase = mock(DatabaseManager.class);
+        doReturn(Optional.empty()).when(failedDatabase).executeTransactionWithResult(any());
+        TravelCurrencyService failedService = new TravelCurrencyServiceImpl(
+                failedDatabase, TravelCurrencyConfig.defaults(), Runnable::run);
+
+        assertThrows(CompletionException.class,
+                () -> failedService.recoverExpired(1L).toCompletableFuture().join());
     }
 
     private void clearTravelData() throws Exception {
