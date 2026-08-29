@@ -9,6 +9,7 @@ import org.aincraft.guilds.territory.model.Government;
 import org.aincraft.guilds.territory.model.Territory;
 import org.aincraft.guilds.territory.model.ZoneType;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -30,11 +31,11 @@ class TerritoryJsonFastTravelTest {
     @Test
     void policyRoundTripsWithDeterministicEnumOrdering() {
         Map<FacilityType, Integer> quotas = new LinkedHashMap<>();
-        quotas.put(FacilityType.AIRSHIP, 1);
         quotas.put(FacilityType.BOAT, 2);
+        quotas.put(FacilityType.AIRSHIP, 1);
         Set<FastTravelMode> modes = new LinkedHashSet<>();
-        modes.add(FastTravelMode.BOAT);
         modes.add(FastTravelMode.CRYSTAL);
+        modes.add(FastTravelMode.BOAT);
         Territory territory = new Territory("t1", "Territory", "world", square(), List.of(),
                 ZoneType.WILDERNESS, Government.anarchy(), List.of(), null,
                 new FastTravelPolicy(quotas, modes));
@@ -65,6 +66,16 @@ class TerritoryJsonFastTravelTest {
         TerritoryJson codec = new TerritoryJson();
         JsonObject legacy = codec.toJson(new Territory("legacy", "Legacy", "world", square()));
         legacy.getAsJsonObject("fastTravelPolicy").remove("crossTerritoryModes");
+
+        assertThrows(RuntimeException.class, () -> codec.fromJson(legacy));
+    }
+
+    @Test
+    void nonIntegralQuotaIsRejectedWithoutFloatingPointRounding() {
+        TerritoryJson codec = new TerritoryJson();
+        JsonObject legacy = codec.toJson(new Territory("legacy", "Legacy", "world", square()));
+        legacy.getAsJsonObject("fastTravelPolicy").getAsJsonObject("facilityQuotas")
+                .add("BOAT", JsonParser.parseString("1.0000000000000001"));
 
         assertThrows(RuntimeException.class, () -> codec.fromJson(legacy));
     }

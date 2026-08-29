@@ -27,6 +27,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -168,13 +169,13 @@ public final class TerritoryJson {
                 throw new IllegalArgumentException("facility quota must be an integer: " + entry.getKey());
             }
             int quota;
+            String lexical = value.getAsString();
+            if (!lexical.matches("-?(0|[1-9][0-9]*)")) {
+                throw new IllegalArgumentException("facility quota must be an integer: " + entry.getKey());
+            }
             try {
-                double numeric = value.getAsDouble();
-                if (!Double.isFinite(numeric) || numeric != Math.rint(numeric) || numeric > Integer.MAX_VALUE) {
-                    throw new NumberFormatException();
-                }
-                quota = value.getAsInt();
-            } catch (NumberFormatException | UnsupportedOperationException e) {
+                quota = new BigInteger(lexical).intValueExact();
+            } catch (NumberFormatException | ArithmeticException e) {
                 throw new IllegalArgumentException("facility quota must be an integer: " + entry.getKey(), e);
             }
             quotas.put(type, quota);
