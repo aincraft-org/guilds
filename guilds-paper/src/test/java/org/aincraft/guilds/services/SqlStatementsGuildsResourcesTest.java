@@ -36,5 +36,9 @@ class SqlStatementsGuildsResourcesTest {
         assertTrue(SqlStatements.load("travel/credit-wallet-balance.sql").contains("balance > ? - ?"));
         assertTrue(SqlStatements.load("travel/commit-reservation.sql").contains("status = 'RESERVED'"));
         assertTrue(SqlStatements.load("travel/release-reservation.sql").contains("status = 'RESERVED'"));
+        assertTrue(SqlStatements.load("travel/update-wallet-balance.sql").contains("balance >= ?"));
+        assertTrue(SqlStatements.load("travel/select-expired-reservations.sql")
+                .contains("status = 'RESERVED' AND expires_at <= ?"));
+        assertTrue(SqlStatements.load("travel/recover-reservation.sql").contains("status = 'RESERVED'"));
     }
 }
