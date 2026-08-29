@@ -104,7 +104,7 @@ or unrelated worktree files were changed.
 
 ## Commit
 
-- `cae59e05ceaeb9c1cd6e182bfe282a7f3c8ed6b9` — `feat: add durable travel currency service`
+- `94ea38c` — `feat: add durable travel currency service`
 
 ## Concerns
 
