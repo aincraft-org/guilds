@@ -63,6 +63,7 @@ permissions:
       guilds.guild.claim: true
       guilds.guild.unclaim: true
       guilds.guild.set: true
+      guilds.guild.setspawn: true
       guilds.guild.kick: true
       guilds.guild.invite: true
       guilds.guild.mayor: true

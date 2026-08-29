@@ -37,9 +37,11 @@ class BuildingLifecycleWiringTest {
                 routes.getReturnType());
         String source = Files.readString(findPluginSource());
         assertBefore(source, "enableGuildsSubsystem();", "startBuildings();");
+        assertBefore(source, "startWebIfEnabled();", "registerPlaceholderExpansion();");
         assertBefore(source, "guilds.wireFastTravel(fastTravelService, boatRouteService);",
                 "new org.aincraft.guilds.territory.building.BuildingListener(");
-        assertBefore(source, "fastTravelService.stop();", "boatRouteService.close();");
+        assertBefore(source, "fastTravelService.stopAsync()", "boatRouteService.close();");
+        assertTrue(source.contains("preloadFastTravelSnapshots()"));
     }
 
     private static Path findPluginSource() {

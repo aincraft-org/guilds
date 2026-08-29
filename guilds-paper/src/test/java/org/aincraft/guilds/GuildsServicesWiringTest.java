@@ -117,13 +117,31 @@ class GuildsServicesWiringTest {
         }
     }
 
+    @Test
+    void wireFastTravel_exposesBothCompositionListeners() throws Exception {
+        Wiring wiring = newServicesWithTempDataFolder();
+        try {
+            GuildsServices services = wiring.services();
+            services.wireFastTravel(
+                    mock(org.aincraft.guilds.territory.building.FastTravelService.class),
+                    mock(org.aincraft.guilds.territory.building.boat.BoatRouteService.class));
+            assertNotNull(services.getFastTravelListener());
+            assertNotNull(services.getBoatWaterChangeListener());
+            assertNotNull(services.getTravelCurrencyConfig());
+        } finally {
+            wiring.database().close();
+        }
+    }
+
     private record Wiring(PostgresDatabase database, GuildsServices services) {
     }
 
     private static Wiring newServicesWithTempDataFolder() throws Exception {
-        var host = mock(org.bukkit.plugin.java.JavaPlugin.class);
+        var host = mock(GuildsPlugin.class);
         when(host.getDataFolder()).thenReturn(Files.createTempDirectory("guilds-wiring").toFile());
         when(host.getLogger()).thenReturn(java.util.logging.Logger.getLogger("wiring"));
+        when(host.getRegistry()).thenReturn(mock(org.aincraft.guilds.territory.registry.TerritoryRegistry.class));
+        when(host.isEnabled()).thenReturn(true);
         PostgresDatabase database = PostgresTestDatabase.open();
         return new Wiring(database, new GuildsServices(host, database));
     }

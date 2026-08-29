@@ -112,7 +112,7 @@ public final class FacilityMutationService {
         }
         FacilityRegistry candidate = live.copy();
         candidate.unregister(normalized);
-        validateCandidate(existing, candidate);
+        validateRemovalCandidate(existing, candidate);
         durableThenPublish(candidate);
         afterRemove.accept(existing);
         return Optional.of(existing);
@@ -124,6 +124,18 @@ public final class FacilityMutationService {
         }
         FastTravelFacilityValidator.ValidationResult result =
                 fastTravelValidator.validateCandidate(facility, candidate);
+        if (!result.valid()) {
+            throw new IllegalArgumentException(result.category() + ": " + result.message());
+        }
+    }
+
+    private void validateRemovalCandidate(
+            SettlementFacility removed, FacilityRegistry candidate) {
+        if (fastTravelValidator == null) {
+            return;
+        }
+        FastTravelFacilityValidator.ValidationResult result =
+                fastTravelValidator.validateRemoval(removed, candidate);
         if (!result.valid()) {
             throw new IllegalArgumentException(result.category() + ": " + result.message());
         }

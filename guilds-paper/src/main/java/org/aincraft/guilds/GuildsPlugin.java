@@ -71,6 +71,12 @@ import org.aincraft.guilds.services.MintGuildBankService;
 import org.aincraft.guilds.placeholder.GuildsPlaceholderExpansion;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.UUID;
+import java.util.function.Function;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -376,6 +382,9 @@ public final class GuildsPlugin extends JavaPlugin {
             getLogger().warning("squaremap API classes not on classpath; guild claim map layers disabled");
         }
         wireInvasions();
+        startWebIfEnabled();
+        registerPlaceholderExpansion();
+
     }
     @Override
     public void onDisable() {
@@ -387,7 +396,12 @@ public final class GuildsPlugin extends JavaPlugin {
         stopWeb();
         stopSquaremap();
         if (fastTravelService != null) {
-            fastTravelService.stop();
+            try {
+                fastTravelService.stopAsync().toCompletableFuture().join();
+            } catch (RuntimeException exception) {
+                getLogger().log(Level.SEVERE,
+                        "Fast-travel reservation release failed during shutdown", exception);
+            }
             fastTravelService = null;
         }
         if (boatRouteService != null) {
@@ -836,37 +850,27 @@ public final class GuildsPlugin extends JavaPlugin {
                     config.placementTimeoutMillis());
             this.boatRouteService = new BoatRouteService(this, config.transportGeometry());
             var travelCurrency = guilds.getTravelCurrencyService();
-            var travelCurrencyConfig = guilds.getTravelCurrencyConfig();
-            var costs = new org.aincraft.guilds.territory.building.FastTravelCostCalculator(
-                    travelCurrencyConfig);
+            Function<UUID, org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot>
+                    snapshots = preloadFastTravelSnapshots();
             var access = new org.aincraft.guilds.territory.building.FastTravelAccess(
                     facilities, registry, anchors, authorization, fastTravelFacilityValidator,
                     guilds.getTechTreeService(), guilds.getGuildService(),
-                    guilds.getResidentService(), guilds.getAllianceService());
+                    guilds.getResidentService(), guilds.getAllianceService(), snapshots);
             java.util.EnumMap<FastTravelMode, Long> cooldowns =
                     new java.util.EnumMap<>(FastTravelMode.class);
             for (FastTravelMode mode : FastTravelMode.values()) {
                 cooldowns.put(mode, config.waystoneCooldownMillis());
             }
-            java.util.Map<String, Double> reductions = new java.util.HashMap<>();
-            for (var guild : guilds.getGuildService().getAllGuilds()) {
-                String guildId = guild.getId();
-                if (guildId == null || guildId.isBlank()) {
-                    continue;
-                }
-                double reduction = guilds.getTechTreeService().cooldownReduction(
-                        guild, FastTravelMode.WAYSTONE);
-                if (Double.isFinite(reduction)) {
-                    reductions.put(guildId, reduction);
-                }
-            }
+            var travelCurrencyConfig = guilds.getTravelCurrencyConfig();
+            var costs = new org.aincraft.guilds.territory.building.FastTravelCostCalculator(
+                    travelCurrencyConfig);
             this.fastTravelService = new org.aincraft.guilds.territory.building.FastTravelService(
                     this, facilities, anchors, access,
                     new org.aincraft.guilds.territory.building.SafeLandingResolver(getServer()),
                     blockProtection, config, travelCurrency, costs, boatRouteService,
                     guilds.getTechTreeService(), guilds.getGuildService(),
                     guilds.getResidentService(), guilds.getAllianceService(),
-                    cooldowns, travelCurrencyConfig.reservationDurationMillis(), reductions);
+                    cooldowns, travelCurrencyConfig.reservationDurationMillis(), Map.of());
             this.buildingCommand = new org.aincraft.guilds.territory.building.BuildingCommand(
                     sessions, facilities, registry, anchors, authorization,
                     facilityMutations, config, selections, fastTravelService);
@@ -895,6 +899,76 @@ public final class GuildsPlugin extends JavaPlugin {
             this.fastTravelService = null;
             this.boatRouteService = null;
             getLogger().log(Level.SEVERE, "Failed to start territory buildings — disabled", e);
+        }
+    }
+
+    private Function<UUID, org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot>
+    preloadFastTravelSnapshots() {
+        Map<UUID, String> memberships = new HashMap<>();
+        for (var resident : guilds.getResidentService().getAllResidents()) {
+            if (resident == null || !resident.hasGuild()) {
+                continue;
+            }
+            guilds.getGuildService().getGuild(resident.getGuild())
+                    .map(org.aincraft.guilds.models.Guild::getId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .ifPresent(id -> memberships.put(resident.getUuid(), id));
+        }
+        Map<String, Set<String>> capabilities = new HashMap<>();
+        String[] nodes = {"fast_travel", "boat_travel", "airship_travel", "remote_crystal"};
+        for (var guild : guilds.getGuildService().getAllGuilds()) {
+            if (guild == null || guild.getId() == null || guild.getId().isBlank()) {
+                continue;
+            }
+            Set<String> unlocked = new HashSet<>();
+            for (String node : nodes) {
+                if (guilds.getTechTreeService().hasCapability(guild, node)) {
+                    unlocked.add(node);
+                }
+            }
+            capabilities.put(guild.getId(), Set.copyOf(unlocked));
+        }
+        Set<String> alliances = new HashSet<>();
+        for (var alliance : guilds.getAllianceService().getAllAlliances()) {
+            var ids = new java.util.ArrayList<>(alliance.getMemberGuildIds());
+            for (int first = 0; first < ids.size(); first++) {
+                for (int second = first + 1; second < ids.size(); second++) {
+                    alliances.add(alliancePair(ids.get(first), ids.get(second)));
+                }
+            }
+        }
+        Map<String, Set<String>> immutableCapabilities = Map.copyOf(capabilities);
+        Set<String> immutableAlliances = Set.copyOf(alliances);
+        return playerId -> new PreloadedFastTravelSnapshot(
+                Optional.ofNullable(memberships.get(playerId)),
+                immutableCapabilities, immutableAlliances);
+    }
+
+    private static String alliancePair(String first, String second) {
+        return first.compareTo(second) < 0 ? first + "\\u0000" + second : second + "\\u0000" + first;
+    }
+
+    private record PreloadedFastTravelSnapshot(
+            Optional<String> travelerGuildId,
+            Map<String, Set<String>> capabilities,
+            Set<String> alliances)
+            implements org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot {
+        private PreloadedFastTravelSnapshot {
+            if (travelerGuildId == null) {
+                throw new IllegalArgumentException("travelerGuildId is required");
+            }
+            capabilities = Map.copyOf(capabilities);
+            alliances = Set.copyOf(alliances);
+        }
+
+        @Override
+        public boolean hasCapability(String guildId, String nodeId) {
+            return capabilities.getOrDefault(guildId, Set.of()).contains(nodeId);
+        }
+
+        public boolean allied(String firstGuildId, String secondGuildId) {
+            return (firstGuildId != null && firstGuildId.equals(secondGuildId))
+                    || alliances.contains(alliancePair(firstGuildId, secondGuildId));
         }
     }
 

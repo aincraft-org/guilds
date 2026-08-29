@@ -200,6 +200,49 @@ class FastTravelAccessTest {
         order.verify(authorization).canUseWaystones(playerId, "guild-a");
     }
 
+    @Test
+    void suppliedSnapshotBypassesLiveIdentityAndAuthorizationServices() {
+        Territory first = territory("first", 0).withGoverningGuild("guild-a");
+        Territory second = territory("second", 200).withGoverningGuild("guild-a");
+        TerritoryRegistry territories = new TerritoryRegistry(List.of(first, second));
+        FacilityRegistry facilities = new FacilityRegistry(territories);
+        SettlementFacility origin = facility("origin", "Origin", "first", FacilityType.WAYSTONE, 5);
+        SettlementFacility destination = facility("destination", "Destination", "second",
+                FacilityType.WAYSTONE, 205);
+        facilities.replaceAll(List.of(origin, destination));
+        FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
+        when(anchors.validate(origin)).thenReturn(
+                new FacilityAnchorValidator.AnchorValidation(AnchorStatus.ACTIVE, origin));
+        when(anchors.validate(destination)).thenReturn(
+                new FacilityAnchorValidator.AnchorValidation(AnchorStatus.ACTIVE, destination));
+        var residents = mock(org.aincraft.guilds.services.ResidentService.class);
+        var guilds = mock(org.aincraft.guilds.services.GuildService.class);
+        var authorization = mock(BuildingAuthorization.class);
+        UUID playerId = UUID.randomUUID();
+        FastTravelAccess.FastTravelSnapshot snapshot = new FastTravelAccess.FastTravelSnapshot() {
+            @Override
+            public java.util.Optional<String> travelerGuildId() {
+                return java.util.Optional.of("guild-a");
+            }
+
+            @Override
+            public boolean hasCapability(String guildId, String nodeId) {
+                return true;
+            }
+
+            @Override
+            public boolean allied(String firstGuildId, String secondGuildId) {
+                return firstGuildId.equals(secondGuildId);
+            }
+        };
+        FastTravelAccess access = new FastTravelAccess(facilities, territories, anchors, authorization,
+                null, null, guilds, residents, null, ignored -> snapshot);
+
+        assertEquals(FastTravelAccess.AccessResult.ALLOWED,
+                access.authorize(playerId, origin, destination).result());
+        org.mockito.Mockito.verifyNoInteractions(residents, guilds, authorization);
+    }
+
 
     private static Territory territory(String id, int x) {
         return new Territory(id, id, "world", Boundary.ofPolygon(List.of(

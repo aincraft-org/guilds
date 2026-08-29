@@ -94,7 +94,7 @@ class FacilityMutationServiceTest {
                 "facility", "Facility", "t1", FacilityType.BANK, "world", 5, 64, 5);
         live.register(facility);
         FastTravelFacilityValidator validator = org.mockito.Mockito.mock(FastTravelFacilityValidator.class);
-        org.mockito.Mockito.when(validator.validateCandidate(
+        org.mockito.Mockito.when(validator.validateRemoval(
                 org.mockito.Mockito.eq(facility), org.mockito.Mockito.any())).thenReturn(
                 new FastTravelFacilityValidator.ValidationResult(
                         AnchorStatus.CAPABILITY_MISSING, "candidate rejected"));
@@ -106,8 +106,35 @@ class FacilityMutationServiceTest {
 
         assertEquals(List.of(facility), live.list());
         assertEquals(0, store.saves);
-        org.mockito.Mockito.verify(validator).validateCandidate(
+        org.mockito.Mockito.verify(validator).validateRemoval(
                 org.mockito.Mockito.eq(facility), org.mockito.Mockito.any());
+    }
+
+    @Test
+    void movedCrystalCanBeRemovedAndSaveFailureRollsBackLiveRegistry() throws Exception {
+        Territory territory = new Territory("t1", "Territory", "world", Boundary.ofPolygon(List.of(
+                new BlockPos(0, 0), new BlockPos(100, 0),
+                new BlockPos(100, 100), new BlockPos(0, 100))));
+        FacilityRegistry live = new FacilityRegistry(new TerritoryRegistry(List.of(territory)));
+        SettlementFacility movedCrystal = new SettlementFacility(
+                "crystal", "Crystal", "t1", FacilityType.GUILD_CRYSTAL, "world", 5, 64, 5);
+        live.register(movedCrystal);
+        FastTravelFacilityValidator validator = org.mockito.Mockito.mock(FastTravelFacilityValidator.class);
+        org.mockito.Mockito.when(validator.validateRemoval(
+                org.mockito.Mockito.eq(movedCrystal), org.mockito.Mockito.any())).thenReturn(
+                new FastTravelFacilityValidator.ValidationResult(AnchorStatus.ACTIVE, "ok"));
+
+        FacilityMutationService removable = new FacilityMutationService(
+                live, new MemoryStore(), validator);
+        assertEquals(java.util.Optional.of(movedCrystal), removable.remove("crystal"));
+        assertEquals(List.of(), live.list());
+
+        live.register(movedCrystal);
+        FacilityMutationService failing = new FacilityMutationService(
+                live, ignored -> { throw new java.io.IOException("disk full"); }, validator);
+        org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+                () -> failing.remove("crystal"));
+        assertEquals(List.of(movedCrystal), live.list());
     }
 
     private static final class MemoryStore implements FacilityStore {

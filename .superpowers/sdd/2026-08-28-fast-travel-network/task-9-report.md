@@ -44,3 +44,37 @@ Passed (`BUILD SUCCESSFUL`): 1 test.
 - The database-backed composition-root tests could not execute without `GUILDS_TEST_JDBC_URL`; they remain covered by their existing assumption guard and should be run in the integration environment.
 - The full project check is intentionally deferred to Task 10.
 - Test output includes existing Mockito dynamic-agent and JVM warning messages; they did not cause failures.
+
+## Fix round 1
+
+### Changes
+
+- Added `FastTravelService.stopAsync()` with an idempotent shutdown barrier that transitions every attempt terminal, tracks each pending currency release and in-flight reservation pipeline, and completes exceptionally if a release fails or is unobservable. `GuildsPlugin.onDisable()` now awaits this stage before closing route services, the Guilds subsystem, and the shared database.
+- Restored `startWebIfEnabled()` and `registerPlaceholderExpansion()` on the normal initial-enable path.
+- Added a preloaded immutable identity/capability/alliance snapshot provider to production `FastTravelAccess` wiring; access tests verify supplied snapshots bypass live identity services.
+- Passed an empty static cooldown-reduction map in production so WAYSTONE reductions are read dynamically from the current tech/guild services. Added a post-construction reduction-change test.
+- Added removal-only facility validation that checks candidate registry invariants without requiring the removed transport's current physical anchor or guild spawn. Added moved-crystal removal and durable-save rollback coverage.
+- Declared `guilds.guild.setspawn` as a child of `guilds.guild.*` in both runtime descriptors and added descriptor assertions.
+- Fixed the database wiring fixture to mock `GuildsPlugin` (including its territory registry), and added listener-wiring assertions.
+
+### Fix-round verification
+
+```text
+./gradlew --offline :guilds-paper:compileJava :guilds-paper:compileTestJava
+```
+
+Passed (`BUILD SUCCESSFUL`).
+
+```text
+./gradlew --offline :guilds-paper:test --tests 'org.aincraft.guilds.GuildsServicesWiringTest' --tests 'org.aincraft.guilds.territory.building.BuildingLifecycleWiringTest' --tests 'org.aincraft.guilds.commands.brigadier.GuildBrigadierCommandTest' --tests 'org.aincraft.guilds.territory.building.BuildingCommandTypeTest' --tests 'org.aincraft.guilds.GuildsIntegrationTest' --tests 'org.aincraft.guilds.territory.building.FastTravelServiceTest' --tests 'org.aincraft.guilds.territory.building.FastTravelAccessTest' --tests 'org.aincraft.guilds.territory.building.FacilityMutationServiceTest'
+```
+
+Passed (`BUILD SUCCESSFUL`): 6 integration, 1 Brigadier command, 2 facility-type, 2 lifecycle, 5 facility-mutation, 7 access, and 9 fast-travel service tests. The 5 database-backed `GuildsServicesWiringTest` tests were skipped because `GUILDS_TEST_JDBC_URL` is not configured; no test failed.
+
+`git diff --check` produced no diagnostics.
+
+### Fix-round concerns
+
+- Database-backed wiring remains skipped in this environment and must be run with `GUILDS_TEST_JDBC_URL`.
+- Full project validation remains deferred to Task 10.
+- Existing Mockito dynamic-agent/JVM and Error Prone warnings remain non-failing.

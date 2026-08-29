@@ -198,6 +198,63 @@ class FastTravelServiceTest {
         }
     }
 
+    @Test
+    void waystoneCooldownReductionIsReadAfterConstruction() throws Exception {
+        JavaPlugin plugin = mock(JavaPlugin.class);
+        Server server = mock(Server.class);
+        when(plugin.getServer()).thenReturn(server);
+        when(server.isPrimaryThread()).thenReturn(true);
+        var guildService = mock(org.aincraft.guilds.services.GuildService.class);
+        var techTree = mock(org.aincraft.guilds.services.TechTreeService.class);
+        var guild = mock(org.aincraft.guilds.models.Guild.class);
+        when(guildService.getGuildById("guild-a")).thenReturn(java.util.Optional.of(guild));
+        AtomicReference<Double> reduction = new AtomicReference<>(0.5);
+        when(techTree.cooldownReduction(eq(guild),
+                eq(org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE)))
+                .thenAnswer(ignored -> reduction.get());
+        BuildingConfig config = new BuildingConfig(60_000L,
+                Map.of(FacilityType.WAYSTONE, Set.of(org.bukkit.Material.LODESTONE)),
+                100L, 60_000L);
+        FastTravelService service = new FastTravelService(plugin,
+                mock(FacilityRegistry.class), mock(FacilityAnchorValidator.class),
+                mock(FastTravelAccess.class), mock(SafeLandingResolver.class),
+                mock(BlockProtection.class), config, null, null, null,
+                techTree, guildService, null, null,
+                Map.of(org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE, 60_000L),
+                30_000L, Map.of());
+        var setter = FastTravelService.class.getDeclaredMethod("setCooldown", UUID.class,
+                org.aincraft.guilds.territory.model.FastTravelMode.class, String.class, long.class);
+        setter.setAccessible(true);
+        UUID playerId = UUID.randomUUID();
+        setter.invoke(service, playerId,
+                org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE, "guild-a", 1_000L);
+        assertEquals(30_000L, service.remainingCooldownMillis(playerId,
+                org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE, 1_000L));
+        reduction.set(0.0);
+        setter.invoke(service, playerId,
+                org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE, "guild-a", 2_000L);
+        assertEquals(60_000L, service.remainingCooldownMillis(playerId,
+                org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE, 2_000L));
+    }
+
+
+    @Test
+    void stopAsyncWaitsForEveryPendingRelease() {
+        BlockingReleaseCurrency currency = new BlockingReleaseCurrency();
+        TravelHarness harness = harness(currency);
+        assertEquals(FastTravelService.StartResult.STARTED,
+                harness.service.start(harness.player, harness.origin, "south", 1_000L)
+                        .toCompletableFuture().join());
+
+        CompletionStage<Void> stopped = harness.service.stopAsync();
+        assertEquals(1, currency.releaseCount);
+        assertTrue(!stopped.toCompletableFuture().isDone());
+        currency.release.complete(new TravelCurrencyService.ReservationResult(
+                TravelCurrencyService.ReservationStatus.RELEASED));
+        stopped.toCompletableFuture().join();
+        assertTrue(stopped.toCompletableFuture().isDone());
+        assertTrue(!harness.service.isPending(harness.playerId));
+    }
     private static TravelHarness harness(RecordingCurrency currency) {
         JavaPlugin plugin = mock(JavaPlugin.class);
         Server server = mock(Server.class);
@@ -252,10 +309,11 @@ class FastTravelServiceTest {
                                  AtomicReference<Runnable> warmup) {
     }
 
-    private static final class RecordingCurrency extends ImmediateCurrency {
+    private static class RecordingCurrency extends ImmediateCurrency {
         private final TravelCurrencyService.ReservationStatus commitStatus;
         private int commitCount;
-        private int releaseCount;
+        protected int releaseCount;
+
 
         private RecordingCurrency(TravelCurrencyService.ReservationStatus commitStatus) {
             this.commitStatus = commitStatus;
@@ -272,6 +330,19 @@ class FastTravelServiceTest {
             releaseCount++;
             return CompletableFuture.completedFuture(new ReservationResult(
                     ReservationStatus.RELEASED));
+        }
+    }
+    private static final class BlockingReleaseCurrency extends RecordingCurrency {
+        private final CompletableFuture<ReservationResult> release = new CompletableFuture<>();
+
+        private BlockingReleaseCurrency() {
+            super(ReservationStatus.COMMITTED);
+        }
+
+        @Override
+        public CompletionStage<ReservationResult> release(String reservationId, long nowMillis) {
+            releaseCount++;
+            return release;
         }
     }
 

@@ -145,6 +145,22 @@ public final class FastTravelFacilityValidator {
         return physical;
     }
 
+    /**
+     * Validates removal invariants without rechecking the removed facility's
+     * current world anchor or guild spawn.  A persisted transport record may
+     * be inactive after governance or spawn movement and must remain removable.
+     */
+    public ValidationResult validateRemoval(
+            SettlementFacility removed, FacilityRegistry candidateRegistry) {
+        Objects.requireNonNull(removed, "removed");
+        Objects.requireNonNull(candidateRegistry, "candidateRegistry");
+        if (candidateRegistry.get(removed.id()).isPresent()) {
+            return failure(AnchorStatus.CARDINALITY_EXCEEDED,
+                    "removed facility remains in candidate registry");
+        }
+        return valid();
+    }
+
     /** Validates a bounded local shoreline window, never a world-scale route. */
     public ValidationResult validateBoatAnchor(org.bukkit.Location anchor) {
         ValidationResult geometry = validateGeometry();

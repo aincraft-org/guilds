@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+
 /** Coordinates mode authorization, route checks, currency reservations, and warmup. */
 public final class FastTravelService {
     private static final long FALLBACK_RESERVATION_EXPIRY_MILLIS = 30_000L;
@@ -53,6 +55,11 @@ public final class FastTravelService {
     private final long reservationDurationMillis;
     private final Map<String, Double> cooldownReductions;
     private volatile boolean stopped;
+    private final Object stopLock = new Object();
+    private volatile CompletableFuture<Void> stopCompletion;
+    private boolean stopEnumerationComplete;
+    private int shutdownReleases;
+    private Throwable shutdownFailure;
     /**
      * Legacy wiring constructor. It deliberately has no currency rail, so it
      * reports reservation failure until the shared currency service is injected.
@@ -294,7 +301,7 @@ public final class FastTravelService {
             return completed(StartResult.RESERVATION_FAILED);
         }
         final long expiry = safeExpiry(nowMillis);
-        return reservation.thenCompose(result -> {
+        CompletionStage<StartResult> pipeline = reservation.thenCompose(result -> {
             if (result == null) {
                 attempts.remove(player.getUniqueId(), attempt);
                 return completed(StartResult.RESERVATION_FAILED);
@@ -331,6 +338,13 @@ public final class FastTravelService {
             }
             return scheduled;
         });
+        attempt.operation = pipeline;
+        pipeline.whenComplete((ignored, failure) -> {
+            if (attempt.operation == pipeline) {
+                attempt.operation = null;
+            }
+        });
+        return pipeline;
     }
 
     private StartResult scheduleWarmup(UUID playerId, String originId, String destinationId,
@@ -600,37 +614,48 @@ public final class FastTravelService {
             }
         });
     }
-    public void stop() {
-        if (!isMainThread()) {
-            return;
+
+    /**
+     * Stops new trips and waits for every release initiated for an in-flight
+     * attempt.  Completion is exceptional when a release cannot be observed;
+     * callers must not close the backing database before this stage completes.
+     */
+    public CompletionStage<Void> stopAsync() {
+        CompletableFuture<Void> completion;
+        synchronized (stopLock) {
+            if (stopCompletion != null) {
+                return stopCompletion;
+            }
+            stopped = true;
+            completion = new CompletableFuture<>();
+            stopCompletion = completion;
         }
-        stopped = true;
         attempts.forEach((playerId, attempt) -> {
-            if (attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.TERMINAL)) {
-                attempts.remove(playerId, attempt);
-                PendingTravel trip = attempt.trip;
-                if (trip != null && pending.remove(playerId, trip)) {
-                    cancelTask(trip.task());
-                    releaseQuietly(trip.reservationId(), System.currentTimeMillis());
-                }
-                if (attempt.outcome != null) {
-                    attempt.outcome.complete(StartResult.RESERVATION_FAILED);
-                }
-            } else if (attempt.state.get() == AttemptState.COMMITTING) {
-                PendingTravel trip = attempt.trip;
-                if (trip != null) {
-                    finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
-                }
-                if (attempt.outcome != null) {
-                    attempt.outcome.complete(StartResult.RESERVATION_FAILED);
-                }
-            } else if (attempt.state.get() == AttemptState.ARRIVED) {
-                PendingTravel trip = attempt.trip;
-                if (trip != null) {
-                    releaseAfterArrival(playerId, attempt, trip, System.currentTimeMillis());
-                }
+            trackShutdownStage(attempt.operation);
+            attempt.state.set(AttemptState.TERMINAL);
+            attempts.remove(playerId, attempt);
+            PendingTravel trip = attempt.trip;
+            if (trip != null && pending.remove(playerId, trip)) {
+                cancelTask(trip.task());
+                releaseQuietly(trip.reservationId(), System.currentTimeMillis());
+            } else if (attempt.reservationId != null) {
+                releaseQuietly(attempt.reservationId, System.currentTimeMillis());
+            }
+            attempt.reservationId = null;
+            if (attempt.outcome != null) {
+                attempt.outcome.complete(StartResult.RESERVATION_FAILED);
             }
         });
+        synchronized (stopLock) {
+            stopEnumerationComplete = true;
+            completeStopIfReady();
+        }
+        return completion;
+    }
+
+    /** Compatibility wrapper for lifecycle callers that do not need the stage. */
+    public void stop() {
+        stopAsync();
     }
     /** Returns eligible destinations for an interactive endpoint (command suggestions). */
     public List<SettlementFacility> destinations(UUID playerId, SettlementFacility origin) {
@@ -748,19 +773,82 @@ public final class FastTravelService {
         }
 
     }
-    private void releaseQuietly(String reservationId, long nowMillis) {
+    private CompletionStage<Void> releaseQuietly(String reservationId, long nowMillis) {
         if (currency == null || reservationId == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        boolean tracked;
+        synchronized (stopLock) {
+            tracked = stopped && stopCompletion != null && !stopCompletion.isDone();
+            if (tracked) {
+                shutdownReleases++;
+            }
+        }
+        CompletionStage<TravelCurrencyService.ReservationResult> result;
+        try {
+            result = currency.release(reservationId, nowMillis);
+            if (result == null) {
+                throw new IllegalStateException("currency release returned null");
+            }
+        } catch (RuntimeException exception) {
+            if (tracked) {
+                releaseObserved(exception);
+            }
+            return failedFuture(exception);
+        }
+        CompletionStage<Void> observedStage = result.handle((ignored, failure) -> {
+            if (failure != null) {
+                throw new java.util.concurrent.CompletionException(failure);
+            }
+            return (Void) null;
+        });
+        CompletableFuture<Void> observed = observedStage.toCompletableFuture();
+        if (tracked) {
+            observed = observed.whenComplete((ignored, failure) -> releaseObserved(failure));
+        }
+        return observed;
+    }
+
+    private void trackShutdownStage(CompletionStage<?> stage) {
+        if (stage == null) {
             return;
         }
-        try {
-            CompletionStage<TravelCurrencyService.ReservationResult> result = currency.release(
-                    reservationId, nowMillis);
-            if (result != null) {
-                result.exceptionally(ignored -> null);
+        synchronized (stopLock) {
+            if (stopped && stopCompletion != null && !stopCompletion.isDone()) {
+                shutdownReleases++;
+            } else {
+                return;
             }
-        } catch (RuntimeException ignored) {
-            // Durable recovery will release an orphaned reservation.
         }
+        stage = stage.whenComplete((ignored, failure) -> releaseObserved(failure));
+    }
+
+    private void releaseObserved(Throwable failure) {
+        synchronized (stopLock) {
+            if (failure != null && shutdownFailure == null) {
+                shutdownFailure = failure;
+            }
+            shutdownReleases--;
+            completeStopIfReady();
+        }
+    }
+
+    private void completeStopIfReady() {
+        if (!stopEnumerationComplete || shutdownReleases != 0
+                || stopCompletion == null || stopCompletion.isDone()) {
+            return;
+        }
+        if (shutdownFailure != null) {
+            stopCompletion.completeExceptionally(shutdownFailure);
+        } else {
+            stopCompletion.complete(null);
+        }
+    }
+
+    private static <T> CompletableFuture<T> failedFuture(Throwable failure) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        result.completeExceptionally(failure);
+        return result;
     }
 
     private void setCooldown(UUID playerId, FastTravelMode mode, String guildId, long nowMillis) {
@@ -958,6 +1046,7 @@ public final class FastTravelService {
         private volatile PendingTravel trip;
         private volatile String reservationId;
         private volatile CompletableFuture<StartResult> outcome;
+        private volatile CompletionStage<?> operation;
         private TravelAttempt(UUID playerId, long expiresAtMillis,
                               CompletableFuture<StartResult> outcome) {
             this.playerId = playerId;

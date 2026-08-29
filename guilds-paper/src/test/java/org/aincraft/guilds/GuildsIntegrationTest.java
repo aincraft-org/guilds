@@ -112,9 +112,11 @@ class GuildsIntegrationTest {
     @Test
     void removedSpawnBypasses_areAbsentFromRuntimeDescriptorsAndSource() throws Exception {
         String plugin = readResource("plugin.yml");
+        String paper = readResource("paper-plugin.yml");
         assertFalse(plugin.contains("guilds.guild.spawn"));
-        assertFalse(readResource("paper-plugin.yml").contains("guilds.guild.spawn"));
-
+        assertFalse(paper.contains("guilds.guild.spawn"));
+        assertTrue(plugin.contains("guilds.guild.setspawn: true"));
+        assertTrue(paper.contains("guilds.guild.setspawn: true"));
         Path source = findGuildCommandSource();
         String command = Files.readString(source);
         assertFalse(command.contains("handleOwnSpawn"));
