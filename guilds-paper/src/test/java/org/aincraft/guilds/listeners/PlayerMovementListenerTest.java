@@ -21,6 +21,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PlayerMovementListenerTest {
+    private static final TravelCurrencyConfig CURRENCY_CONFIG = rewardConfig(43L);
     @Test
     void territoryEntryAwardsEachPlayerAndRepeatedMovementIsHarmless() {
         TerritoryRegistry territories = new TerritoryRegistry(List.of(new Territory(
@@ -53,7 +55,7 @@ class PlayerMovementListenerTest {
                 mock(PlotTypeRegistry.class),
                 territories,
                 currencyService,
-                TravelCurrencyConfig.defaults());
+                CURRENCY_CONFIG);
 
         World world = mock(World.class);
         when(world.getName()).thenReturn("world");
@@ -70,14 +72,22 @@ class PlayerMovementListenerTest {
                 eq(firstUuid),
                 eq(TravelCurrencyRewardSource.EXPLORATION_MILESTONE),
                 eq("territory:territory-1:" + firstUuid),
-                eq(TravelCurrencyConfig.defaults().rewardAmount(TravelCurrencyRewardSource.EXPLORATION_MILESTONE)),
+                eq(CURRENCY_CONFIG.rewardAmount(TravelCurrencyRewardSource.EXPLORATION_MILESTONE)),
                 anyLong());
         verify(currencyService, times(1)).award(
                 eq(secondUuid),
                 eq(TravelCurrencyRewardSource.EXPLORATION_MILESTONE),
                 eq("territory:territory-1:" + secondUuid),
-                eq(TravelCurrencyConfig.defaults().rewardAmount(TravelCurrencyRewardSource.EXPLORATION_MILESTONE)),
+                eq(CURRENCY_CONFIG.rewardAmount(TravelCurrencyRewardSource.EXPLORATION_MILESTONE)),
                 anyLong());
+    }
+
+    private static TravelCurrencyConfig rewardConfig(long amount) {
+        TravelCurrencyConfig defaults = TravelCurrencyConfig.defaults();
+        return new TravelCurrencyConfig(defaults.starterBalance(), defaults.maximumBalance(),
+                defaults.baseCost(), defaults.distanceDivisor(), defaults.modeMultipliers(),
+                defaults.reservationDurationMillis(),
+                Map.of(TravelCurrencyRewardSource.EXPLORATION_MILESTONE, amount));
     }
 
     private static Player player() {

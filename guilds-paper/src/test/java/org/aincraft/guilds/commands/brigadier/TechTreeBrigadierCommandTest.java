@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.Optional;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class TechTreeBrigadierCommandTest {
+    private static final TravelCurrencyConfig CURRENCY_CONFIG = rewardConfig(41L);
     @Test
     void successfulCompletionAwardsTheInitiatingPlayer() throws Exception {
         UUID playerUuid = UUID.randomUUID();
@@ -65,7 +67,7 @@ class TechTreeBrigadierCommandTest {
                 eq(playerUuid),
                 eq(TravelCurrencyRewardSource.GUILD_ACTIVITY),
                 eq("project:" + guildId + ":" + projectId),
-                eq(TravelCurrencyConfig.defaults().rewardAmount(TravelCurrencyRewardSource.GUILD_ACTIVITY)),
+                eq(CURRENCY_CONFIG.rewardAmount(TravelCurrencyRewardSource.GUILD_ACTIVITY)),
                 anyLong());
     }
 
@@ -114,7 +116,7 @@ class TechTreeBrigadierCommandTest {
                                                       GuildService guildService,
                                                       ResidentService residentService) {
         return new TechTreeBrigadierCommand(mock(TechTreeService.class), projectService, guildService,
-                residentService, mock(TechTreeGUI.class), currencyService, TravelCurrencyConfig.defaults());
+                residentService, mock(TechTreeGUI.class), currencyService, CURRENCY_CONFIG);
     }
 
     private static CommandContext<CommandSourceStack> playerContext(Player player) {
@@ -130,5 +132,12 @@ class TechTreeBrigadierCommandTest {
         Method method = TechTreeBrigadierCommand.class.getDeclaredMethod("handleComplete", CommandContext.class);
         method.setAccessible(true);
         return (int) method.invoke(command, context);
+    }
+    private static TravelCurrencyConfig rewardConfig(long amount) {
+        TravelCurrencyConfig defaults = TravelCurrencyConfig.defaults();
+        return new TravelCurrencyConfig(defaults.starterBalance(), defaults.maximumBalance(),
+                defaults.baseCost(), defaults.distanceDivisor(), defaults.modeMultipliers(),
+                defaults.reservationDurationMillis(),
+                Map.of(TravelCurrencyRewardSource.GUILD_ACTIVITY, amount));
     }
 }

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.EnumMap;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,10 +26,11 @@ import static org.mockito.Mockito.when;
 
 class QuestServiceImplTest {
     private static final String GUILD_ID = "guild-quest-test";
-
+    private static final long QUEST_REWARD = 37L;
     private final DatabaseManager databaseManager = mock(DatabaseManager.class);
     private final TravelCurrencyService currencyService = mock(TravelCurrencyService.class);
-    private final TravelCurrencyConfig currencyConfig = TravelCurrencyConfig.defaults();
+    private final TravelCurrencyConfig currencyConfig = rewardConfig(
+            TravelCurrencyRewardSource.QUEST_COMPLETION, QUEST_REWARD);
     private QuestServiceImpl service;
 
     @BeforeEach
@@ -78,4 +80,14 @@ class QuestServiceImplTest {
         quest.setCurrentProgress(0);
         return quest;
     }
+    private static TravelCurrencyConfig rewardConfig(TravelCurrencyRewardSource source, long amount) {
+        TravelCurrencyConfig defaults = TravelCurrencyConfig.defaults();
+        EnumMap<TravelCurrencyRewardSource, Long> rewards =
+                new EnumMap<>(TravelCurrencyRewardSource.class);
+        rewards.put(source, amount);
+        return new TravelCurrencyConfig(defaults.starterBalance(), defaults.maximumBalance(),
+                defaults.baseCost(), defaults.distanceDivisor(), defaults.modeMultipliers(),
+                defaults.reservationDurationMillis(), rewards);
+    }
+
 }
