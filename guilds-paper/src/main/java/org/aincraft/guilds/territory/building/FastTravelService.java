@@ -45,6 +45,7 @@ public final class FastTravelService {
     private final TechTreeService techTree;
     private final GuildService guilds;
     private final ConcurrentMap<UUID, PendingTravel> pending = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, TravelAttempt> attempts = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, EnumMap<FastTravelMode, Long>> cooldowns = new ConcurrentHashMap<>();
     private final EnumMap<FastTravelMode, Long> modeCooldowns;
     private final long reservationDurationMillis;
@@ -151,7 +152,8 @@ public final class FastTravelService {
             return completed(StartResult.RESERVATION_FAILED);
         }
         UUID playerId = player.getUniqueId();
-        TravelAttempt attempt = new TravelAttempt(playerId, safeExpiry(nowMillis));
+        CompletableFuture<StartResult> outcome = new CompletableFuture<>();
+        TravelAttempt attempt = new TravelAttempt(playerId, safeExpiry(nowMillis), outcome);
         if (attempts.putIfAbsent(playerId, attempt) != null) {
             return completed(StartResult.PENDING_TRIP);
         }
@@ -180,8 +182,6 @@ public final class FastTravelService {
             return completed(StartResult.COOLDOWN);
         }
 
-        CompletableFuture<StartResult> outcome = new CompletableFuture<>();
-        attempt.outcome = outcome;
         CompletionStage<BoatRouteResult> routeStage;
         try {
             routeStage = route(mode, origin, destination);
@@ -488,7 +488,7 @@ public final class FastTravelService {
                     if (attempts.remove(playerId, attempt)) {
                         attempt.state.set(AttemptState.TERMINAL);
                         pending.remove(playerId, trip);
-                        setCooldown(playerId, trip.mode(), trip.travelerGuildId(),
+                        setCooldown(playerId, trip.mode(), decision.travelerGuildId(),
                                 System.currentTimeMillis());
                     }
                 });
@@ -603,14 +603,31 @@ public final class FastTravelService {
         }
     }
 
-    private static BoatWaterMask.Cell waterEntryCell(World world, SettlementFacility facility) {
-        int[][] offsets = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] offset : offsets) {
-            org.bukkit.block.Block block = world.getBlockAt(
-                    facility.x() + offset[0], facility.y(), facility.z() + offset[1]);
-            if (block.isLiquid()) {
-                return new BoatWaterMask.Cell(
-                        facility.x() + offset[0], facility.y(), facility.z() + offset[1]);
+    private BoatWaterMask.Cell waterEntryCell(World world, SettlementFacility facility) {
+        BuildingConfig.TransportGeometry geometry = config.transportGeometry();
+        int radius = geometry.boatEntryRadius();
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                int x = facility.x() + dx;
+                int y = facility.y();
+                int z = facility.z() + dz;
+                org.bukkit.block.Block water = world.getBlockAt(x, y, z);
+                if (water.getType() != org.bukkit.Material.WATER) {
+                    continue;
+                }
+                boolean clear = true;
+                for (int dy = 1; dy <= geometry.clearBoatSpaceHeight(); dy++) {
+                    if (!world.getBlockAt(x, y + dy, z).getType().isAir()) {
+                        clear = false;
+                        break;
+                    }
+                }
+                if (clear) {
+                    return new BoatWaterMask.Cell(x, y, z);
+                }
             }
         }
         return null;
@@ -855,9 +872,11 @@ public final class FastTravelService {
         private volatile PendingTravel trip;
         private volatile CompletableFuture<StartResult> outcome;
 
-        private TravelAttempt(UUID playerId, long expiresAtMillis) {
+        private TravelAttempt(UUID playerId, long expiresAtMillis,
+                              CompletableFuture<StartResult> outcome) {
             this.playerId = playerId;
             this.expiresAtMillis = expiresAtMillis;
+            this.outcome = outcome;
         }
     }
 

@@ -230,6 +230,9 @@ public final class FastTravelAccess {
         boolean allied = sameGuild || (allied(travelerGuild, originGuild, snapshot)
                 && allied(travelerGuild, destinationGuild, snapshot)
                 && allied(originGuild, destinationGuild, snapshot));
+        if (!allied) {
+            return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
+        }
 
         if (!origin.worldId().equals(destination.worldId())) {
             return denied(AccessResult.WORLD_MISMATCH, mode);
@@ -321,14 +324,10 @@ public final class FastTravelAccess {
         return new AccessDecision(AccessResult.ALLOWED, mode, travelerGuild, originGuild,
                 destinationGuild, originTerritory, destinationTerritory, null);
     }
-    /**
-     * Immutable, preloaded authorization data. Implementations must not touch
-     * Bukkit or JDBC; composition roots may populate it asynchronously.
-     */
     public interface FastTravelSnapshot {
         Optional<String> travelerGuildId();
         default boolean canUseWaystones(String guildId) {
-            return hasCapability(guildId, "waystone_travel");
+            return travelerGuildId().filter(guildId::equals).isPresent();
         }
 
         boolean hasCapability(String guildId, String nodeId);
