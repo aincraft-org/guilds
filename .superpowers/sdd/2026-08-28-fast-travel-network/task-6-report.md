@@ -89,3 +89,13 @@ Implemented only Task 6 of the approved fast-travel-network plan. The change add
 - **Mint private dependency credentials** — `MINT_PACKAGES_ACTOR`/`MINT_PACKAGES_TOKEN` (or equivalent GitHub Packages credentials) were unavailable. The required focused tests and Paper module compile could not reach test compilation or execution.
 - **Java 26 compiler unavailable** — only a Java 25 runtime was visible and no `javac` executable was installed; no repository workaround was made.
 - **Composition-root lifecycle wiring** — the Task 6 deliverables include production constructors and listener/service lifecycle methods, but `GuildsPlugin` registration and shutdown composition-root edits were intentionally left to the later travel wiring boundary because the brief explicitly limits this task's file set and excludes Task 7-10 wiring. The next integration task must register `BoatWaterChangeListener` and close the shared `BoatRouteService` from plugin shutdown rather than constructing a second cache/service.
+
+## Review round 1
+
+Addressed all three Task 6 review findings:
+
+- `BoatWaterChangeListener` now accepts the configured clear-boat-space height and scans the full vertical range around a changed block, so changes at `waterY + clearBoatSpaceHeight` invalidate dependent routes.
+- `BoatWaterMask` rejects navigable cells outside its declared chunk. `BoatWaterSnapshot` likewise rejects foreign endpoint clear-space cells before analysis or budget accounting.
+- The Paper snapshot producer now bounds the capture region to both the configured search radius and the square-root of the hard chunk budget, centers that region around the endpoints, and prioritizes endpoint/nearby chunks. With the shipped 256-chunk budget, endpoint chunks are reachable in the first capture batch rather than being skipped by a minimum-corner 65x65 scan.
+
+Added focused regressions for foreign mask/snapshot cells and a clear-space block change two blocks above water. The required focused command was rerun after these fixes and produced the same pre-compilation Mint HTTP 401 failure recorded above. `git diff --check` and a Java delimiter-balance sanity check produced no output/errors. Fixes are committed in `9e3febf`.
