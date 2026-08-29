@@ -123,6 +123,7 @@ idempotent on fresh databases on both backends.
 - [ ] Operator migration guide from legacy JSON/SQLite backups (external import notes)
 - [ ] Backup/restore runbook link from README
 - [ ] Connection pool sizing defaults documented
+- [ ] PostgreSQL/MySQL fast-travel migration and reservation smoke (blocked locally: `GUILDS_TEST_JDBC_URL` is unset)
 
 ### Current notes
 

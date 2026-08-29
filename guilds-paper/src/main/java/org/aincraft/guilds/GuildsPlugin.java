@@ -902,18 +902,27 @@ public final class GuildsPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * Creates a provider that captures current persisted identity and guild
+     * state for each authorization snapshot.
+     */
     private Function<UUID, org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot>
     preloadFastTravelSnapshots() {
-        Map<UUID, String> memberships = new HashMap<>();
-        for (var resident : guilds.getResidentService().getAllResidents()) {
-            if (resident == null || !resident.hasGuild()) {
-                continue;
-            }
-            guilds.getGuildService().getGuild(resident.getGuild())
+        return this::currentFastTravelSnapshot;
+    }
+
+    private org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot
+    currentFastTravelSnapshot(UUID playerId) {
+        Optional<String> travelerGuildId = Optional.empty();
+        if (playerId != null) {
+            travelerGuildId = guilds.getResidentService().getResident(playerId)
+                    .filter(org.aincraft.guilds.models.Resident::hasGuild)
+                    .map(org.aincraft.guilds.models.Resident::getGuild)
+                    .flatMap(name -> guilds.getGuildService().getGuild(name))
                     .map(org.aincraft.guilds.models.Guild::getId)
-                    .filter(id -> id != null && !id.isBlank())
-                    .ifPresent(id -> memberships.put(resident.getUuid(), id));
+                    .filter(id -> id != null && !id.isBlank());
         }
+
         Map<String, Set<String>> capabilities = new HashMap<>();
         String[] nodes = {"fast_travel", "boat_travel", "airship_travel", "remote_crystal"};
         for (var guild : guilds.getGuildService().getAllGuilds()) {
@@ -937,12 +946,10 @@ public final class GuildsPlugin extends JavaPlugin {
                 }
             }
         }
-        Map<String, Set<String>> immutableCapabilities = Map.copyOf(capabilities);
-        Set<String> immutableAlliances = Set.copyOf(alliances);
-        return playerId -> new PreloadedFastTravelSnapshot(
-                Optional.ofNullable(memberships.get(playerId)),
-                immutableCapabilities, immutableAlliances);
+        return new PreloadedFastTravelSnapshot(
+                travelerGuildId, Map.copyOf(capabilities), Set.copyOf(alliances));
     }
+
 
     private static String alliancePair(String first, String second) {
         return first.compareTo(second) < 0 ? first + "\\u0000" + second : second + "\\u0000" + first;
@@ -966,6 +973,7 @@ public final class GuildsPlugin extends JavaPlugin {
             return capabilities.getOrDefault(guildId, Set.of()).contains(nodeId);
         }
 
+        @Override
         public boolean allied(String firstGuildId, String secondGuildId) {
             return (firstGuildId != null && firstGuildId.equals(secondGuildId))
                     || alliances.contains(alliancePair(firstGuildId, secondGuildId));

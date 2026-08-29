@@ -149,6 +149,7 @@ public final class FastTravelAccess {
         if (mode == FastTravelMode.WAYSTONE) {
             return reachable(playerId, origin);
         }
+        FastTravelSnapshot snapshot = snapshotFor(playerId);
         boolean terminalFlow = origin.type() == FacilityType.TELEPORT_TERMINAL;
         return facilities.list().stream()
                 .filter(candidate -> !candidate.id().equals(origin.id()))
@@ -156,7 +157,7 @@ public final class FastTravelAccess {
                         ? candidate.type() == FacilityType.GUILD_CRYSTAL
                         : FastTravelMode.fromFacilityType(candidate.type())
                                 .filter(mode::equals).isPresent())
-                .filter(candidate -> authorize(playerId, origin, candidate).allowed())
+                .filter(candidate -> authorize(playerId, origin, candidate, snapshot).allowed())
                 .sorted(Comparator.comparing(SettlementFacility::name,
                                 String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(SettlementFacility::id))
@@ -166,6 +167,12 @@ public final class FastTravelAccess {
     /** Evaluates all synchronous gates before route and currency work. */
     public AccessDecision authorize(UUID playerId, SettlementFacility origin,
                                     SettlementFacility destination) {
+        return authorize(playerId, origin, destination, snapshotFor(playerId));
+    }
+
+    private AccessDecision authorize(UUID playerId, SettlementFacility origin,
+                                     SettlementFacility destination,
+                                     FastTravelSnapshot snapshot) {
         if (origin == null || !isActive(origin)) {
             return denied(AccessResult.INACTIVE_ORIGIN, null);
         }
@@ -192,7 +199,6 @@ public final class FastTravelAccess {
         }
         String originGuild = originTerritory.governedByGuildId().orElse(null);
         String destinationGuild = destinationTerritory.governedByGuildId().orElse(null);
-        FastTravelSnapshot snapshot = snapshotFor(playerId);
         FastTravelMode mode = selectedMode;
         String travelerGuild = travelerGuild(playerId, snapshot).orElse(null);
         if (travelerGuild == null) {
@@ -254,6 +260,7 @@ public final class FastTravelAccess {
         return allowed(mode, travelerGuild, originGuild, destinationGuild,
                 originTerritory, destinationTerritory);
     }
+
 
     private boolean isActive(SettlementFacility facility) {
         if (!isTransport(facility.type())) {
