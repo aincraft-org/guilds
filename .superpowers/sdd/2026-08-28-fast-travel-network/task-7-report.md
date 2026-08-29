@@ -101,8 +101,8 @@ Focused regressions were rerun after these corrections with the same required Gr
 
 ## Commit
 
-- `2e97b2a` — `feat: generalize waystone travel into fast travel`
-- `f478ee4` — `fix: enforce transport validation before fast travel`
+- `d22cd1c` — `feat: generalize waystone travel into fast travel`
+- `05b45dc` — `fix: enforce transport validation before fast travel`
 
 ## Concerns
 
