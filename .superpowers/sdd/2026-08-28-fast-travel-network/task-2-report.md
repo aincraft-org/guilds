@@ -32,11 +32,13 @@ changed.
     slug/resource.
 - `guilds-paper/src/main/resources/sql/travel/`
   - Added the ten requested wallet, award, reservation, expiry, and recovery
-    SQL resources.
+    SQL resources, plus `credit-wallet-balance.sql` for capped reward/release
+    credits.
   - Resource parameter order is documented by each positional statement:
     wallet select `(playerUuid)`; wallet insert `(playerUuid, balance,
     createdAt, updatedAt)`; wallet debit `(amount, updatedAt, playerUuid,
-    amount)`; award insert `(source, eventId, playerUuid, amount, awardedAt)`;
+    amount)`; wallet credit `(amount, maximumBalance, maximumBalance, amount,
+    updatedAt, playerUuid)`; award insert `(source, eventId, playerUuid, amount, awardedAt)`;
     reservation insert `(reservationId, tripId, playerUuid, amount, expiresAt,
     createdAt)`; reservation select `(reservationId)`; commit/release/recover
     `(timestamp, reservationId)`; expired select `(nowMillis)`.
@@ -74,14 +76,23 @@ changed.
    select-wallet.sql params= 1
    update-wallet-balance.sql params= 4
    ```
+6. Added `credit-wallet-balance.sql` for capped positive credits used by
+   awards, release, and expiry recovery. Independently executed the capped
+   credit and conditional debit statements against SQLite:
+
+   ```text
+   credit cap/debit behavior: PASS
+   credit-wallet-balance.sql params= 6
+   ```
 
 The focused Gradle tests therefore remain unexecuted due to the private Mint
 artifact prerequisite. The environment has OpenJDK 25 while the project
 requires Java 26; no toolchain or Gradle configuration was changed.
 
-## Commit
+## Commits
 
-`2151a31` — `feat: persist fast travel policies and currency schema`
+- `2151a31` — `feat: persist fast travel policies and currency schema`
+- `594fcd4` — `feat: add capped travel wallet credit statement`
 
 ## Concerns
 
