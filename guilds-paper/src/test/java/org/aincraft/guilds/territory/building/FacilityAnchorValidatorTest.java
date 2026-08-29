@@ -152,6 +152,31 @@ class FacilityAnchorValidatorTest {
 
         assertTrue(validator.activeStorageAt("world", 6, 64, 5).isEmpty());
     }
+    @Test
+    void reportsExplicitTransportGeometryFailures() {
+        BuildingConfig missing = mock(BuildingConfig.class);
+        when(missing.transportGeometry()).thenReturn(null);
+        FacilityAnchorValidator missingValidator =
+                new FacilityAnchorValidator(server, territories, facilities, missing);
+        SettlementFacility boat = new SettlementFacility(
+                "boat", "Boat", "t1", FacilityType.BOAT, "world", 8, 64, 8);
+        assertEquals(AnchorStatus.MISSING_GEOMETRY, missingValidator.validate(boat).status());
+
+        BuildingConfig.TransportGeometry invalidGeometry = mock(BuildingConfig.TransportGeometry.class);
+        when(invalidGeometry.boatEntryRadius()).thenReturn(0);
+        when(invalidGeometry.boatEntryWidth()).thenReturn(3);
+        when(invalidGeometry.clearBoatSpaceHeight()).thenReturn(2);
+        when(invalidGeometry.searchChunkRadius()).thenReturn(32);
+        when(invalidGeometry.searchChunkBudget()).thenReturn(256);
+        when(invalidGeometry.airshipPlatformRadius()).thenReturn(2);
+        when(invalidGeometry.airshipVerticalClearanceHeight()).thenReturn(16);
+        BuildingConfig invalid = mock(BuildingConfig.class);
+        when(invalid.transportGeometry()).thenReturn(invalidGeometry);
+        FacilityAnchorValidator invalidValidator =
+                new FacilityAnchorValidator(server, territories, facilities, invalid);
+        assertEquals(AnchorStatus.INVALID_GEOMETRY, invalidValidator.validate(boat).status());
+    }
+
 
 
     private static Territory territory() {
