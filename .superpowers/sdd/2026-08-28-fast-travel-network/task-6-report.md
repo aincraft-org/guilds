@@ -82,7 +82,8 @@ Implemented only Task 6 of the approved fast-travel-network plan. The change add
 ## Commit
 
 - `82bea5d` — `feat: add bounded boat route connectivity`
-
+- `5003caf` — `fix: reject mismatched boat snapshot worlds`
+- `74e848f` — `docs: report bounded boat routing task`
 ## Concerns
 
 - **Mint private dependency credentials** — `MINT_PACKAGES_ACTOR`/`MINT_PACKAGES_TOKEN` (or equivalent GitHub Packages credentials) were unavailable. The required focused tests and Paper module compile could not reach test compilation or execution.
