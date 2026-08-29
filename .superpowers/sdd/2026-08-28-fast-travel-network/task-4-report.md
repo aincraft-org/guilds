@@ -92,10 +92,25 @@ These use the existing root `config.yml` and block-material anchor convention. B
 ## Commits
 
 - `d5994cc` — `feat: add fast travel building and tech capabilities`
-- `4fc5dbc` — `docs: report fast travel config capability task` (initial report commit)
-- A final metadata update commit follows to record this report commit hash.
+- `4fc5dbc` — `docs: report fast travel config capability task`
+- `a60ed98` — `docs: record Task 4 report commit`
+- `78f09b2` — `test: strengthen fast travel capability coverage`
 
 ## Concerns
 
 - `MINT_PACKAGES_ACTOR`/`MINT_PACKAGES_TOKEN` (or equivalent GitHub Packages credentials) are unavailable in this environment, so Gradle cannot resolve the known private `mint-paper` dependency. The focused tests and compile could not run; no configuration bypass was introduced.
 - Full repository validation remains for the main agent after all task slices land.
+
+## Review round 1
+
+- Expanded `TechTreeServiceCapabilityTest` so both packaged and inline fallback node definitions assert every new node's exact description, `fast_travel` parent, `[fast_travel]` prerequisite, infrastructure branch, cost, and explicit GUI coordinates.
+- Expanded cooldown-scope assertions to cover `LOCAL_TERMINAL`, `BOAT`, and `AIRSHIP` in addition to `CRYSTAL`, while preserving the `WAYSTONE` 50% reduction assertion.
+- Re-ran the required focused command:
+
+  ```text
+  ./gradlew :guilds-paper:test --tests 'org.aincraft.guilds.territory.building.BuildingConfigLoaderTest' --tests 'org.aincraft.guilds.gui.GuildUpgradeGraphLayoutTest' --tests 'org.aincraft.guilds.services.TechTreeServiceCapabilityTest'
+  ```
+
+  Result: `BUILD FAILED` before test execution because `dev.mintychochip.mint:mint-paper:26.8.12.10` could not be fetched from GitHub Packages (HTTP `401 Unauthorized`).
+
+- Review coverage commit: `78f09b2`.
