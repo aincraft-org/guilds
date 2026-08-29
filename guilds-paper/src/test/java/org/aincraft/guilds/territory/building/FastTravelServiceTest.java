@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -38,6 +39,7 @@ class FastTravelServiceTest {
         BukkitTask task = mock(BukkitTask.class);
         when(plugin.getServer()).thenReturn(server);
         when(server.getScheduler()).thenReturn(scheduler);
+        when(server.isPrimaryThread()).thenReturn(true);
         when(scheduler.runTaskLater(eq(plugin), any(Runnable.class), anyLong())).thenReturn(task);
         FacilityRegistry facilities = mock(FacilityRegistry.class);
         FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
@@ -60,6 +62,8 @@ class FastTravelServiceTest {
                 new FastTravelAccess.AccessDecision(FastTravelAccess.AccessResult.ALLOWED,
                         org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE,
                         "guild-a", "guild-a", "guild-a", null, null, null));
+        when(landings.find(destination)).thenReturn(java.util.Optional.of(landing));
+        when(protection.canTeleportInto(any(), anyInt(), anyInt(), any())).thenReturn(true);
         TravelCurrencyService currency = new ImmediateCurrency();
         FastTravelCostCalculator cost = new FastTravelCostCalculator(
                 org.aincraft.guilds.config.TravelCurrencyConfig.defaults());

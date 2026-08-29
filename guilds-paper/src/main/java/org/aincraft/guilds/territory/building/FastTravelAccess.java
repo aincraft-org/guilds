@@ -194,12 +194,12 @@ public final class FastTravelAccess {
         }
 
         boolean sameGuild = travelerGuild.equals(originGuild) && travelerGuild.equals(destinationGuild);
+        if (mode == FastTravelMode.CRYSTAL && !sameGuild
+                && !hasCapability(travelerGuild, "remote_crystal")) {
+            return denied(AccessResult.MISSING_CAPABILITY, mode);
+        }
         boolean allied = sameGuild || allied(originGuild, destinationGuild);
-        if (terminalFlow) {
-            if (!sameGuild) {
-                return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
-            }
-        } else if (!allied) {
+        if (!allied) {
             return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
         }
 
@@ -207,16 +207,13 @@ public final class FastTravelAccess {
             return denied(AccessResult.WORLD_MISMATCH, mode);
         }
         boolean sameTerritory = origin.territoryId().equals(destination.territoryId());
-        if (!terminalFlow && sameTerritory) {
+        boolean localTerminal = terminalFlow && sameGuild && sameTerritory;
+        if (!localTerminal && sameTerritory) {
             return denied(AccessResult.SAME_TERRITORY_REMOTE, mode);
         }
         if (!sameTerritory && (!originTerritory.fastTravelPolicy().allowsCrossTerritory(mode)
                 || !destinationTerritory.fastTravelPolicy().allowsCrossTerritory(mode))) {
             return denied(AccessResult.POLICY_DENIED, mode);
-        }
-        if (mode == FastTravelMode.CRYSTAL && !sameGuild
-                && !hasCapability(travelerGuild, "remote_crystal")) {
-            return denied(AccessResult.MISSING_CAPABILITY, mode);
         }
         return allowed(mode, travelerGuild, originGuild, destinationGuild,
                 originTerritory, destinationTerritory);

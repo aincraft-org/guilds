@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-
+import java.util.concurrent.atomic.AtomicReference;
 /** Coordinates mode authorization, route checks, currency reservations, and warmup. */
 public final class FastTravelService {
     private static final long FALLBACK_RESERVATION_EXPIRY_MILLIS = 30_000L;
@@ -43,11 +43,11 @@ public final class FastTravelService {
     private final FastTravelCostCalculator costs;
     private final BoatRouteService boatRoutes;
     private final TechTreeService techTree;
-    private final GuildService guilds;
     private final ConcurrentMap<UUID, PendingTravel> pending = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, TravelAttempt> attempts = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, EnumMap<FastTravelMode, Long>> cooldowns = new ConcurrentHashMap<>();
     private final EnumMap<FastTravelMode, Long> modeCooldowns;
-    private volatile boolean stopped;
+    private final long reservationDurationMillis;
 
     /**
      * Legacy wiring constructor. It deliberately has no currency rail, so it
@@ -90,6 +90,20 @@ public final class FastTravelService {
                              TechTreeService techTree, GuildService guilds,
                              ResidentService residents, AllianceService alliances,
                              Map<FastTravelMode, Long> cooldowns) {
+        this(plugin, facilities, anchors, access, landings, protection, config,
+                currency, costs, boatRoutes, techTree, guilds, residents, alliances,
+                cooldowns, FALLBACK_RESERVATION_EXPIRY_MILLIS);
+    }
+
+    public FastTravelService(JavaPlugin plugin, FacilityRegistry facilities,
+                             FacilityAnchorValidator anchors, FastTravelAccess access,
+                             SafeLandingResolver landings, BlockProtection protection,
+                             BuildingConfig config, TravelCurrencyService currency,
+                             FastTravelCostCalculator costs, BoatRouteService boatRoutes,
+                             TechTreeService techTree, GuildService guilds,
+                             ResidentService residents, AllianceService alliances,
+                             Map<FastTravelMode, Long> cooldowns,
+                             long reservationDurationMillis) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.facilities = Objects.requireNonNull(facilities, "facilities");
         this.anchors = Objects.requireNonNull(anchors, "anchors");
@@ -102,6 +116,10 @@ public final class FastTravelService {
         this.boatRoutes = boatRoutes;
         this.techTree = techTree;
         this.guilds = guilds;
+        if (reservationDurationMillis <= 0L) {
+            throw new IllegalArgumentException("reservation duration must be positive");
+        }
+        this.reservationDurationMillis = reservationDurationMillis;
         this.modeCooldowns = copyCooldowns(cooldowns);
     }
 
@@ -116,7 +134,8 @@ public final class FastTravelService {
             return completed(StartResult.RESERVATION_FAILED);
         }
         UUID playerId = player.getUniqueId();
-        if (pending.containsKey(playerId)) {
+        TravelAttempt attempt = new TravelAttempt(playerId);
+        if (attempts.putIfAbsent(playerId, attempt) != null) {
             return completed(StartResult.PENDING_TRIP);
         }
         SettlementFacility destination = destinationId == null
@@ -127,13 +146,16 @@ public final class FastTravelService {
         }
         final FastTravelAccess.AccessDecision finalDecision = decision;
         if (!finalDecision.allowed()) {
+            attempts.remove(playerId, attempt);
             return completed(map(finalDecision.result()));
         }
         FastTravelMode mode = finalDecision.mode();
         if (mode == null) {
+            attempts.remove(playerId, attempt);
             return completed(StartResult.TYPE_MISMATCH);
         }
         if (remainingCooldownMillis(playerId, mode, nowMillis) > 0L) {
+            attempts.remove(playerId, attempt);
             return completed(StartResult.COOLDOWN);
         }
 
@@ -142,10 +164,12 @@ public final class FastTravelService {
         try {
             routeStage = route(mode, origin, destination);
         } catch (RuntimeException exception) {
+            attempts.remove(playerId, attempt);
             outcome.complete(StartResult.ROUTE_UNAVAILABLE);
             return outcome;
         }
         if (routeStage == null) {
+            attempts.remove(playerId, attempt);
             outcome.complete(StartResult.ROUTE_UNAVAILABLE);
             return outcome;
         }
@@ -154,33 +178,47 @@ public final class FastTravelService {
                 try {
                     onMain(() -> {
                         try {
+                            if (!isCurrent(attempt)) {
+                                outcome.complete(StartResult.RESERVATION_FAILED);
+                                return;
+                            }
                             if (error != null || route == null) {
+                                attempts.remove(playerId, attempt);
                                 outcome.complete(StartResult.ROUTE_UNAVAILABLE);
                                 return;
                             }
                             if (route.status() != BoatRouteResult.Status.CONNECTED
                                     && mode == FastTravelMode.BOAT) {
+                                attempts.remove(playerId, attempt);
                                 outcome.complete(mapRoute(route.status()));
                                 return;
                             }
                             CompletionStage<StartResult> reservation = reserveAfterRoute(
-                                    player, origin, destination, finalDecision, route, nowMillis);
+                                    player, origin, destination, finalDecision, route, nowMillis, attempt);
                             if (reservation == null) {
+                                attempts.remove(playerId, attempt);
                                 outcome.complete(StartResult.RESERVATION_FAILED);
                                 return;
                             }
-                            reservation.whenComplete((result, reservationError) -> outcome.complete(
-                                    reservationError == null && result != null
-                                            ? result : StartResult.RESERVATION_FAILED));
+                            reservation.whenComplete((result, reservationError) -> {
+                                if (reservationError != null || result != StartResult.STARTED) {
+                                    attempts.remove(playerId, attempt);
+                                }
+                                outcome.complete(reservationError == null && result != null
+                                        ? result : StartResult.RESERVATION_FAILED);
+                            });
                         } catch (RuntimeException exception) {
+                            attempts.remove(playerId, attempt);
                             outcome.complete(StartResult.RESERVATION_FAILED);
                         }
                     });
                 } catch (RuntimeException exception) {
+                    attempts.remove(playerId, attempt);
                     outcome.complete(StartResult.RESERVATION_FAILED);
                 }
             });
         } catch (RuntimeException exception) {
+            attempts.remove(playerId, attempt);
             outcome.complete(StartResult.RESERVATION_FAILED);
         }
         return outcome;
@@ -191,7 +229,11 @@ public final class FastTravelService {
                                                             SettlementFacility destination,
                                                             FastTravelAccess.AccessDecision decision,
                                                             BoatRouteResult route,
-                                                            long nowMillis) {
+                                                            long nowMillis,
+                                                            TravelAttempt attempt) {
+        if (!isCurrent(attempt)) {
+            return completed(StartResult.RESERVATION_FAILED);
+        }
         Location landing = landings.find(destination).orElse(null);
         if (landing == null) {
             return completed(StartResult.NO_SAFE_LANDING);
@@ -227,12 +269,16 @@ public final class FastTravelService {
         final long expiry = safeExpiry(nowMillis);
         return reservation.handle((result, error) -> {
             if (error != null || result == null) {
+                attempts.remove(player.getUniqueId(), attempt);
                 return StartResult.RESERVATION_FAILED;
+            }
+            if (result.status() != TravelCurrencyService.ReserveStatus.RESERVED) {
+                attempts.remove(player.getUniqueId(), attempt);
             }
             return switch (result.status()) {
                 case RESERVED -> scheduleWarmup(player.getUniqueId(), origin.id(), destination.id(),
                         decision.mode(), decision.travelerGuildId(), amount, result.reservationId(),
-                        expiry, route.scalarDistance());
+                        expiry, route.scalarDistance(), attempt);
                 case INSUFFICIENT -> StartResult.INSUFFICIENT_CURRENCY;
                 case DUPLICATE_TRIP -> StartResult.DUPLICATE_TRIP;
                 case INVALID_AMOUNT, FAILED -> StartResult.RESERVATION_FAILED;
@@ -242,9 +288,11 @@ public final class FastTravelService {
 
     private StartResult scheduleWarmup(UUID playerId, String originId, String destinationId,
                                        FastTravelMode mode, String travelerGuildId, long amount,
-                                       String reservationId, long expiry, double routeDistance) {
-        if (reservationId == null || stopped) {
+                                       String reservationId, long expiry, double routeDistance,
+                                       TravelAttempt attempt) {
+        if (!isCurrent(attempt) || reservationId == null || stopped) {
             releaseQuietly(reservationId, System.currentTimeMillis());
+            attempts.remove(playerId, attempt);
             return StartResult.RESERVATION_FAILED;
         }
         final BukkitTask task;
@@ -253,31 +301,48 @@ public final class FastTravelService {
                     () -> complete(playerId), config.waystoneWarmupTicks());
         } catch (RuntimeException exception) {
             releaseQuietly(reservationId, System.currentTimeMillis());
+            attempts.remove(playerId, attempt);
             return StartResult.RESERVATION_FAILED;
         }
         if (task == null) {
             releaseQuietly(reservationId, System.currentTimeMillis());
+            attempts.remove(playerId, attempt);
             return StartResult.RESERVATION_FAILED;
         }
         PendingTravel next = new PendingTravel(playerId, originId, destinationId, mode,
                 travelerGuildId, amount, reservationId, expiry, routeDistance, task);
-        PendingTravel replaced = pending.putIfAbsent(playerId, next);
+        PendingTravel replaced;
+        synchronized (attempt) {
+            if (!isCurrent(attempt)) {
+                task.cancel();
+                releaseQuietly(reservationId, System.currentTimeMillis());
+                attempts.remove(playerId, attempt);
+                return StartResult.RESERVATION_FAILED;
+            }
+            attempt.trip = next;
+            replaced = pending.putIfAbsent(playerId, next);
+            if (replaced != null) {
+                attempt.trip = null;
+            }
+        }
         if (replaced != null) {
             task.cancel();
             releaseQuietly(reservationId, System.currentTimeMillis());
+            attempts.remove(playerId, attempt);
             return StartResult.PENDING_TRIP;
         }
         return StartResult.STARTED;
     }
 
     private void complete(UUID playerId) {
+        TravelAttempt attempt = attempts.get(playerId);
         PendingTravel trip = pending.get(playerId);
-        if (trip == null) {
+        if (attempt == null || trip == null || !isCurrent(attempt)) {
             return;
         }
         long now = System.currentTimeMillis();
         if (trip.expiresAtMillis() <= now) {
-            failAndRelease(playerId, trip, now);
+            failAndRelease(playerId, attempt, trip, now);
             return;
         }
         Player player = plugin.getServer().getPlayer(playerId);
@@ -289,85 +354,120 @@ public final class FastTravelService {
         }
         final FastTravelAccess.AccessDecision finalDecision = decision;
         if (player == null || !finalDecision.allowed() || finalDecision.mode() != trip.mode()) {
-            failAndRelease(playerId, trip, now);
+            failAndRelease(playerId, attempt, trip, now);
             return;
         }
-        CompletionStage<BoatRouteResult> routeStage = route(trip.mode(), origin, destination);
-        routeStage.whenComplete((route, error) -> onMain(() -> {
-            if (error != null || route == null
-                    || (trip.mode() == FastTravelMode.BOAT
-                    && route.status() != BoatRouteResult.Status.CONNECTED)) {
-                failAndRelease(playerId, trip, System.currentTimeMillis());
-                return;
-            }
-            Location landing = landings.find(destination).orElse(null);
-            if (landing == null || !protection.canTeleportInto(destination.worldId(), landing.getBlockX(),
-                    landing.getBlockZ(), playerId.toString())) {
-                failAndRelease(playerId, trip, System.currentTimeMillis());
-                return;
-            }
-            double distance = route.status() == BoatRouteResult.Status.CONNECTED
-                    ? route.scalarDistance() : endpointDistance(origin, destination);
-            final long recalculatedCost;
+        CompletionStage<BoatRouteResult> routeStage;
+        try {
+            routeStage = route(trip.mode(), origin, destination);
+        } catch (RuntimeException exception) {
+            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+            return;
+        }
+        if (routeStage == null) {
+            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+            return;
+        }
+        routeStage.whenComplete((route, error) -> {
             try {
-                if (costs == null) {
-                    throw new IllegalStateException("travel cost calculator unavailable");
-                }
-                recalculatedCost = costs.calculate(trip.mode(), distance);
+                onMain(() -> {
+                    if (error != null || route == null
+                            || (trip.mode() == FastTravelMode.BOAT
+                            && route.status() != BoatRouteResult.Status.CONNECTED)) {
+                        failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                        return;
+                    }
+                    Location landing = landings.find(destination).orElse(null);
+                    if (landing == null || !protection.canTeleportInto(destination.worldId(),
+                            landing.getBlockX(), landing.getBlockZ(), playerId.toString())) {
+                        failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                        return;
+                    }
+                    double distance = route.status() == BoatRouteResult.Status.CONNECTED
+                            ? route.scalarDistance() : endpointDistance(origin, destination);
+                    final long recalculatedCost;
+                    try {
+                        if (costs == null) {
+                            throw new IllegalStateException("travel cost calculator unavailable");
+                        }
+                        recalculatedCost = costs.calculate(trip.mode(), distance);
+                    } catch (RuntimeException exception) {
+                        failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                        return;
+                    }
+                    if (recalculatedCost != trip.amount()
+                            || !attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.COMMITTING)) {
+                        failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                        return;
+                    }
+                    if (!player.teleport(landing)) {
+                        finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                        return;
+                    }
+                    commit(playerId, attempt, trip, finalDecision);
+                });
             } catch (RuntimeException exception) {
-                failAndRelease(playerId, trip, System.currentTimeMillis());
-                return;
+                failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
             }
-            if (recalculatedCost != trip.amount()) {
-                failAndRelease(playerId, trip, System.currentTimeMillis());
-                return;
-            }
-            if (!player.teleport(landing)) {
-                failAndRelease(playerId, trip, System.currentTimeMillis());
-                return;
-            }
-            commit(playerId, trip, finalDecision);
-        }));
+        });
     }
 
-    private void commit(UUID playerId, PendingTravel trip, FastTravelAccess.AccessDecision decision) {
+    private void commit(UUID playerId, TravelAttempt attempt, PendingTravel trip,
+                        FastTravelAccess.AccessDecision decision) {
         if (currency == null) {
-            failAndRelease(playerId, trip, System.currentTimeMillis());
+            finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
             return;
         }
         CompletionStage<TravelCurrencyService.ReservationResult> result;
         try {
             result = currency.commit(trip.reservationId(), System.currentTimeMillis());
         } catch (RuntimeException exception) {
-            failAndRelease(playerId, trip, System.currentTimeMillis());
+            finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
             return;
         }
         if (result == null) {
-            failAndRelease(playerId, trip, System.currentTimeMillis());
+            finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
             return;
         }
-        result.whenComplete((commit, error) -> onMain(() -> {
-            if (error != null || commit == null
-                    || (commit.status() != TravelCurrencyService.ReservationStatus.COMMITTED
-                    && commit.status() != TravelCurrencyService.ReservationStatus.ALREADY_COMMITTED)) {
-                failAndRelease(playerId, trip, System.currentTimeMillis());
-                return;
+        result.whenComplete((commit, error) -> {
+            try {
+                onMain(() -> {
+                    if (error != null || commit == null
+                            || (commit.status() != TravelCurrencyService.ReservationStatus.COMMITTED
+                            && commit.status()
+                            != TravelCurrencyService.ReservationStatus.ALREADY_COMMITTED)) {
+                        finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                        return;
+                    }
+                    if (attempts.remove(playerId, attempt)) {
+                        attempt.state.set(AttemptState.TERMINAL);
+                        pending.remove(playerId, trip);
+                        setCooldown(playerId, trip.mode(), trip.travelerGuildId(),
+                                System.currentTimeMillis());
+                    }
+                });
+            } catch (RuntimeException exception) {
+                finishAndRelease(playerId, attempt, trip, System.currentTimeMillis());
             }
-            pending.remove(playerId, trip);
-            setCooldown(playerId, trip.mode(), trip.travelerGuildId(), System.currentTimeMillis());
-        }));
+        });
     }
 
     public void cancel(UUID playerId, CancelReason reason) {
         if (playerId == null) {
             return;
         }
-        PendingTravel trip = pending.remove(playerId);
-        if (trip == null) {
+        TravelAttempt attempt = attempts.get(playerId);
+        if (attempt == null || !attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.TERMINAL)) {
             return;
         }
-        trip.task().cancel();
-        releaseQuietly(trip.reservationId(), System.currentTimeMillis());
+        attempts.remove(playerId, attempt);
+        synchronized (attempt) {
+            PendingTravel trip = attempt.trip;
+            if (trip != null && pending.remove(playerId, trip)) {
+                cancelTask(trip.task());
+                releaseQuietly(trip.reservationId(), System.currentTimeMillis());
+            }
+        }
     }
 
     public long remainingCooldownMillis(UUID playerId, FastTravelMode mode, long nowMillis) {
@@ -385,7 +485,7 @@ public final class FastTravelService {
     }
 
     public boolean isPending(UUID playerId) {
-        return playerId != null && pending.containsKey(playerId);
+        return playerId != null && attempts.containsKey(playerId);
     }
 
     public void recover(long nowMillis) {
@@ -397,18 +497,25 @@ public final class FastTravelService {
             }
         }
         pending.forEach((playerId, trip) -> {
-            if (trip.expiresAtMillis() <= nowMillis && pending.remove(playerId, trip)) {
-                trip.task().cancel();
+            if (trip.expiresAtMillis() <= nowMillis) {
+                TravelAttempt attempt = attempts.get(playerId);
+                if (attempt != null) {
+                    failAndRelease(playerId, attempt, trip, nowMillis);
+                }
             }
         });
     }
 
     public void stop() {
         stopped = true;
-        pending.forEach((playerId, trip) -> {
-            if (pending.remove(playerId, trip)) {
-                trip.task().cancel();
-                releaseQuietly(trip.reservationId(), System.currentTimeMillis());
+        attempts.forEach((playerId, attempt) -> {
+            if (attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.TERMINAL)) {
+                attempts.remove(playerId, attempt);
+                PendingTravel trip = attempt.trip;
+                if (trip != null && pending.remove(playerId, trip)) {
+                    cancelTask(trip.task());
+                    releaseQuietly(trip.reservationId(), System.currentTimeMillis());
+                }
             }
         });
     }
@@ -436,12 +543,39 @@ public final class FastTravelService {
         }
     }
 
-    private void failAndRelease(UUID playerId, PendingTravel trip, long nowMillis) {
-        if (pending.remove(playerId, trip)) {
+    private boolean isCurrent(TravelAttempt attempt) {
+        return attempt != null && !stopped
+                && attempts.get(attempt.playerId) == attempt
+                && attempt.state.get() == AttemptState.ACTIVE;
+    }
+
+    private void failAndRelease(UUID playerId, TravelAttempt attempt,
+                                PendingTravel trip, long nowMillis) {
+        if (attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.TERMINAL)) {
+            attempts.remove(playerId, attempt);
+            if (pending.remove(playerId, trip)) {
+                cancelTask(trip.task());
+                releaseQuietly(trip.reservationId(), nowMillis);
+            }
+        }
+    }
+
+    private void finishAndRelease(UUID playerId, TravelAttempt attempt,
+                                  PendingTravel trip, long nowMillis) {
+        if (attempts.remove(playerId, attempt)) {
+            attempt.state.set(AttemptState.TERMINAL);
+            pending.remove(playerId, trip);
+            cancelTask(trip.task());
             releaseQuietly(trip.reservationId(), nowMillis);
         }
     }
 
+    private static void cancelTask(BukkitTask task) {
+        if (task != null) {
+            task.cancel();
+        }
+
+    }
     private void releaseQuietly(String reservationId, long nowMillis) {
         if (currency == null || reservationId == null) {
             return;
@@ -546,11 +680,11 @@ public final class FastTravelService {
     private void onMain(Runnable action) {
         if (plugin.getServer().isPrimaryThread()) {
             action.run();
-        } else {
-            BukkitTask scheduled = plugin.getServer().getScheduler().runTask(plugin, action);
-            if (scheduled == null) {
-                action.run();
-            }
+            return;
+        }
+        BukkitTask scheduled = plugin.getServer().getScheduler().runTask(plugin, action);
+        if (scheduled == null) {
+            throw new IllegalStateException("unable to marshal callback to Paper main thread");
         }
     }
 
@@ -558,9 +692,9 @@ public final class FastTravelService {
         return CompletableFuture.completedFuture(result);
     }
 
-    private static long safeExpiry(long nowMillis) {
+    private long safeExpiry(long nowMillis) {
         try {
-            return Math.addExact(nowMillis, FALLBACK_RESERVATION_EXPIRY_MILLIS);
+            return Math.addExact(nowMillis, reservationDurationMillis);
         } catch (ArithmeticException exception) {
             return Long.MAX_VALUE;
         }
@@ -629,6 +763,23 @@ public final class FastTravelService {
         EXPIRED,
         INVALIDATED,
         FAILED
+    }
+
+    private enum AttemptState {
+        ACTIVE,
+        COMMITTING,
+        TERMINAL
+    }
+
+    private static final class TravelAttempt {
+        private final UUID playerId;
+        private final AtomicReference<AttemptState> state =
+                new AtomicReference<>(AttemptState.ACTIVE);
+        private volatile PendingTravel trip;
+
+        private TravelAttempt(UUID playerId) {
+            this.playerId = playerId;
+        }
     }
 
     private record PendingTravel(UUID playerId, String originId, String destinationId,
