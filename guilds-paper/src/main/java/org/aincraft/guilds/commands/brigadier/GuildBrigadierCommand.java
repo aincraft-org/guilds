@@ -101,6 +101,11 @@ public class GuildBrigadierCommand {
                 .requires(source -> source.getSender().hasPermission("guilds.guild.create"))
                 .then(Commands.argument("name", StringArgumentType.word())
                     .executes(this::handleCreate)))
+            // Familiar alias: /g new
+            .then(Commands.literal("new")
+                .requires(source -> source.getSender().hasPermission("guilds.guild.create"))
+                .then(Commands.argument("name", StringArgumentType.word())
+                    .executes(this::handleCreate)))
             // Join subcommand
             .then(Commands.literal("join")
                 .requires(source -> source.getSender().hasPermission("guilds.guild.join"))
