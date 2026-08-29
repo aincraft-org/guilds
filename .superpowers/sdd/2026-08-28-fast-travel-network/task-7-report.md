@@ -107,15 +107,25 @@ Focused regressions were rerun after these corrections with the same required Gr
 - Main-thread marshalling now fails rather than running callbacks inline when scheduler submission returns null.
 - Focused regressions were rerun after these fixes; Gradle again failed before test execution in 2s (`4 actionable tasks: 4 up-to-date`) on the same Mint HTTP 401 blocker.
 
+## Round-two review corrections
+
+- Restored the `guilds` and `stopped` service fields and verified the constructor dependency assignments.
+- Revalidated authorization on the Paper thread after asynchronous route completion, before landing/teleport/commit, and used that fresh decision for cooldown identity.
+- Wrapped the scheduled completion body so unexpected landing/protection/cost/teleport failures terminal-clean and release reservations.
+- Added `FastTravelAccess.FastTravelSnapshot`, an immutable preloaded identity/capability/alliance seam for composition roots; when supplied, access decisions do not query Resident/Guild/TechTree/Alliance services, allowing JDBC work to occur before main-thread listing/authorization.
+
+Focused regressions were rerun after this round with the required selector command; Gradle failed before execution in 5s (`4 actionable tasks: 4 up-to-date`) on the known Mint HTTP 401 dependency blocker.
+
 ## Commit
 
 - `d22cd1c` — `feat: generalize waystone travel into fast travel`
 - `05b45dc` — `fix: enforce transport validation before fast travel`
 - `ccb2b9b` — `fix: make fast travel attempts cancellable`
+- `37c11c4` — `fix: revalidate fast travel completion`
 
 ## Concerns
 
 - **Mint private dependency credentials** — the required focused Gradle command and compile could not reach test compilation/execution because GitHub Packages returned HTTP 401 for the known private Mint dependency.
 - **Java 26 compiler unavailable** — the environment has no independently usable Java 26 compiler; no build/toolchain change was made.
-- **Task 9 composition wiring** — GuildsPlugin currently constructs the legacy-compatible no-currency FastTravelService constructor. Task 9 must inject the shared TravelCurrencyService, FastTravelCostCalculator, BoatRouteService, TechTreeService, GuildService, ResidentService, and AllianceService, pass the configured reservation duration through the explicit constructor seam, and invoke startup recovery.
+- **Task 9 composition wiring** — GuildsPlugin currently constructs the legacy-compatible no-currency FastTravelService constructor. Task 9 must inject the shared TravelCurrencyService, FastTravelCostCalculator, BoatRouteService, TechTreeService, GuildService, ResidentService, and AllianceService, pass the configured reservation duration through the explicit constructor seam, preload/provide FastTravelSnapshot data for synchronous main-thread access, and invoke startup recovery.
 - **Dedicated LSP/rename_file tool unavailable** — active references were exhaustively searched and migrated with filesystem rename operations; no Waystone class aliases or deprecated wrappers were left in active Java sources.
