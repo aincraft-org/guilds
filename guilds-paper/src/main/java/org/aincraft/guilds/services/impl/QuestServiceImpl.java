@@ -24,9 +24,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletionStage;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class QuestServiceImpl implements QuestService {
+    private static final Logger FALLBACK_LOGGER = Logger.getLogger(QuestServiceImpl.class.getName());
     private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
     private final TravelCurrencyService travelCurrencyService;
@@ -102,18 +106,66 @@ public class QuestServiceImpl implements QuestService {
                 updateQuestInDatabase(quest);
                 if (!wasCompleted && quest.isCompleted() && contributorUuid != null
                         && travelCurrencyService != null && travelCurrencyConfig != null) {
-                    travelCurrencyService.award(
-                            contributorUuid,
-                            TravelCurrencyRewardSource.QUEST_COMPLETION,
-                            "quest:" + guildId + ":" + questId,
-                            travelCurrencyConfig.rewardAmount(TravelCurrencyRewardSource.QUEST_COMPLETION),
-                            System.currentTimeMillis());
+                    String eventId = "quest:" + guildId + ":" + questId;
+                    long rewardAmount = travelCurrencyConfig.rewardAmount(
+                            TravelCurrencyRewardSource.QUEST_COMPLETION);
+                    try {
+                        CompletionStage<TravelCurrencyService.RewardResult> reward =
+                                travelCurrencyService.award(
+                                        contributorUuid,
+                                        TravelCurrencyRewardSource.QUEST_COMPLETION,
+                                        eventId,
+                                        rewardAmount,
+                                        System.currentTimeMillis());
+                        observeReward(contributorUuid, TravelCurrencyRewardSource.QUEST_COMPLETION,
+                                eventId, reward);
+                    } catch (RuntimeException exception) {
+                        logRewardFailure(contributorUuid, TravelCurrencyRewardSource.QUEST_COMPLETION,
+                                eventId, "award invocation threw", exception);
+                    }
                 }
                 break;
             }
         }
     }
 
+    private void observeReward(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                               CompletionStage<TravelCurrencyService.RewardResult> reward) {
+        if (reward == null) {
+            logRewardFailure(actor, source, eventId, "status=NULL_STAGE", null);
+            return;
+        }
+        try {
+            reward.handle((result, error) -> {
+                if (error != null) {
+                    logRewardFailure(actor, source, eventId, "completion failed", error);
+                } else if (result == null) {
+                    logRewardFailure(actor, source, eventId, "status=NULL_RESULT", null);
+                } else if (result.status() != TravelCurrencyService.RewardStatus.AWARDED
+                        && result.status() != TravelCurrencyService.RewardStatus.DUPLICATE) {
+                    logRewardFailure(actor, source, eventId, "status=" + result.status(), null);
+                }
+                return null;
+            });
+        } catch (RuntimeException exception) {
+            logRewardFailure(actor, source, eventId, "completion observation threw", exception);
+        }
+    }
+
+    private void logRewardFailure(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                                  String detail, Throwable error) {
+        String message = "Travel currency reward failed source=" + source
+                + " eventId=" + eventId + " actor=" + actor + " " + detail;
+        Logger logger = plugin == null ? FALLBACK_LOGGER : plugin.getLogger();
+        if (logger == null) {
+            logger = FALLBACK_LOGGER;
+        }
+        if (error == null) {
+            logger.warning(message);
+        } else {
+            logger.log(Level.WARNING, message, error);
+        }
+    }
     @Override
     public Optional<GuildQuest> getQuest(String questId) {
         return questsByGuild.values().stream()

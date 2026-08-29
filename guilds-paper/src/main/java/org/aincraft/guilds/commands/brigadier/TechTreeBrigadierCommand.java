@@ -26,7 +26,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Brigadier command for guild projects (the tech-tree node catalog).
@@ -38,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
  * /techtree list [branch] — list projects by branch
  */
 public class TechTreeBrigadierCommand {
+    private static final Logger LOGGER = Logger.getLogger(TechTreeBrigadierCommand.class.getName());
 
     private final TechTreeService techTreeService;
     private final GuildProjectService guildProjectService;
@@ -255,12 +260,7 @@ public class TechTreeBrigadierCommand {
         if (guildProjectService.completeActiveProject(guild)) {
             if (activeProjectId.isPresent()
                     && travelCurrencyService != null && travelCurrencyConfig != null) {
-                travelCurrencyService.award(
-                        player.getUniqueId(),
-                        TravelCurrencyRewardSource.GUILD_ACTIVITY,
-                        "project:" + guild.getId() + ":" + activeProjectId.get(),
-                        travelCurrencyConfig.rewardAmount(TravelCurrencyRewardSource.GUILD_ACTIVITY),
-                        System.currentTimeMillis());
+                awardGuildActivity(player.getUniqueId(), guild.getId(), activeProjectId.get());
             }
             player.sendMessage("§aCompleted the active guild project. You can start another.");
             return Command.SINGLE_SUCCESS;
@@ -269,6 +269,57 @@ public class TechTreeBrigadierCommand {
         return 0;
     }
 
+    private void awardGuildActivity(UUID actor, String guildId, String nodeId) {
+        String eventId = "project:" + guildId + ":" + nodeId;
+        long rewardAmount = travelCurrencyConfig.rewardAmount(TravelCurrencyRewardSource.GUILD_ACTIVITY);
+        try {
+            CompletionStage<TravelCurrencyService.RewardResult> reward =
+                    travelCurrencyService.award(
+                            actor,
+                            TravelCurrencyRewardSource.GUILD_ACTIVITY,
+                            eventId,
+                            rewardAmount,
+                            System.currentTimeMillis());
+            observeReward(actor, TravelCurrencyRewardSource.GUILD_ACTIVITY, eventId, reward);
+        } catch (RuntimeException exception) {
+            logRewardFailure(actor, TravelCurrencyRewardSource.GUILD_ACTIVITY,
+                    eventId, "award invocation threw", exception);
+        }
+    }
+
+    private static void observeReward(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                                      CompletionStage<TravelCurrencyService.RewardResult> reward) {
+        if (reward == null) {
+            logRewardFailure(actor, source, eventId, "status=NULL_STAGE", null);
+            return;
+        }
+        try {
+            reward.handle((result, error) -> {
+                if (error != null) {
+                    logRewardFailure(actor, source, eventId, "completion failed", error);
+                } else if (result == null) {
+                    logRewardFailure(actor, source, eventId, "status=NULL_RESULT", null);
+                } else if (result.status() != TravelCurrencyService.RewardStatus.AWARDED
+                        && result.status() != TravelCurrencyService.RewardStatus.DUPLICATE) {
+                    logRewardFailure(actor, source, eventId, "status=" + result.status(), null);
+                }
+                return null;
+            });
+        } catch (RuntimeException exception) {
+            logRewardFailure(actor, source, eventId, "completion observation threw", exception);
+        }
+    }
+
+    private static void logRewardFailure(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                                         String detail, Throwable error) {
+        String message = "Travel currency reward failed source=" + source
+                + " eventId=" + eventId + " actor=" + actor + " " + detail;
+        if (error == null) {
+            LOGGER.warning(message);
+        } else {
+            LOGGER.log(Level.WARNING, message, error);
+        }
+    }
     private int handleClear(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();
         if (!(sender instanceof org.bukkit.entity.Player player)) {

@@ -12,11 +12,17 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 import java.util.EnumMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+import org.bukkit.plugin.java.JavaPlugin;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -37,7 +43,9 @@ class QuestServiceImplTest {
     void setUp() {
         service = new QuestServiceImpl(null, databaseManager, currencyService, currencyConfig);
         when(currencyService.award(any(), any(TravelCurrencyRewardSource.class), anyString(), anyLong(), anyLong()))
-                .thenReturn(CompletableFuture.completedFuture(null));
+                .thenReturn(CompletableFuture.completedFuture(
+                        new TravelCurrencyService.RewardResult(
+                                TravelCurrencyService.RewardStatus.AWARDED, null)));
     }
 
     @Test
@@ -71,6 +79,27 @@ class QuestServiceImplTest {
                 anyString(),
                 anyLong(),
                 anyLong());
+    }
+
+    @Test
+    void exceptionalAwardIsObservedAndLoggedWithoutUndoingProgress() {
+        Logger logger = mock(Logger.class);
+        JavaPlugin plugin = mock(JavaPlugin.class);
+        when(plugin.getLogger()).thenReturn(logger);
+        service = new QuestServiceImpl(plugin, databaseManager, currencyService, currencyConfig);
+        GuildQuest quest = activeQuest();
+        UUID contributor = UUID.randomUUID();
+        IllegalStateException failure = new IllegalStateException("wallet unavailable");
+        when(currencyService.award(any(), any(TravelCurrencyRewardSource.class), anyString(), anyLong(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(failure));
+
+        assertDoesNotThrow(() -> service.incrementProgress(GUILD_ID, quest.getId(), 5, contributor));
+
+        assertTrue(quest.isCompleted());
+        verify(logger).log(
+                eq(Level.WARNING),
+                contains("source=QUEST_COMPLETION"),
+                same(failure));
     }
 
     private GuildQuest activeQuest() {

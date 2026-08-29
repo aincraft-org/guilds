@@ -28,11 +28,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletionStage;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Listener for player movement events to handle guild boundary notifications.
  */
 public class PlayerMovementListener implements Listener {
+    private static final Logger FALLBACK_LOGGER = Logger.getLogger(PlayerMovementListener.class.getName());
 
     private final JavaPlugin plugin;
     private final PlotService plotService;
@@ -236,12 +240,61 @@ public class PlayerMovementListener implements Listener {
         if (travelCurrencyService == null || travelCurrencyConfig == null) {
             return;
         }
-        travelCurrencyService.award(
-                playerUuid,
-                TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
-                "territory:" + territoryId + ":" + playerUuid,
-                travelCurrencyConfig.rewardAmount(TravelCurrencyRewardSource.EXPLORATION_MILESTONE),
-                System.currentTimeMillis());
+        String eventId = "territory:" + territoryId + ":" + playerUuid;
+        long rewardAmount = travelCurrencyConfig.rewardAmount(
+                TravelCurrencyRewardSource.EXPLORATION_MILESTONE);
+        try {
+            CompletionStage<TravelCurrencyService.RewardResult> reward =
+                    travelCurrencyService.award(
+                            playerUuid,
+                            TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
+                            eventId,
+                            rewardAmount,
+                            System.currentTimeMillis());
+            observeReward(playerUuid, TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
+                    eventId, reward);
+        } catch (RuntimeException exception) {
+            logRewardFailure(playerUuid, TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
+                    eventId, "award invocation threw", exception);
+        }
+    }
+
+    private void observeReward(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                               CompletionStage<TravelCurrencyService.RewardResult> reward) {
+        if (reward == null) {
+            logRewardFailure(actor, source, eventId, "status=NULL_STAGE", null);
+            return;
+        }
+        try {
+            reward.handle((result, error) -> {
+                if (error != null) {
+                    logRewardFailure(actor, source, eventId, "completion failed", error);
+                } else if (result == null) {
+                    logRewardFailure(actor, source, eventId, "status=NULL_RESULT", null);
+                } else if (result.status() != TravelCurrencyService.RewardStatus.AWARDED
+                        && result.status() != TravelCurrencyService.RewardStatus.DUPLICATE) {
+                    logRewardFailure(actor, source, eventId, "status=" + result.status(), null);
+                }
+                return null;
+            });
+        } catch (RuntimeException exception) {
+            logRewardFailure(actor, source, eventId, "completion observation threw", exception);
+        }
+    }
+
+    private void logRewardFailure(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                                  String detail, Throwable error) {
+        String message = "Travel currency reward failed source=" + source
+                + " eventId=" + eventId + " actor=" + actor + " " + detail;
+        Logger logger = plugin == null ? FALLBACK_LOGGER : plugin.getLogger();
+        if (logger == null) {
+            logger = FALLBACK_LOGGER;
+        }
+        if (error == null) {
+            logger.warning(message);
+        } else {
+            logger.log(Level.WARNING, message, error);
+        }
     }
 
     private TerritoryLocation resolveTerritory(String world, int blockX, int blockZ) {
@@ -285,6 +338,7 @@ public class PlayerMovementListener implements Listener {
     public void cleanupOfflinePlayer(UUID playerUuid) {
         lastGuildByPlayer.remove(playerUuid);
         lastPlotTypeByPlayer.remove(playerUuid);
+        lastTerritoryByPlayer.remove(playerUuid);
     }
 
     @EventHandler
