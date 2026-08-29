@@ -75,11 +75,11 @@ Use `/tc <message>` for a one-off guild-chat message. Run `/tc` with no message 
 
 ### Banks, storage, quests, and progression
 
-The resource bank and cash bank are separate ideas. Use `/guildlevel bank` to inspect contributed progression resources, `/guildlevel deposit EXPERIENCE <amount>` to contribute XP, `/guildlevel contributions` to inspect progress, `/guildlevel level` to see level, claim limit, assistant slots, and points, and `/guildlevel upgrade` when the mayor or a guild administrator is ready to spend the next level's XP progress. Guild upgrades are XP-only; a successful level gives project skill points equal to the new level.
+The resource bank and cash bank are separate ideas. Use `/guildlevel bank` to inspect contributed progression resources, `/guildlevel deposit EXPERIENCE <amount>` to contribute Experience Bottle items toward the next level, `/guildlevel contributions` to inspect progress, `/guildlevel level` to see level, claim limit, assistant slots, and points, and `/guildlevel upgrade` when the mayor or a guild administrator is ready to spend the next level's XP progress. Guild upgrades are XP-only; a successful level gives project skill points equal to the new level.
 
 Use `/guild bank open` to enroll/open the Mint cash account, `/guild bank` to read its balance, `/guild bank deposit <amount>` to deposit personal Mint funds, and `/guild bank withdraw <amount>` to withdraw them. These operations are asynchronous and require a trusted Mint rail; they are not the SQL `Guild.balance` field.
 
-Use `/guild storage` while standing at an active storage facility anchor to open the shared guild item-storage UI. The same UI can open when you interact with the registered storage anchor. Access requires current membership in the governing guild and a valid active facility; the storage bank is durable and separate from facility location metadata. The default policy allows members to deposit, assistants to withdraw, and the mayor to manage policy. Capacity starts with a 54-slot `General` tab. No player-facing expansion command is registered, so players cannot expand it through `/guild`.
+Use `/guild storage` while standing at or immediately beside an active storage facility anchor to open the shared guild item-storage UI. The same UI can open when you interact with the registered storage anchor. Access requires current membership in the governing guild and a valid active facility; the storage bank is durable and separate from facility location metadata. The default policy allows members to deposit, assistants to withdraw, and the mayor to manage policy. Capacity starts with a 54-slot `General` tab. No player-facing expansion command is registered, so players cannot expand it through `/guild`.
 
 Use `/quest` or `/tq` to list active guild quests and `/quest progress` for details. A quest reports its type, description, progress, and tech-point reward. `/quest refresh` is an administrator refresh path rather than an ordinary daily command. Completing a quest with an attributable player can also award that player's personal travel currency once for the stable event.
 
@@ -100,7 +100,7 @@ Use `/territory building travel <destinationId>` from an eligible interactive tr
 | Speak to residents | `/tc [message]`, `/guildchat`, `/guilds chat <message>` | Guild-chat permission; message form requires guild membership |
 | Contribute and upgrade | `/guildlevel level`, `/guildlevel deposit EXPERIENCE <amount>`, `/guildlevel bank`, `/guildlevel contributions`, `/guildlevel upgrade` | Guild membership; upgrade is mayor/admin gated |
 | Use cash guild bank | `/guild bank [open\|deposit <amount>\|withdraw <amount>]` | Current resident, permission for transfers, trusted Mint rail |
-| Use item storage | `/guild storage` | Stand at active STORAGE facility; current governing-guild resident |
+| Use item storage | `/guild storage` | Stand at or immediately beside active STORAGE facility anchor; current governing-guild resident |
 | Follow quests | `/quest`, `/quest progress` | Guild membership; refresh is admin-only |
 | Work with alliances | `/alliance` and `/alliance <create\|accept\|invite\|join\|leave\|list\|info\|ally\|enemy\|kick\|set\|minister\|government>` | Alliance command permission plus mayor/king/minister role where required |
 | Travel between facilities | `/territory building travel <destinationId>` | Eligible endpoint, capability, allied/current policy checks, safe landing, and personal travel currency |
@@ -115,7 +115,7 @@ Use `/territory building travel <destinationId>` from an eligible interactive tr
 
 Guild levels are configured up to level 150, but the packaged level definitions currently provide explicit entries for levels 2, 3, 4, 5, and 10. Those entries require XP only: 50, 75, 100, 150, and 400 XP respectively. The configured benefits at those entries grant one tech point, two claim-limit bonus chunks, and a 0.5 daily-income bonus; level 10 additionally grants one assistant slot and unlocks the `BANK` plot type. The server's actual level data remains the authority if it has been customized.
 
-Contributing XP removes the contribution from the player's inventory and persists guild progress. If the durable write fails, the source refunds the removed contribution. An upgrade rechecks the locked guild row, consumes progress once, and leaves tech points equal to the guild's current level. Only one technology project can be active at a time; the project must meet its prerequisites before it can be started, and completion can award the attributable player personal travel currency.
+Contributing Experience Bottle items removes them from the player's inventory and persists guild progress. If the durable write fails, the source refunds the removed contribution. An upgrade rechecks the locked guild row, consumes progress once, and leaves tech points equal to the guild's current level. Only one technology project can be active at a time; the project must meet its prerequisites before it can be started, and completion can award the attributable player personal travel currency.
 
 The current registered player entry point for the upgrade graph is `/guild upgrade`, which opens the MapGUI upgrade screen when MapGUI is installed. The standalone `/techtree` root is not registered. Some internal help text still names `/techtree start`, but it is not a player command on the current registry; use the upgrade screen instead.
 
@@ -184,7 +184,7 @@ Influence is a separate contest race, not a plot claim and not standing. An elig
 
 Standing is the governing guild's territory-development track. Governing members' PvP kills, PvE kills, and block breaks accrue standing; block placement and crafting do not. There is no passive decay. Configured standing tiers can add harvest multipliers for governing members and a multiplier read by the influence engine, but standing is not personal XP. `/territory standing <territoryId>` reads a bar; operator set/reset forms exist for administration. Failed durable loads fail closed rather than silently creating an empty contest.
 
-Upkeep is recurring territory treasury assessment, not a player wallet. The packaged defaults enable it with a base amount of 100, chunk amount 0.5, facility amount 10, development amount 25, a seven-day interval, and a two-day grace period. `/territory upkeep [territoryId]` is an operator/status surface. The active economy path charges expenses through its durable, idempotent expense journal.
+Upkeep is recurring territory treasury assessment, not a player wallet. The packaged defaults enable it with a base amount of 100, chunk amount 0.5, facility amount 10, development amount 25, a seven-day interval, and a two-day grace period. `/territory upkeep [territoryId]` is a status readout and is not itself operator-gated; operators control the recurring configuration. The active economy path charges expenses through its durable, idempotent expense journal.
 
 ### Facilities and fast travel
 
@@ -200,7 +200,7 @@ For crystal, terminal, boat, and airship transport, both endpoints and the initi
 
 The travel currency is a finite personal wallet, not guild resources and not the guild's cash bank. Packaged defaults give a player 10 starter units, a maximum of 1,000, a base cost of 1, a distance divisor of 100, and mode multipliers of 1.0 for waystone/crystal, 1.25 for boat, and 1.5 for airship. Cost is the ceiling of base plus mode multiplier times distance divided by the divisor. A reservation lasts 30,000 milliseconds by default; commit finalizes the cost, while release returns it after cancellation or failure. The service rechecks membership, capabilities, endpoint state, route, cost, safe landing, and protection at completion, so a change during warm-up can safely fail and refund rather than silently charging.
 
-Every successful WAYSTONE, CRYSTAL, BOAT, or AIRSHIP trip starts a per-player cooldown before another trip in that mode can begin. The bundled building-timing default is 60 seconds (`buildings.waystone.cooldown-seconds`); Fast Travel's declared 50% cooldown reduction applies only to WAYSTONE, not the other three modes. Canceled or failed trips release their reservation without charging it and do not reach the successful-trip cooldown step.
+With a positive configured cooldown, every successful WAYSTONE, CRYSTAL, BOAT, or AIRSHIP trip starts a per-player cooldown before another trip in that mode can begin. The bundled building-timing default is 60 seconds (`buildings.waystone.cooldown-seconds`); Fast Travel's declared 50% cooldown reduction applies only to WAYSTONE, not the other three modes. Canceled or failed trips release their reservation without charging it and do not reach the successful-trip cooldown step.
 Travel can award personal currency from `QUEST_COMPLETION` (20 by default), `EXPLORATION_MILESTONE` (10), and `GUILD_ACTIVITY` (5). Each award requires a player actor and stable event id and is idempotent; actorless events do not award. Expired and orphan reservations are recovered before runtime transport activation and during shutdown.
 
 ### Invasions
@@ -282,9 +282,9 @@ Server operators should expect live Paper smoke and database-backed integration 
 | Influence status/admin | `/territory influence <id>`, `/territory influence set/reset ...` | Status is **Implemented**; set/reset are **API/operator-only** |
 | Influence declaration | `/territory declare <id> confirm`, `/territory declare cancel <id>` | **Implemented** when influence eligibility and persistence are available |
 | Standing status/admin | `/territory standing <id>`, `/territory standing set/reset ...` | Status is **Implemented**; set/reset are **API/operator-only** |
-| Upkeep status | `/territory upkeep [id]` | **API/operator-only** status surface |
+| Upkeep status | `/territory upkeep [id]` | **Implemented** status readout; not itself operator-gated (operators control recurring configuration) |
 | Invasion | `/territory invasion start\|stop\|status <guild>` | **API/operator-only**, operator-gated |
-| Facilities | `/territory building create\|cancel\|list\|info\|remove ...` | **API/operator-only** except travel; physical Paper smoke remains environment-dependent |
+| Facilities | `/territory building create\|cancel\|list\|info\|remove ...` | **Implemented** for operators or authorized guild residents, except travel; physical Paper smoke remains environment-dependent |
 | Travel | `/territory building travel <destinationId>` | **Implemented** player path; asynchronous and cancellable |
 | Permission diagnostics | `/perm check\|build\|destroy\|plot\|guild\|flags\|here` | **API/operator-only** troubleshooting command |
 | Plot type management | `/plottype` or `/ptype` | **Unavailable or pending**: only a help message; management subcommands are not implemented |
