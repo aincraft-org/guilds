@@ -138,6 +138,33 @@ class GuildUpgradeGraphLayoutTest {
                 new GuildUpgradeGraphLayout.SplineEdge("guild_hall", "monument")
         )));
     }
+    @Test
+    void fastTravelInfrastructureNodesHaveDistinctHitboxes() {
+        List<TechTreeNode> nodes = new ArrayList<>(configuredNodes());
+        nodes.add(node("remote_crystal", "Remote Crystal", TechTreeBranch.INFRASTRUCTURE, 3,
+                List.of("fast_travel")));
+        nodes.add(node("boat_travel", "Boat Travel", TechTreeBranch.INFRASTRUCTURE, 3,
+                List.of("fast_travel")));
+        nodes.add(node("airship_travel", "Airship Travel", TechTreeBranch.INFRASTRUCTURE, 4,
+                List.of("fast_travel")));
+
+        Map<String, GuildUpgradeGraphLayout.LayoutNode> layout =
+                GuildUpgradeGraphLayout.layout(nodes);
+        Set<String> positions = new HashSet<>();
+        for (String id : List.of("remote_crystal", "boat_travel", "airship_travel")) {
+            GuildUpgradeGraphLayout.LayoutNode placed = layout.get(id);
+            assertNotNull(placed);
+            assertTrue(positions.add(placed.x() + ":" + placed.y()));
+            for (GuildUpgradeGraphLayout.LayoutNode existing : layout.values()) {
+                if (!existing.id().equals(id)) {
+                    assertFalse(Math.abs(placed.x() - existing.x()) <= 6
+                                    && Math.abs(placed.y() - existing.y()) <= 6,
+                            id + " overlaps " + existing.id());
+                }
+            }
+        }
+    }
+
 
     @Test
     void fallbackPlacementKeepsLargeCustomBranchHitboxesDisjoint() {

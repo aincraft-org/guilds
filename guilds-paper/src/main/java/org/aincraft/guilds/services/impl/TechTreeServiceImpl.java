@@ -7,13 +7,13 @@ import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.database.DatabaseManager;
 import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.territory.persist.SqlSupport;
+import org.aincraft.guilds.territory.model.FastTravelMode;
 import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.aincraft.guilds.models.Guild;
 import org.aincraft.guilds.models.GuildTechData;
 import org.aincraft.guilds.services.TechTreeService;
 import org.aincraft.guilds.services.GuildService;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -132,6 +132,37 @@ public class TechTreeServiceImpl implements TechTreeService {
     }
 
     // ── Unlock logic ───────────────────────────────────────────────────
+
+    @Override
+    public boolean hasCapability(Guild guild, String nodeId) {
+        if (guild == null || nodeId == null) {
+            return false;
+        }
+        ensureDefinitionsLoaded();
+        return nodeDefinitions.containsKey(nodeId) && guild.isTechNodeUnlocked(nodeId);
+    }
+
+    @Override
+    public double getNumericEffect(Guild guild, String nodeId, String effectKey) {
+        if (effectKey == null || !hasCapability(guild, nodeId)) {
+            return 0.0;
+        }
+        Object value = nodeDefinitions.get(nodeId).getEffects() == null
+                ? null : nodeDefinitions.get(nodeId).getEffects().get(effectKey);
+        if (!(value instanceof Number number)) {
+            return 0.0;
+        }
+        double result = number.doubleValue();
+        return Double.isFinite(result) ? result : 0.0;
+    }
+
+    @Override
+    public double cooldownReduction(Guild guild, FastTravelMode mode) {
+        if (mode != FastTravelMode.WAYSTONE) {
+            return 0.0;
+        }
+        return getNumericEffect(guild, "fast_travel", "teleport_cooldown_reduction");
+    }
 
     @Override
     public boolean isTechNodeUnlocked(Guild guild, String nodeId) {

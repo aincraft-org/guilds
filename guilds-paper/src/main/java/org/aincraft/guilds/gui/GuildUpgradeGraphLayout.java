@@ -43,6 +43,9 @@ public final class GuildUpgradeGraphLayout {
         // Infrastructure (NW Quadrant)
         Map.entry("better_storage", new Coord(42, 44)),
         Map.entry("fast_travel", new Coord(26, 32)),
+        Map.entry("remote_crystal", new Coord(10, 22)),
+        Map.entry("boat_travel", new Coord(42, 22)),
+        Map.entry("airship_travel", new Coord(42, 32)),
         Map.entry("advanced_farming", new Coord(22, 52)),
         Map.entry("auto_sorter", new Coord(10, 64)),
 

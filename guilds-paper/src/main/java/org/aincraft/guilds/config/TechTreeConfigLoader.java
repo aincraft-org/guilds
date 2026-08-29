@@ -137,7 +137,7 @@ public class TechTreeConfigLoader {
 
               fast_travel:
                 name: "Fast Travel"
-                description: "Reduces teleport cooldown to guild spawn by 50%"
+                description: "Unlocks local crystal and terminal travel; reduces teleport cooldown to guild spawn by 50%"
                 branch: INFRASTRUCTURE
                 cost: 3
                 parent: better_storage
@@ -146,6 +146,39 @@ public class TechTreeConfigLoader {
                   teleport_cooldown_reduction: 0.5
                 position-x: 1
                 position-y: 1
+
+              remote_crystal:
+                name: "Remote Crystal"
+                description: "Unlocks travel to allied guild crystals"
+                branch: INFRASTRUCTURE
+                cost: 3
+                parent: fast_travel
+                prerequisites: [fast_travel]
+                effects: {}
+                position-x: 0
+                position-y: 2
+
+              boat_travel:
+                name: "Boat Travel"
+                description: "Unlocks boat fast travel"
+                branch: INFRASTRUCTURE
+                cost: 3
+                parent: fast_travel
+                prerequisites: [fast_travel]
+                effects: {}
+                position-x: 2
+                position-y: 2
+
+              airship_travel:
+                name: "Airship Travel"
+                description: "Unlocks airship fast travel"
+                branch: INFRASTRUCTURE
+                cost: 4
+                parent: fast_travel
+                prerequisites: [fast_travel]
+                effects: {}
+                position-x: 3
+                position-y: 2
 
               advanced_farming:
                 name: "Advanced Farming"

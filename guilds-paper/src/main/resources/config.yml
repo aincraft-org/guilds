@@ -78,6 +78,24 @@ buildings:
     anchor-materials:
       - GOLD_BLOCK
 
+  guild-crystal:
+    anchor-materials: [AMETHYST_BLOCK]
+  teleport-terminal:
+    anchor-materials: [LODESTONE]
+  boat:
+    anchor-materials: [OAK_PLANKS]
+  airship:
+    anchor-materials: [IRON_BLOCK]
+  transport:
+    boat:
+      entry-radius: 2
+      entry-width: 3
+      clear-space-height: 2
+      search-chunk-radius: 32
+      search-chunk-budget: 256
+    airship:
+      platform-radius: 2
+      clear-sky-height: 16
 influence:
   enabled: true
   cap: 100.0
