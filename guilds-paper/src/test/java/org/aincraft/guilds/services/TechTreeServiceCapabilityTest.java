@@ -54,6 +54,9 @@ class TechTreeServiceCapabilityTest {
         assertEquals(0.0, service.getNumericEffect(guild, "boat_travel",
                 "teleport_cooldown_reduction"));
         assertEquals(0.0, service.cooldownReduction(guild, FastTravelMode.CRYSTAL));
+        assertEquals(0.0, service.cooldownReduction(guild, FastTravelMode.LOCAL_TERMINAL));
+        assertEquals(0.0, service.cooldownReduction(guild, FastTravelMode.BOAT));
+        assertEquals(0.0, service.cooldownReduction(guild, FastTravelMode.AIRSHIP));
         assertEquals(0.5, service.cooldownReduction(guild, FastTravelMode.WAYSTONE));
     }
     @Test
@@ -67,20 +70,46 @@ class TechTreeServiceCapabilityTest {
         TechTreeConfigLoader fallbackLoader = new TechTreeConfigLoader(fallbackPlugin);
         fallbackLoader.loadConfiguration();
 
-        Map<String, List<Object>> definitions = travelDefinitions(packagedLoader.getNodes());
-        assertEquals(3, definitions.get("remote_crystal").get(3));
-        assertEquals(List.of("fast_travel"), definitions.get("remote_crystal").get(5));
-        assertEquals(3, definitions.get("boat_travel").get(3));
-        assertEquals(4, definitions.get("airship_travel").get(3));
-        assertTrue(((String) definitions.get("fast_travel").get(1)).contains("local crystal"));
-        assertEquals(0.5, ((Map<?, ?>) definitions.get("fast_travel").get(6))
-                .get("teleport_cooldown_reduction"));
-        assertEquals(3, definitions.get("fast_travel").get(3));
-        assertEquals(List.of("better_storage"), definitions.get("fast_travel").get(5));
-
-
-        assertEquals(definitions, travelDefinitions(fallbackLoader.getNodes()));
+        Map<String, List<Object>> packagedDefinitions = travelDefinitions(packagedLoader.getNodes());
+        Map<String, List<Object>> fallbackDefinitions = travelDefinitions(fallbackLoader.getNodes());
+        assertEquals(packagedDefinitions, fallbackDefinitions);
+        assertTravelDefinitions(packagedDefinitions);
+        assertTravelDefinitions(fallbackDefinitions);
     }
+    private static void assertTravelDefinitions(Map<String, List<Object>> definitions) {
+        assertEquals(4, definitions.size());
+        assertNode(definitions, "remote_crystal", "Remote Crystal",
+                "Unlocks travel to allied guild crystals", 3, 0, 2);
+        assertNode(definitions, "boat_travel", "Boat Travel",
+                "Unlocks boat fast travel", 3, 2, 2);
+        assertNode(definitions, "airship_travel", "Airship Travel",
+                "Unlocks airship fast travel", 4, 3, 2);
+
+        List<Object> fastTravel = definitions.get("fast_travel");
+        assertTrue(((String) fastTravel.get(1)).contains("local crystal"));
+        assertTrue(((String) fastTravel.get(1)).contains("terminal"));
+        assertEquals(3, fastTravel.get(3));
+        assertEquals("better_storage", fastTravel.get(4));
+        assertEquals(List.of("better_storage"), fastTravel.get(5));
+        assertEquals(0.5, ((Map<?, ?>) fastTravel.get(6))
+                .get("teleport_cooldown_reduction"));
+        assertEquals(1, fastTravel.get(7));
+        assertEquals(1, fastTravel.get(8));
+    }
+
+    private static void assertNode(Map<String, List<Object>> definitions, String id,
+                                   String name, String description, int cost, int x, int y) {
+        List<Object> node = definitions.get(id);
+        assertEquals(name, node.get(0));
+        assertEquals(description, node.get(1));
+        assertEquals(cost, node.get(3));
+        assertEquals("fast_travel", node.get(4));
+        assertEquals(List.of("fast_travel"), node.get(5));
+        assertEquals(x, node.get(7));
+        assertEquals(y, node.get(8));
+        assertEquals(TechTreeBranch.INFRASTRUCTURE, node.get(2));
+    }
+
 
     private static JavaPlugin pluginWithResource(java.nio.file.Path dataFolder) {
         JavaPlugin plugin = mock(JavaPlugin.class);
