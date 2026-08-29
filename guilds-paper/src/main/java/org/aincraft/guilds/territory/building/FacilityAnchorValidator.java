@@ -106,8 +106,7 @@ public final class FacilityAnchorValidator {
         return Optional.ofNullable(nearest);
     }
     private static boolean isTransport(FacilityType type) {
-        return type == FacilityType.GUILD_CRYSTAL || type == FacilityType.TELEPORT_TERMINAL
-                || type == FacilityType.BOAT || type == FacilityType.AIRSHIP;
+        return type == FacilityType.BOAT || type == FacilityType.AIRSHIP;
     }
 
 
