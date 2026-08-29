@@ -79,11 +79,9 @@ The resource bank and cash bank are separate ideas. Use `/guildlevel bank` to in
 
 Use `/guild bank open` to enroll/open the Mint cash account, `/guild bank` to read its balance, `/guild bank deposit <amount>` to deposit personal Mint funds, and `/guild bank withdraw <amount>` to withdraw them. These operations are asynchronous and require a trusted Mint rail; they are not the SQL `Guild.balance` field.
 
-Use `/guild storage` while standing at an active storage facility anchor to open the shared guild item-storage UI. The same UI can open when you interact with the registered storage anchor. Access requires current membership in the governing guild and a valid active facility; the storage bank is durable and separate from facility location metadata. The default policy allows members to deposit, assistants to withdraw, and the mayor to manage policy. Capacity starts with a 54-slot `General` tab; later expansion is a stored bank operation, not a property of the facility itself.
+Use `/guild storage` while standing at an active storage facility anchor to open the shared guild item-storage UI. The same UI can open when you interact with the registered storage anchor. Access requires current membership in the governing guild and a valid active facility; the storage bank is durable and separate from facility location metadata. The default policy allows members to deposit, assistants to withdraw, and the mayor to manage policy. Capacity starts with a 54-slot `General` tab. No player-facing expansion command is registered, so players cannot expand it through `/guild`.
 
 Use `/quest` or `/tq` to list active guild quests and `/quest progress` for details. A quest reports its type, description, progress, and tech-point reward. `/quest refresh` is an administrator refresh path rather than an ordinary daily command. Completing a quest with an attributable player can also award that player's personal travel currency once for the stable event.
-
-Use `/guild storage` while standing at an active storage facility anchor to open the shared guild item-storage UI. The same UI can open when you interact with the registered storage anchor. Access requires current membership in the governing guild and a valid active facility; the storage bank is durable and separate from facility location metadata. The default policy allows members to deposit, assistants to withdraw, and the mayor to manage policy. Capacity starts with a 54-slot `General` tab; no player-facing expansion command is registered.
 
 Use `/alliance` (or `/n` or `/a`) to inspect your alliance. A mayor can propose `/alliance create <name> <guild>`; the target guild's mayor must run `/alliance accept <name>`. The default creation requirement is two guilds. Alliance leaders can invite or kick guilds, set the alliance open state, transfer kingship, manage ministers, and add allies or enemies. `/alliance list` and `/alliance info [alliance]` are useful before attempting allied travel.
 
@@ -202,6 +200,7 @@ For crystal, terminal, boat, and airship transport, both endpoints and the initi
 
 The travel currency is a finite personal wallet, not guild resources and not the guild's cash bank. Packaged defaults give a player 10 starter units, a maximum of 1,000, a base cost of 1, a distance divisor of 100, and mode multipliers of 1.0 for waystone/crystal, 1.25 for boat, and 1.5 for airship. Cost is the ceiling of base plus mode multiplier times distance divided by the divisor. A reservation lasts 30,000 milliseconds by default; commit finalizes the cost, while release returns it after cancellation or failure. The service rechecks membership, capabilities, endpoint state, route, cost, safe landing, and protection at completion, so a change during warm-up can safely fail and refund rather than silently charging.
 
+Every successful WAYSTONE, CRYSTAL, BOAT, or AIRSHIP trip starts a per-player cooldown before another trip in that mode can begin. The bundled building-timing default is 60 seconds (`buildings.waystone.cooldown-seconds`); Fast Travel's declared 50% cooldown reduction applies only to WAYSTONE, not the other three modes. Canceled or failed trips release their reservation without charging it and do not reach the successful-trip cooldown step.
 Travel can award personal currency from `QUEST_COMPLETION` (20 by default), `EXPLORATION_MILESTONE` (10), and `GUILD_ACTIVITY` (5). Each award requires a player actor and stable event id and is idempotent; actorless events do not award. Expired and orphan reservations are recovered before runtime transport activation and during shutdown.
 
 ### Invasions
@@ -230,7 +229,15 @@ The configured economy mode in the territory config defaults to `SIMULATION`; a 
 
 MapGUI is an optional soft dependency. When present, the player claim map supports panning, recentering, and explicit Claim/Unclaim tools with permission checks and confirmations. When absent, `/guild map` renders a chat map. MapGUI is also required for the `/guild upgrade` graph screen.
 
-squaremap is an optional soft dependency for display-only territory, zone, and influence layers. Its bridge refreshes on a short interval and does not mutate claims or territory data. If squaremap is missing, core Guilds systems do not fail merely because the map layer is unavailable. The public Vercel deployment at `guilds.mintychochip.dev` is not verified by the current source/spec inventory; it needs a real Vercel project, DNS, upstream API, and safe operator credentials before it should be treated as available.
+squaremap is an optional soft dependency for display-only territory, zone, and influence layers. Its bridge refreshes on a short interval and does not mutate claims or territory data. If squaremap is missing, core Guilds systems do not fail merely because the map layer is unavailable.
+
+The separate Vercel frontend serves `/` and `/editor`; its server-only `/api/*` function forwards same-origin requests to the Paper server's `/api/...` API. It does not replace the Paper-hosted editor or embedded API.
+
+To deploy it, use `web/` as the Vercel project root with `npm ci`, `npm run build`, and `dist`; set exactly one server-side `GUILDS_API_ORIGIN` to an HTTPS origin without credentials, query, or fragment. It is read only by `api/proxy.ts`, never as a `VITE_*` or browser value; a missing or invalid origin fails the proxy.
+
+The Paper server must be running with its `web.enabled` setting on, SQL configured, and a reachable API; public HTTPS setup uses `public-base-url` and `trust-proxy: true`. Keep the operator token as Paper `web.api-token`, not Vercel configuration or browser state: the editor sends it once to `POST /api/session`, then the backend keeps an HttpOnly `GUILDS_SESSION` cookie.
+
+Current status is **Unavailable or pending**: the web README reports no Vercel CLI/account or DNS-management access, and `guilds.mintychochip.dev` does not resolve from the verification environment. The project, upstream Paper API, DNS, safe credential, and production checks remain required before calling the proxy deployed or authenticated.
 
 WorldGuard is an optional soft dependency and receives a one-way, read-only projection of territory shapes and governing rosters. Guilds' own governance-aware protection remains the enforcement path; mirrored WorldGuard regions carry no restrictive flags. If WorldGuard or its API is missing, the bridge degrades to a no-op.
 
