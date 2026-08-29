@@ -30,6 +30,10 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
   - **Reverse-proxy** aware (`X-Forwarded-Proto/Host/For`, `X-Real-IP`, `public-base-url`)
   - The public live map is **squaremap** (see below); the editor is on the API port
 
+- **Player claim map:** `/g map` opens an interactive MapGUI with explicit Pan,
+  Claim, and Unclaim tools plus confirmation before writes. `/g map here <x> <z>`
+  fixes the starting chunk; without MapGUI, map commands fall back to chat output.
+
 ## Build
 
 ```bash

@@ -341,12 +341,12 @@ public final class GuildsPlugin extends JavaPlugin {
         var territoryBasic = new io.papermc.paper.command.brigadier.BasicCommand() {
             @Override
             public void execute(io.papermc.paper.command.brigadier.CommandSourceStack stack, String[] args) {
-                cmd.onCommand(stack.getSender(), null, "territory", args);
+                cmd.onCommand(stack.getSender(), "territory", args);
             }
 
             @Override
             public java.util.Collection<String> suggest(io.papermc.paper.command.brigadier.CommandSourceStack stack, String[] args) {
-                var suggestions = cmd.onTabComplete(stack.getSender(), null, "territory", args);
+                var suggestions = cmd.onTabComplete(stack.getSender(), args);
                 return suggestions == null ? java.util.List.of() : suggestions;
             }
 

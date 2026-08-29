@@ -30,7 +30,11 @@ public final class SqlSupport {
     }
 
     public static boolean mysql(Connection connection) throws SQLException {
-        String product = connection.getMetaData().getDatabaseProductName();
+        var metadata = connection.getMetaData();
+        if (metadata == null) {
+            return false;
+        }
+        String product = metadata.getDatabaseProductName();
         if (product == null) {
             return false;
         }

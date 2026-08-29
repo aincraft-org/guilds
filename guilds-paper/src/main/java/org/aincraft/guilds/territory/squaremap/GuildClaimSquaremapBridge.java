@@ -242,8 +242,8 @@ public final class GuildClaimSquaremapBridge implements Listener {
 
     private static Color colorForGuild(String guildId) {
         int hash = guildId.hashCode();
-        // spread hash to hue 0-360
-        float hue = (Math.abs(hash) % 360) / 360f;
+        // spread hash to hue 0-360 without overflowing on Integer.MIN_VALUE
+        float hue = (Math.floorMod(hash, 360)) / 360f;
         // keep saturation/value high for visibility
         return Color.getHSBColor(hue, 0.75f, 0.85f);
     }

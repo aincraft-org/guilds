@@ -101,6 +101,11 @@ public class GuildBrigadierCommand {
                 .requires(source -> source.getSender().hasPermission("guilds.guild.create"))
                 .then(Commands.argument("name", StringArgumentType.word())
                     .executes(this::handleCreate)))
+            // `new` mirrors create for the familiar `/g new` flow.
+            .then(Commands.literal("new")
+                .requires(source -> source.getSender().hasPermission("guilds.guild.create"))
+                .then(Commands.argument("name", StringArgumentType.word())
+                    .executes(this::handleCreate)))
             // Join subcommand
             .then(Commands.literal("join")
                 .requires(source -> source.getSender().hasPermission("guilds.guild.join"))
@@ -1397,6 +1402,10 @@ public class GuildBrigadierCommand {
         }
         if (!player.hasPermission("guilds.techtree")) {
             player.sendMessage("§cNo permission");
+            return 0;
+        }
+        if (!plugin.getServer().getPluginManager().isPluginEnabled("MapGUI")) {
+            player.sendMessage("§cMapGUI is not available on this server.");
             return 0;
         }
         var resident = residentService.getResident(player.getUniqueId());

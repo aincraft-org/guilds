@@ -41,28 +41,20 @@ class MapCommandTest {
     }
 
     @Test
-    void mapCommandRequiresMapGuiDependency() {
+    void mapCommandSupportsOptionalMapGuiFallback() {
         String pluginYml = read("guilds-paper/src/main/resources/plugin.yml");
+        String paperPluginYml = read("guilds-paper/src/main/resources/paper-plugin.yml");
         String mapCommand = read("guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/MapBrigadierCommand.java");
-        String plugin = read("guilds-paper/src/main/java/org/aincraft/guilds/GuildsPlugin.java");
 
-        assertTrue(pluginYml.contains("depend: [MapGUI]"));
-        assertFalse(pluginYml.contains("softdepend: [WorldEdit, WorldGuard, triumph-gui, squaremap, MapGUI]"));
-        assertFalse(pluginYml.contains("WorldEdit"));
-        assertFalse(pluginYml.contains("triumph-gui"));
-        // WorldGuard is a deliberate, current softdepend (TerritoryWorldGuardBridge
-        // mirrors territories into real WG regions) — unlike WorldEdit/triumph-gui,
-        // it must stay.
-        assertTrue(pluginYml.contains("softdepend: [squaremap, WorldGuard, Mint]"));
-        assertTrue(mapCommand.contains("MapGui.get()"));
-        assertTrue(mapCommand.contains("GuildClaimScreen"));
-        assertFalse(mapCommand.contains("MapFollowTask"));
-        assertFalse(mapCommand.contains("MapRenderer"));
-        assertFalse(mapCommand.contains("MapGuiOpener"));
-        assertFalse(mapCommand.contains("NOT_AVAILABLE"));
-        assertFalse(mapCommand.contains("isAvailable"));
-        assertFalse(plugin.contains("MapFollowTask.stop"));
-        assertFalse(plugin.contains("MapGuiOpener"));
+        assertTrue(pluginYml.contains("softdepend: [MapGUI, squaremap, WorldGuard, Mint, PlaceholderAPI]"));
+        assertFalse(pluginYml.contains("depend: [MapGUI]"));
+        assertTrue(paperPluginYml.contains("MapGUI:") && paperPluginYml.contains("required: false"));
+        assertTrue(mapCommand.contains("isMapGuiPresent"));
+        assertTrue(mapCommand.contains("MapRenderer"));
+        assertTrue(mapCommand.contains("openAsciiMap(player, radius)"));
+        assertTrue(mapCommand.contains("openAsciiMapAt(player, chunkX, chunkZ, radius)"));
+        assertTrue(mapCommand.contains("renderCompactMap"));
+        assertTrue(mapCommand.contains("renderMap"));
     }
 
     private static String read(String file) {

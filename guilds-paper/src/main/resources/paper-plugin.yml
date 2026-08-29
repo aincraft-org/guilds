@@ -13,7 +13,7 @@ dependencies:
   server:
     MapGUI:
       load: BEFORE
-      required: true
+      required: false
       join-classpath: true
     squaremap:
       load: BEFORE

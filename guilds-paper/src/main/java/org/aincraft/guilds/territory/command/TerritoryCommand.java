@@ -47,6 +47,10 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        return onCommand(sender, label, args);
+    }
+
+    public boolean onCommand(CommandSender sender, String label, String[] args) {
         if (args.length == 0) {
             return lookupHere(sender);
         }
@@ -583,6 +587,10 @@ public final class TerritoryCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        return onTabComplete(sender, args);
+    }
+
+    public List<String> onTabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
             String p = args[0].toLowerCase(Locale.ROOT);
             return Arrays.asList("lookup", "list", "reload", "save", "web", "govern",

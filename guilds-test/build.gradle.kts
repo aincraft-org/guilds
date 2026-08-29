@@ -29,13 +29,19 @@ tasks.processResources {
 // GitHub Packages repository (configured in settings.gradle.kts). The cached
 // mint-paper fat jar bundles mint-core and mint-postgres, so no transitive
 // resolution is needed. The jar is loaded as a Paper plugin alongside Guilds.
+// Resolved lazily: only runServer (which boots Mint alongside Guilds) needs the
+// jar, so ordinary compile/test/build must not resolve the credential-gated
+// GitHub Packages repository. Resolving `Configuration.files` here would force
+// that resolution on every Gradle invocation.
 val mintPlugin = configurations.create("mintPlugin")
 dependencies {
     add("mintPlugin", "dev.mintychochip.mint:mint-paper:${property("mintPaperVersion")}") {
         isTransitive = false
     }
 }
-val mintPaperJarFile: java.io.File = mintPlugin.files.first { it.name.contains("mint-paper") }
+val mintPaperJarFile: Provider<File> = mintPlugin.elements.map { files ->
+    files.first { it.asFile.name.contains("mint-paper") }.asFile
+}
 
 // Writes the Mint plugin config and patches the Guilds config for MINT economy
 // mode before runServer boots. On a clean run directory the Guilds config is
@@ -150,7 +156,7 @@ val testPluginJar: java.io.File =
 
 // squaremap is loaded as a plugin. Default to the upstream Java squaremap release
 // (no Rust sidecar); set -PsquaremapLocalRust=true to use the locally-built
-// Rust-backed jar (run/squaremapmap-paper-rust-local.jar) with its sidecar.
+// Rust-backed jar (run/squaremap-paper-rust-local.jar) with its sidecar.
 val useLocalRustSquaremap = providers.gradleProperty("squaremapLocalRust")
     .map { it.equals("true", ignoreCase = true) }
     .orElse(false)
@@ -168,8 +174,8 @@ tasks.runServer {
     pluginJars(guildsShadowJar.flatMap { it.archiveFile }, testPluginJar, squaremapJarFile, mintPaperJarFile)
     dependsOn(guildsShadowJar, tasks.jar, writeMintConfigs)
     downloadPlugins {
-        // MapGUI is a hard dependency of the Guilds plugin (plugin.yml `depend`).
-        // run-paper downloads the release jar into run/plugins so the server boots.
+        // MapGUI is a soft dependency of the Guilds plugin. Download it for
+        // the local server so the interactive map path is available by default.
         github("FloG99", "MapGUI", "v2.0.0", "MapGUI-2.0.0.jar")
         github(
             "PlaceholderAPI",
@@ -180,11 +186,9 @@ tasks.runServer {
     }
 }
 
-// The local Rust-backed squaremap is mandatory: pass backend binary and
-// output root as JVM system properties. Current squaremap serves the SPA from
-// SQUAREMAP_WEB_ROOT (plugin web dir) and tiles from SQUAREMAP_OUTPUT_ROOT
-// (rust-output). syncSquaremapWebToRustOutput still copies the SPA into
-// rust-output so a sidecar without web_root keeps working.
+// When the local Rust-backed squaremap is selected, pass its backend binary and
+// output root as JVM system properties. The upstream Java squaremap path needs
+// neither the sidecar nor the Rust-specific output configuration.
 val sidecarPath = providers.gradleProperty("squaremapBackendBinary")
     .orElse(layout.projectDirectory.file("run/squaremap-server").asFile.absolutePath)
 val backendOutputRoot = providers.gradleProperty("squaremapBackendOutputRoot")
@@ -287,10 +291,10 @@ tasks.runServer {
             "Test plugin jar missing: $testPluginJar — build it with ./gradlew :guilds-test:jar"
         }
         require(squaremapJarFile.isFile) {
-            "Local squaremap jar missing: $squaremapJarFile — build it with ./scripts/build-squaremap-local.sh"
+            "Squaremap jar missing: $squaremapJarFile — provide it or build the local Rust-backed artifact"
         }
-        require(mintPaperJarFile.isFile) {
-            "Mint paper jar missing: $mintPaperJarFile — resolve with ./gradlew :guilds-test:dependencies"
+        require(mintPaperJarFile.get().isFile) {
+            "Mint paper jar missing: ${mintPaperJarFile.get()} — resolve with ./gradlew :guilds-test:dependencies"
         }
         if (useLocalRustSquaremap.get()) {
             require(file(sidecarPath.get()).isFile) {

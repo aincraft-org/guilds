@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,6 +31,7 @@ public final class SqlMigrationRunner {
         }
         int current = currentVersion(connection, track);
         List<SqlMigration> migrations = SqlMigrationCatalog.load(track, type);
+        validateApplied(connection, track, migrations);
         LOGGER.info(() -> track + " schema current version: " + current);
         for (SqlMigration migration : migrations) {
             if (migration.version() <= current) {
@@ -75,6 +77,53 @@ public final class SqlMigrationRunner {
         return 0;
     }
 
+    /**
+     * Verifies checksums for migration rows already applied on the selected track.
+     *
+     * @throws SQLException when an applied migration no longer matches its resource
+     */
+    public static void validateApplied(
+            Connection connection, String track, List<SqlMigration> migrations) throws SQLException {
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(track, "track");
+        Objects.requireNonNull(migrations, "migrations");
+
+        Map<Integer, String> appliedChecksums = new HashMap<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                SqlStatements.load("migrations/select-applied.sql"))) {
+            statement.setString(1, track);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    appliedChecksums.put(resultSet.getInt("version"), resultSet.getString("checksum"));
+                }
+            }
+        }
+
+        Map<Integer, SqlMigration> catalogByVersion = new HashMap<>();
+        for (SqlMigration migration : migrations) {
+            catalogByVersion.put(migration.version(), migration);
+        }
+        int highestApplied = 0;
+        for (Integer appliedVersion : appliedChecksums.keySet()) {
+            if (!catalogByVersion.containsKey(appliedVersion)) {
+                throw new SQLException("Applied migration " + track + " V" + appliedVersion
+                        + " is not present in the current catalog");
+            }
+            highestApplied = Math.max(highestApplied, appliedVersion);
+        }
+
+        for (SqlMigration migration : migrations) {
+            if (migration.version() <= highestApplied && !appliedChecksums.containsKey(migration.version())) {
+                throw new SQLException("Migration " + track + " V" + migration.version()
+                        + " is missing from the applied history");
+            }
+            String applied = appliedChecksums.get(migration.version());
+            if (applied != null && !applied.equals(migration.checksum())) {
+                throw new SQLException("Migration " + track + " V" + migration.version()
+                        + " has a different checksum than its resource");
+            }
+        }
+    }
     static void markApplied(Connection connection, SqlMigration migration) throws SQLException {
         String now = LocalDateTime.now(ZoneOffset.UTC).toString();
         String insertTrack = SqlSupport.upsertSql(connection, SqlStatements.load("migrations/insert-sql_schema_migrations.sql"),

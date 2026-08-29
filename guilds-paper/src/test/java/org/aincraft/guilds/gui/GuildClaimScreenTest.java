@@ -19,12 +19,15 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class GuildClaimScreenTest {
@@ -124,23 +127,131 @@ class GuildClaimScreenTest {
 
 
     @Test
-    void handUsesPopupModeLikeMapGuiMenu() {
+    void handUsesPinnedMainHandModeForMapGestures() {
         PlotService plots = mock(PlotService.class);
         GuildService guilds = mock(GuildService.class);
         PermissionService permissions = mock(PermissionService.class);
 
         GuildClaimScreen screen = new GuildClaimScreen("Alpha", guilds, plots, permissions, 1);
 
-        assertEquals(HandOptions.popup(), screen.hand());
+        assertEquals(HandOptions.pinned(4), screen.hand());
     }
 
     @Test
-    void mapUsesSlightlyLargerReadableFont() {
+    void mapUsesLargerReadableFont() {
         GuildClaimScreen screen = new GuildClaimScreen(
                 "Alpha", mock(GuildService.class), mock(PlotService.class), mock(PermissionService.class), 1);
 
-        assertEquals(9, ((AwtFont) screen.font()).awt().getSize());
+        assertEquals(10, ((AwtFont) screen.font()).awt().getSize());
     }
+
+    @Test
+    void compassUsesLargerReadableFont() throws Exception {
+        Player player = mock(Player.class);
+        when(player.getLocation()).thenReturn(mock(Location.class));
+
+        Session session = mock(Session.class);
+        when(session.player()).thenReturn(player);
+        when(session.width()).thenReturn(128);
+        when(session.height()).thenReturn(128);
+
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), mock(PlotService.class), mock(PermissionService.class), 1);
+        screen.attach(session);
+
+        de.flog99.mapgui.ui.Painter painter = mock(de.flog99.mapgui.ui.Painter.class);
+        de.flog99.mapgui.ui.PaintContext context = new de.flog99.mapgui.ui.PaintContext(
+                painter, new de.flog99.mapgui.ui.Rect(0, 0, 32, 32), false);
+        var paintCompass = GuildClaimScreen.class.getDeclaredMethod(
+                "paintCompass", de.flog99.mapgui.ui.PaintContext.class);
+        paintCompass.setAccessible(true);
+        paintCompass.invoke(screen, context);
+
+        var capturedFont = org.mockito.ArgumentCaptor.forClass(de.flog99.mapgui.ui.TextFont.class);
+        verify(painter).font(capturedFont.capture());
+        assertEquals(8, ((AwtFont) capturedFont.getValue()).awt().getSize());
+    }
+
+    @Test
+    void toolbarAndRecenterReplaceTheLegend() {
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), mock(PlotService.class), mock(PermissionService.class), 1);
+
+        assertEquals(6, screen.build().children().size());
+    }
+
+    @Test
+    void defaultToolStartsInPanMode() {
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), mock(PlotService.class), mock(PermissionService.class), 1);
+
+        assertEquals(GuildClaimScreen.Tool.PAN, screen.activeTool());
+    }
+
+    @Test
+    void panningMovesLogicalCenterOppositeDragDirection() {
+        Player player = mock(Player.class);
+        World world = worldNamed("world");
+        Location location = locationAt(world, 0, 0);
+        when(player.getLocation()).thenReturn(location);
+        when(player.getWorld()).thenReturn(world);
+
+        Session session = mock(Session.class);
+        when(session.player()).thenReturn(player);
+        when(session.width()).thenReturn(128);
+        when(session.height()).thenReturn(128);
+
+        PlotService plots = mock(PlotService.class);
+        when(plots.getGuildBlock(anyInt(), anyInt(), eq("world"))).thenReturn(Optional.empty());
+
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), plots, mock(PermissionService.class), 1);
+        screen.attach(session);
+        screen.setFixedCenter(0, 0, "world");
+
+        screen.held(64, 64);
+        screen.held(114, 64);
+
+        assertEquals(-1, screen.currentLayer().centerChunkX());
+        assertEquals(0, screen.currentLayer().centerChunkZ());
+    }
+
+    @Test
+    void recenterRestoresPlayerFollowing() {
+        Player player = mock(Player.class);
+        World world = worldNamed("world");
+        Location location = locationAt(world, 5, 7);
+        when(player.getLocation()).thenReturn(location);
+        when(player.getWorld()).thenReturn(world);
+
+        Session session = mock(Session.class);
+        when(session.player()).thenReturn(player);
+        when(session.width()).thenReturn(128);
+        when(session.height()).thenReturn(128);
+
+        PlotService plots = mock(PlotService.class);
+        when(plots.getGuildBlock(anyInt(), anyInt(), eq("world"))).thenReturn(Optional.empty());
+
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), plots, mock(PermissionService.class), 1);
+        screen.attach(session);
+        screen.setFixedCenter(0, 0, "world");
+
+        screen.recenter();
+
+        assertTrue(screen.followingPlayer());
+        assertEquals(5, screen.currentLayer().centerChunkX());
+        assertEquals(7, screen.currentLayer().centerChunkZ());
+    }
+
+    @Test
+    void mapUsesCachedTerrainInsteadOfPlayerLockedTerrain() {
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), mock(PlotService.class), mock(PermissionService.class), 1);
+
+        assertFalse(screen.terrain());
+    }
+
     @Test
     void compassOverlayUsesCompactMinecraftItemFootprint() {
         GuildClaimScreen screen = new GuildClaimScreen(
@@ -191,6 +302,100 @@ class GuildClaimScreenTest {
             de.flog99.mapgui.ui.Rect b = GuildClaimScreen.cellRect(bounds, size, col + 1, 0);
             assertEquals(a.x() + a.width(), b.x());
         }
+    }
+    @Test
+    void chunkGridShiftsWithPlayerWithinChunk() {
+        de.flog99.mapgui.ui.Rect bounds = new de.flog99.mapgui.ui.Rect(0, 0, 176, 176);
+        int size = 11;
+
+        de.flog99.mapgui.ui.Rect atBlockZero = GuildClaimScreen.shiftedCellRect(
+                bounds, size, 5, 5, GuildClaimScreen.playerRelativeShift(0), 0.0);
+        de.flog99.mapgui.ui.Rect atBlockOne = GuildClaimScreen.shiftedCellRect(
+                bounds, size, 5, 5, GuildClaimScreen.playerRelativeShift(1), 0.0);
+
+        assertEquals(atBlockZero.x() - 1, atBlockOne.x());
+        assertEquals(atBlockZero.x() + atBlockZero.width() - 1,
+                atBlockOne.x() + atBlockOne.width());
+    }
+
+    @Test
+    void chunkGridMovesOnePixelAcrossChunkBoundary() {
+        de.flog99.mapgui.ui.Rect beforeCrossing = GuildClaimScreen.shiftedCellRect(
+                new de.flog99.mapgui.ui.Rect(0, 0, 176, 176),
+                11, 6, 5, GuildClaimScreen.playerRelativeShift(15), 0.0);
+        de.flog99.mapgui.ui.Rect afterCrossing = GuildClaimScreen.shiftedCellRect(
+                new de.flog99.mapgui.ui.Rect(0, 0, 176, 176),
+                11, 5, 5, GuildClaimScreen.playerRelativeShift(16), 0.0);
+
+        assertEquals(beforeCrossing.x() - 1, afterCrossing.x());
+    }
+
+    @Test
+    void cursorHitTestingUsesTheSamePlayerRelativeShift() {
+        int size = 11;
+        double shift = GuildClaimScreen.playerRelativeShift(1);
+        int boundary = 87;
+
+        assertEquals(4, GuildClaimScreen.cellIndexAtPixel(boundary - 1, 176, size, shift));
+        assertEquals(5, GuildClaimScreen.cellIndexAtPixel(boundary, 176, size, shift));
+    }
+
+    @Test
+    void cursorHitTestingMatchesRoundedNonDivisibleBoundary() {
+        int size = 11;
+        int boundary = GuildClaimScreen.shiftedCellRect(
+                new de.flog99.mapgui.ui.Rect(0, 0, 128, 128),
+                size, 2, 0, 0.0, 0.0).x();
+
+        assertEquals(23, boundary);
+        assertEquals(1, GuildClaimScreen.cellIndexAtPixel(boundary - 1, 128, size, 0.0));
+        assertEquals(2, GuildClaimScreen.cellIndexAtPixel(boundary, 128, size, 0.0));
+    }
+
+    @Test
+    void playerRelativeShiftUsesFloorModuloForNegativeCoordinates() {
+        assertEquals(GuildClaimScreen.playerRelativeShift(15),
+                GuildClaimScreen.playerRelativeShift(-1), 0.000001);
+        assertEquals(GuildClaimScreen.playerRelativeShift(0),
+                GuildClaimScreen.playerRelativeShift(-16), 0.000001);
+    }
+
+    @Test
+    void playerMarkerStaysAtTerrainAnchorAsPlayerMovesWithinChunk() throws Exception {
+        Player player = mock(Player.class);
+        World world = worldNamed("world");
+        Location location = mock(Location.class);
+        Chunk chunk = mock(Chunk.class);
+        when(player.getLocation()).thenReturn(location);
+        when(player.getWorld()).thenReturn(world);
+        when(location.getBlockX()).thenReturn(0, 1);
+        when(location.getBlockZ()).thenReturn(0);
+        when(location.getChunk()).thenReturn(chunk);
+        when(chunk.getX()).thenReturn(0);
+        when(chunk.getZ()).thenReturn(0);
+
+        Session session = mock(Session.class);
+        when(session.player()).thenReturn(player);
+        when(session.width()).thenReturn(176);
+        when(session.height()).thenReturn(176);
+
+        PlotService plots = mock(PlotService.class);
+        when(plots.getGuildBlock(anyInt(), anyInt(), eq("world"))).thenReturn(Optional.empty());
+        GuildClaimScreen screen = new GuildClaimScreen(
+                "Alpha", mock(GuildService.class), plots, mock(PermissionService.class), 1);
+        screen.attach(session);
+        screen.setFixedCenter(0, 0, "world");
+
+        de.flog99.mapgui.ui.Painter painter = mock(de.flog99.mapgui.ui.Painter.class);
+        var paintLayer = GuildClaimScreen.class.getDeclaredMethod(
+                "paintLayer", de.flog99.mapgui.ui.PaintContext.class);
+        paintLayer.setAccessible(true);
+        var context = new de.flog99.mapgui.ui.PaintContext(
+                painter, new de.flog99.mapgui.ui.Rect(0, 0, 176, 176), false);
+        paintLayer.invoke(screen, context);
+        paintLayer.invoke(screen, context);
+
+        verify(painter, times(2)).pixel(88, 88, java.awt.Color.RED);
     }
 
 

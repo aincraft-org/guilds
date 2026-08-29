@@ -13,6 +13,7 @@ import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
 import org.aincraft.guilds.services.ResidentService;
+import org.aincraft.guilds.utils.MapRenderer;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -110,6 +111,9 @@ public class MapBrigadierCommand {
     }
 
     private int openMap(Player player, int radius) {
+        if (!isMapGuiPresent()) {
+            return openAsciiMap(player, radius);
+        }
         String playerGuild = getPlayerGuild(player);
         try {
             MapGui.get().open(player, new GuildClaimScreen(playerGuild, guildService, plotService, permissionService, radius));
@@ -123,6 +127,9 @@ public class MapBrigadierCommand {
     }
 
     private int openMapAt(Player player, int chunkX, int chunkZ, int radius) {
+        if (!isMapGuiPresent()) {
+            return openAsciiMapAt(player, chunkX, chunkZ, radius);
+        }
         String playerGuild = getPlayerGuild(player);
         try {
             GuildClaimScreen screen = new GuildClaimScreen(playerGuild, guildService, plotService, permissionService, radius);
@@ -166,6 +173,31 @@ public class MapBrigadierCommand {
         player.sendMessage(ChatColor.LIGHT_PURPLE + "+" + ChatColor.GRAY + " - Inn/Embassy plot");
 
         return Command.SINGLE_SUCCESS;
+    }
+
+    private int openAsciiMap(Player player, int radius) {
+        var chunk = player.getLocation().getChunk();
+        return renderAsciiMap(player, chunk.getX(), chunk.getZ(), radius);
+    }
+
+    private int openAsciiMapAt(Player player, int chunkX, int chunkZ, int radius) {
+        return renderAsciiMap(player, chunkX, chunkZ, radius);
+    }
+
+    private int renderAsciiMap(Player player, int chunkX, int chunkZ, int radius) {
+        String world = player.getWorld().getName();
+        String playerGuild = getPlayerGuild(player);
+        MapRenderer renderer = new MapRenderer(guildService, plotService);
+        if (radius == GuildClaimScreen.COMPACT_RADIUS) {
+            renderer.renderCompactMap(chunkX, chunkZ, world, playerGuild).forEach(player::sendMessage);
+        } else {
+            renderer.renderMap(chunkX, chunkZ, world, playerGuild).forEach(player::sendMessage);
+        }
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private boolean isMapGuiPresent() {
+        return plugin.getServer().getPluginManager().isPluginEnabled("MapGUI");
     }
 
     private String getPlayerGuild(Player player) {

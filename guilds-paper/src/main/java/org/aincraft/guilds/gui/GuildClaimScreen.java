@@ -3,6 +3,8 @@ package org.aincraft.guilds.gui;
 import de.flog99.mapgui.HandOptions;
 import de.flog99.mapgui.Click;
 import de.flog99.mapgui.Screen;
+import de.flog99.mapgui.TerrainRenderer;
+import de.flog99.mapgui.MapSurface;
 import de.flog99.mapgui.ui.Align;
 import de.flog99.mapgui.ui.AwtFont;
 import de.flog99.mapgui.ui.Colors;
@@ -20,10 +22,13 @@ import org.aincraft.guilds.map.ClaimLayer;
 import org.aincraft.guilds.services.GuildService;
 import org.aincraft.guilds.services.PermissionService;
 import org.aincraft.guilds.services.PlotService;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.image.BufferedImage;
 import java.util.Objects;
 import java.util.Optional;
 public final class GuildClaimScreen extends Screen {
@@ -45,12 +50,14 @@ public final class GuildClaimScreen extends Screen {
         new Color(133, 77, 14)    // Bronze Brown
     };
     private static final double TINT = 0.55;
-    /** Slightly larger humanist map font for readable legend and feedback text. */
-    private static final TextFont FONT = AwtFont.named("Carlito", Font.PLAIN, 9, false);
+    /** Larger humanist map font for feedback and hover text. */
+    private static final TextFont FONT = AwtFont.named("Carlito", Font.PLAIN, 10, false);
 
     private static final String[] COMPASS_DIRS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
-    private static final AwtFont CARDINAL_FONT = AwtFont.named("SansSerif", Font.BOLD, 7, false);
+    private static final AwtFont CARDINAL_FONT = AwtFont.named("SansSerif", Font.BOLD, 8, false);
     private static final String[] CARDINALS = {"N", "E", "S", "W"};
+
+    private static final int CHUNK_BLOCKS = 16;
 
     private static final int COMPASS_W = 32;
     private static final int COMPASS_H = 32;
@@ -66,11 +73,29 @@ public final class GuildClaimScreen extends Screen {
     private static final Color COMPASS_NEEDLE = new Color(229, 57, 53);
     private static final Color COMPASS_TAIL = new Color(42, 48, 62);
     private static final Color PIVOT_COLOR = new Color(160, 170, 190);
+    enum Tool {
+        PAN,
+        CLAIM,
+        UNCLAIM
+    }
+
+    private static final long TERRAIN_RENDER_THROTTLE_NANOS = 100_000_000L;
+
     private final String viewerGuild;
     private final GuildService guilds;
     private final PlotService plots;
     private final PermissionService permissions;
     private final int radius;
+
+    private Tool activeTool = Tool.PAN;
+    private boolean followPlayer = true;
+    private double panPixelsX;
+    private double panPixelsZ;
+    private double terrainPanOffsetX;
+    private double terrainPanOffsetZ;
+    private int panCursorX;
+    private int panCursorY;
+    private boolean panDragging;
 
     private int lastChunkX = Integer.MIN_VALUE;
     private int lastChunkZ = Integer.MIN_VALUE;
@@ -80,6 +105,13 @@ public final class GuildClaimScreen extends Screen {
     private int cachedCenterX = Integer.MIN_VALUE;
     private int cachedCenterZ = Integer.MIN_VALUE;
     private String cachedWorld;
+
+    private BufferedImage terrainSnapshot;
+    private int terrainCenterX = Integer.MIN_VALUE;
+    private int terrainCenterZ = Integer.MIN_VALUE;
+    private String terrainSnapshotWorld;
+    private boolean terrainSnapshotDirty = true;
+    private long lastTerrainRenderNanos;
 
     private int anchorX = -1;
     private int anchorZ = -1;
@@ -117,7 +149,8 @@ public final class GuildClaimScreen extends Screen {
 
     @Override
     public boolean terrain() {
-        return true;
+        // The built-in terrain is player-centered; the screen renders a cached logical-center snapshot.
+        return false;
     }
 
     @Override
@@ -137,7 +170,7 @@ public final class GuildClaimScreen extends Screen {
 
     @Override
     public HandOptions hand() {
-        return HandOptions.popup();
+        return HandOptions.pinned(4);
     }
 
     @Override
@@ -151,6 +184,11 @@ public final class GuildClaimScreen extends Screen {
             suppressHold = false;
             return;
         }
+        if (activeTool == Tool.PAN) {
+            handlePan(x, y);
+            return;
+        }
+
         int[] cell = cellAtCursor(x, y);
         if (cell == null) {
             return;
@@ -166,21 +204,84 @@ public final class GuildClaimScreen extends Screen {
         invalidate();
     }
 
-    @Override
-    protected void onHoldEnd() {
-        suppressHold = false;
-        if (!dragging) {
-            return;
-        }
-        dragging = false;
-        if (anchorX == currentX && anchorZ == currentZ) {
-            confirmOpen = false;
+    private void handlePan(int x, int y) {
+        syncPlayerCenter();
+        if (!panDragging) {
+            followPlayer = false;
+            panDragging = true;
+            panCursorX = x;
+            panCursorY = y;
             resultFlash = "";
             invalidate();
             return;
         }
-        if (!permissions.canClaimForGuild(player().getUniqueId(), viewerGuild)) {
+
+        double deltaX = x - panCursorX;
+        double deltaZ = y - panCursorY;
+        panPixelsX += deltaX;
+        panPixelsZ += deltaZ;
+        terrainPanOffsetX += deltaX;
+        terrainPanOffsetZ += deltaZ;
+        panCursorX = x;
+        panCursorY = y;
+
+        int size = currentLayer().size();
+        double cellWidth = Math.max(1.0, width() / (double) size);
+        double cellHeight = Math.max(1.0, height() / (double) size);
+        while (panPixelsX >= cellWidth) {
+            lastChunkX--;
+            panPixelsX -= cellWidth;
+            clearLayerCache();
+        }
+        while (panPixelsX <= -cellWidth) {
+            lastChunkX++;
+            panPixelsX += cellWidth;
+            clearLayerCache();
+        }
+        while (panPixelsZ >= cellHeight) {
+            lastChunkZ--;
+            panPixelsZ -= cellHeight;
+            clearLayerCache();
+        }
+        while (panPixelsZ <= -cellHeight) {
+            lastChunkZ++;
+            panPixelsZ += cellHeight;
+            clearLayerCache();
+        }
+        invalidate();
+    }
+
+    @Override
+    protected void onHoldEnd() {
+        suppressHold = false;
+        if (activeTool == Tool.PAN) {
+            if (panDragging) {
+                panDragging = false;
+                terrainSnapshotDirty = true;
+                invalidate();
+            }
+            return;
+        }
+        if (!dragging) {
+            return;
+        }
+        dragging = false;
+        if (viewerGuild == null || viewerGuild.isBlank()) {
+            resultFlash = "You need to join a guild first.";
+            confirmOpen = false;
+            invalidate();
+            return;
+        }
+        if (activeTool == Tool.CLAIM
+                && !permissions.canClaimForGuild(player().getUniqueId(), viewerGuild)) {
             resultFlash = "You need mayor/assistant permission to claim.";
+            confirmOpen = false;
+            invalidate();
+            return;
+        }
+        if (activeTool == Tool.UNCLAIM
+                && !permissions.hasPermission(player().getUniqueId(), "unclaim", "guild", viewerGuild)) {
+            resultFlash = "You don't have permission to unclaim land.";
             confirmOpen = false;
             invalidate();
             return;
@@ -214,10 +315,98 @@ public final class GuildClaimScreen extends Screen {
                         .fill(),
                 marqueeOverlay(),
                 resultOverlay(),
-                legend(),
+                toolbarOverlay(),
+                recenterOverlay(),
                 compassOverlay()
         ).fill();
     }
+    private Node toolbarOverlay() {
+        return Ui.Column(
+                Ui.Spacer(),
+                Ui.Row(
+                        Ui.Spacer(),
+                        Ui.Row(
+                                toolButton(Tool.PAN, "Pan map"),
+                                toolButton(Tool.CLAIM, "Claim chunks"),
+                                toolButton(Tool.UNCLAIM, "Unclaim chunks")
+                        ).gap(2)
+                                .padding(3)
+                                .background(Colors.alpha(Color.BLACK, 180))
+                                .radius(4),
+                        Ui.Spacer()
+                )
+        ).align(Align.STRETCH).padding(4).fill();
+    }
+
+    private Node recenterOverlay() {
+        return Ui.Column(
+                Ui.Spacer(),
+                Ui.Draw(GuildClaimScreen::paintRecenterIcon)
+                        .size(18, 18)
+                        .background(Colors.alpha(Color.BLACK, 180))
+                        .border(1, new Color(110, 120, 140))
+                        .radius(3)
+                        .caption("Recenter map")
+                        .onClick(() -> {
+                            ignoreHold();
+                            recenter();
+                        })
+        ).align(Align.START).padding(4).fill();
+    }
+
+    private Node toolButton(Tool tool, String caption) {
+        Color fill = activeTool == tool ? new Color(42, 112, 92) : Colors.alpha(Color.BLACK, 180);
+        Color border = activeTool == tool ? new Color(150, 235, 190) : new Color(110, 120, 140);
+        return Ui.Draw(context -> paintToolIcon(context, tool))
+                .size(18, 18)
+                .background(fill)
+                .border(1, border)
+                .radius(3)
+                .caption(caption)
+                .onClick(() -> {
+                    ignoreHold();
+                    selectTool(tool);
+                });
+    }
+
+    private static void paintToolIcon(PaintContext context, Tool tool) {
+        Rect bounds = context.bounds();
+        Painter painter = context.painter();
+        int cx = bounds.x() + bounds.width() / 2;
+        int cy = bounds.y() + bounds.height() / 2;
+        Color color = Color.WHITE;
+        switch (tool) {
+            case PAN -> {
+                painter.line(cx - 5, cy, cx + 5, cy, color);
+                painter.line(cx, cy - 5, cx, cy + 5, color);
+                painter.line(cx - 5, cy, cx - 2, cy - 2, color);
+                painter.line(cx - 5, cy, cx - 2, cy + 2, color);
+                painter.line(cx + 5, cy, cx + 2, cy - 2, color);
+                painter.line(cx + 5, cy, cx + 2, cy + 2, color);
+                painter.line(cx, cy - 5, cx - 2, cy - 2, color);
+                painter.line(cx, cy - 5, cx + 2, cy - 2, color);
+                painter.line(cx, cy + 5, cx - 2, cy + 2, color);
+                painter.line(cx, cy + 5, cx + 2, cy + 2, color);
+            }
+            case CLAIM -> {
+                painter.line(cx - 5, cy, cx + 5, cy, color);
+                painter.line(cx, cy - 5, cx, cy + 5, color);
+            }
+            case UNCLAIM -> painter.line(cx - 5, cy, cx + 5, cy, color);
+        }
+    }
+
+    private static void paintRecenterIcon(PaintContext context) {
+        Rect bounds = context.bounds();
+        Painter painter = context.painter();
+        int cx = bounds.x() + bounds.width() / 2;
+        int cy = bounds.y() + bounds.height() / 2;
+        painter.circle(cx, cy, 5, Color.WHITE, null);
+        painter.line(cx - 7, cy, cx + 7, cy, Color.WHITE);
+        painter.line(cx, cy - 7, cx, cy + 7, Color.WHITE);
+        painter.pixel(cx, cy, Color.BLACK);
+    }
+
     private Node compassOverlay() {
         return Ui.Row(
                 Ui.Spacer(),
@@ -297,18 +486,9 @@ public final class GuildClaimScreen extends Screen {
     }
 
     ClaimLayer currentLayer() {
-        int centerChunkX;
-        int centerChunkZ;
-
-        if (lastChunkX == Integer.MIN_VALUE) {
-            var loc = player().getLocation();
-            centerChunkX = loc.getChunk().getX();
-            centerChunkZ = loc.getChunk().getZ();
-        } else {
-            centerChunkX = lastChunkX;
-            centerChunkZ = lastChunkZ;
-        }
-
+        syncPlayerCenter();
+        int centerChunkX = lastChunkX;
+        int centerChunkZ = lastChunkZ;
         String world = displayWorld();
         if (cachedLayer == null
                 || cachedCenterX != centerChunkX
@@ -327,6 +507,67 @@ public final class GuildClaimScreen extends Screen {
         return cachedLayer;
     }
 
+    private void syncPlayerCenter() {
+        if (!followPlayer || player() == null) {
+            return;
+        }
+        Location location = player().getLocation();
+        String world = player().getWorld().getName();
+        int centerChunkX = location.getChunk().getX();
+        int centerChunkZ = location.getChunk().getZ();
+        if (lastChunkX != centerChunkX || lastChunkZ != centerChunkZ || !world.equals(lastWorld)) {
+            lastChunkX = centerChunkX;
+            lastChunkZ = centerChunkZ;
+            lastWorld = world;
+            clearLayerCache();
+            terrainSnapshotDirty = true;
+        }
+    }
+
+    void recenter() {
+        followPlayer = true;
+        lastChunkX = Integer.MIN_VALUE;
+        lastChunkZ = Integer.MIN_VALUE;
+        lastWorld = "";
+        panPixelsX = 0;
+        panPixelsZ = 0;
+        terrainPanOffsetX = 0;
+        terrainPanOffsetZ = 0;
+        panDragging = false;
+        terrainSnapshotDirty = true;
+        clearLayerCache();
+        invalidate();
+    }
+
+    void selectTool(Tool tool) {
+        activeTool = Objects.requireNonNull(tool, "tool");
+        dragging = false;
+        panDragging = false;
+        anchorX = -1;
+        anchorZ = -1;
+        currentX = -1;
+        currentZ = -1;
+        confirmOpen = false;
+        resultFlash = "";
+        invalidate();
+    }
+
+    Tool activeTool() {
+        return activeTool;
+    }
+
+    boolean followingPlayer() {
+        return followPlayer;
+    }
+
+    private double panShiftX(int span, int size) {
+        return panPixelsX / Math.max(1.0, span / (double) size);
+    }
+
+    private double panShiftZ(int span, int size) {
+        return panPixelsZ / Math.max(1.0, span / (double) size);
+    }
+
     String displayWorld() {
         return lastWorld != null && !lastWorld.isEmpty()
                 ? lastWorld
@@ -334,9 +575,14 @@ public final class GuildClaimScreen extends Screen {
     }
 
     public void setFixedCenter(int chunkX, int chunkZ, String world) {
+        this.followPlayer = false;
         this.lastChunkX = chunkX;
         this.lastChunkZ = chunkZ;
         this.lastWorld = world;
+        this.panPixelsX = 0;
+        this.panPixelsZ = 0;
+        this.panDragging = false;
+        this.terrainSnapshotDirty = true;
         clearLayerCache();
     }
 
@@ -352,25 +598,34 @@ public final class GuildClaimScreen extends Screen {
         Rect bounds = context.bounds();
         int size = layer.size();
         Painter painter = context.painter();
+        Player player = player();
+        if (player == null) {
+            return;
+        }
+        paintTerrain(context, layer);
+        double shiftX = panShiftX(bounds.width(), size);
+        double shiftZ = panShiftZ(bounds.height(), size);
 
-        // Pass 1: Tint territory fills completely flush to bounds
+        // Pass 1: tint territory fills using the player-relative chunk grid.
         for (ClaimLayer.Cell claim : layer.cells()) {
             int col = claim.chunkX() - layer.centerChunkX() + layer.radius();
             int row = claim.chunkZ() - layer.centerChunkZ() + layer.radius();
-            Rect rect = cellRect(bounds, size, col, row);
-            if (claim.kind() != ClaimLayer.Kind.WILDERNESS) {
-                tint(painter, rect, colorForCell(claim));
+            Rect rect = shiftedCellRect(bounds, size, col, row, shiftX, shiftZ);
+            Rect visible = rect.intersect(bounds);
+            if (claim.kind() != ClaimLayer.Kind.WILDERNESS
+                    && visible.width() > 0 && visible.height() > 0) {
+                tint(painter, visible, colorForCell(claim));
             }
         }
 
-        // Pass 2: Connected territory borders (samples outside layer to avoid false edge lines)
+        // Pass 2: connected territory borders (samples outside layer to avoid false edge lines).
         for (ClaimLayer.Cell claim : layer.cells()) {
             if (claim.kind() == ClaimLayer.Kind.WILDERNESS) {
                 continue;
             }
             int col = claim.chunkX() - layer.centerChunkX() + layer.radius();
             int row = claim.chunkZ() - layer.centerChunkZ() + layer.radius();
-            Rect r = cellRect(bounds, size, col, row);
+            Rect r = shiftedCellRect(bounds, size, col, row, shiftX, shiftZ);
             Color c = colorForCell(claim);
 
             if (!sameOwnerAt(claim, claim.chunkX(), claim.chunkZ() - 1, layer.world())) {
@@ -387,15 +642,14 @@ public final class GuildClaimScreen extends Screen {
             }
         }
 
-        // Player position marker (directional chevron at player's current chunk)
-        Player player = player();
-        if (player != null && player.getWorld().getName().equals(layer.world())) {
+        // Player position marker (directional chevron at player's current chunk).
+        if (player.getWorld().getName().equals(layer.world())) {
             int playerChunkX = player.getLocation().getChunk().getX();
             int playerChunkZ = player.getLocation().getChunk().getZ();
             int pCol = playerChunkX - layer.centerChunkX() + layer.radius();
             int pRow = playerChunkZ - layer.centerChunkZ() + layer.radius();
             if (pCol >= 0 && pRow >= 0 && pCol < size && pRow < size) {
-                Rect pr = cellRect(bounds, size, pCol, pRow);
+                Rect pr = shiftedCellRect(bounds, size, pCol, pRow, shiftX, shiftZ);
                 int px = pr.x() + pr.width() / 2;
                 int py = pr.y() + pr.height() / 2;
                 double heading = Math.toRadians(player.getLocation().getYaw() + 180.0);
@@ -433,17 +687,30 @@ public final class GuildClaimScreen extends Screen {
                     if (col < 0 || row < 0 || col >= layer.size() || row >= layer.size()) {
                         continue;
                     }
-                    Rect r = cellRect(bounds, size, col, row);
-                    painter.fill(r, selectionFill);
-                    if (plots.getGuildBlock(x, z, world()).isPresent()) {
-                        painter.fill(r, unclaimable);
+                    Rect r = shiftedCellRect(bounds, size, col, row, shiftX, shiftZ);
+                    Rect visible = r.intersect(bounds);
+                    if (visible.width() <= 0 || visible.height() <= 0) {
+                        continue;
+                    }
+                    if (firstCol == -1) {
+                        firstCol = col;
+                        firstRow = row;
+                    }
+                    lastCol = col;
+                    lastRow = row;
+                    painter.fill(visible, selectionFill);
+                    boolean blocked = activeTool == Tool.CLAIM
+                            ? plots.getGuildBlock(x, z, world()).isPresent()
+                            : !isOwnGuildAt(x, z, world());
+                    if (blocked) {
+                        painter.fill(visible, unclaimable);
                     }
                 }
             }
 
             if (firstCol != -1) {
-                Rect rFirst = cellRect(bounds, size, firstCol, firstRow);
-                Rect rLast = cellRect(bounds, size, lastCol, lastRow);
+                Rect rFirst = shiftedCellRect(bounds, size, firstCol, firstRow, shiftX, shiftZ);
+                Rect rLast = shiftedCellRect(bounds, size, lastCol, lastRow, shiftX, shiftZ);
                 Rect outer = new Rect(
                         rFirst.x(),
                         rFirst.y(),
@@ -462,8 +729,8 @@ public final class GuildClaimScreen extends Screen {
         if (cx < 0 || cy < 0 || cx >= width() || cy >= height() || size <= 0) {
             return "Guilds map";
         }
-        int col = Math.min(size - 1, (cx * size) / width());
-        int row = Math.min(size - 1, (cy * size) / height());
+        int col = cellIndexAtPixel(cx, width(), size, panShiftX(width(), size));
+        int row = cellIndexAtPixel(cy, height(), size, panShiftZ(height(), size));
         int chunkX = layer.centerChunkX() - layer.radius() + col;
         int chunkZ = layer.centerChunkZ() - layer.radius() + row;
         return layer.cellAt(chunkX, chunkZ)
@@ -480,8 +747,8 @@ public final class GuildClaimScreen extends Screen {
         if (x < 0 || y < 0 || x >= width() || y >= height() || size <= 0) {
             return null;
         }
-        int col = Math.min(size - 1, (x * size) / width());
-        int row = Math.min(size - 1, (y * size) / height());
+        int col = cellIndexAtPixel(x, width(), size, panShiftX(width(), size));
+        int row = cellIndexAtPixel(y, height(), size, panShiftZ(height(), size));
         int chunkX = layer.centerChunkX() - layer.radius() + col;
         int chunkZ = layer.centerChunkZ() - layer.radius() + row;
         return new int[] {chunkX, chunkZ};
@@ -492,12 +759,15 @@ public final class GuildClaimScreen extends Screen {
             return Ui.Spacer();
         }
         if (confirmOpen) {
+            String action = activeTool == Tool.UNCLAIM ? "Unclaim" : "Claim";
             return Ui.Column(
-                    Ui.Text("Claim " + selectionCount() + " chunks for " + viewerGuild + "?").color(Color.WHITE),
+                    Ui.Text(action + " " + selectionCount() + " chunks "
+                            + (activeTool == Tool.UNCLAIM ? "from " : "for ") + viewerGuild + "?")
+                            .color(Color.WHITE),
                     Ui.Row(
                             Ui.Button("Confirm").onClick(() -> {
                                 ignoreHold();
-                                commitClaims();
+                                commitSelection();
                             }),
                             Ui.Button("Cancel").onClick(() -> {
                                 ignoreHold();
@@ -540,16 +810,28 @@ public final class GuildClaimScreen extends Screen {
         return (Math.abs(currentX - anchorX) + 1) * (Math.abs(currentZ - anchorZ) + 1);
     }
 
-    private void commitClaims() {
+    private void commitSelection() {
         confirmOpen = false;
-        MarqueeClaim.Result result = MarqueeClaim.commit(
-                plots, permissions, player().getUniqueId(), viewerGuild, world(),
-                minX(), maxX(), minZ(), maxZ());
-        if (!result.allowed()) {
-            resultFlash = "You need mayor/assistant permission to claim.";
+        if (activeTool == Tool.UNCLAIM) {
+            MarqueeUnclaim.Result result = MarqueeUnclaim.commit(
+                    plots, guilds, permissions, player().getUniqueId(), viewerGuild, world(),
+                    minX(), maxX(), minZ(), maxZ());
+            if (!result.allowed()) {
+                resultFlash = "You don't have permission to unclaim land.";
+            } else {
+                resultFlash = "Unclaimed " + result.unclaimed() + ", skipped " + result.skipped()
+                        + " (not your guild / missing / failed).";
+            }
         } else {
-            resultFlash = "Claimed " + result.claimed() + ", skipped " + result.skipped()
-                    + " (already claimed / no permission / failed).";
+            MarqueeClaim.Result result = MarqueeClaim.commit(
+                    plots, permissions, player().getUniqueId(), viewerGuild, world(),
+                    minX(), maxX(), minZ(), maxZ());
+            if (!result.allowed()) {
+                resultFlash = "You need mayor/assistant permission to claim.";
+            } else {
+                resultFlash = "Claimed " + result.claimed() + ", skipped " + result.skipped()
+                        + " (already claimed / no permission / failed).";
+            }
         }
         clearLayerCache();
         invalidate();
@@ -575,26 +857,100 @@ public final class GuildClaimScreen extends Screen {
         return displayWorld();
     }
 
-    private Node legend() {
-        return Ui.Column(
-                Ui.Spacer(),
-                Ui.Row(
-                        swatch(OWN_GUILD, "Your guild"),
-                        swatch(OTHER_GUILD, "Other guilds"),
-                        swatch(WILDERNESS, "Wilderness"),
-                        swatch(Color.WHITE, "You")
-                ).gap(3).justify(Justify.CENTER)
-                        .padding(2)
-                        .background(Colors.alpha(Color.BLACK, 170))
-                        .radius(3)
-        ).align(Align.STRETCH).padding(3).fill();
+    private static BufferedImage surfaceImage(MapSurface surface, de.flog99.mapgui.ui.Palette palette) {
+        BufferedImage image = new BufferedImage(surface.width(), surface.height(), BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < surface.height(); y++) {
+            for (int x = 0; x < surface.width(); x++) {
+                image.setRGB(x, y, palette.color(surface.get(x, y)).getRGB());
+            }
+        }
+        return image;
     }
 
-    private static Node swatch(Color color, String label) {
-        return Ui.Row(
-                Ui.Box(color).size(7, 7).radius(1),
-                Ui.Text(label).color(Color.WHITE)
-        ).gap(2).align(Align.CENTER);
+    private void paintTerrain(PaintContext context, ClaimLayer layer) {
+        Rect bounds = context.bounds();
+        Painter painter = context.painter();
+        painter.clear(new Color(38, 44, 54));
+
+        boolean matchingSnapshot = terrainSnapshot != null
+                && terrainCenterX == layer.centerChunkX()
+                && terrainCenterZ == layer.centerChunkZ()
+                && Objects.equals(terrainSnapshotWorld, layer.world())
+                && terrainSnapshot.getWidth() == bounds.width()
+                && terrainSnapshot.getHeight() == bounds.height()
+                && !terrainSnapshotDirty;
+        if (!matchingSnapshot && !panDragging) {
+            renderTerrainSnapshot(context, layer);
+        }
+        if (terrainSnapshot != null) {
+            int offsetX = (int) Math.round(terrainPanOffsetX);
+            int offsetZ = (int) Math.round(terrainPanOffsetZ);
+            painter.image(bounds.x() + offsetX, bounds.y() + offsetZ, terrainSnapshot);
+        }
+    }
+
+    private void renderTerrainSnapshot(PaintContext context, ClaimLayer layer) {
+        long now = System.nanoTime();
+        if (terrainSnapshot != null && now - lastTerrainRenderNanos < TERRAIN_RENDER_THROTTLE_NANOS) {
+            return;
+        }
+
+        Rect bounds = context.bounds();
+        org.bukkit.World world = terrainWorld(layer.world());
+        if (world == null) {
+            terrainSnapshot = null;
+            terrainCenterX = layer.centerChunkX();
+            terrainCenterZ = layer.centerChunkZ();
+            terrainSnapshotWorld = layer.world();
+            terrainSnapshotDirty = false;
+            terrainPanOffsetX = 0;
+            terrainPanOffsetZ = 0;
+            lastTerrainRenderNanos = now;
+            return;
+        }
+
+        try {
+            MapSurface surface = new MapSurface(bounds.width(), bounds.height());
+            Location playerLocation = player().getLocation();
+            Location center = new Location(
+                    world,
+                    layer.centerChunkX() * CHUNK_BLOCKS + CHUNK_BLOCKS / 2.0,
+                    playerLocation.getY(),
+                    layer.centerChunkZ() * CHUNK_BLOCKS + CHUNK_BLOCKS / 2.0);
+            TerrainRenderer.render(surface, center, blocksPerPixel());
+            terrainSnapshot = surfaceImage(surface, context.painter().palette());
+        } catch (RuntimeException exception) {
+            terrainSnapshot = null;
+        }
+        terrainCenterX = layer.centerChunkX();
+        terrainCenterZ = layer.centerChunkZ();
+        terrainSnapshotWorld = layer.world();
+        terrainSnapshotDirty = false;
+        terrainPanOffsetX = 0;
+        terrainPanOffsetZ = 0;
+        lastTerrainRenderNanos = now;
+    }
+
+    private org.bukkit.World terrainWorld(String worldName) {
+        Player currentPlayer = player();
+        if (currentPlayer != null && currentPlayer.getWorld().getName().equals(worldName)) {
+            return currentPlayer.getWorld();
+        }
+        try {
+            return Bukkit.getWorld(worldName);
+        } catch (IllegalStateException exception) {
+            return null;
+        }
+    }
+
+    private boolean isOwnGuildAt(int chunkX, int chunkZ, String world) {
+        if (viewerGuild == null || viewerGuild.isBlank()) {
+            return false;
+        }
+        Optional<GuildBlock> block = plots.getGuildBlock(chunkX, chunkZ, world);
+        return block.flatMap(value -> guilds.getGuildById(value.getGuildId()))
+                .map(guild -> viewerGuild.equals(guild.getName()))
+                .orElse(false);
     }
 
     private static void tint(Painter painter, Rect rect, Color color) {
@@ -634,12 +990,46 @@ public final class GuildClaimScreen extends Screen {
         return Objects.equals(cell.guildName(), other.guildName());
     }
 
+    /**
+     * Computes the fractional chunk-edge offset used by the legacy geometry helpers.
+     */
+    static double playerRelativeShift(int blockCoordinate) {
+        return 0.5 - (Math.floorMod(blockCoordinate, CHUNK_BLOCKS) + 0.5) / CHUNK_BLOCKS;
+    }
+
+    private static double shiftedEdge(int origin, int span, int size, int index, double shift) {
+        return origin + (index + shift) * span / (double) size;
+    }
+
+    static Rect shiftedCellRect(
+            Rect bounds, int size, int col, int row, double shiftX, double shiftZ) {
+        int x0 = (int) Math.round(shiftedEdge(bounds.x(), bounds.width(), size, col, shiftX));
+        int x1 = (int) Math.round(shiftedEdge(bounds.x(), bounds.width(), size, col + 1, shiftX));
+        int y0 = (int) Math.round(shiftedEdge(bounds.y(), bounds.height(), size, row, shiftZ));
+        int y1 = (int) Math.round(shiftedEdge(bounds.y(), bounds.height(), size, row + 1, shiftZ));
+        return new Rect(x0, y0, x1 - x0, y1 - y0);
+    }
+
     static Rect cellRect(Rect bounds, int size, int col, int row) {
         int x0 = bounds.x() + (col * bounds.width()) / size;
         int x1 = bounds.x() + ((col + 1) * bounds.width()) / size;
         int y0 = bounds.y() + (row * bounds.height()) / size;
         int y1 = bounds.y() + ((row + 1) * bounds.height()) / size;
         return new Rect(x0, y0, x1 - x0, y1 - y0);
+    }
+
+    static int cellIndexAtPixel(int coordinate, int span, int size, double shift) {
+        int low = 0;
+        int high = size;
+        while (low + 1 < high) {
+            int middle = (low + high) >>> 1;
+            if (Math.round(shiftedEdge(0, span, size, middle, shift)) <= coordinate) {
+                low = middle;
+            } else {
+                high = middle;
+            }
+        }
+        return low;
     }
 
     private boolean sameOwnerAt(ClaimLayer.Cell cell, int chunkX, int chunkZ, String world) {

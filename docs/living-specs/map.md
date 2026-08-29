@@ -1,7 +1,7 @@
 # Map — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-27
+> Last updated: 2026-08-28
 > Related: `docs/superpowers/specs/2026-08-08-admin-map-editor-design.md`
 
 ## Intent
@@ -24,11 +24,12 @@ chunk tools + existing API validation.
 - Soft dependency on squaremap (Paper).
 - Admin Leaflet editor: polygon/paint/rect/erase on chunk medium;
   squaremap tiles as basemap; saves via **web-api** territory routes.
+- Player-facing MapGUI claim map with panning, recentering, and claim/unclaim tools.
 
 ### Out of scope / non-goals
 
 - Forking or patching squaremap jar/frontend.
-- Player-facing draw tools (v1 admin only).
+- Player-facing web draw editor (v1 admin only).
 - Auto-save, multi-admin CRDT merge, deep undo stacks (v1).
 - In-game wand claim tools (possible later hybrid).
 - Playwright E2E of gestures / tile visual regression (v1 non-goal).
@@ -78,6 +79,7 @@ chunk tools + existing API validation.
 - [x] React/Vite editor implementation with same-origin session proxy
 - [x] Session auth, draft tracking, explicit saves, and delete confirmation
 - [x] Editor configuration keys: enable, tile base URL, and session TTL
+- [x] Player-facing MapGUI claim map with Pan, Claim, and Unclaim tools
 
 ### Open on the current surface
 
@@ -109,6 +111,7 @@ available.
 | (core) | squaremap for public live map | Mature tiles; soft-depend |
 | 2026-08-08 | Separate admin editor SPA, not inside squaremap UI | No fork; clear auth boundary |
 | 2026-08-08 | Chunk drawing medium | Matches Minecraft claim mental model |
+| 2026-08-28 | MapGUI claim tools use explicit Pan/Claim/Unclaim modes | Prevents accidental writes while enabling phone-like panning; confirmations and per-chunk permission checks remain mandatory |
 
 ## Open questions
 
