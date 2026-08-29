@@ -69,7 +69,7 @@ jobs:
         env:
           MINT_PACKAGES_ACTOR: ${{ secrets.MINT_PACKAGES_ACTOR || github.actor }}
           MINT_PACKAGES_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
-        run: ./gradlew --no-daemon -PreleaseVersion="$RELEASE_VERSION" clean test build
+        run: ./gradlew --no-daemon -PdevelopmentNetworkPath=plugin-multiplexer/network -PreleaseVersion="$RELEASE_VERSION" clean test build
 
       - name: Verify release artifacts
         shell: bash

@@ -74,7 +74,7 @@ jobs:
           MINT_PACKAGES_ACTOR: ${{ secrets.MINT_PACKAGES_ACTOR || github.actor }}
           MINT_PACKAGES_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
           STABLE_VERSION: ${{ inputs.stable_version }}
-        run: ./gradlew --no-daemon clean test build -PreleaseVersion="${STABLE_VERSION}"
+        run: ./gradlew --no-daemon -PdevelopmentNetworkPath=plugin-multiplexer/network clean test build -PreleaseVersion="${STABLE_VERSION}"
 
       - name: Verify and checksum stable assets
         env:

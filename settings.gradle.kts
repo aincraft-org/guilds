@@ -1,5 +1,9 @@
 pluginManagement {
-    includeBuild("../plugin-multiplexer/network")
+    includeBuild(
+        providers.gradleProperty("developmentNetworkPath")
+            .orElse("../plugin-multiplexer/network")
+            .get()
+    )
     repositories {
         gradlePluginPortal()
         mavenCentral()

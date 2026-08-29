@@ -44,7 +44,7 @@ jobs:
         env:
           MINT_PACKAGES_ACTOR: ${{ secrets.MINT_PACKAGES_ACTOR || github.actor }}
           MINT_PACKAGES_TOKEN: ${{ secrets.MINT_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
-        run: ./gradlew --no-daemon build
+        run: ./gradlew --no-daemon -PdevelopmentNetworkPath=plugin-multiplexer/network build
       - name: Upload analysis reports on failure
         if: ${{ failure() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
