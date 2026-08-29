@@ -126,4 +126,18 @@ class FacilityRegistryTest {
         assertEquals(List.of("market", "stone"),
                 candidate.list().stream().map(SettlementFacility::id).toList());
     }
+    @Test
+    void countIncludesEveryPersistedRecordInCandidateRegistry() {
+        FacilityRegistry live = new FacilityRegistry(
+                new TerritoryRegistry(List.of(territory("t1"))));
+        SettlementFacility first = facility("boat-active", FacilityType.BOAT, 5, 5);
+        SettlementFacility inactive = facility("boat-inactive", FacilityType.BOAT, 6, 6);
+        live.replaceAll(List.of(first, inactive));
+
+        FacilityRegistry candidate = live.copy();
+
+        assertEquals(2, live.count("t1", FacilityType.BOAT));
+        assertEquals(2, candidate.count("t1", FacilityType.BOAT));
+        assertEquals(0, candidate.count("t1", FacilityType.AIRSHIP));
+    }
 }

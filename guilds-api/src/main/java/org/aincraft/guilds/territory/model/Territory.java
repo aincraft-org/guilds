@@ -25,9 +25,12 @@ public final class Territory {
     private final Government government;
     private final Map<String, Policy> policies;
     private final String governedByGuildId;
+    private final FastTravelPolicy fastTravelPolicy;
+
 
     public Territory(String id, String name, String worldId, Boundary boundary) {
-        this(id, name, worldId, boundary, List.of(), ZoneType.WILDERNESS, Government.anarchy(), List.of(), null);
+        this(id, name, worldId, boundary, List.of(), ZoneType.WILDERNESS,
+                Government.anarchy(), List.of(), null, FastTravelPolicy.defaults());
     }
 
     public Territory(
@@ -38,7 +41,8 @@ public final class Territory {
             Collection<Zone> zones,
             ZoneType defaultZoneType
     ) {
-        this(id, name, worldId, boundary, zones, defaultZoneType, Government.anarchy(), List.of(), null);
+        this(id, name, worldId, boundary, zones, defaultZoneType,
+                Government.anarchy(), List.of(), null, FastTravelPolicy.defaults());
     }
 
     public Territory(
@@ -50,7 +54,8 @@ public final class Territory {
             ZoneType defaultZoneType,
             Government government
     ) {
-        this(id, name, worldId, boundary, zones, defaultZoneType, government, List.of(), null);
+        this(id, name, worldId, boundary, zones, defaultZoneType,
+                government, List.of(), null, FastTravelPolicy.defaults());
     }
 
     public Territory(
@@ -63,7 +68,8 @@ public final class Territory {
             Government government,
             Collection<Policy> policies
     ) {
-        this(id, name, worldId, boundary, zones, defaultZoneType, government, policies, null);
+        this(id, name, worldId, boundary, zones, defaultZoneType,
+                government, policies, null, FastTravelPolicy.defaults());
     }
 
     public Territory(
@@ -76,6 +82,22 @@ public final class Territory {
             Government government,
             Collection<Policy> policies,
             String governedByGuildId
+    ) {
+        this(id, name, worldId, boundary, zones, defaultZoneType, government, policies,
+                governedByGuildId, FastTravelPolicy.defaults());
+    }
+
+    public Territory(
+            String id,
+            String name,
+            String worldId,
+            Boundary boundary,
+            Collection<Zone> zones,
+            ZoneType defaultZoneType,
+            Government government,
+            Collection<Policy> policies,
+            String governedByGuildId,
+            FastTravelPolicy fastTravelPolicy
     ) {
         this.id = requireId(id);
         this.name = name == null || name.isBlank() ? this.id : name.trim();
@@ -108,6 +130,7 @@ public final class Territory {
         this.governedByGuildId = governedByGuildId == null || governedByGuildId.isBlank()
                 ? null
                 : governedByGuildId.trim();
+        this.fastTravelPolicy = Objects.requireNonNull(fastTravelPolicy, "fastTravelPolicy");
     }
 
     static void validateZonesDoNotOverlap(Collection<Zone> zones) {
@@ -161,6 +184,10 @@ public final class Territory {
 
     public GovernmentForm governmentForm() {
         return government.form();
+    }
+
+    public FastTravelPolicy fastTravelPolicy() {
+        return fastTravelPolicy;
     }
 
     public List<Zone> zones() {
@@ -259,7 +286,14 @@ public final class Territory {
     ) {
         return new Territory(
                 id, name, worldId, boundary, nextZones, defaultZoneType, nextGov, nextPolicies,
-                nextGoverningGuildId
+                nextGoverningGuildId, fastTravelPolicy
+        );
+    }
+
+    public Territory withFastTravelPolicy(FastTravelPolicy nextPolicy) {
+        return new Territory(
+                id, name, worldId, boundary, zones.values(), defaultZoneType, government, policies.values(),
+                governedByGuildId, Objects.requireNonNull(nextPolicy, "fastTravelPolicy")
         );
     }
 
@@ -379,13 +413,14 @@ public final class Territory {
                 && defaultZoneType == that.defaultZoneType
                 && government.equals(that.government)
                 && policies.equals(that.policies)
-                && Objects.equals(governedByGuildId, that.governedByGuildId);
+                && Objects.equals(governedByGuildId, that.governedByGuildId)
+                && fastTravelPolicy.equals(that.fastTravelPolicy);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(id, name, worldId, boundary, zones, defaultZoneType,
-                government, policies, governedByGuildId);
+                government, policies, governedByGuildId, fastTravelPolicy);
     }
 
     @Override
@@ -394,7 +429,8 @@ public final class Territory {
                 + "', zones=" + zones.size()
                 + ", government=" + government.form()
                 + ", policies=" + policies.size()
-                + ", governingGuild=" + (governedByGuildId == null ? "none" : governedByGuildId) + '}';
+                + ", governingGuild=" + (governedByGuildId == null ? "none" : governedByGuildId)
+                + ", fastTravelPolicy=" + fastTravelPolicy + '}';
     }
 
     public record ZoneResolution(String zoneId, String zoneName, ZoneType type, boolean isDefault) {

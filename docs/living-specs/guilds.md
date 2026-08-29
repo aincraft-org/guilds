@@ -1,7 +1,7 @@
 # Guilds — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-27
+> Last updated: 2026-08-29
 > Related: archived docs under `docs/archived-guilds/docs/`;  
 > `docs/superpowers/specs/2026-08-07-guild-contracts-design.md`
 
@@ -25,12 +25,14 @@ contracts are durable and transactional where money/items move.
 - Guild and alliance lifecycle, membership, roles, toggles.
 - Plot claim/ownership/types and plot permissions.
 - Permission evaluation for guild context (feeds land with **governance**).
-- Chat, broadcasts, hearthstone, public-access listeners.
+- Chat, broadcasts, public-access listeners, and durable player progression.
 - Levels (XP-only) / project skill points / tech-tree projects / resource bank / specializations / quests.
 - Guild contracts service API (escrow materials for level costs).
 - Brigadier command surface (`/guild*`, `/alliance*`, plot/perm/map, …).
 - Config: `guilds-config.yml`, `techtree.yml`, level definitions.
 - SQL schema + migrations under guilds database package (Postgres).
+- Fast-travel capabilities, transport-facility cardinality, and governance/alliance authorization.
+- Player-bound fast-travel currency, idempotent reward sources, and travel cancellation/refund behavior.
 
 ### Out of scope / non-goals
 
@@ -56,6 +58,18 @@ contracts are durable and transactional where money/items move.
    interactions.
 9. Offline residents must remain eligible for data-only operations such as
    role, alliance, and bank-account checks.
+10. Fast-travel permissions are derived from the initiating player's persisted
+    resident/guild identity, the guild's capabilities, current alliance state,
+    and the endpoint territories; live player objects are delivery-only.
+11. `GUILD_CRYSTAL`, `TELEPORT_TERMINAL`, `BOAT`, and `AIRSHIP` records are
+    transport facilities, not membership records. Crystal and terminal
+    cardinality is enforced for each guild; inactive records remain durable.
+12. Travel currency is player-bound and finite. Reservation, commit, release,
+    expiry, cancellation, and insufficient-balance outcomes do not debit a
+    different player or the guild's resource bank.
+13. Progression, exploration, and project-completion rewards require an
+    attributable player and stable event id; actorless events do not award.
+    Guild resources and guild money remain separate from this travel currency.
 
 ## Implementation guidance
 
@@ -78,6 +92,8 @@ contracts are durable and transactional where money/items move.
 - Deposit/upgrade atomicity and refund paths.
 - Contract create/fulfill/cancel escrow balances.
 - GovernanceSource snapshot correctness for forms and member sets.
+- Travel authorization, capability/cardinality matrices, and same-guild versus allied endpoint behavior.
+- Reward actor attribution and idempotent travel-currency outcomes, including cancellation and depletion.
 
 ### Do not
 
@@ -102,6 +118,11 @@ contracts are durable and transactional where money/items move.
 - [x] Guild contracts service + migration (`GuildContractService`)
 - [x] Integrated enable path from `GuildsPlugin`
 - [x] Offline resident name resolution uses the persistent resident store
+- [x] Fast-travel capability nodes: `fast_travel`, `remote_crystal`, `boat_travel`, and `airship_travel`
+- [x] Crystal and teleport-terminal cardinality plus per-territory transport quotas (owned by **territory**)
+- [x] Alliance-aware transport authorization and player-bound travel currency wiring
+- [x] Actor-attributed quest, territory-entry, and project-completion reward seams
+- [x] `/g spawn` and hearthstone bypasses removed; `/g setspawn` remains persisted spawn input for crystal reconciliation
 
 ### Open on the current surface
 
@@ -113,13 +134,21 @@ contracts are durable and transactional where money/items move.
 ### Current notes
 
 Nation vocabulary is retired in territory docs; command names may still say
-`/guild*` for player familiarity — product choice to document.
+`/guild*` for player familiarity — product choice to document. `/g new` mirrors
+`/g create` for the familiar alias surface.
+
+Fast travel does not turn guild resources or the guild `balance` field into a
+player wallet. The shared travel currency is bound to the initiating player;
+configured quest, territory-entry, and successful project-completion events
+replenish that wallet only when a player actor and stable event id are present.
+Reservation, commit, release, expiry, and cancellation keep insufficient funds
+and failed travel from silently consuming currency.
 
 ## Next
 
 - [ ] Guild contract player UX (list/post/fulfill commands) when prioritized
 - [ ] Align form-default land rights with scope-aware **governance** implementation
-- [ ] Hearthstone / movement edge-case hardening as bugs appear
+- [ ] Fast-travel edge-case hardening as bugs appear; Paper multi-territory and live transport smoke remains open
 
 ## Future
 
@@ -137,6 +166,8 @@ Nation vocabulary is retired in territory docs; command names may still say
 | 2026-08-07 | Contracts as service API first | Escrow correctness before UX |
 | 2026-08-06+ | Postgres only for guilds schema | Unified persistence |
 | 2026-08-26 | Alliances start as pending proposals until the configured guild count has accepted | Prevents one-guild alliances while keeping `/alliance create` usable |
+| 2026-08-29 | Transport capabilities and rewards use persisted governance/player identity; travel currency stays separate from guild resources and money | Prevent bypasses and preserve clear ownership of durable balances |
+| 2026-08-29 | `/g spawn` and hearthstone bypasses were removed; `/g setspawn` remains spawn input for crystal reconciliation | One governed fast-travel path, with explicit persisted spawn compatibility |
 
 ## Open questions
 

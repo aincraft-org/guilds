@@ -5,6 +5,23 @@ guild_bank:
   capacity_scale: 2
   operation_timeout_ms: 5000
 
+# Personal fast-travel currency defaults. Values are global and player-bound.
+travel-currency:
+  starter: 10
+  maximum: 1000
+  base-cost: 1
+  distance-divisor: 100.0
+  mode-multipliers:
+    WAYSTONE: 1.0
+    CRYSTAL: 1.0
+    BOAT: 1.25
+    AIRSHIP: 1.5
+  reservation-duration-millis: 30000
+  rewards:
+    QUEST_COMPLETION: 20
+    EXPLORATION_MILESTONE: 10
+    GUILD_ACTIVITY: 5
+
 # General Settings
 language: en
 debug: false
@@ -50,10 +67,6 @@ economy:
   daily_upkeep: true
   upkeep_cost: 10.0
 
-# Hearthstone teleport settings
-hearthstone:
-  item: "ENDER_PEARL"
-  cooldown-seconds: 30
 
 # Guild Level System Configuration
 guild_levels:

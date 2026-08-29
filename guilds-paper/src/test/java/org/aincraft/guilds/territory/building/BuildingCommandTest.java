@@ -54,8 +54,8 @@ class BuildingCommandTest {
         BuildingAuthorization authorization = mock(BuildingAuthorization.class);
         FacilityMutationService mutations = new FacilityMutationService(facilities, ignored -> { });
         command = new BuildingCommand(sessions, facilities, territories, anchors,
-                authorization, mutations, config, new WaystoneSelections(60_000L),
-                mock(WaystoneTravelService.class));
+                authorization, mutations, config, new FastTravelSelections(60_000L),
+                mock(FastTravelService.class));
     }
 
     @Test

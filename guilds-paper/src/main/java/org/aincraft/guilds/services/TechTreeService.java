@@ -3,6 +3,7 @@ package org.aincraft.guilds.services;
 import org.aincraft.guilds.models.TechTreeBranch;
 import org.aincraft.guilds.models.TechTreeNode;
 import org.aincraft.guilds.models.Guild;
+import org.aincraft.guilds.territory.model.FastTravelMode;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,23 @@ public interface TechTreeService {
      * Check if a tech node is unlocked for a guild.
      */
     boolean isTechNodeUnlocked(Guild guild, String nodeId);
+
+    /**
+     * Check whether a guild has unlocked a capability node.
+     */
+    boolean hasCapability(Guild guild, String nodeId);
+
+    /**
+     * Read a numeric effect from an unlocked node, returning zero when the node
+     * or effect is absent or non-numeric.
+     */
+    double getNumericEffect(Guild guild, String nodeId, String effectKey);
+
+    /**
+     * Get the existing cooldown reduction. It is deliberately scoped to
+     * WAYSTONE; other travel modes do not inherit the fast-travel effect.
+     */
+    double cooldownReduction(Guild guild, FastTravelMode mode);
 
     /**
      * Unlock a tech node for a guild (deducts tech points, applies effects).

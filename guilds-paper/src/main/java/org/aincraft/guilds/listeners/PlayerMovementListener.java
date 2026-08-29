@@ -1,6 +1,9 @@
 package org.aincraft.guilds.listeners;
 
 
+import org.aincraft.guilds.config.TravelCurrencyConfig;
+import org.aincraft.guilds.services.travel.TravelCurrencyRewardSource;
+import org.aincraft.guilds.services.travel.TravelCurrencyService;
 import org.aincraft.guilds.territory.listener.TerritoryTransitionTitleFormatter;
 import org.aincraft.guilds.territory.model.LookupResult;
 import org.aincraft.guilds.territory.registry.TerritoryRegistry;
@@ -25,11 +28,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletionStage;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Listener for player movement events to handle guild boundary notifications.
  */
 public class PlayerMovementListener implements Listener {
+    private static final Logger FALLBACK_LOGGER = Logger.getLogger(PlayerMovementListener.class.getName());
 
     private final JavaPlugin plugin;
     private final PlotService plotService;
@@ -38,6 +45,8 @@ public class PlayerMovementListener implements Listener {
     private final PlotTypeHandlerManager plotTypeHandlerManager;
     private final PlotTypeRegistry plotTypeRegistry;
     private final TerritoryRegistry territoryRegistry;
+    private final TravelCurrencyService travelCurrencyService;
+    private final TravelCurrencyConfig travelCurrencyConfig;
 
     private final Map<UUID, String> lastGuildByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastPlotTypeByPlayer = new ConcurrentHashMap<>();
@@ -46,6 +55,15 @@ public class PlayerMovementListener implements Listener {
     public PlayerMovementListener(JavaPlugin plugin, PlotService plotService, GuildService guildService,
                                   ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager,
                                   PlotTypeRegistry plotTypeRegistry, TerritoryRegistry territoryRegistry) {
+        this(plugin, plotService, guildService, residentService, plotTypeHandlerManager,
+                plotTypeRegistry, territoryRegistry, null, null);
+    }
+
+    public PlayerMovementListener(JavaPlugin plugin, PlotService plotService, GuildService guildService,
+                                  ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager,
+                                  PlotTypeRegistry plotTypeRegistry, TerritoryRegistry territoryRegistry,
+                                  TravelCurrencyService travelCurrencyService,
+                                  TravelCurrencyConfig travelCurrencyConfig) {
         this.plugin = plugin;
         this.plotService = plotService;
         this.guildService = guildService;
@@ -53,6 +71,8 @@ public class PlayerMovementListener implements Listener {
         this.plotTypeHandlerManager = plotTypeHandlerManager;
         this.plotTypeRegistry = plotTypeRegistry;
         this.territoryRegistry = territoryRegistry;
+        this.travelCurrencyService = travelCurrencyService;
+        this.travelCurrencyConfig = travelCurrencyConfig;
     }
 
     @EventHandler
@@ -190,21 +210,91 @@ public class PlayerMovementListener implements Listener {
         }.runTask(plugin);
     }
     private void updateTerritoryTitle(Player player, PlayerMoveEvent event) {
+        UUID playerUuid = player.getUniqueId();
+        TerritoryLocation previous = lastTerritoryByPlayer.get(playerUuid);
+        boolean firstObservation = previous == null;
+        if (firstObservation) {
+            previous = resolveTerritory(event.getFrom().getWorld().getName(),
+                    event.getFrom().getBlockX(), event.getFrom().getBlockZ());
+        }
         String toWorld = event.getTo().getWorld().getName();
-        TerritoryLocation previous = lastTerritoryByPlayer.get(player.getUniqueId());
         TerritoryLocation current = resolveTerritory(toWorld, event.getTo().getBlockX(), event.getTo().getBlockZ());
-        if (previous == null) {
-            lastTerritoryByPlayer.put(player.getUniqueId(), current);
-            return;
-        }
         if (current.equals(previous)) {
+            lastTerritoryByPlayer.put(playerUuid, current);
             return;
         }
-        lastTerritoryByPlayer.put(player.getUniqueId(), current);
-        TerritoryTransitionTitleFormatter.Title title = current.contained()
-                ? TerritoryTransitionTitleFormatter.enter(Optional.of(current.territoryName()), current.zoneType())
-                : TerritoryTransitionTitleFormatter.leave();
-        sendTitle(player, title);
+        lastTerritoryByPlayer.put(playerUuid, current);
+        if (current.contained()
+                && (!previous.contained() || !current.territoryId().equals(previous.territoryId()))) {
+            awardExplorationMilestone(playerUuid, current.territoryId());
+        }
+        if (!firstObservation) {
+            TerritoryTransitionTitleFormatter.Title title = current.contained()
+                    ? TerritoryTransitionTitleFormatter.enter(Optional.of(current.territoryName()), current.zoneType())
+                    : TerritoryTransitionTitleFormatter.leave();
+            sendTitle(player, title);
+        }
+    }
+
+    private void awardExplorationMilestone(UUID playerUuid, String territoryId) {
+        if (travelCurrencyService == null || travelCurrencyConfig == null) {
+            return;
+        }
+        String eventId = "territory:" + territoryId + ":" + playerUuid;
+        long rewardAmount = travelCurrencyConfig.rewardAmount(
+                TravelCurrencyRewardSource.EXPLORATION_MILESTONE);
+        try {
+            CompletionStage<TravelCurrencyService.RewardResult> reward =
+                    travelCurrencyService.award(
+                            playerUuid,
+                            TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
+                            eventId,
+                            rewardAmount,
+                            System.currentTimeMillis());
+            observeReward(playerUuid, TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
+                    eventId, reward);
+        } catch (RuntimeException exception) {
+            logRewardFailure(playerUuid, TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
+                    eventId, "award invocation threw", exception);
+        }
+    }
+
+    private void observeReward(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                               CompletionStage<TravelCurrencyService.RewardResult> reward) {
+        if (reward == null) {
+            logRewardFailure(actor, source, eventId, "status=NULL_STAGE", null);
+            return;
+        }
+        try {
+            reward.handle((result, error) -> {
+                if (error != null) {
+                    logRewardFailure(actor, source, eventId, "completion failed", error);
+                } else if (result == null) {
+                    logRewardFailure(actor, source, eventId, "status=NULL_RESULT", null);
+                } else if (result.status() != TravelCurrencyService.RewardStatus.AWARDED
+                        && result.status() != TravelCurrencyService.RewardStatus.DUPLICATE) {
+                    logRewardFailure(actor, source, eventId, "status=" + result.status(), null);
+                }
+                return null;
+            });
+        } catch (RuntimeException exception) {
+            logRewardFailure(actor, source, eventId, "completion observation threw", exception);
+        }
+    }
+
+    private void logRewardFailure(UUID actor, TravelCurrencyRewardSource source, String eventId,
+                                  String detail, Throwable error) {
+        String message = "Travel currency reward failed source=" + source
+                + " eventId=" + eventId + " actor=" + actor + " " + detail;
+        Logger logger = plugin == null ? FALLBACK_LOGGER : plugin.getLogger();
+        if (logger == null) {
+            logger = FALLBACK_LOGGER;
+        }
+        if (error == null) {
+            logger.warning(message);
+        } else {
+            logger.log(Level.WARNING, message, error);
+        }
     }
 
     private TerritoryLocation resolveTerritory(String world, int blockX, int blockZ) {
@@ -248,6 +338,7 @@ public class PlayerMovementListener implements Listener {
     public void cleanupOfflinePlayer(UUID playerUuid) {
         lastGuildByPlayer.remove(playerUuid);
         lastPlotTypeByPlayer.remove(playerUuid);
+        lastTerritoryByPlayer.remove(playerUuid);
     }
 
     @EventHandler

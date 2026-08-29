@@ -14,7 +14,7 @@ class SqlMigrationCatalogTest {
         assertEquals(1, migrations.getFirst().version());
         assertEquals("initial", migrations.getFirst().slug());
         assertEquals("migrations/guilds/V1__initial.sql", migrations.getFirst().resource());
-        assertEquals(30, migrations.getLast().version());
+        assertEquals(31, migrations.getLast().version());
         assertTrue(migrations.stream().anyMatch(migration -> migration.version() == 16));
         SqlMigration lastOnline = migrations.stream()
                 .filter(migration -> migration.version() == 20)
@@ -42,6 +42,14 @@ class SqlMigrationCatalogTest {
         assertEquals("guild-storage-operation-request-snapshot", requestSnapshot.slug());
         assertEquals(
                 "migrations/guilds/V27__guild-storage-operation-request-snapshot.sql", requestSnapshot.resource());
+        SqlMigration fastTravel = migrations.stream()
+                .filter(migration -> migration.version() == 31)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("fast-travel-currency", fastTravel.slug());
+        assertEquals(
+                "migrations/guilds/V31__fast-travel-currency.sql", fastTravel.resource());
+        assertTrue(SqlStatements.load(fastTravel.resource()).contains("player_travel_wallets"));
     }
 
     @Test

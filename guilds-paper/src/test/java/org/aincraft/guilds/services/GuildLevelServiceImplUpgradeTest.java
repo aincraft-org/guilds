@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -126,6 +127,9 @@ class GuildLevelServiceImplUpgradeTest {
         GuildLevelServiceImpl service = newService(
                 mock(DatabaseManager.class), mock(GuildService.class));
         Connection connection = mock(Connection.class);
+        DatabaseMetaData metadata = mock(DatabaseMetaData.class);
+        when(connection.getMetaData()).thenReturn(metadata);
+        when(metadata.getDatabaseProductName()).thenReturn("PostgreSQL");
         PreparedStatement statement = mock(PreparedStatement.class);
         when(connection.prepareStatement(anyString())).thenReturn(statement);
         GuildLevel level = new GuildLevel(
@@ -241,6 +245,9 @@ class GuildLevelServiceImplUpgradeTest {
         when(levels.getString("unlocked_plot_types")).thenReturn("[]");
 
         Connection tx = mock(Connection.class);
+        DatabaseMetaData metadata = mock(DatabaseMetaData.class);
+        when(tx.getMetaData()).thenReturn(metadata);
+        when(metadata.getDatabaseProductName()).thenReturn("PostgreSQL");
         PreparedStatement select = mock(PreparedStatement.class);
         PreparedStatement update = mock(PreparedStatement.class);
         PreparedStatement benefits = mock(PreparedStatement.class);

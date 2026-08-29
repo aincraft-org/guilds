@@ -46,6 +46,11 @@ import org.aincraft.guilds.territory.upkeep.UpkeepEngine;
 import org.aincraft.guilds.territory.standing.HarvestBonusListener;
 import org.aincraft.guilds.territory.standing.StandingListener;
 import org.aincraft.guilds.territory.squaremap.TerritorySquaremapBridge;
+import org.aincraft.guilds.territory.building.FastTravelFacilityValidator;
+import org.aincraft.guilds.territory.building.boat.BoatRouteService;
+import org.aincraft.guilds.territory.model.FastTravelMode;
+import org.aincraft.guilds.territory.model.FacilityType;
+
 import org.aincraft.guilds.territory.worldguard.TerritoryWorldGuardBridge;
 import org.aincraft.guilds.territory.web.TerritoryWebServer;
 import org.aincraft.guilds.territory.web.WebConfig;
@@ -66,6 +71,12 @@ import org.aincraft.guilds.services.MintGuildBankService;
 import org.aincraft.guilds.placeholder.GuildsPlaceholderExpansion;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.UUID;
+import java.util.function.Function;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Level;
@@ -95,7 +106,9 @@ public final class GuildsPlugin extends JavaPlugin {
     private PostgresFacilityStore facilityStore;
     private org.aincraft.guilds.territory.building.BuildingCommand buildingCommand;
     private org.aincraft.guilds.territory.building.FacilityMutationService facilityMutations;
-    private org.aincraft.guilds.territory.building.WaystoneTravelService waystoneTravelService;
+    private org.aincraft.guilds.territory.building.FastTravelFacilityValidator fastTravelFacilityValidator;
+    private org.aincraft.guilds.territory.building.boat.BoatRouteService boatRouteService;
+    private org.aincraft.guilds.territory.building.FastTravelService fastTravelService;
     private org.aincraft.guilds.territory.building.FacilityAnchorValidator facilityAnchorValidator;
     private PostgresTerritoryStore store;
     private Database database;
@@ -240,12 +253,10 @@ public final class GuildsPlugin extends JavaPlugin {
         this.blockProtection = new BlockProtection(governance);
         getServer().getPluginManager().registerEvents(
                 new InteractionProtectionListener(blockProtection), this);
-        if (this.guilds != null) {
-            this.guilds.registerHearthstone(blockProtection);
-        }
         getLogger().info(
                 "Registered territory protection listeners "
                         + "(break/place/fire/explosions/mob-spawn/entity-grief/interaction/pvp/teleport)");
+        enableGuildsSubsystem();
         startBuildings();
 
         // squaremap integration: render territory/zone/influence boundaries as map layers.
@@ -360,9 +371,6 @@ public final class GuildsPlugin extends JavaPlugin {
                 event -> event.registrar().register("territory", "Inspect territory and zone at a location",
                         java.util.List.of("gterritory"), territoryBasic));
 
-        startWebIfEnabled();
-        enableGuildsSubsystem();
-        registerPlaceholderExpansion();
         // Guild claims squaremap layer — renders guild_blocks chunks as merged outlines.
         try {
             this.guildClaimBridge = new org.aincraft.guilds.territory.squaremap.GuildClaimSquaremapBridge(
@@ -374,6 +382,9 @@ public final class GuildsPlugin extends JavaPlugin {
             getLogger().warning("squaremap API classes not on classpath; guild claim map layers disabled");
         }
         wireInvasions();
+        startWebIfEnabled();
+        registerPlaceholderExpansion();
+
     }
     @Override
     public void onDisable() {
@@ -384,9 +395,18 @@ public final class GuildsPlugin extends JavaPlugin {
         stopInfluenceStatus();
         stopWeb();
         stopSquaremap();
-        if (waystoneTravelService != null) {
-            waystoneTravelService.stop();
-            waystoneTravelService = null;
+        if (fastTravelService != null) {
+            try {
+                fastTravelService.stopAsync().toCompletableFuture().join();
+            } catch (RuntimeException exception) {
+                getLogger().log(Level.SEVERE,
+                        "Fast-travel reservation release failed during shutdown", exception);
+            }
+            fastTravelService = null;
+        }
+        if (boatRouteService != null) {
+            boatRouteService.close();
+            boatRouteService = null;
         }
         if (standingEngine != null) {
             try {
@@ -772,8 +792,15 @@ public final class GuildsPlugin extends JavaPlugin {
         return facilityMutations;
     }
 
-    public org.aincraft.guilds.territory.building.WaystoneTravelService getWaystoneTravelService() {
-        return waystoneTravelService;
+    public org.aincraft.guilds.territory.building.FastTravelService getFastTravelService() {
+        return fastTravelService;
+    }
+    public FastTravelFacilityValidator getFastTravelFacilityValidator() {
+        return fastTravelFacilityValidator;
+    }
+
+    public BoatRouteService getBoatRouteService() {
+        return boatRouteService;
     }
 
     public PostgresTerritoryStore getStore() {
@@ -796,52 +823,200 @@ public final class GuildsPlugin extends JavaPlugin {
         return webConfig;
     }
     private void startBuildings() {
-        if (guilds == null) {
+        if (guilds == null || !guilds.isEnabled()) {
             getLogger().warning("Territory buildings unavailable because guilds failed to start");
             return;
         }
         try {
             var config = org.aincraft.guilds.territory.building.BuildingConfigLoader.from(getConfig());
-            var bankers = new org.aincraft.guilds.territory.building.GuildBankerNpc(this);
-            this.facilityMutations = new org.aincraft.guilds.territory.building.FacilityMutationService(
-                    facilities, facilityStore, bankers::spawn, bankers::despawn);
             var authorization = new org.aincraft.guilds.territory.building.BuildingAuthorization(
                     guilds.getGuildService(), guilds.getPermissionService());
             var anchors = new org.aincraft.guilds.territory.building.FacilityAnchorValidator(
                     getServer(), registry, facilities, config);
             this.facilityAnchorValidator = anchors;
+            this.fastTravelFacilityValidator = new FastTravelFacilityValidator(
+                    getServer(), registry, facilities, guilds.getGuildService(),
+                    guilds.getTechTreeService(), config, anchors);
+            var bankers = new org.aincraft.guilds.territory.building.GuildBankerNpc(this);
+            this.facilityMutations = new org.aincraft.guilds.territory.building.FacilityMutationService(
+                    facilities, facilityStore, fastTravelFacilityValidator,
+                    bankers::spawn, bankers::despawn);
+            reconcileCrystalRecords();
             guilds.wireStorage(facilities, governance, anchors);
+
             var sessions = new org.aincraft.guilds.territory.building.BuildingPlacementSessions(
                     config.placementTimeoutMillis());
-            var selections = new org.aincraft.guilds.territory.building.WaystoneSelections(
+            var selections = new org.aincraft.guilds.territory.building.FastTravelSelections(
                     config.placementTimeoutMillis());
-            var access = new org.aincraft.guilds.territory.building.WaystoneAccess(
-                    facilities, registry, anchors, authorization);
-            this.waystoneTravelService = new org.aincraft.guilds.territory.building.WaystoneTravelService(
+            this.boatRouteService = new BoatRouteService(this, config.transportGeometry());
+            var travelCurrency = guilds.getTravelCurrencyService();
+            Function<UUID, org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot>
+                    snapshots = preloadFastTravelSnapshots();
+            var access = new org.aincraft.guilds.territory.building.FastTravelAccess(
+                    facilities, registry, anchors, authorization, fastTravelFacilityValidator,
+                    guilds.getTechTreeService(), guilds.getGuildService(),
+                    guilds.getResidentService(), guilds.getAllianceService(), snapshots);
+            java.util.EnumMap<FastTravelMode, Long> cooldowns =
+                    new java.util.EnumMap<>(FastTravelMode.class);
+            for (FastTravelMode mode : FastTravelMode.values()) {
+                cooldowns.put(mode, config.waystoneCooldownMillis());
+            }
+            var travelCurrencyConfig = guilds.getTravelCurrencyConfig();
+            var costs = new org.aincraft.guilds.territory.building.FastTravelCostCalculator(
+                    travelCurrencyConfig);
+            this.fastTravelService = new org.aincraft.guilds.territory.building.FastTravelService(
                     this, facilities, anchors, access,
                     new org.aincraft.guilds.territory.building.SafeLandingResolver(getServer()),
-                    blockProtection, config);
+                    blockProtection, config, travelCurrency, costs, boatRouteService,
+                    guilds.getTechTreeService(), guilds.getGuildService(),
+                    guilds.getResidentService(), guilds.getAllianceService(),
+                    cooldowns, travelCurrencyConfig.reservationDurationMillis(), Map.of());
             this.buildingCommand = new org.aincraft.guilds.territory.building.BuildingCommand(
                     sessions, facilities, registry, anchors, authorization,
-                    facilityMutations, config, selections, waystoneTravelService);
+                    facilityMutations, config, selections, fastTravelService);
+            guilds.wireFastTravel(fastTravelService, boatRouteService);
             getServer().getPluginManager().registerEvents(
                     new org.aincraft.guilds.territory.building.BuildingListener(
                             sessions, config, registry, facilities, authorization,
                             facilityMutations, anchors, access, selections,
-                            getServer().getPluginManager(), guilds.getStorageFacilityOpener()), this);
-            getServer().getPluginManager().registerEvents(
-                    new org.aincraft.guilds.territory.building.WaystoneTravelListener(waystoneTravelService),
-                    this);
+                            getServer().getPluginManager(), guilds.getStorageFacilityOpener(),
+                            fastTravelService), this);
             if (guilds.getGuildBankVillagerListener() != null) {
                 guilds.getGuildBankVillagerListener().setBankBuildings(facilities, registry);
             }
             bankers.restore(facilities.list());
             getLogger().info("Territory anchor buildings enabled");
         } catch (RuntimeException e) {
+            if (fastTravelService != null) {
+                fastTravelService.stop();
+            }
+            if (boatRouteService != null) {
+                boatRouteService.close();
+            }
             this.buildingCommand = null;
             this.facilityMutations = null;
-            this.waystoneTravelService = null;
+            this.fastTravelFacilityValidator = null;
+            this.fastTravelService = null;
+            this.boatRouteService = null;
             getLogger().log(Level.SEVERE, "Failed to start territory buildings — disabled", e);
+        }
+    }
+
+    /**
+     * Creates a provider that captures current persisted identity and guild
+     * state for each authorization snapshot.
+     */
+    private Function<UUID, org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot>
+    preloadFastTravelSnapshots() {
+        return this::currentFastTravelSnapshot;
+    }
+
+    private org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot
+    currentFastTravelSnapshot(UUID playerId) {
+        Optional<String> travelerGuildId = Optional.empty();
+        if (playerId != null) {
+            travelerGuildId = guilds.getResidentService().getResident(playerId)
+                    .filter(org.aincraft.guilds.models.Resident::hasGuild)
+                    .map(org.aincraft.guilds.models.Resident::getGuild)
+                    .flatMap(name -> guilds.getGuildService().getGuild(name))
+                    .map(org.aincraft.guilds.models.Guild::getId)
+                    .filter(id -> id != null && !id.isBlank());
+        }
+
+        Map<String, Set<String>> capabilities = new HashMap<>();
+        String[] nodes = {"fast_travel", "boat_travel", "airship_travel", "remote_crystal"};
+        for (var guild : guilds.getGuildService().getAllGuilds()) {
+            if (guild == null || guild.getId() == null || guild.getId().isBlank()) {
+                continue;
+            }
+            Set<String> unlocked = new HashSet<>();
+            for (String node : nodes) {
+                if (guilds.getTechTreeService().hasCapability(guild, node)) {
+                    unlocked.add(node);
+                }
+            }
+            capabilities.put(guild.getId(), Set.copyOf(unlocked));
+        }
+        Set<String> alliances = new HashSet<>();
+        for (var alliance : guilds.getAllianceService().getAllAlliances()) {
+            var ids = new java.util.ArrayList<>(alliance.getMemberGuildIds());
+            for (int first = 0; first < ids.size(); first++) {
+                for (int second = first + 1; second < ids.size(); second++) {
+                    alliances.add(alliancePair(ids.get(first), ids.get(second)));
+                }
+            }
+        }
+        return new PreloadedFastTravelSnapshot(
+                travelerGuildId, Map.copyOf(capabilities), Set.copyOf(alliances));
+    }
+
+
+    private static String alliancePair(String first, String second) {
+        return first.compareTo(second) < 0 ? first + "\\u0000" + second : second + "\\u0000" + first;
+    }
+
+    private record PreloadedFastTravelSnapshot(
+            Optional<String> travelerGuildId,
+            Map<String, Set<String>> capabilities,
+            Set<String> alliances)
+            implements org.aincraft.guilds.territory.building.FastTravelAccess.FastTravelSnapshot {
+        private PreloadedFastTravelSnapshot {
+            if (travelerGuildId == null) {
+                throw new IllegalArgumentException("travelerGuildId is required");
+            }
+            capabilities = Map.copyOf(capabilities);
+            alliances = Set.copyOf(alliances);
+        }
+
+        @Override
+        public boolean hasCapability(String guildId, String nodeId) {
+            return capabilities.getOrDefault(guildId, Set.of()).contains(nodeId);
+        }
+
+        @Override
+        public boolean allied(String firstGuildId, String secondGuildId) {
+            return (firstGuildId != null && firstGuildId.equals(secondGuildId))
+                    || alliances.contains(alliancePair(firstGuildId, secondGuildId));
+        }
+    }
+
+    /**
+     * A crystal is deliberately retained when its spawn no longer matches.
+     * Activity is derived by the live validator; deleting the record would
+     * destroy the persisted spawn/setspawn relationship.
+     */
+    private void reconcileCrystalRecords() {
+        for (var facility : facilities.list()) {
+            if (facility.type() != FacilityType.GUILD_CRYSTAL) {
+                continue;
+            }
+            var territory = registry.get(facility.territoryId()).orElse(null);
+            String guildId = territory == null
+                    ? null : territory.governedByGuildId().orElse(null);
+            var guild = guildId == null
+                    ? null : guilds.getGuildService().getGuildById(guildId).orElse(null);
+            if (guild == null) {
+                getLogger().warning("Retaining crystal " + facility.id()
+                        + " because its governing guild is unavailable");
+                continue;
+            }
+            var spawn = guilds.getGuildService().getGuildSpawn(guild.getName());
+            if (spawn.isEmpty() && guild.getId() != null
+                    && !guild.getId().equals(guild.getName())) {
+                spawn = guilds.getGuildService().getGuildSpawn(guild.getId());
+            }
+            if (spawn.isEmpty()) {
+                getLogger().warning("Retaining crystal " + facility.id()
+                        + " because guild " + guild.getName() + " has no persisted spawn");
+                continue;
+            }
+            int[] block = spawn.get().getBlockCoordinates();
+            if (!facility.worldId().equals(spawn.get().getWorld())
+                    || facility.x() != block[0] || facility.y() != block[1]
+                    || facility.z() != block[2]) {
+                getLogger().warning("Retaining inactive crystal " + facility.id()
+                        + " because it does not match guild " + guild.getName() + "'s persisted spawn");
+            }
         }
     }
 

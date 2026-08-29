@@ -7,10 +7,10 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class WaystoneSelectionsTest {
+class FastTravelSelectionsTest {
     @Test
     void selectionExpiresAndClears() {
-        WaystoneSelections selections = new WaystoneSelections(1_000L);
+        FastTravelSelections selections = new FastTravelSelections(1_000L);
         UUID player = UUID.randomUUID();
         selections.select(player, "north", 5_000L);
         assertEquals("north", selections.origin(player, 5_999L).orElseThrow());

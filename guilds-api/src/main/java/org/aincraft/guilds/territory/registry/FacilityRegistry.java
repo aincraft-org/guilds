@@ -64,6 +64,24 @@ public final class FacilityRegistry {
                         && facility.type() == type)
                 .toList();
     }
+    /**
+     * Counts persisted records in the candidate/live registry, without
+     * filtering by runtime activity.
+     */
+    public int count(String territoryId, FacilityType type) {
+        Objects.requireNonNull(type, "type");
+        if (territoryId == null || territoryId.isBlank()) {
+            return 0;
+        }
+        String normalized = territoryId.trim();
+        int count = 0;
+        for (SettlementFacility facility : byId.values()) {
+            if (facility.territoryId().equals(normalized) && facility.type() == type) {
+                count++;
+            }
+        }
+        return count;
+    }
 
     public FacilityRegistry copy() {
         FacilityRegistry copy = new FacilityRegistry(territories);

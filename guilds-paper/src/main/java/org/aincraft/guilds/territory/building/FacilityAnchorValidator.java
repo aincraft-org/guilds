@@ -27,6 +27,10 @@ public final class FacilityAnchorValidator {
         this.facilities = Objects.requireNonNull(facilities, "facilities");
         this.config = Objects.requireNonNull(config, "config");
     }
+    Server server() {
+        return server;
+    }
+
 
     public AnchorValidation validate(SettlementFacility facility) {
         Objects.requireNonNull(facility, "facility");
@@ -34,6 +38,18 @@ public final class FacilityAnchorValidator {
                 .territoryId().filter(facility.territoryId()::equals).isPresent();
         if (!inside) {
             return new AnchorValidation(AnchorStatus.OUTSIDE_TERRITORY, facility);
+        }
+        if (isTransport(facility.type())) {
+            BuildingConfig.TransportGeometry geometry = config.transportGeometry();
+            if (geometry == null) {
+                return new AnchorValidation(AnchorStatus.MISSING_GEOMETRY, facility);
+            }
+            if (geometry.boatEntryRadius() <= 0 || geometry.boatEntryWidth() <= 0
+                    || geometry.clearBoatSpaceHeight() <= 0 || geometry.searchChunkRadius() <= 0
+                    || geometry.searchChunkBudget() <= 0 || geometry.airshipPlatformRadius() <= 0
+                    || geometry.airshipVerticalClearanceHeight() <= 0) {
+                return new AnchorValidation(AnchorStatus.INVALID_GEOMETRY, facility);
+            }
         }
         World world = server.getWorld(facility.worldId());
         if (world == null || !world.isChunkLoaded(facility.x() >> 4, facility.z() >> 4)) {
@@ -89,10 +105,26 @@ public final class FacilityAnchorValidator {
         }
         return Optional.ofNullable(nearest);
     }
+    private static boolean isTransport(FacilityType type) {
+        return type == FacilityType.BOAT || type == FacilityType.AIRSHIP;
+    }
+
 
     public record AnchorValidation(AnchorStatus status, SettlementFacility facility) {
         public boolean active() {
             return status == AnchorStatus.ACTIVE;
+        }
+
+        public boolean isActive() {
+            return active();
+        }
+
+        public String category() {
+            return status.name();
+        }
+
+        public String failureCategory() {
+            return category();
         }
     }
 }

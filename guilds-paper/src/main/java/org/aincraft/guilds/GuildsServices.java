@@ -16,6 +16,15 @@ import org.aincraft.guilds.commands.brigadier.GuildLevelBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.GuildPermBrigadierCommand;
 import org.aincraft.guilds.commands.brigadier.GuildsGeneralBrigadierCommand;
 import org.aincraft.guilds.config.DatabaseConfig;
+import org.aincraft.guilds.config.TravelCurrencyConfig;
+import org.aincraft.guilds.config.TravelCurrencyConfigLoader;
+import org.aincraft.guilds.services.impl.TravelCurrencyServiceImpl;
+import org.aincraft.guilds.services.travel.TravelCurrencyService;
+import org.aincraft.guilds.territory.building.FastTravelListener;
+import org.aincraft.guilds.territory.building.FastTravelService;
+import org.aincraft.guilds.territory.building.boat.BoatRouteService;
+import org.aincraft.guilds.territory.building.boat.BoatWaterChangeListener;
+
 import org.aincraft.guilds.config.TechTreeConfigLoader;
 import org.aincraft.guilds.config.GuildLevelConfigLoader;
 import org.aincraft.guilds.config.GuildsConfig;
@@ -150,7 +159,19 @@ public class GuildsServices {
     private final BroadcastService broadcastService;
     private final ChatService chatService;
     private final AllianceService allianceService;
+    private final TravelCurrencyConfig travelCurrencyConfig;
+    private final TravelCurrencyService travelCurrencyService;
     private final QuestService questService;
+
+    // Listeners
+    private final PlayerMovementListener playerMovementListener;
+    private final GuildToggleListener guildToggleListener;
+    private final GuildPublicAccessListener guildPublicAccessListener;
+    private final GuildBroadcastListener guildBroadcastListener;
+    private final GuildChatListener guildChatListener;
+    private final AllianceListener allianceListener;
+    private FastTravelListener fastTravelListener;
+    private BoatWaterChangeListener boatWaterChangeListener;
 
     // Governance (guilds as local governments, alliances as alliances)
     private final GuildsGovernanceSource governanceSource;
@@ -165,13 +186,6 @@ public class GuildsServices {
     // Commands
     private final BrigadierCommandRegistry commandRegistry;
 
-    // Listeners
-    private final PlayerMovementListener playerMovementListener;
-    private final GuildToggleListener guildToggleListener;
-    private final GuildPublicAccessListener guildPublicAccessListener;
-    private final GuildBroadcastListener guildBroadcastListener;
-    private final GuildChatListener guildChatListener;
-    private final AllianceListener allianceListener;
 
     // Guild item storage (deferred until territory registries are available)
     private GuildStorageService guildStorageService;
@@ -182,9 +196,6 @@ public class GuildsServices {
     private GuildStorageGUI guildStorageGUI;
     private StorageFacilityOpener storageFacilityOpener;
 
-    // Hearthstone (deferred until BlockProtection is available)
-    private org.aincraft.guilds.services.GuildHearthstoneService hearthstoneService;
-    private org.aincraft.guilds.listeners.GuildHearthstoneListener hearthstoneListener;
 
     public GuildsServices(JavaPlugin plugin, Database database) {
         this(plugin, database, null);
@@ -204,6 +215,11 @@ public class GuildsServices {
 
         SchemaInitializer schemaInitializer = new SchemaInitializer(plugin);
         databaseManager = new DatabaseManager(plugin, databaseConfig, schemaInitializer);
+        // Personal travel currency is the shared rail for quests, exploration,
+        // guild activity rewards, and every fast-travel mode.
+        travelCurrencyConfig = TravelCurrencyConfigLoader.fromBukkit(config);
+        travelCurrencyService = new TravelCurrencyServiceImpl(databaseManager, travelCurrencyConfig);
+
 
         // Services. The GuildService <-> PermissionService <-> PlotService cycle is
         // broken deliberately: GuildServiceImpl is built without PermissionService
@@ -236,7 +252,9 @@ public class GuildsServices {
                 Logger.getLogger(BroadcastServiceImpl.class.getName()),
                 guildService, residentService, permissionService);
         chatService = new ChatServiceImpl(plugin, guildService, residentService);
-        questService = new QuestServiceImpl(plugin, databaseManager);
+        questService = new QuestServiceImpl(plugin, databaseManager,
+                travelCurrencyService, travelCurrencyConfig);
+
         guildBankEnrollmentService = new GuildBankEnrollmentServiceImpl(databaseManager, guildService, residentService,
                 Logger.getLogger(GuildBankEnrollmentServiceImpl.class.getName()));
 
@@ -252,12 +270,16 @@ public class GuildsServices {
         // GUI
         techTreeGUI = new TechTreeGUI(plugin, techTreeService, guildProjectService, guildService, residentService);
         TechTreeBrigadierCommand techTreeCommand = new TechTreeBrigadierCommand(techTreeService,
-                guildProjectService, guildService, residentService, techTreeGUI);
+                guildProjectService, guildService, residentService, techTreeGUI,
+                travelCurrencyService, travelCurrencyConfig);
+
         // Commands are built after all core services exist.
         // Listeners
         playerMovementListener = new PlayerMovementListener(plugin, plotService, guildService,
                 residentService, plotTypeHandlerManager, plotTypeRegistry,
-                ((org.aincraft.guilds.GuildsPlugin) plugin).getRegistry());
+                ((org.aincraft.guilds.GuildsPlugin) plugin).getRegistry(),
+                travelCurrencyService, travelCurrencyConfig);
+
         guildToggleListener = new GuildToggleListener(plugin, permissionService);
         guildPublicAccessListener = new GuildPublicAccessListener(plugin, permissionService, residentService);
         guildBroadcastListener = new GuildBroadcastListener(plugin, broadcastService, residentService,
@@ -265,9 +287,6 @@ public class GuildsServices {
         guildChatListener = new GuildChatListener(plugin, chatService, guildService, residentService);
         allianceListener = new AllianceListener(allianceService, guildService, residentService);
 
-        // Hearthstone service/listener are deferred until BlockProtection is available.
-        this.hearthstoneService = null;
-        this.hearthstoneListener = null;
 
         MapBrigadierCommand mapCommand = new MapBrigadierCommand(plugin, guildService, plotService,
                 residentService, permissionService);
@@ -315,18 +334,39 @@ public class GuildsServices {
      */
     public void enable() {
         initializeServices();
+        if (!recoverTravelReservations()) {
+            plugin.getLogger().severe("Guilds subsystem remains disabled because travel reservation recovery failed");
+            enabled = false;
+            return;
+        }
         registerCommands();
         registerListeners();
         enabled = true;
         plugin.getLogger().info("Guilds subsystem has been enabled successfully!");
     }
 
-    /**
-     * Stops the guilds subsystem.
-     */
+    private boolean recoverTravelReservations() {
+        try {
+            var recovery = travelCurrencyService.recoverExpired(System.currentTimeMillis());
+            if (recovery == null) {
+                return false;
+            }
+            recovery.toCompletableFuture().join();
+            return true;
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.SEVERE,
+                    "Failed to recover expired/orphan travel reservations", exception);
+            return false;
+        }
+    }
+
     public void disable() {
-        enabled = false;
-        plugin.getLogger().info("Guilds subsystem has been disabled.");
+        try {
+            recoverTravelReservations();
+        } finally {
+            enabled = false;
+            plugin.getLogger().info("Guilds subsystem has been disabled.");
+        }
     }
 
     public boolean isEnabled() {
@@ -408,31 +448,36 @@ public class GuildsServices {
         }
         plugin.getServer().getPluginManager().registerEvents(guildBroadcastListener, plugin);
         plugin.getServer().getPluginManager().registerEvents(techTreeGUI, plugin);
-
-        if (hearthstoneListener != null) {
-            plugin.getServer().getPluginManager().registerEvents(hearthstoneListener, plugin);
-        }
-
+        registerFastTravelListeners();
         plugin.getLogger().info("Guilds event listeners registered.");
     }
 
     /**
-     * Lazily construct and register the hearthstone teleport service/listener
-     * once the canonical {@link BlockProtection} is available.
+     * Supplies the building-owned travel services and registers their listeners
+     * under this composition root. The method may be called before or after
+     * {@link #enable()}.
      */
-    public void registerHearthstone(org.aincraft.guilds.territory.permission.BlockProtection blockProtection) {
-        if (blockProtection == null || hearthstoneService != null) {
-            return;
+    public void wireFastTravel(FastTravelService travel, BoatRouteService routes) {
+        if (travel == null || routes == null) {
+            throw new IllegalArgumentException("Fast travel wiring requires travel and route services");
         }
-        String matName = config.getString("hearthstone.item", "ENDER_PEARL");
-        org.bukkit.Material material = org.bukkit.Material.getMaterial(
-                matName == null ? "ENDER_PEARL" : matName.trim().toUpperCase(java.util.Locale.ROOT));
-        if (material == null) material = org.bukkit.Material.ENDER_PEARL;
-        long cooldown = config.getLong("hearthstone.cooldown-seconds", 30);
-        hearthstoneService = new org.aincraft.guilds.services.impl.GuildHearthstoneServiceImpl(
-                plugin, guildService, blockProtection, cooldown);
-        hearthstoneListener = new org.aincraft.guilds.listeners.GuildHearthstoneListener(
-                hearthstoneService, material);
+        if (fastTravelListener != null || boatWaterChangeListener != null) {
+            throw new IllegalStateException("Fast travel listeners are already wired");
+        }
+        fastTravelListener = new FastTravelListener(travel);
+        boatWaterChangeListener = new BoatWaterChangeListener(routes);
+        if (enabled) {
+            registerFastTravelListeners();
+        }
+    }
+
+    private void registerFastTravelListeners() {
+        if (fastTravelListener != null) {
+            plugin.getServer().getPluginManager().registerEvents(fastTravelListener, plugin);
+        }
+        if (boatWaterChangeListener != null) {
+            plugin.getServer().getPluginManager().registerEvents(boatWaterChangeListener, plugin);
+        }
     }
 
     public MintEconomyRail getMintEconomyRail() {
@@ -567,6 +612,21 @@ public class GuildsServices {
 
     public QuestService getQuestService() {
         return questService;
+    }
+    public TravelCurrencyConfig getTravelCurrencyConfig() {
+        return travelCurrencyConfig;
+    }
+
+    public TravelCurrencyService getTravelCurrencyService() {
+        return travelCurrencyService;
+    }
+
+    public FastTravelListener getFastTravelListener() {
+        return fastTravelListener;
+    }
+
+    public BoatWaterChangeListener getBoatWaterChangeListener() {
+        return boatWaterChangeListener;
     }
 
     /**

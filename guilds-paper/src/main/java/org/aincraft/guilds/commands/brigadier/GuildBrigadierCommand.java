@@ -149,12 +149,6 @@ public class GuildBrigadierCommand {
                 .executes(this::handleOwnInfo)
                 .then(Commands.argument("guild", GuildArgumentType.guild(guildService))
                     .executes(this::handleGuildInfo)))
-            // Spawn subcommand
-            .then(Commands.literal("spawn")
-                .requires(source -> source.getSender().hasPermission("guilds.guild.spawn"))
-                .executes(this::handleOwnSpawn)
-                .then(Commands.argument("guild", GuildArgumentType.guild(guildService))
-                    .executes(this::handleGuildSpawn)))
             // SetSpawn subcommand
             .then(Commands.literal("setspawn")
                 .requires(source -> source.getSender().hasPermission("guilds.guild.setspawn"))
@@ -222,9 +216,6 @@ public class GuildBrigadierCommand {
         sender.sendMessage("§6║                                              §6║");
         sender.sendMessage("§6║ §f/guild unclaim                              §6║");
         sender.sendMessage("§6║   §8» Unclaim the chunk you're in           §6║");
-        sender.sendMessage("§6║                                              §6║");
-        sender.sendMessage("§6║ §f/guild spawn §7[guild]                        §6║");
-        sender.sendMessage("§6║   §8» Teleport to guild spawn                §6║");
         sender.sendMessage("§6║                                              §6║");
         sender.sendMessage("§6║ §f/guild info §7[guild]                         §6║");
         sender.sendMessage("§6║   §8» Show guild information                  §6║");
@@ -812,99 +803,7 @@ public class GuildBrigadierCommand {
         return Command.SINGLE_SUCCESS;
     }
 
-    private int handleOwnSpawn(CommandContext<CommandSourceStack> ctx) {
-        var sender = ctx.getSource().getSender();
-        if (!(sender instanceof org.bukkit.entity.Player player)) {
-            sender.sendMessage("§cThis command can only be used by players.");
-            return 0;
-        }
 
-        UUID playerUuid = player.getUniqueId();
-
-        if (residentService.getResident(playerUuid).isPresent()) {
-            var resident = residentService.getResident(playerUuid).get();
-            if (!resident.hasGuild()) {
-                player.sendMessage("§cYou are not in a guild!");
-                return 0;
-            }
-
-            String guildName = resident.getGuild();
-
-            // Check if player can teleport to this guild's spawn
-            if (!guildService.canTeleportToSpawn(playerUuid, guildName)) {
-                player.sendMessage("§cYou cannot teleport to " + guildName + "'s spawn!");
-                return 0;
-            }
-
-            // Get spawn location
-            var spawnLocation = guildService.getGuildSpawn(guildName);
-            if (spawnLocation.isEmpty()) {
-                player.sendMessage("§cGuild " + guildName + " does not have a spawn point set!");
-                return 0;
-            }
-
-            // Convert our Location to Bukkit Location
-            Location guildSpawn = spawnLocation.get();
-            org.bukkit.Location bukkitLocation = new org.bukkit.Location(
-                org.bukkit.Bukkit.getWorld(guildSpawn.getWorld()),
-                guildSpawn.getX(),
-                guildSpawn.getY(),
-                guildSpawn.getZ(),
-                guildSpawn.getYaw(),
-                guildSpawn.getPitch()
-            );
-
-            // Teleport player
-            player.teleport(bukkitLocation);
-            player.sendMessage("§aTeleported to §e" + guildName + " §aspawn!");
-
-        } else {
-            player.sendMessage("§cYour resident data could not be loaded!");
-        }
-
-        return Command.SINGLE_SUCCESS;
-    }
-
-    private int handleGuildSpawn(CommandContext<CommandSourceStack> ctx) {
-        var sender = ctx.getSource().getSender();
-        if (!(sender instanceof org.bukkit.entity.Player player)) {
-            sender.sendMessage("§cThis command can only be used by players.");
-            return 0;
-        }
-
-        String guildName = GuildArgumentType.getGuildName(ctx, "guild");
-        UUID playerUuid = player.getUniqueId();
-
-        // Check if player can teleport to this guild's spawn
-        if (!guildService.canTeleportToSpawn(playerUuid, guildName)) {
-            player.sendMessage("§cYou cannot teleport to " + guildName + "'s spawn!");
-            return 0;
-        }
-
-        // Get spawn location
-        var spawnLocation = guildService.getGuildSpawn(guildName);
-        if (spawnLocation.isEmpty()) {
-            player.sendMessage("§cGuild " + guildName + " does not have a spawn point set!");
-            return 0;
-        }
-
-        // Convert our Location to Bukkit Location
-        Location guildSpawn = spawnLocation.get();
-        org.bukkit.Location bukkitLocation = new org.bukkit.Location(
-            org.bukkit.Bukkit.getWorld(guildSpawn.getWorld()),
-            guildSpawn.getX(),
-            guildSpawn.getY(),
-            guildSpawn.getZ(),
-            guildSpawn.getYaw(),
-            guildSpawn.getPitch()
-        );
-
-        // Teleport player
-        player.teleport(bukkitLocation);
-        player.sendMessage("§aTeleported to §e" + guildName + " §aspawn!");
-
-        return Command.SINGLE_SUCCESS;
-    }
 
     private int handleSetSpawn(CommandContext<CommandSourceStack> ctx) {
         var sender = ctx.getSource().getSender();

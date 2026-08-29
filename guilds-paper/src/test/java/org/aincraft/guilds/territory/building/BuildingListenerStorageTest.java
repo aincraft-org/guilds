@@ -82,8 +82,8 @@ class BuildingListenerStorageTest {
                 mock(BuildingAuthorization.class),
                 new FacilityMutationService(facilities, mock(org.aincraft.guilds.territory.persist.FacilityStore.class)),
                 anchors,
-                mock(WaystoneAccess.class),
-                new WaystoneSelections(60_000L),
+                mock(FastTravelAccess.class),
+                new FastTravelSelections(60_000L),
                 mock(org.bukkit.plugin.PluginManager.class),
                 storageOpener);
     }
@@ -123,8 +123,8 @@ class BuildingListenerStorageTest {
                 .thenReturn(java.util.Optional.of(waystone));
         lenient().when(anchors.activeStorageNear(org.mockito.ArgumentMatchers.eq("world"), anyInt(), anyInt(), anyInt()))
                 .thenReturn(java.util.Optional.of(storageFacility));
-        WaystoneAccess waystones = mock(WaystoneAccess.class);
-        when(waystones.reachable(eq(player.getUniqueId()), eq(waystone))).thenReturn(java.util.List.of());
+        FastTravelAccess fastTravel = mock(FastTravelAccess.class);
+        when(fastTravel.reachable(eq(player.getUniqueId()), eq(waystone))).thenReturn(java.util.List.of());
         listener = new BuildingListener(
                 new BuildingPlacementSessions(60_000L),
                 new BuildingConfig(60_000L,
@@ -136,8 +136,8 @@ class BuildingListenerStorageTest {
                 mock(BuildingAuthorization.class),
                 new FacilityMutationService(new FacilityRegistry(new TerritoryRegistry(java.util.List.of())), mock(org.aincraft.guilds.territory.persist.FacilityStore.class)),
                 anchors,
-                waystones,
-                new WaystoneSelections(60_000L),
+                fastTravel,
+                new FastTravelSelections(60_000L),
                 mock(org.bukkit.plugin.PluginManager.class),
                 storageOpener);
         PlayerInteractEvent event = new PlayerInteractEvent(

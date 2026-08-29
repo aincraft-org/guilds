@@ -37,20 +37,44 @@ class PostgresFacilityStoreTest {
 
     @Test
     void roundTripPreservesEveryFacilityType() throws Exception {
-        TerritoryRegistry territories = new TerritoryRegistry(List.of(new Territory(
-                "t1", "Territory", "world", Boundary.ofPolygon(List.of(
-                new BlockPos(0, 0), new BlockPos(100, 0),
-                new BlockPos(100, 100), new BlockPos(0, 100))))));
+        TerritoryRegistry territories = territories();
         SettlementFacility waystone = facility("waystone", FacilityType.WAYSTONE, 5);
         SettlementFacility market = facility("market", FacilityType.TRADING_POST, 6);
         SettlementFacility storage = facility("storage", FacilityType.STORAGE, 7);
+        SettlementFacility bank = facility("bank", FacilityType.BANK, 8);
+        SettlementFacility crystal = facility("crystal", FacilityType.GUILD_CRYSTAL, 9);
+        SettlementFacility terminal = facility("terminal", FacilityType.TELEPORT_TERMINAL, 10);
+        SettlementFacility boat = facility("boat", FacilityType.BOAT, 11);
+        SettlementFacility airship = facility("airship", FacilityType.AIRSHIP, 12);
         PostgresFacilityStore store = new PostgresFacilityStore(database);
 
-        store.save(List.of(waystone, market, storage));
+        store.save(List.of(waystone, market, storage, bank, crystal, terminal, boat, airship));
         FacilityRegistry reloaded = new FacilityRegistry(territories);
         store.loadInto(reloaded);
 
-        assertEquals(List.of(market, storage, waystone), reloaded.list());
+        assertEquals(List.of(
+                airship, bank, boat, crystal, market, storage, terminal, waystone), reloaded.list());
+    }
+
+    @Test
+    void oldFacilityDocumentRemainsReadable() throws Exception {
+        try (var connection = database.connection();
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("INSERT INTO facilities (id, doc) VALUES ('legacy', "
+                    + "'{\"id\":\"legacy\",\"name\":\"Legacy\",\"territoryId\":\"t1\","
+                    + "\"type\":\"WAYSTONE\",\"worldId\":\"world\",\"x\":5,\"y\":64,\"z\":5}')");
+        }
+        FacilityRegistry reloaded = new FacilityRegistry(territories());
+        new PostgresFacilityStore(database).loadInto(reloaded);
+
+        assertEquals(FacilityType.WAYSTONE, reloaded.list().getFirst().type());
+    }
+
+    private static TerritoryRegistry territories() {
+        return new TerritoryRegistry(List.of(new Territory(
+                "t1", "Territory", "world", Boundary.ofPolygon(List.of(
+                new BlockPos(0, 0), new BlockPos(100, 0),
+                new BlockPos(100, 100), new BlockPos(0, 100))))));
     }
 
     private static SettlementFacility facility(String id, FacilityType type, int x) {

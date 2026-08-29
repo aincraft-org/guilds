@@ -31,11 +31,30 @@ public final class BuildingConfigLoader {
                 "buildings.storage.anchor-materials", List.of("BARREL", "CHEST")));
         materials.put(FacilityType.BANK, materials(config,
                 "buildings.bank.anchor-materials", List.of("GOLD_BLOCK")));
+        materials.put(FacilityType.GUILD_CRYSTAL, materials(config,
+                "buildings.guild-crystal.anchor-materials", List.of("AMETHYST_BLOCK")));
+        materials.put(FacilityType.TELEPORT_TERMINAL, materials(config,
+                "buildings.teleport-terminal.anchor-materials", List.of("LODESTONE")));
+        materials.put(FacilityType.BOAT, materials(config,
+                "buildings.boat.anchor-materials", List.of("OAK_PLANKS")));
+        materials.put(FacilityType.AIRSHIP, materials(config,
+                "buildings.airship.anchor-materials", List.of("IRON_BLOCK")));
+
+        BuildingConfig.TransportGeometry geometry = new BuildingConfig.TransportGeometry(
+                config.getInt("buildings.transport.boat.entry-radius", 2),
+                config.getInt("buildings.transport.boat.entry-width", 3),
+                config.getInt("buildings.transport.boat.clear-space-height", 2),
+                config.getInt("buildings.transport.boat.search-chunk-radius", 32),
+                config.getInt("buildings.transport.boat.search-chunk-budget", 256),
+                config.getInt("buildings.transport.airship.platform-radius", 2),
+                config.getInt("buildings.transport.airship.clear-sky-height", 16));
+
         return new BuildingConfig(
                 Math.multiplyExact(timeoutSeconds, 1_000L),
                 Map.copyOf(materials),
                 Math.multiplyExact(warmupSeconds, 20L),
-                Math.multiplyExact(cooldownSeconds, 1_000L));
+                Math.multiplyExact(cooldownSeconds, 1_000L),
+                geometry);
     }
 
     private static Set<Material> materials(ConfigurationSection config, String path,

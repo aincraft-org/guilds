@@ -10,6 +10,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.List;
@@ -251,7 +252,10 @@ class GuildProjectServiceImplTest {
         private StatefulProjectStore(int unspent, String activeProject) {
             this.unspent = unspent;
             this.activeProject = activeProject;
+            DatabaseMetaData metadata = mock(DatabaseMetaData.class);
             try {
+                when(connection.getMetaData()).thenReturn(metadata);
+                when(metadata.getDatabaseProductName()).thenReturn("PostgreSQL");
                 when(connection.prepareStatement(anyString())).thenAnswer(invocation ->
                         statementFor(invocation.getArgument(0)));
                 when(database.executeTransactionWithResult(any())).thenAnswer(invocation -> {

@@ -29,3 +29,4 @@
 29 guild-storage-payout-obligations Add durable withdrawal payout obligations
 
 30 guild-storage-payout-handoff-and-deposit-restoration Add payout delivery handoff tokens and deposit restoration obligations
+31 fast-travel-currency Add player travel wallets, awards, and reservations

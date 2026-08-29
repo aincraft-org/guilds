@@ -5,6 +5,9 @@ import org.aincraft.guilds.territory.decree.DecreeEffectsCodec;
 import org.aincraft.guilds.territory.model.BlockPos;
 import org.aincraft.guilds.territory.model.Boundary;
 import org.aincraft.guilds.territory.model.ChunkPos;
+import org.aincraft.guilds.territory.model.FacilityType;
+import org.aincraft.guilds.territory.model.FastTravelMode;
+import org.aincraft.guilds.territory.model.FastTravelPolicy;
 import org.aincraft.guilds.territory.model.Government;
 import org.aincraft.guilds.territory.model.GovernmentForm;
 import org.aincraft.guilds.territory.model.GovernmentSeat;
@@ -24,9 +27,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -88,6 +95,7 @@ public final class TerritoryJson {
             policies.add(policyToJson(p));
         }
         o.add("policies", policies);
+        o.add("fastTravelPolicy", fastTravelPolicyToJson(t.fastTravelPolicy()));
         return o;
     }
 
@@ -117,7 +125,77 @@ public final class TerritoryJson {
                 policies.add(policyFromJson(el.getAsJsonObject()));
             }
         }
-        return new Territory(id, name, world, boundary, zones, def, government, policies, governedByGuildId);
+        FastTravelPolicy fastTravelPolicy = o.has("fastTravelPolicy")
+                ? fastTravelPolicyFromJson(o.get("fastTravelPolicy"))
+                : FastTravelPolicy.defaults();
+        return new Territory(id, name, world, boundary, zones, def, government, policies, governedByGuildId,
+                fastTravelPolicy);
+    }
+
+    public JsonObject fastTravelPolicyToJson(FastTravelPolicy policy) {
+        JsonObject o = new JsonObject();
+        JsonObject quotas = new JsonObject();
+        policy.facilityQuotas().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey(Comparator.comparing(FacilityType::name)))
+                .forEach(entry -> quotas.addProperty(entry.getKey().name(), entry.getValue()));
+        o.add("facilityQuotas", quotas);
+        JsonArray modes = new JsonArray();
+        policy.crossTerritoryModes().stream()
+                .sorted(Comparator.comparing(FastTravelMode::name))
+                .forEach(mode -> modes.add(mode.name()));
+        o.add("crossTerritoryModes", modes);
+        return o;
+    }
+
+    public FastTravelPolicy fastTravelPolicyFromJson(JsonElement element) {
+        if (element == null || !element.isJsonObject()) {
+            throw new IllegalArgumentException("fastTravelPolicy must be an object");
+        }
+        JsonObject o = element.getAsJsonObject();
+        if (!o.has("facilityQuotas") || !o.has("crossTerritoryModes")
+                || !o.get("facilityQuotas").isJsonObject() || !o.get("crossTerritoryModes").isJsonArray()) {
+            throw new IllegalArgumentException("fastTravelPolicy must contain facilityQuotas and crossTerritoryModes");
+        }
+        Map<FacilityType, Integer> quotas = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : o.getAsJsonObject("facilityQuotas").entrySet()) {
+            FacilityType type;
+            try {
+                type = FacilityType.valueOf(entry.getKey());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("unknown facility quota type: " + entry.getKey(), e);
+            }
+            JsonElement value = entry.getValue();
+            if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+                throw new IllegalArgumentException("facility quota must be an integer: " + entry.getKey());
+            }
+            int quota;
+            String lexical = value.getAsString();
+            if (!lexical.matches("-?(0|[1-9][0-9]*)")) {
+                throw new IllegalArgumentException("facility quota must be an integer: " + entry.getKey());
+            }
+            try {
+                quota = new BigInteger(lexical).intValueExact();
+            } catch (NumberFormatException | ArithmeticException e) {
+                throw new IllegalArgumentException("facility quota must be an integer: " + entry.getKey(), e);
+            }
+            quotas.put(type, quota);
+        }
+        Set<FastTravelMode> modes = new LinkedHashSet<>();
+        for (JsonElement modeElement : o.getAsJsonArray("crossTerritoryModes")) {
+            if (!modeElement.isJsonPrimitive() || !modeElement.getAsJsonPrimitive().isString()) {
+                throw new IllegalArgumentException("crossTerritoryModes entries must be enum names");
+            }
+            FastTravelMode mode;
+            try {
+                mode = FastTravelMode.valueOf(modeElement.getAsString());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("unknown cross-territory mode: " + modeElement, e);
+            }
+            if (!modes.add(mode)) {
+                throw new IllegalArgumentException("duplicate cross-territory mode: " + mode);
+            }
+        }
+        return new FastTravelPolicy(quotas, modes);
     }
 
     public JsonObject policyToJson(Policy p) {

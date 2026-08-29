@@ -1,7 +1,7 @@
 # Persistence — Living Spec
 
 > Status: active  
-> Last updated: 2026-08-19  
+> Last updated: 2026-08-29
 > Related: `docs/superpowers/specs/2026-08-06-unified-postgres-design.md`,
 > `docs/superpowers/specs/2026-08-14-mysql-support-design.md`
 
@@ -23,12 +23,13 @@ idempotent on fresh databases on both backends.
 
 - `Database` / `DatabaseFactory` lifecycle (Hikari), `DatabaseSettings` loading.
 - Concrete stores: territory, influence, standing, facility, expense, upkeep,
-  reconciliation.
+  reconciliation, and player travel currency.
 - Guilds `DatabaseManager` + migrations on the same database.
 - Territory document codec (`TerritoryJson`) and related JSON payloads
   (PostgreSQL JSONB, MySQL JSON).
+- Fast-travel wallet, award, and reservation records from the V31 guilds migration.
 - Startup order: connect → schema → load → enable gameplay systems.
-- Shutdown: flush where needed → close pool.
+- Shutdown: flush where needed → await reservation releases → close pool.
 
 ### Out of scope / non-goals
 
@@ -47,6 +48,14 @@ idempotent on fresh databases on both backends.
 4. **Memory after durable success** for mutations that claim persistence.
 5. Schema create/migrate **idempotent** and safe on empty DB on both backends.
 6. Domain store classes remain free of Bukkit (guilds SQL may live in guilds-paper).
+7. Travel currency uses one player wallet per UUID. Awards are idempotent by
+   `(source, event_id)` and require a positive configured amount; duplicate
+   events do not credit twice.
+8. Reservation debit, commit, release, expiry, and orphan recovery are
+   transactional and status-aware; a failed or cancelled trip must not silently
+   consume funds.
+9. Travel policy JSON is optional for backward compatibility; documents without
+   it load `FastTravelPolicy.defaults()` rather than inventing a second store.
 
 ## Implementation guidance
 
@@ -78,6 +87,8 @@ idempotent on fresh databases on both backends.
 - `GUILDS_TEST_MYSQL_JDBC_URL` gates MySQL integration tests; they skip when unset.
 - Migration idempotency smoke on both backends when env is present.
 - Web mutation failure does not replace registry.
+- V31 wallet/award/reservation schema and migration checksum validation.
+- Reservation lifecycle, expiry/orphan recovery, idempotent awards, and durable-before-memory outcomes.
 
 ### Do not
 
@@ -101,18 +112,38 @@ idempotent on fresh databases on both backends.
 - [x] Single `HikariDatabase` pool owner
 - [x] Versioned SQL resources for persist + Guilds schema (`sql/migrations/`)
 - [x] Guilds service DML loaded from `guilds-paper/src/main/resources/sql/` via `SqlStatements`
+- [x] V31 fast-travel currency migration (`player_travel_wallets`, `travel_currency_awards`, `travel_currency_reservations`)
+- [x] Transactional player wallet reserve/commit/release service with duplicate-trip and status handling
+- [x] Idempotent reward awards keyed by source/event id, including actor attribution at event seams
+- [x] Expired/orphan reservation recovery before runtime registration and during shutdown
+- [x] Optional fast-travel policy JSON with backward default for older territory documents
 
 ### Open on the current surface
 
 - [ ] Operator migration guide from legacy JSON/SQLite backups (external import notes)
 - [ ] Backup/restore runbook link from README
 - [ ] Connection pool sizing defaults documented
+- [ ] PostgreSQL/MySQL fast-travel migration and reservation smoke (blocked locally: `GUILDS_TEST_JDBC_URL` is unset)
 
 ### Current notes
 
 Unified SQL superseded earlier “optional Postgres repository” designs. MySQL
 is a second SQL dialect, not a second source of truth. Living specs in other
 domains must not reintroduce file stores.
+
+Fast-travel currency extends the same pool and migration track. Wallets are
+player-bound; guild resources and the guild `balance` field are separate
+balances. `reserve` debits a wallet into
+`travel_currency_reservations`, `commit` finalizes the debit, and `release`
+returns the amount when a trip cancels or fails. Reservations expire and
+orphan rows are recovered before transport listeners become active; shutdown
+awaits outstanding releases before the pool closes.
+
+`travel_currency_awards` uses `(source, event_id)` as its idempotency key.
+Quest completion, territory entry, and successful guild-project completion
+pass a player UUID and stable event id; actorless events do not award.
+Older territory JSON without `fastTravelPolicy` loads the immutable default,
+so policy data remains optional without a legacy file fallback.
 
 ## Next
 
@@ -135,7 +166,7 @@ domains must not reintroduce file stores.
 | 2026-08-06 | Remove repository dual-backend seams | One code path |
 | 2026-08-19 | MySQL 8.x selectable; PostgreSQL remains default | Managed hosts (PebbleHost) expose MySQL, not Postgres |
 | 2026-08-19 | Versioned SQL resources + one Hikari pool | Keep SQL out of Java; schema history is files + checksums |
-| 2026-08-19 | Guilds service queries as classpath SQL | Match extras/mint: one `?` statement per file under `/sql` |
+| 2026-08-29 | Fast-travel wallet, awards, and reservations use V31 on the existing Guilds SQL track; reserve/commit/release and recovery are transactional and portable | Keep one durable source of truth and prevent lost or duplicated currency |
 
 ## Open questions
 
