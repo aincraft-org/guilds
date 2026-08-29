@@ -78,3 +78,35 @@ Passed (`BUILD SUCCESSFUL`): 6 integration, 1 Brigadier command, 2 facility-type
 - Database-backed wiring remains skipped in this environment and must be run with `GUILDS_TEST_JDBC_URL`.
 - Full project validation remains deferred to Task 10.
 - Existing Mockito dynamic-agent/JVM and Error Prone warnings remain non-failing.
+
+## Fix round 2
+
+### Changes
+
+- Replaced the shutdown-only release counter with a single lock-protected operation admission registry. Reservation pipelines register before invoking `currency.reserve`; shutdown atomically closes admission and waits for all admitted operations.
+- Currency releases register their completion before invoking `currency.release`, including releases initiated before shutdown or from late reservation callbacks. Null and exceptional release stages fail the shutdown stage closed.
+- Added deterministic tests for pre-shutdown releases, stop/reserve races, and null release failures.
+- Updated WAYSTONE `reachable` and delegated `destinations` to use supplied snapshots for membership/authorization rather than live `BuildingAuthorization`; legacy callers still use the live fallback.
+- Added destination snapshot behavior coverage.
+
+### Fix-round 2 verification
+
+```text
+./gradlew --offline :guilds-paper:compileJava :guilds-paper:compileTestJava
+```
+
+Passed (`BUILD SUCCESSFUL`).
+
+```text
+./gradlew --offline :guilds-paper:test --tests 'org.aincraft.guilds.GuildsServicesWiringTest' --tests 'org.aincraft.guilds.territory.building.BuildingLifecycleWiringTest' --tests 'org.aincraft.guilds.commands.brigadier.GuildBrigadierCommandTest' --tests 'org.aincraft.guilds.territory.building.BuildingCommandTypeTest' --tests 'org.aincraft.guilds.GuildsIntegrationTest' --tests 'org.aincraft.guilds.territory.building.FastTravelServiceTest' --tests 'org.aincraft.guilds.territory.building.FastTravelAccessTest' --tests 'org.aincraft.guilds.territory.building.BoatRouteServiceTest' --tests 'org.aincraft.guilds.territory.building.FacilityMutationServiceTest'
+```
+
+Passed (`BUILD SUCCESSFUL`): 40 tests (6 integration, 1 Brigadier command, 6 boat-route, 2 facility-type, 2 lifecycle, 5 facility-mutation, 7 access, and 11 fast-travel service). The 5 database-backed `GuildsServicesWiringTest` tests were skipped because `GUILDS_TEST_JDBC_URL` is not configured; no test failed.
+
+`git diff --check` produced no diagnostics.
+
+### Fix-round 2 concerns
+
+- Database-backed wiring remains skipped in this environment and must be run with `GUILDS_TEST_JDBC_URL`.
+- Full project validation remains deferred to Task 10.
+- Existing Mockito dynamic-agent/JVM and Error Prone warnings remain non-failing.

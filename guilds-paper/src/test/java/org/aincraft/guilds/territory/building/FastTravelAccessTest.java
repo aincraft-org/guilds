@@ -240,6 +240,8 @@ class FastTravelAccessTest {
 
         assertEquals(FastTravelAccess.AccessResult.ALLOWED,
                 access.authorize(playerId, origin, destination).result());
+        assertEquals(List.of(destination), access.reachable(playerId, origin));
+        assertEquals(List.of(destination), access.destinations(playerId, origin));
         org.mockito.Mockito.verifyNoInteractions(residents, guilds, authorization);
     }
 

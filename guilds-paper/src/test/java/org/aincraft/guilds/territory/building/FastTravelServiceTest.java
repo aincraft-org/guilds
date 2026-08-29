@@ -239,6 +239,54 @@ class FastTravelServiceTest {
 
 
     @Test
+    void releaseStartedBeforeStopKeepsBarrierOpen() {
+        BlockingReleaseCurrency currency = new BlockingReleaseCurrency();
+        TravelHarness harness = harness(currency);
+        assertEquals(FastTravelService.StartResult.STARTED,
+                harness.service.start(harness.player, harness.origin, "south", 1_000L)
+                        .toCompletableFuture().join());
+        org.mockito.Mockito.doReturn(false).when(harness.player).teleport(any(Location.class));
+        harness.warmup.get().run();
+        assertEquals(1, currency.releaseCount);
+
+        CompletionStage<Void> stopped = harness.service.stopAsync();
+        assertTrue(!stopped.toCompletableFuture().isDone());
+        currency.release.complete(new TravelCurrencyService.ReservationResult(
+                TravelCurrencyService.ReservationStatus.RELEASED));
+        stopped.toCompletableFuture().join();
+    }
+
+    @Test
+    void stopRacingReservationAwaitsLateReservationRelease() throws Exception {
+        BlockingReserveCurrency currency = new BlockingReserveCurrency();
+        TravelHarness harness = harness(currency);
+        CompletableFuture<FastTravelService.StartResult> started = CompletableFuture.supplyAsync(
+                () -> harness.service.start(harness.player, harness.origin, "south", 1_000L)
+                        .toCompletableFuture().join());
+        assertTrue(currency.entered.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+        CompletionStage<Void> stopped = harness.service.stopAsync();
+        assertTrue(!stopped.toCompletableFuture().isDone());
+        currency.reserve.complete(new TravelCurrencyService.ReserveResult(
+                TravelCurrencyService.ReserveStatus.RESERVED, "late-reservation", 99L));
+        assertEquals(FastTravelService.StartResult.RESERVATION_FAILED, started.join());
+        stopped.toCompletableFuture().join();
+        assertEquals(1, currency.releaseCount);
+    }
+
+    @Test
+    void nullReleaseFailsClosedDuringShutdown() {
+        TravelHarness harness = harness(new NullReleaseCurrency());
+        assertEquals(FastTravelService.StartResult.STARTED,
+                harness.service.start(harness.player, harness.origin, "south", 1_000L)
+                        .toCompletableFuture().join());
+        CompletionStage<Void> stopped = harness.service.stopAsync();
+        org.junit.jupiter.api.Assertions.assertThrows(
+                java.util.concurrent.CompletionException.class,
+                () -> stopped.toCompletableFuture().join());
+    }
+
+    @Test
     void stopAsyncWaitsForEveryPendingRelease() {
         BlockingReleaseCurrency currency = new BlockingReleaseCurrency();
         TravelHarness harness = harness(currency);
@@ -343,6 +391,35 @@ class FastTravelServiceTest {
         public CompletionStage<ReservationResult> release(String reservationId, long nowMillis) {
             releaseCount++;
             return release;
+        }
+    }
+
+    private static final class BlockingReserveCurrency extends RecordingCurrency {
+        private final java.util.concurrent.CountDownLatch entered =
+                new java.util.concurrent.CountDownLatch(1);
+        private final CompletableFuture<ReserveResult> reserve = new CompletableFuture<>();
+
+        private BlockingReserveCurrency() {
+            super(ReservationStatus.COMMITTED);
+        }
+
+        @Override
+        public CompletionStage<ReserveResult> reserve(
+                UUID playerId, String tripId, long amount, long nowMillis) {
+            entered.countDown();
+            return reserve;
+        }
+    }
+
+    private static final class NullReleaseCurrency extends RecordingCurrency {
+        private NullReleaseCurrency() {
+            super(ReservationStatus.COMMITTED);
+        }
+
+        @Override
+        public CompletionStage<ReservationResult> release(String reservationId, long nowMillis) {
+            releaseCount++;
+            return null;
         }
     }
 

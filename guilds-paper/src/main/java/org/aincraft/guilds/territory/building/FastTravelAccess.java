@@ -116,7 +116,12 @@ public final class FastTravelAccess {
         Territory originTerritory = territories.get(origin.territoryId()).orElse(null);
         String guildId = originTerritory == null
                 ? null : originTerritory.governedByGuildId().orElse(null);
-        if (guildId == null || !authorization.canUseWaystones(playerId, guildId)) {
+        FastTravelSnapshot snapshot = snapshotFor(playerId);
+        boolean canUseWaystones = guildId != null
+                && (snapshot == null
+                ? authorization.canUseWaystones(playerId, guildId)
+                : snapshot.canUseWaystones(guildId));
+        if (guildId == null || !canUseWaystones) {
             return List.of();
         }
         return facilities.list().stream()

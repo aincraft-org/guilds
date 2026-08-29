@@ -19,8 +19,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -57,8 +57,9 @@ public final class FastTravelService {
     private volatile boolean stopped;
     private final Object stopLock = new Object();
     private volatile CompletableFuture<Void> stopCompletion;
+    private final Map<Long, OperationToken> inFlight = new HashMap<>();
+    private long nextOperationId;
     private boolean stopEnumerationComplete;
-    private int shutdownReleases;
     private Throwable shutdownFailure;
     /**
      * Legacy wiring constructor. It deliberately has no currency rail, so it
@@ -291,13 +292,19 @@ public final class FastTravelService {
             return completed(StartResult.RESERVATION_FAILED);
         }
         String tripId = UUID.randomUUID().toString();
+        OperationToken operation = registerOperation(true);
+        if (operation == null) {
+            return completed(StartResult.RESERVATION_FAILED);
+        }
         CompletionStage<TravelCurrencyService.ReserveResult> reservation;
         try {
             reservation = currency.reserve(player.getUniqueId(), tripId, amount, nowMillis);
         } catch (RuntimeException exception) {
+            finishOperation(operation);
             return completed(StartResult.RESERVATION_FAILED);
         }
         if (reservation == null) {
+            finishOperation(operation);
             return completed(StartResult.RESERVATION_FAILED);
         }
         final long expiry = safeExpiry(nowMillis);
@@ -338,12 +345,7 @@ public final class FastTravelService {
             }
             return scheduled;
         });
-        attempt.operation = pipeline;
-        pipeline.whenComplete((ignored, failure) -> {
-            if (attempt.operation == pipeline) {
-                attempt.operation = null;
-            }
-        });
+        pipeline = pipeline.whenComplete((ignored, failure) -> finishOperation(operation));
         return pipeline;
     }
 
@@ -631,7 +633,6 @@ public final class FastTravelService {
             stopCompletion = completion;
         }
         attempts.forEach((playerId, attempt) -> {
-            trackShutdownStage(attempt.operation);
             attempt.state.set(AttemptState.TERMINAL);
             attempts.remove(playerId, attempt);
             PendingTravel trip = attempt.trip;
@@ -773,17 +774,29 @@ public final class FastTravelService {
         }
 
     }
+    private OperationToken registerOperation(boolean requiresAdmission) {
+        synchronized (stopLock) {
+            if (requiresAdmission && stopped) {
+                return null;
+            }
+            OperationToken token = new OperationToken(++nextOperationId);
+            inFlight.put(token.id(), token);
+            return token;
+        }
+    }
+
+    private void finishOperation(OperationToken token) {
+        synchronized (stopLock) {
+            inFlight.remove(token.id());
+            completeStopIfReady();
+        }
+    }
+
     private CompletionStage<Void> releaseQuietly(String reservationId, long nowMillis) {
         if (currency == null || reservationId == null) {
             return CompletableFuture.completedFuture(null);
         }
-        boolean tracked;
-        synchronized (stopLock) {
-            tracked = stopped && stopCompletion != null && !stopCompletion.isDone();
-            if (tracked) {
-                shutdownReleases++;
-            }
-        }
+        OperationToken operation = registerOperation(false);
         CompletionStage<TravelCurrencyService.ReservationResult> result;
         try {
             result = currency.release(reservationId, nowMillis);
@@ -791,9 +804,7 @@ public final class FastTravelService {
                 throw new IllegalStateException("currency release returned null");
             }
         } catch (RuntimeException exception) {
-            if (tracked) {
-                releaseObserved(exception);
-            }
+            finishRelease(operation, exception);
             return failedFuture(exception);
         }
         CompletionStage<Void> observedStage = result.handle((ignored, failure) -> {
@@ -803,38 +814,22 @@ public final class FastTravelService {
             return (Void) null;
         });
         CompletableFuture<Void> observed = observedStage.toCompletableFuture();
-        if (tracked) {
-            observed = observed.whenComplete((ignored, failure) -> releaseObserved(failure));
-        }
+        observed = observed.whenComplete((ignored, failure) -> finishRelease(operation, failure));
         return observed;
     }
 
-    private void trackShutdownStage(CompletionStage<?> stage) {
-        if (stage == null) {
-            return;
-        }
-        synchronized (stopLock) {
-            if (stopped && stopCompletion != null && !stopCompletion.isDone()) {
-                shutdownReleases++;
-            } else {
-                return;
-            }
-        }
-        stage = stage.whenComplete((ignored, failure) -> releaseObserved(failure));
-    }
-
-    private void releaseObserved(Throwable failure) {
+    private void finishRelease(OperationToken token, Throwable failure) {
         synchronized (stopLock) {
             if (failure != null && shutdownFailure == null) {
                 shutdownFailure = failure;
             }
-            shutdownReleases--;
+            inFlight.remove(token.id());
             completeStopIfReady();
         }
     }
 
     private void completeStopIfReady() {
-        if (!stopEnumerationComplete || shutdownReleases != 0
+        if (!stopEnumerationComplete || !inFlight.isEmpty()
                 || stopCompletion == null || stopCompletion.isDone()) {
             return;
         }
@@ -850,6 +845,7 @@ public final class FastTravelService {
         result.completeExceptionally(failure);
         return result;
     }
+
 
     private void setCooldown(UUID playerId, FastTravelMode mode, String guildId, long nowMillis) {
         long duration = modeCooldowns.getOrDefault(mode, 0L);
@@ -1038,6 +1034,9 @@ public final class FastTravelService {
         TERMINAL
     }
 
+    private record OperationToken(long id) {
+    }
+
     private static final class TravelAttempt {
         private final UUID playerId;
         private final long expiresAtMillis;
@@ -1046,7 +1045,6 @@ public final class FastTravelService {
         private volatile PendingTravel trip;
         private volatile String reservationId;
         private volatile CompletableFuture<StartResult> outcome;
-        private volatile CompletionStage<?> operation;
         private TravelAttempt(UUID playerId, long expiresAtMillis,
                               CompletableFuture<StartResult> outcome) {
             this.playerId = playerId;
