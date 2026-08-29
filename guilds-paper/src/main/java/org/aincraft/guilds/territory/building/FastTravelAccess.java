@@ -190,12 +190,14 @@ public final class FastTravelAccess {
         FastTravelSnapshot snapshot = snapshotFor(playerId);
         FastTravelMode mode = selectedMode;
         if (mode == FastTravelMode.WAYSTONE) {
+            if (originGuild == null || destinationGuild == null
+                    || !originGuild.equals(destinationGuild)) {
+                return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
+            }
             boolean canUseWaystones = snapshot == null
                     ? authorization.canUseWaystones(playerId, originGuild)
                     : snapshot.canUseWaystones(originGuild);
-            if (originGuild == null || destinationGuild == null
-                    || !originGuild.equals(destinationGuild)
-                    || !canUseWaystones) {
+            if (!canUseWaystones) {
                 return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
             }
             return allowed(mode, originGuild, originGuild, destinationGuild,
