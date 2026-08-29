@@ -96,17 +96,26 @@ Result: all four files reported balanced delimiters. This is a syntax sanity che
 - Changed warmup scheduling to return its actual result, so a `putIfAbsent` race reports `PENDING_TRIP` and releases the losing reservation instead of reporting `STARTED`.
 - Wrapped final cost recalculation so runtime cost errors release the reservation before returning.
 - Added a regression for transport denial without a configured facility validator and corrected the focused service fixture to provide its authorization decision.
-
 Focused regressions were rerun after these corrections with the same required Gradle test selector command; Gradle again failed before test execution in 3s (`4 actionable tasks: 4 up-to-date`) because the Mint GitHub Packages dependency returned HTTP 401.
+
+## Latest review corrections
+
+- Added a cancellable in-flight attempt registered before route/currency work. Cancellation invalidates callbacks and releases any reservation that arrives after cancellation; warmup insertion races report `PENDING_TRIP` rather than `STARTED`.
+- Added ACTIVE/COMMITTING/TERMINAL attempt transitions so cancellation cannot release a reservation after teleport has begun.
+- Added an explicit reservation-duration constructor seam with checked overflow; the legacy constructor remains only for compatibility and defaults to the documented fallback until Task 9 supplies the shared configured duration.
+- Moved remote-crystal capability checking ahead of alliance and policy checks, and tightened terminal-to-crystal same-territory handling so only same-guild local terminal-to-own-crystal is exempt.
+- Main-thread marshalling now fails rather than running callbacks inline when scheduler submission returns null.
+- Focused regressions were rerun after these fixes; Gradle again failed before test execution in 2s (`4 actionable tasks: 4 up-to-date`) on the same Mint HTTP 401 blocker.
 
 ## Commit
 
 - `d22cd1c` — `feat: generalize waystone travel into fast travel`
 - `05b45dc` — `fix: enforce transport validation before fast travel`
+- `ccb2b9b` — `fix: make fast travel attempts cancellable`
 
 ## Concerns
 
 - **Mint private dependency credentials** — the required focused Gradle command and compile could not reach test compilation/execution because GitHub Packages returned HTTP 401 for the known private Mint dependency.
 - **Java 26 compiler unavailable** — the environment has no independently usable Java 26 compiler; no build/toolchain change was made.
-- **Task 9 composition wiring** — GuildsPlugin currently constructs the legacy-compatible no-currency FastTravelService constructor. Task 9 must inject the shared TravelCurrencyService, FastTravelCostCalculator, BoatRouteService, TechTreeService, GuildService, ResidentService, and AllianceService and invoke startup recovery.
+- **Task 9 composition wiring** — GuildsPlugin currently constructs the legacy-compatible no-currency FastTravelService constructor. Task 9 must inject the shared TravelCurrencyService, FastTravelCostCalculator, BoatRouteService, TechTreeService, GuildService, ResidentService, and AllianceService, pass the configured reservation duration through the explicit constructor seam, and invoke startup recovery.
 - **Dedicated LSP/rename_file tool unavailable** — active references were exhaustively searched and migrated with filesystem rename operations; no Waystone class aliases or deprecated wrappers were left in active Java sources.
