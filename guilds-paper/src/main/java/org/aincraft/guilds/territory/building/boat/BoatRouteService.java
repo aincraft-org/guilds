@@ -221,6 +221,13 @@ public final class BoatRouteService implements AutoCloseable {
     private void submitAnalysis(RequestState state,
                                  List<BoatWaterSnapshot> snapshots,
                                  Set<BoatWaterMask.Chunk> dependencies) {
+        for (BoatWaterSnapshot snapshot : snapshots) {
+            if (snapshot == null || !state.key().worldId().equals(snapshot.worldId())) {
+                finish(state, BoatRouteResult.unavailable());
+                return;
+            }
+        }
+
         try {
             CompletableFuture.supplyAsync(
                     () -> calculator.calculate(snapshots, state.request().origin(),
