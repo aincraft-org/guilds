@@ -34,6 +34,9 @@ Paper plugin for large map **territories** with nested **Wilderness** and **Clai
   Claim, and Unclaim tools plus confirmation before writes. `/g map here <x> <z>`
   fixes the starting chunk; without MapGUI, map commands fall back to chat output.
 
+For the complete player and operator guide, see
+[`content/docs/guilds-guide.mdx`](content/docs/guilds-guide.mdx).
+
 ## Build
 
 ```bash
