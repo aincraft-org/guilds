@@ -154,3 +154,38 @@ The required focused selector command was rerun after this round and failed befo
 - **Java 26 compiler unavailable** — no build/toolchain change was made.
 - **Task 9 composition wiring** — production must inject configured reservation duration, preloaded FastTravelSnapshot, cooldown reductions, shared services, and startup recovery; no Task 9 wiring was changed.
 - **Dedicated LSP/rename_file tool unavailable** — active references were manually verified and migrated without aliases or deprecated wrappers.
+
+## Round-one review fixes
+
+- Made post-arrival commit failures idempotently release reservations, while
+  committed and already-committed outcomes finish without a refund.
+- Allowed terminal release from both ACTIVE and COMMITTING, guarded the entire
+  completion path, and made synchronous `start` failures clean up attempts and
+  complete their futures.
+- Reordered WAYSTONE identity resolution after endpoint checks and before
+  relationship authorization; replaced mutable cooldown maps with concurrent
+  inner maps.
+- Treat production boat-route scheduler submission failure as `UNAVAILABLE`.
+- Enforced fail-closed main-thread entry for Bukkit-facing travel APIs and
+  marshalled reservation callbacks before warmup registration.
+
+Verification:
+
+```text
+./gradlew --offline :guilds-paper:compileJava :guilds-paper:compileTestJava
+BUILD SUCCESSFUL
+
+./gradlew --offline :guilds-paper:test --tests 'org.aincraft.guilds.territory.building.FastTravelAccessTest' --tests 'org.aincraft.guilds.territory.building.FastTravelSelectionsTest' --tests 'org.aincraft.guilds.territory.building.FastTravelServiceTest' --tests 'org.aincraft.guilds.territory.building.BuildingCommandTest' --tests 'org.aincraft.guilds.territory.building.BuildingListenerTest' --tests 'org.aincraft.guilds.territory.building.BoatRouteServiceTest'
+BUILD SUCCESSFUL; 29 tests completed, 0 failed
+
+git diff --check
+clean
+```
+
+Focused regressions cover post-arrival release/refund semantics, teleport
+failure from COMMITTING, synchronous and off-main start failure cleanup,
+cooldown concurrent access, self-ID and WAYSTONE identity ordering, and null
+boat scheduler submission.
+
+Concerns: Gradle reports pre-existing Error Prone warnings in unrelated
+composition and service classes; no project-wide test suite was run.

@@ -91,7 +91,11 @@ public final class BoatRouteService implements AutoCloseable {
         this(cache,
                 new BoatRouteCalculator(),
                 newRouteExecutor(),
-                task -> plugin.getServer().getScheduler().runTask(plugin, task),
+                task -> {
+                    if (plugin.getServer().getScheduler().runTask(plugin, task) == null) {
+                        throw new IllegalStateException("unable to schedule boat route capture");
+                    }
+                },
                 new BukkitSnapshotProducer(plugin.getServer()::getWorld,
                         geometry.clearBoatSpaceHeight(), geometry.searchChunkBudget()),
                 geometry.searchChunkRadius(), geometry.searchChunkBudget(),

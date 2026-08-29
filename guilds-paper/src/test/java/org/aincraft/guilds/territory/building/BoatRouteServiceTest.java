@@ -7,6 +7,9 @@ import org.aincraft.guilds.territory.building.boat.BoatRouteService;
 import org.aincraft.guilds.territory.building.boat.BoatWaterChangeListener;
 import org.aincraft.guilds.territory.building.boat.BoatWaterMask;
 import org.aincraft.guilds.territory.building.boat.BoatWaterSnapshot;
+import org.bukkit.Server;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -22,6 +25,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -184,6 +189,28 @@ class BoatRouteServiceTest {
         } finally {
             service.close();
             worker.shutdownNow();
+        }
+    }
+
+    @Test
+    void nullMainThreadSubmissionCompletesUnavailable() {
+        JavaPlugin plugin = mock(JavaPlugin.class);
+        Server server = mock(Server.class);
+        BukkitScheduler scheduler = mock(BukkitScheduler.class);
+        when(plugin.getServer()).thenReturn(server);
+        when(server.getScheduler()).thenReturn(scheduler);
+        when(scheduler.runTask(eq(plugin), (Runnable) any(Runnable.class))).thenReturn(null);
+        BoatRouteService service = new BoatRouteService(
+                plugin, new BuildingConfig.TransportGeometry(
+                        2, 3, 2, 32, 256, 2, 16));
+        try {
+            BoatRouteResult result = service.route(WORLD,
+                    new BoatWaterMask.Cell(0, 62, 0),
+                    new BoatWaterMask.Cell(1, 62, 0)).toCompletableFuture().join();
+            assertEquals(BoatRouteResult.Status.UNAVAILABLE, result.status());
+            assertEquals(0, service.pendingCount());
+        } finally {
+            service.close();
         }
     }
 }

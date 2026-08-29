@@ -47,7 +47,8 @@ public final class FastTravelService {
     private final GuildService guilds;
     private final ConcurrentMap<UUID, PendingTravel> pending = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, TravelAttempt> attempts = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, EnumMap<FastTravelMode, Long>> cooldowns = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, ConcurrentMap<FastTravelMode, Long>> cooldowns =
+            new ConcurrentHashMap<>();
     private final EnumMap<FastTravelMode, Long> modeCooldowns;
     private final long reservationDurationMillis;
     private final Map<String, Double> cooldownReductions;
@@ -149,102 +150,105 @@ public final class FastTravelService {
      */
     public CompletionStage<StartResult> start(Player player, SettlementFacility origin,
                                               String destinationId, long nowMillis) {
-        if (stopped || player == null) {
+        if (!isMainThread() || stopped || player == null) {
             return completed(StartResult.RESERVATION_FAILED);
         }
-        UUID playerId = player.getUniqueId();
         CompletableFuture<StartResult> outcome = new CompletableFuture<>();
-        TravelAttempt attempt = new TravelAttempt(playerId, safeExpiry(nowMillis), outcome);
-        if (attempts.putIfAbsent(playerId, attempt) != null) {
-            return completed(StartResult.PENDING_TRIP);
-        }
-        SettlementFacility destination = destinationId == null
-                ? null : facilities.get(destinationId).orElse(null);
-        if (origin != null && destination != null && origin.id().equals(destination.id())) {
-            attempts.remove(playerId, attempt);
-            return completed(StartResult.TYPE_MISMATCH);
-        }
-        FastTravelAccess.AccessDecision decision = access.authorize(playerId, origin, destination);
-        if (decision == null) {
-            decision = legacyWaystoneDecision(playerId, origin, destination);
-        }
-        final FastTravelAccess.AccessDecision finalDecision = decision;
-        if (!finalDecision.allowed()) {
-            attempts.remove(playerId, attempt);
-            return completed(map(finalDecision.result()));
-        }
-        FastTravelMode mode = finalDecision.mode();
-        if (mode == null) {
-            attempts.remove(playerId, attempt);
-            return completed(StartResult.TYPE_MISMATCH);
-        }
-        if (remainingCooldownMillis(playerId, mode, nowMillis) > 0L) {
-            attempts.remove(playerId, attempt);
-            return completed(StartResult.COOLDOWN);
-        }
-
-        CompletionStage<BoatRouteResult> routeStage;
+        TravelAttempt attempt = null;
         try {
-            routeStage = route(mode, origin, destination);
-        } catch (RuntimeException exception) {
-            attempts.remove(playerId, attempt);
-            outcome.complete(StartResult.ROUTE_UNAVAILABLE);
-            return outcome;
-        }
-        if (routeStage == null) {
-            attempts.remove(playerId, attempt);
-            outcome.complete(StartResult.ROUTE_UNAVAILABLE);
-            return outcome;
-        }
-        try {
+            final UUID playerId = player.getUniqueId();
+            final TravelAttempt current = new TravelAttempt(
+                    playerId, safeExpiry(nowMillis), outcome);
+            attempt = current;
+            if (attempts.putIfAbsent(playerId, current) != null) {
+                return completed(StartResult.PENDING_TRIP);
+            }
+            SettlementFacility destination = destinationId == null
+                    ? null : facilities.get(destinationId).orElse(null);
+            FastTravelAccess.AccessDecision decision = access.authorize(playerId, origin, destination);
+            if (decision == null) {
+                decision = legacyWaystoneDecision(playerId, origin, destination);
+            }
+            final FastTravelAccess.AccessDecision finalDecision = decision;
+            if (finalDecision == null || !finalDecision.allowed()) {
+                attempts.remove(playerId, current);
+                return completed(map(finalDecision == null ? null : finalDecision.result()));
+            }
+            FastTravelMode mode = finalDecision.mode();
+            if (mode == null) {
+                attempts.remove(playerId, current);
+                return completed(StartResult.TYPE_MISMATCH);
+            }
+            if (remainingCooldownMillis(playerId, mode, nowMillis) > 0L) {
+                attempts.remove(playerId, current);
+                return completed(StartResult.COOLDOWN);
+            }
+            CompletionStage<BoatRouteResult> routeStage = route(mode, origin, destination);
+            if (routeStage == null) {
+                attempts.remove(playerId, current);
+                outcome.complete(StartResult.ROUTE_UNAVAILABLE);
+                return outcome;
+            }
             routeStage.whenComplete((route, error) -> {
                 try {
                     onMain(() -> {
                         try {
-                            if (!isCurrent(attempt)) {
+                            if (!isCurrent(current)) {
                                 outcome.complete(StartResult.RESERVATION_FAILED);
                                 return;
                             }
                             if (error != null || route == null) {
-                                attempts.remove(playerId, attempt);
+                                attempts.remove(playerId, current);
                                 outcome.complete(StartResult.ROUTE_UNAVAILABLE);
                                 return;
                             }
                             if (route.status() != BoatRouteResult.Status.CONNECTED
                                     && mode == FastTravelMode.BOAT) {
-                                attempts.remove(playerId, attempt);
+                                attempts.remove(playerId, current);
                                 outcome.complete(mapRoute(route.status()));
                                 return;
                             }
                             CompletionStage<StartResult> reservation = reserveAfterRoute(
-                                    player, origin, destination, finalDecision, route, nowMillis, attempt);
+                                    player, origin, destination, finalDecision, route, nowMillis, current);
                             if (reservation == null) {
-                                attempts.remove(playerId, attempt);
+                                attempts.remove(playerId, current);
                                 outcome.complete(StartResult.RESERVATION_FAILED);
                                 return;
                             }
                             reservation.whenComplete((result, reservationError) -> {
-                                if (reservationError != null || result != StartResult.STARTED) {
-                                    attempts.remove(playerId, attempt);
+                                try {
+                                    onMain(() -> {
+                                        if (reservationError != null || result != StartResult.STARTED) {
+                                            attempts.remove(playerId, current);
+                                        }
+                                        outcome.complete(reservationError == null && result != null
+                                                ? result : StartResult.RESERVATION_FAILED);
+                                    });
+                                } catch (RuntimeException exception) {
+                                    attempts.remove(playerId, current);
+                                    releaseQuietly(current.reservationId, System.currentTimeMillis());
+                                    current.reservationId = null;
+                                    outcome.complete(StartResult.RESERVATION_FAILED);
                                 }
-                                outcome.complete(reservationError == null && result != null
-                                        ? result : StartResult.RESERVATION_FAILED);
                             });
                         } catch (RuntimeException exception) {
-                            attempts.remove(playerId, attempt);
+                            attempts.remove(playerId, current);
                             outcome.complete(StartResult.RESERVATION_FAILED);
                         }
                     });
                 } catch (RuntimeException exception) {
-                    attempts.remove(playerId, attempt);
+                    attempts.remove(playerId, current);
                     outcome.complete(StartResult.RESERVATION_FAILED);
                 }
             });
+            return outcome;
         } catch (RuntimeException exception) {
-            attempts.remove(playerId, attempt);
+            if (attempt != null) {
+                attempts.remove(attempt.playerId, attempt);
+            }
             outcome.complete(StartResult.RESERVATION_FAILED);
+            return outcome;
         }
-        return outcome;
     }
 
     private CompletionStage<StartResult> reserveAfterRoute(Player player,
@@ -290,22 +294,42 @@ public final class FastTravelService {
             return completed(StartResult.RESERVATION_FAILED);
         }
         final long expiry = safeExpiry(nowMillis);
-        return reservation.handle((result, error) -> {
-            if (error != null || result == null) {
+        return reservation.thenCompose(result -> {
+            if (result == null) {
                 attempts.remove(player.getUniqueId(), attempt);
-                return StartResult.RESERVATION_FAILED;
+                return completed(StartResult.RESERVATION_FAILED);
             }
             if (result.status() != TravelCurrencyService.ReserveStatus.RESERVED) {
                 attempts.remove(player.getUniqueId(), attempt);
+                return completed(switch (result.status()) {
+                    case INSUFFICIENT -> StartResult.INSUFFICIENT_CURRENCY;
+                    case DUPLICATE_TRIP -> StartResult.DUPLICATE_TRIP;
+                    case INVALID_AMOUNT, FAILED -> StartResult.RESERVATION_FAILED;
+                    case RESERVED -> StartResult.RESERVATION_FAILED;
+                });
             }
-            return switch (result.status()) {
-                case RESERVED -> scheduleWarmup(player.getUniqueId(), origin.id(), destination.id(),
-                        decision.mode(), decision.travelerGuildId(), amount, result.reservationId(),
-                        expiry, route.scalarDistance(), attempt);
-                case INSUFFICIENT -> StartResult.INSUFFICIENT_CURRENCY;
-                case DUPLICATE_TRIP -> StartResult.DUPLICATE_TRIP;
-                case INVALID_AMOUNT, FAILED -> StartResult.RESERVATION_FAILED;
-            };
+            attempt.reservationId = result.reservationId();
+            CompletableFuture<StartResult> scheduled = new CompletableFuture<>();
+            try {
+                onMain(() -> {
+                    try {
+                        scheduled.complete(scheduleWarmup(player.getUniqueId(), origin.id(),
+                                destination.id(), decision.mode(), decision.travelerGuildId(),
+                                amount, result.reservationId(), expiry, route.scalarDistance(), attempt));
+                    } catch (RuntimeException exception) {
+                        attempts.remove(player.getUniqueId(), attempt);
+                        releaseQuietly(result.reservationId(), System.currentTimeMillis());
+                        attempt.reservationId = null;
+                        scheduled.complete(StartResult.RESERVATION_FAILED);
+                    }
+                });
+            } catch (RuntimeException exception) {
+                attempts.remove(player.getUniqueId(), attempt);
+                releaseQuietly(result.reservationId(), System.currentTimeMillis());
+                attempt.reservationId = null;
+                scheduled.complete(StartResult.RESERVATION_FAILED);
+            }
+            return scheduled;
         });
     }
 
@@ -363,7 +387,8 @@ public final class FastTravelService {
         if (attempt == null || trip == null || !isCurrent(attempt)) {
             return;
         }
-        long now = System.currentTimeMillis();
+        try {
+            long now = System.currentTimeMillis();
         if (trip.expiresAtMillis() <= now) {
             failAndRelease(playerId, attempt, trip, now);
             return;
@@ -458,23 +483,26 @@ public final class FastTravelService {
                 failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
             }
         });
+        } catch (RuntimeException exception) {
+            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+    }
     }
 
     private void commit(UUID playerId, TravelAttempt attempt, PendingTravel trip,
                         FastTravelAccess.AccessDecision decision) {
         if (currency == null) {
-            retainAfterArrival(playerId, attempt, trip);
+            releaseAfterArrival(playerId, attempt, trip, System.currentTimeMillis());
             return;
         }
         CompletionStage<TravelCurrencyService.ReservationResult> result;
         try {
             result = currency.commit(trip.reservationId(), System.currentTimeMillis());
         } catch (RuntimeException exception) {
-            retainAfterArrival(playerId, attempt, trip);
+            releaseAfterArrival(playerId, attempt, trip, System.currentTimeMillis());
             return;
         }
         if (result == null) {
-            retainAfterArrival(playerId, attempt, trip);
+            releaseAfterArrival(playerId, attempt, trip, System.currentTimeMillis());
             return;
         }
         result.whenComplete((commit, error) -> {
@@ -484,7 +512,7 @@ public final class FastTravelService {
                             || (commit.status() != TravelCurrencyService.ReservationStatus.COMMITTED
                             && commit.status()
                             != TravelCurrencyService.ReservationStatus.ALREADY_COMMITTED)) {
-                        retainAfterArrival(playerId, attempt, trip);
+                        releaseAfterArrival(playerId, attempt, trip, System.currentTimeMillis());
                         return;
                     }
                     if (attempts.remove(playerId, attempt)) {
@@ -495,13 +523,13 @@ public final class FastTravelService {
                     }
                 });
             } catch (RuntimeException exception) {
-                retainAfterArrival(playerId, attempt, trip);
+                releaseAfterArrival(playerId, attempt, trip, System.currentTimeMillis());
             }
         });
     }
 
     public void cancel(UUID playerId, CancelReason reason) {
-        if (playerId == null) {
+        if (!isMainThread() || playerId == null) {
             return;
         }
         TravelAttempt attempt = attempts.get(playerId);
@@ -522,10 +550,10 @@ public final class FastTravelService {
     }
 
     public long remainingCooldownMillis(UUID playerId, FastTravelMode mode, long nowMillis) {
-        if (playerId == null || mode == null) {
+        if (!isMainThread() || playerId == null || mode == null) {
             return 0L;
         }
-        EnumMap<FastTravelMode, Long> playerCooldowns = cooldowns.get(playerId);
+        ConcurrentMap<FastTravelMode, Long> playerCooldowns = cooldowns.get(playerId);
         long expiry = playerCooldowns == null ? 0L : playerCooldowns.getOrDefault(mode, 0L);
         return Math.max(0L, expiry - nowMillis);
     }
@@ -536,10 +564,13 @@ public final class FastTravelService {
     }
 
     public boolean isPending(UUID playerId) {
-        return playerId != null && attempts.containsKey(playerId);
+        return isMainThread() && playerId != null && attempts.containsKey(playerId);
     }
 
     public void recover(long nowMillis) {
+        if (!isMainThread()) {
+            return;
+        }
         if (currency != null) {
             try {
                 currency.recoverExpired(nowMillis);
@@ -564,12 +595,15 @@ public final class FastTravelService {
                     && attempt.expiresAtMillis <= nowMillis) {
                 PendingTravel trip = attempt.trip;
                 if (trip != null) {
-                    retainAfterArrival(playerId, attempt, trip);
+                    releaseAfterArrival(playerId, attempt, trip, nowMillis);
                 }
             }
         });
     }
     public void stop() {
+        if (!isMainThread()) {
+            return;
+        }
         stopped = true;
         attempts.forEach((playerId, attempt) -> {
             if (attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.TERMINAL)) {
@@ -593,14 +627,14 @@ public final class FastTravelService {
             } else if (attempt.state.get() == AttemptState.ARRIVED) {
                 PendingTravel trip = attempt.trip;
                 if (trip != null) {
-                    retainAfterArrival(playerId, attempt, trip);
+                    releaseAfterArrival(playerId, attempt, trip, System.currentTimeMillis());
                 }
             }
         });
     }
     /** Returns eligible destinations for an interactive endpoint (command suggestions). */
     public List<SettlementFacility> destinations(UUID playerId, SettlementFacility origin) {
-        if (access == null) {
+        if (!isMainThread() || access == null) {
             return List.of();
         }
         return access.destinations(playerId, origin);
@@ -671,20 +705,30 @@ public final class FastTravelService {
 
     private void failAndRelease(UUID playerId, TravelAttempt attempt,
                                 PendingTravel trip, long nowMillis) {
-        if (attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.TERMINAL)) {
-            attempts.remove(playerId, attempt);
-            if (pending.remove(playerId, trip)) {
-                cancelTask(trip.task());
-                releaseQuietly(trip.reservationId(), nowMillis);
+        if (attempt == null) {
+            return;
+        }
+        AttemptState state;
+        do {
+            state = attempt.state.get();
+            if (state != AttemptState.ACTIVE && state != AttemptState.COMMITTING) {
+                return;
             }
+        } while (!attempt.state.compareAndSet(state, AttemptState.TERMINAL));
+        attempts.remove(playerId, attempt);
+        if (pending.remove(playerId, trip)) {
+            cancelTask(trip.task());
+            releaseQuietly(trip.reservationId(), nowMillis);
         }
     }
 
-    private void retainAfterArrival(UUID playerId, TravelAttempt attempt, PendingTravel trip) {
+    private void releaseAfterArrival(UUID playerId, TravelAttempt attempt,
+                                     PendingTravel trip, long nowMillis) {
         if (attempts.remove(playerId, attempt)) {
             attempt.state.set(AttemptState.TERMINAL);
             pending.remove(playerId, trip);
             cancelTask(trip.task());
+            releaseQuietly(trip.reservationId(), nowMillis);
         }
     }
 
@@ -737,10 +781,10 @@ public final class FastTravelService {
         }
         try {
             long expiry = Math.addExact(nowMillis, duration);
-            cooldowns.computeIfAbsent(playerId, key -> new EnumMap<>(FastTravelMode.class))
+            cooldowns.computeIfAbsent(playerId, key -> new ConcurrentHashMap<>())
                     .put(mode, expiry);
         } catch (ArithmeticException overflow) {
-            cooldowns.computeIfAbsent(playerId, key -> new EnumMap<>(FastTravelMode.class))
+            cooldowns.computeIfAbsent(playerId, key -> new ConcurrentHashMap<>())
                     .put(mode, Long.MAX_VALUE);
         }
     }
@@ -807,9 +851,12 @@ public final class FastTravelService {
         Objects.requireNonNull(action, "action");
         onMain(action);
     }
+    private boolean isMainThread() {
+        return plugin.getServer().isPrimaryThread();
+    }
 
     private void onMain(Runnable action) {
-        if (plugin.getServer().isPrimaryThread()) {
+        if (isMainThread()) {
             action.run();
             return;
         }
@@ -909,8 +956,8 @@ public final class FastTravelService {
         private final AtomicReference<AttemptState> state =
                 new AtomicReference<>(AttemptState.ACTIVE);
         private volatile PendingTravel trip;
+        private volatile String reservationId;
         private volatile CompletableFuture<StartResult> outcome;
-
         private TravelAttempt(UUID playerId, long expiresAtMillis,
                               CompletableFuture<StartResult> outcome) {
             this.playerId = playerId;

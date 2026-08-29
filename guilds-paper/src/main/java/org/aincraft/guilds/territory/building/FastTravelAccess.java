@@ -189,6 +189,10 @@ public final class FastTravelAccess {
         String destinationGuild = destinationTerritory.governedByGuildId().orElse(null);
         FastTravelSnapshot snapshot = snapshotFor(playerId);
         FastTravelMode mode = selectedMode;
+        String travelerGuild = travelerGuild(playerId, snapshot).orElse(null);
+        if (travelerGuild == null) {
+            return denied(AccessResult.MISSING_MEMBERSHIP, mode);
+        }
         if (mode == FastTravelMode.WAYSTONE) {
             if (originGuild == null || destinationGuild == null
                     || !originGuild.equals(destinationGuild)) {
@@ -200,14 +204,10 @@ public final class FastTravelAccess {
             if (!canUseWaystones) {
                 return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
             }
-            return allowed(mode, originGuild, originGuild, destinationGuild,
+            return allowed(mode, travelerGuild, originGuild, destinationGuild,
                     originTerritory, destinationTerritory);
         }
 
-        String travelerGuild = travelerGuild(playerId, snapshot).orElse(null);
-        if (travelerGuild == null) {
-            return denied(AccessResult.MISSING_MEMBERSHIP, mode);
-        }
         if (originGuild == null || destinationGuild == null) {
             return denied(AccessResult.MISSING_MEMBERSHIP, mode);
         }

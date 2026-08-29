@@ -14,6 +14,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
 class FastTravelAccessTest {
@@ -137,6 +138,66 @@ class FastTravelAccessTest {
                 .authorize(UUID.randomUUID(), terminal, crystal);
 
         assertEquals(FastTravelAccess.AccessResult.INACTIVE_ORIGIN, result.result());
+    }
+
+    @Test
+    void inactiveOriginPrecedesSameIdShortcut() {
+        SettlementFacility origin = facility("same", "Origin", "territory", FacilityType.WAYSTONE, 5);
+        SettlementFacility destination = facility("same", "Destination", "territory",
+                FacilityType.WAYSTONE, 6);
+        TerritoryRegistry territories = new TerritoryRegistry(List.of(territory("territory", 0)));
+        FacilityRegistry facilities = new FacilityRegistry(territories);
+        facilities.replaceAll(List.of(origin));
+        FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
+        when(anchors.validate(origin)).thenReturn(
+                new FacilityAnchorValidator.AnchorValidation(AnchorStatus.WRONG_MATERIAL, origin));
+
+        FastTravelAccess.AccessDecision result = new FastTravelAccess(
+                facilities, territories, anchors, mock(BuildingAuthorization.class))
+                .authorize(UUID.randomUUID(), origin, destination);
+
+        assertEquals(FastTravelAccess.AccessResult.INACTIVE_ORIGIN, result.result());
+    }
+
+    @Test
+    void waystoneResolvesTravelerBeforeUseRelationship() {
+        Territory first = territory("first", 0).withGoverningGuild("guild-a");
+        Territory second = territory("second", 200).withGoverningGuild("guild-a");
+        TerritoryRegistry territories = new TerritoryRegistry(List.of(first, second));
+        FacilityRegistry facilities = new FacilityRegistry(territories);
+        SettlementFacility origin = facility("origin", "Origin", "first", FacilityType.WAYSTONE, 5);
+        SettlementFacility destination = facility("destination", "Destination", "second",
+                FacilityType.WAYSTONE, 205);
+        facilities.replaceAll(List.of(origin, destination));
+        FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
+        when(anchors.validate(origin)).thenReturn(
+                new FacilityAnchorValidator.AnchorValidation(AnchorStatus.ACTIVE, origin));
+        when(anchors.validate(destination)).thenReturn(
+                new FacilityAnchorValidator.AnchorValidation(AnchorStatus.ACTIVE, destination));
+        BuildingAuthorization authorization = mock(BuildingAuthorization.class);
+        UUID playerId = UUID.randomUUID();
+        org.aincraft.guilds.models.Resident resident = mock(org.aincraft.guilds.models.Resident.class);
+        org.aincraft.guilds.models.Guild guild = mock(org.aincraft.guilds.models.Guild.class);
+        when(resident.hasGuild()).thenReturn(true);
+        when(resident.getGuild()).thenReturn("guild-a");
+        when(guild.getId()).thenReturn("guild-a");
+        org.aincraft.guilds.services.ResidentService residents =
+                mock(org.aincraft.guilds.services.ResidentService.class);
+        org.aincraft.guilds.services.GuildService guilds =
+                mock(org.aincraft.guilds.services.GuildService.class);
+        when(residents.getResident(playerId)).thenReturn(java.util.Optional.of(resident));
+        when(guilds.getGuild("guild-a")).thenReturn(java.util.Optional.of(guild));
+        when(authorization.canUseWaystones(playerId, "guild-a")).thenReturn(true);
+
+        FastTravelAccess access = new FastTravelAccess(facilities, territories, anchors,
+                authorization, null, guilds, residents, null, null);
+        FastTravelAccess.AccessDecision result = access.authorize(playerId, origin, destination);
+
+        assertEquals(FastTravelAccess.AccessResult.ALLOWED, result.result());
+        var order = inOrder(residents, guilds, authorization);
+        order.verify(residents).getResident(playerId);
+        order.verify(guilds).getGuild("guild-a");
+        order.verify(authorization).canUseWaystones(playerId, "guild-a");
     }
 
 
