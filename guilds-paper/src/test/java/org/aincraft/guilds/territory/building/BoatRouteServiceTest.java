@@ -6,12 +6,14 @@ import org.aincraft.guilds.territory.building.boat.BoatRouteResult;
 import org.aincraft.guilds.territory.building.boat.BoatRouteService;
 import org.aincraft.guilds.territory.building.boat.BoatWaterMask;
 import org.aincraft.guilds.territory.building.boat.BoatWaterSnapshot;
+import org.aincraft.guilds.territory.building.boat.BoatWaterChangeListener;
 import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Set;
@@ -93,6 +95,47 @@ class BoatRouteServiceTest {
         } finally {
             service.close();
             worker.shutdownNow();
+        }
+    }
+
+    @Test
+    void corridorCapturesEndpointsBeyondSqrtBudget() {
+        World world = mock(World.class);
+        Block air = mock(Block.class);
+        when(world.getUID()).thenReturn(WORLD);
+        when(world.isChunkLoaded(anyInt(), anyInt())).thenReturn(true);
+        when(world.getHighestBlockYAt(anyInt(), anyInt())).thenReturn(62);
+        when(world.getBlockAt(anyInt(), anyInt(), anyInt())).thenReturn(air);
+        when(air.getType()).thenReturn(Material.AIR);
+
+        AtomicInteger analyses = new AtomicInteger();
+        BoatRouteCalculator calculator = new BoatRouteCalculator() {
+            @Override
+            public BoatRouteResult calculate(List<BoatWaterSnapshot> snapshots,
+                                             BoatWaterMask.Cell origin,
+                                             BoatWaterMask.Cell destination,
+                                             int chunkBudget,
+                                             int nodeBudget) {
+                analyses.incrementAndGet();
+                assertTrue(snapshots.size() <= 256);
+                return BoatRouteResult.disconnected();
+            }
+        };
+        BoatRouteService.SnapshotProducer producer = BoatRouteService.bukkitSnapshotProducer(
+                ignored -> world, 2, 256);
+        BoatRouteService service = new BoatRouteService(
+                new BoatRouteCache(), calculator, Runnable::run, Runnable::run,
+                producer, 32, 256, 32, 16);
+        BoatWaterMask.Cell origin = new BoatWaterMask.Cell(0, 62, 0);
+        BoatWaterMask.Cell destination = new BoatWaterMask.Cell(17 * 16, 62, 0);
+        try {
+            BoatRouteResult result = service.route(WORLD, origin, destination)
+                    .toCompletableFuture().join();
+
+            assertEquals(BoatRouteResult.Status.DISCONNECTED, result.status());
+            assertEquals(1, analyses.get());
+        } finally {
+            service.close();
         }
     }
 

@@ -104,6 +104,17 @@ public final class BoatRouteService implements AutoCloseable {
         this(plugin, new BoatRouteCache(), geometry);
     }
 
+    public static SnapshotProducer bukkitSnapshotProducer(Function<UUID, World> worldLookup,
+                                                           int clearBoatSpaceHeight,
+                                                           int searchChunkBudget) {
+        if (clearBoatSpaceHeight <= 0 || searchChunkBudget <= 0) {
+            throw new IllegalArgumentException("snapshot limits must be positive");
+        }
+        return new BukkitSnapshotProducer(
+                Objects.requireNonNull(worldLookup, "worldLookup"),
+                clearBoatSpaceHeight, searchChunkBudget);
+    }
+
     private BoatRouteService(BoatRouteCache cache,
                              BoatRouteCalculator calculator,
                              Executor workerExecutor,
@@ -118,6 +129,7 @@ public final class BoatRouteService implements AutoCloseable {
         this.cache = Objects.requireNonNull(cache, "cache");
         this.calculator = Objects.requireNonNull(calculator, "calculator");
         this.workerExecutor = Objects.requireNonNull(workerExecutor, "workerExecutor");
+        this.snapshotProducer = Objects.requireNonNull(snapshotProducer, "snapshotProducer");
         this.mainThreadExecutor = Objects.requireNonNull(mainThreadExecutor, "mainThreadExecutor");
         if (searchChunkRadius <= 0 || searchChunkBudget <= 0 || nodeBudget <= 0
                 || snapshotBatchSize <= 0 || clearBoatSpaceHeight <= 0) {
@@ -428,26 +440,22 @@ public final class BoatRouteService implements AutoCloseable {
             long originChunkZ = Math.floorDiv(request.origin().z(), BoatWaterMask.CHUNK_SIZE);
             long destinationChunkX = Math.floorDiv(request.destination().x(), BoatWaterMask.CHUNK_SIZE);
             long destinationChunkZ = Math.floorDiv(request.destination().z(), BoatWaterMask.CHUNK_SIZE);
-            long spanX = Math.abs(destinationChunkX - originChunkX) + 1L;
-            long spanZ = Math.abs(destinationChunkZ - originChunkZ) + 1L;
-            long sideBudget = (long) Math.sqrt(searchChunkBudget);
-            long side = Math.min(2L * request.searchChunkRadius() + 1L, sideBudget);
-            if (side <= 0L || spanX > side || spanZ > side) {
+            long spanX = Math.abs(destinationChunkX - originChunkX);
+            long spanZ = Math.abs(destinationChunkZ - originChunkZ);
+            if (spanX > 2L * request.searchChunkRadius()
+                    || spanZ > 2L * request.searchChunkRadius()) {
                 return SnapshotBatch.pending();
             }
-            long minEndpointX = Math.min(originChunkX, destinationChunkX);
-            long minEndpointZ = Math.min(originChunkZ, destinationChunkZ);
-            long minChunkX = minEndpointX - (side - spanX) / 2L;
-            long minChunkZ = minEndpointZ - (side - spanZ) / 2L;
-            long maxChunkX = minChunkX + side - 1L;
-            long maxChunkZ = minChunkZ + side - 1L;
+            long corridorLength = spanX + spanZ + 1L;
+            if (corridorLength > searchChunkBudget) {
+                return SnapshotBatch.pending();
+            }
+            List<BoatWaterMask.Chunk> candidates = prioritizedChunks(request,
+                    originChunkX, originChunkZ, destinationChunkX, destinationChunkZ);
             List<BoatWaterSnapshot> snapshots = new ArrayList<>();
             Set<BoatWaterMask.Chunk> examined = new HashSet<>();
             int captured = 0;
-
-            for (BoatWaterMask.Chunk chunk : prioritizedChunks(request,
-                    originChunkX, originChunkZ, destinationChunkX, destinationChunkZ,
-                    minChunkX, maxChunkX, minChunkZ, maxChunkZ)) {
+            for (BoatWaterMask.Chunk chunk : candidates) {
                 if (captured >= maxChunks) {
                     break;
                 }
@@ -460,25 +468,7 @@ public final class BoatRouteService implements AutoCloseable {
                     captured++;
                 }
             }
-            for (long chunkX = minChunkX; chunkX <= maxChunkX && captured < maxChunks; chunkX++) {
-                for (long chunkZ = minChunkZ; chunkZ <= maxChunkZ && captured < maxChunks; chunkZ++) {
-                    if (chunkX < Integer.MIN_VALUE || chunkX > Integer.MAX_VALUE
-                            || chunkZ < Integer.MIN_VALUE || chunkZ > Integer.MAX_VALUE) {
-                        return SnapshotBatch.unavailable();
-                    }
-                    BoatWaterMask.Chunk chunk = new BoatWaterMask.Chunk((int) chunkX, (int) chunkZ);
-                    CaptureStatus status = captureIfNeeded(world, request, chunk,
-                            snapshots, examined);
-                    if (status == CaptureStatus.UNAVAILABLE) {
-                        return SnapshotBatch.unavailable();
-                    }
-                    if (status == CaptureStatus.CAPTURED) {
-                        captured++;
-                    }
-                }
-            }
-            boolean complete = nextUncaptured(minChunkX, maxChunkX, minChunkZ, maxChunkZ,
-                    request.capturedChunks(), examined) == null;
+            boolean complete = allCaptured(candidates, request.capturedChunks(), examined);
             return new SnapshotBatch(snapshots, examined, complete, true);
         }
 
@@ -498,62 +488,77 @@ public final class BoatRouteService implements AutoCloseable {
             return CaptureStatus.CAPTURED;
         }
 
-        private static List<BoatWaterMask.Chunk> prioritizedChunks(RouteRequest request,
-                                                                      long originChunkX,
-                                                                      long originChunkZ,
-                                                                      long destinationChunkX,
-                                                                      long destinationChunkZ,
-                                                                      long minChunkX,
-                                                                      long maxChunkX,
-                                                                      long minChunkZ,
-                                                                      long maxChunkZ) {
+        private boolean allCaptured(List<BoatWaterMask.Chunk> candidates,
+                                    Set<BoatWaterMask.Chunk> captured,
+                                    Set<BoatWaterMask.Chunk> examined) {
+            for (BoatWaterMask.Chunk chunk : candidates) {
+                if (!captured.contains(chunk) && !examined.contains(chunk)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private List<BoatWaterMask.Chunk> prioritizedChunks(RouteRequest request,
+                                                              long originChunkX,
+                                                              long originChunkZ,
+                                                              long destinationChunkX,
+                                                              long destinationChunkZ) {
             List<BoatWaterMask.Chunk> result = new ArrayList<>();
             Set<BoatWaterMask.Chunk> seen = new HashSet<>();
-            int radius = request.searchChunkRadius();
-            for (int distance = 0; distance <= radius; distance++) {
-                addRing(result, seen, originChunkX, originChunkZ, distance,
-                        minChunkX, maxChunkX, minChunkZ, maxChunkZ);
-                addRing(result, seen, destinationChunkX, destinationChunkZ, distance,
-                        minChunkX, maxChunkX, minChunkZ, maxChunkZ);
+            addCorridor(result, seen, originChunkX, originChunkZ,
+                    destinationChunkX, destinationChunkZ);
+            for (int distance = 0; distance <= request.searchChunkRadius()
+                    && result.size() < searchChunkBudget; distance++) {
+                addRing(result, seen, originChunkX, originChunkZ, distance);
+                addRing(result, seen, destinationChunkX, destinationChunkZ, distance);
             }
             return result;
         }
 
-        private static void addRing(List<BoatWaterMask.Chunk> result,
-                                    Set<BoatWaterMask.Chunk> seen,
-                                    long centerX,
-                                    long centerZ,
-                                    int distance,
-                                    long minChunkX,
-                                    long maxChunkX,
-                                    long minChunkZ,
-                                    long maxChunkZ) {
+        private void addCorridor(List<BoatWaterMask.Chunk> result,
+                                 Set<BoatWaterMask.Chunk> seen,
+                                 long originChunkX,
+                                 long originChunkZ,
+                                 long destinationChunkX,
+                                 long destinationChunkZ) {
+            long stepX = Long.compare(destinationChunkX, originChunkX);
+            long stepZ = Long.compare(destinationChunkZ, originChunkZ);
+            long x = originChunkX;
+            long z = originChunkZ;
+            while (x != destinationChunkX) {
+                addChunk(result, seen, x, z);
+                x += stepX;
+            }
+            while (z != destinationChunkZ) {
+                addChunk(result, seen, x, z);
+                z += stepZ;
+            }
+            addChunk(result, seen, destinationChunkX, destinationChunkZ);
+        }
+
+        private void addRing(List<BoatWaterMask.Chunk> result,
+                             Set<BoatWaterMask.Chunk> seen,
+                             long centerX,
+                             long centerZ,
+                             int distance) {
             long min = -distance;
             long max = distance;
             for (long offset = min; offset <= max; offset++) {
-                addChunk(result, seen, centerX + offset, centerZ + min,
-                        minChunkX, maxChunkX, minChunkZ, maxChunkZ);
-                addChunk(result, seen, centerX + offset, centerZ + max,
-                        minChunkX, maxChunkX, minChunkZ, maxChunkZ);
+                addChunk(result, seen, centerX + offset, centerZ + min);
+                addChunk(result, seen, centerX + offset, centerZ + max);
             }
             for (long offset = min + 1; offset < max; offset++) {
-                addChunk(result, seen, centerX + min, centerZ + offset,
-                        minChunkX, maxChunkX, minChunkZ, maxChunkZ);
-                addChunk(result, seen, centerX + max, centerZ + offset,
-                        minChunkX, maxChunkX, minChunkZ, maxChunkZ);
+                addChunk(result, seen, centerX + min, centerZ + offset);
+                addChunk(result, seen, centerX + max, centerZ + offset);
             }
         }
 
-        private static void addChunk(List<BoatWaterMask.Chunk> result,
-                                     Set<BoatWaterMask.Chunk> seen,
-                                     long chunkX,
-                                     long chunkZ,
-                                     long minChunkX,
-                                     long maxChunkX,
-                                     long minChunkZ,
-                                     long maxChunkZ) {
-            if (chunkX < minChunkX || chunkX > maxChunkX
-                    || chunkZ < minChunkZ || chunkZ > maxChunkZ
+        private void addChunk(List<BoatWaterMask.Chunk> result,
+                              Set<BoatWaterMask.Chunk> seen,
+                              long chunkX,
+                              long chunkZ) {
+            if (result.size() >= searchChunkBudget
                     || chunkX < Integer.MIN_VALUE || chunkX > Integer.MAX_VALUE
                     || chunkZ < Integer.MIN_VALUE || chunkZ > Integer.MAX_VALUE) {
                 return;
@@ -606,25 +611,6 @@ public final class BoatRouteService implements AutoCloseable {
 
         private static boolean isWater(Material material) {
             return material == Material.WATER || material == Material.BUBBLE_COLUMN;
-        }
-
-        private static BoatWaterMask.Chunk nextUncaptured(long minChunkX, long maxChunkX,
-                                                           long minChunkZ, long maxChunkZ,
-                                                           Set<BoatWaterMask.Chunk> captured,
-                                                           Set<BoatWaterMask.Chunk> current) {
-            for (long x = minChunkX; x <= maxChunkX; x++) {
-                for (long z = minChunkZ; z <= maxChunkZ; z++) {
-                    if (x < Integer.MIN_VALUE || x > Integer.MAX_VALUE
-                            || z < Integer.MIN_VALUE || z > Integer.MAX_VALUE) {
-                        return new BoatWaterMask.Chunk(0, 0);
-                    }
-                    BoatWaterMask.Chunk chunk = new BoatWaterMask.Chunk((int) x, (int) z);
-                    if (!captured.contains(chunk) && !current.contains(chunk)) {
-                        return chunk;
-                    }
-                }
-            }
-            return null;
         }
     }
 }
