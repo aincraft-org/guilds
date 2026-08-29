@@ -37,8 +37,9 @@ changed.
   - Resource parameter order is documented by each positional statement:
     wallet select `(playerUuid)`; wallet insert `(playerUuid, balance,
     createdAt, updatedAt)`; wallet debit `(amount, updatedAt, playerUuid,
-    amount)`; wallet credit `(amount, maximumBalance, maximumBalance, amount,
-    updatedAt, playerUuid)`; award insert `(source, eventId, playerUuid, amount, awardedAt)`;
+    amount)`; wallet credit `(amount, maximumBalance, amount, maximumBalance,
+    amount, maximumBalance, amount, updatedAt, playerUuid)`; award insert
+    `(source, eventId, playerUuid, amount, awardedAt)`;
     reservation insert `(reservationId, tripId, playerUuid, amount, expiresAt,
     createdAt)`; reservation select `(reservationId)`; commit/release/recover
     `(timestamp, reservationId)`; expired select `(nowMillis)`.
@@ -81,18 +82,46 @@ changed.
    credit and conditional debit statements against SQLite:
 
    ```text
-   credit cap/debit behavior: PASS
-   credit-wallet-balance.sql params= 6
+   Long.MAX_VALUE overflow-boundary cap: PASS
+   credit-wallet-balance.sql params= 9
    ```
 
 The focused Gradle tests therefore remain unexecuted due to the private Mint
 artifact prerequisite. The environment has OpenJDK 25 while the project
 requires Java 26; no toolchain or Gradle configuration was changed.
 
+## Review fixes
+
+- `38b3d4a` hardens quota parsing with exact lexical integer validation,
+  reverses policy input insertion order while asserting canonical sorted output,
+  and makes capped wallet credits compare before addition to avoid BIGINT
+  overflow. Invalid credit bounds are no-ops in the SQL CASE and are rejected
+  by the service's existing input validation.
+- Added classpath coverage for every `travel/` statement and key conditional
+  commit/release/overflow-safe credit operations in
+  `SqlStatementsGuildsResourcesTest`.
+- Re-ran the exact common focused command and the focused Paper SQL resource
+  test. Both stopped before test execution at the existing private Mint
+  dependency with HTTP 401:
+
+  ```text
+  Could not resolve dev.mintychochip.mint:mint-paper:26.8.12.10
+  Received status code 401 from server: Unauthorized
+  ```
+
+- Independent fix checks:
+
+  ```text
+  Long.MAX_VALUE overflow-boundary cap: PASS
+  credit-wallet-balance.sql params= 9
+  lexical quota integer validation boundary: PASS
+  ```
+
 ## Commits
 
 - `2151a31` — `feat: persist fast travel policies and currency schema`
 - `594fcd4` — `feat: add capped travel wallet credit statement`
+- `38b3d4a` — `fix: harden fast travel persistence codecs and SQL`
 
 ## Concerns
 
