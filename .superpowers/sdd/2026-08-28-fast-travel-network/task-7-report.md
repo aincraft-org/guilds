@@ -89,9 +89,20 @@ Result: no output.
 
 Result: all four files reported balanced delimiters. This is a syntax sanity check only, not a substitute for Java compilation.
 
+## Follow-up review corrections
+
+- Added `FastTravelFacilityValidator` to the full FastTravelAccess composition seam. WAYSTONE activity retains the legacy FacilityAnchorValidator path; transport endpoints delegate to the live facility validator and are denied as inactive when no validator is supplied.
+- Fixed `FastTravelService.start` to create and complete its returned future on route errors, null stages, callback scheduling failures, reservation failures, and successful outcomes.
+- Changed warmup scheduling to return its actual result, so a `putIfAbsent` race reports `PENDING_TRIP` and releases the losing reservation instead of reporting `STARTED`.
+- Wrapped final cost recalculation so runtime cost errors release the reservation before returning.
+- Added a regression for transport denial without a configured facility validator and corrected the focused service fixture to provide its authorization decision.
+
+Focused regressions were rerun after these corrections with the same required Gradle test selector command; Gradle again failed before test execution in 3s (`4 actionable tasks: 4 up-to-date`) because the Mint GitHub Packages dependency returned HTTP 401.
+
 ## Commit
 
 - `2e97b2a` — `feat: generalize waystone travel into fast travel`
+- `f478ee4` — `fix: enforce transport validation before fast travel`
 
 ## Concerns
 

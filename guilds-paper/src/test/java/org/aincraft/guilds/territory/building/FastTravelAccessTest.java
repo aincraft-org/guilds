@@ -109,6 +109,34 @@ class FastTravelAccessTest {
         assertEquals(org.aincraft.guilds.territory.model.FastTravelMode.CRYSTAL, result.mode());
     }
 
+    @Test
+    void rejectsTransportWhenFacilityValidatorIsNotConfigured() {
+        Territory territory = territory("territory", 0).withGoverningGuild("guild-a");
+        TerritoryRegistry territories = new TerritoryRegistry(List.of(territory));
+        FacilityRegistry facilities = new FacilityRegistry(territories);
+        SettlementFacility terminal = facility("terminal", "Terminal", "territory",
+                FacilityType.TELEPORT_TERMINAL, 5);
+        SettlementFacility crystal = facility("crystal", "Crystal", "territory",
+                FacilityType.GUILD_CRYSTAL, 10);
+        facilities.replaceAll(List.of(terminal, crystal));
+        FacilityAnchorValidator anchors = mock(FacilityAnchorValidator.class);
+        when(anchors.validate(terminal)).thenReturn(
+                new FacilityAnchorValidator.AnchorValidation(AnchorStatus.ACTIVE, terminal));
+        when(anchors.validate(crystal)).thenReturn(
+                new FacilityAnchorValidator.AnchorValidation(AnchorStatus.ACTIVE, crystal));
+
+        FastTravelAccess.AccessDecision result = new FastTravelAccess(
+                facilities, territories, anchors, mock(BuildingAuthorization.class), null,
+                mock(org.aincraft.guilds.services.TechTreeService.class),
+                mock(org.aincraft.guilds.services.GuildService.class),
+                mock(org.aincraft.guilds.services.ResidentService.class),
+                mock(org.aincraft.guilds.services.AllianceService.class))
+                .authorize(UUID.randomUUID(), terminal, crystal);
+
+        assertEquals(FastTravelAccess.AccessResult.INACTIVE_ORIGIN, result.result());
+    }
+
+
     private static Territory territory(String id, int x) {
         return new Territory(id, id, "world", Boundary.ofPolygon(List.of(
                 new BlockPos(x, 0), new BlockPos(x + 100, 0),

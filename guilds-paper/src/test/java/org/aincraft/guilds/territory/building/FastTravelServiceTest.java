@@ -56,6 +56,10 @@ class FastTravelServiceTest {
         when(anchors.validate(origin)).thenReturn(
                 new FacilityAnchorValidator.AnchorValidation(AnchorStatus.ACTIVE, origin));
         when(facilities.get("south")).thenReturn(java.util.Optional.of(destination));
+        when(access.authorize(playerId, origin, destination)).thenReturn(
+                new FastTravelAccess.AccessDecision(FastTravelAccess.AccessResult.ALLOWED,
+                        org.aincraft.guilds.territory.model.FastTravelMode.WAYSTONE,
+                        "guild-a", "guild-a", "guild-a", null, null, null));
         TravelCurrencyService currency = new ImmediateCurrency();
         FastTravelCostCalculator cost = new FastTravelCostCalculator(
                 org.aincraft.guilds.config.TravelCurrencyConfig.defaults());

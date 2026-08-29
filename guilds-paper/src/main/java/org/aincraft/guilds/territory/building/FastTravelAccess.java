@@ -25,6 +25,7 @@ public final class FastTravelAccess {
     private final TerritoryRegistry territories;
     private final FacilityAnchorValidator anchors;
     private final BuildingAuthorization authorization;
+    private final FastTravelFacilityValidator facilityValidator;
     private final GuildService guilds;
     private final ResidentService residents;
     private final TechTreeService techTree;
@@ -33,7 +34,7 @@ public final class FastTravelAccess {
     /** Constructor retained for callers that only need existing waystone filtering. */
     public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
                             FacilityAnchorValidator anchors, BuildingAuthorization authorization) {
-        this(facilities, territories, anchors, authorization,
+        this(facilities, territories, anchors, authorization, null,
                 (GuildService) null, (ResidentService) null,
                 (TechTreeService) null, (AllianceService) null);
     }
@@ -43,17 +44,38 @@ public final class FastTravelAccess {
                             FacilityAnchorValidator anchors, BuildingAuthorization authorization,
                             TechTreeService techTree, GuildService guilds,
                             ResidentService residents, AllianceService alliances) {
-        this(facilities, territories, anchors, authorization, guilds, residents, techTree, alliances);
+        this(facilities, territories, anchors, authorization, null,
+                guilds, residents, techTree, alliances);
+    }
+
+    /** Full composition seam including live transport-facility validation. */
+    public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
+                            FacilityAnchorValidator anchors, BuildingAuthorization authorization,
+                            FastTravelFacilityValidator facilityValidator,
+                            TechTreeService techTree, GuildService guilds,
+                            ResidentService residents, AllianceService alliances) {
+        this(facilities, territories, anchors, authorization, facilityValidator,
+                guilds, residents, techTree, alliances);
     }
 
     public FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
                             FacilityAnchorValidator anchors, BuildingAuthorization authorization,
                             GuildService guilds, ResidentService residents,
                             TechTreeService techTree, AllianceService alliances) {
+        this(facilities, territories, anchors, authorization, null,
+                guilds, residents, techTree, alliances);
+    }
+
+    private FastTravelAccess(FacilityRegistry facilities, TerritoryRegistry territories,
+                             FacilityAnchorValidator anchors, BuildingAuthorization authorization,
+                             FastTravelFacilityValidator facilityValidator,
+                             GuildService guilds, ResidentService residents,
+                             TechTreeService techTree, AllianceService alliances) {
         this.facilities = Objects.requireNonNull(facilities, "facilities");
         this.territories = Objects.requireNonNull(territories, "territories");
         this.anchors = Objects.requireNonNull(anchors, "anchors");
         this.authorization = Objects.requireNonNull(authorization, "authorization");
+        this.facilityValidator = facilityValidator;
         this.guilds = guilds;
         this.residents = residents;
         this.techTree = techTree;
@@ -201,7 +223,17 @@ public final class FastTravelAccess {
     }
 
     private boolean isActive(SettlementFacility facility) {
-        return anchors.validate(facility).active();
+        if (!isTransport(facility.type())) {
+            return anchors.validate(facility).active();
+        }
+        return facilityValidator != null && facilityValidator.isActive(facility);
+    }
+
+    private boolean isTransport(FacilityType type) {
+        return type == FacilityType.GUILD_CRYSTAL
+                || type == FacilityType.TELEPORT_TERMINAL
+                || type == FacilityType.BOAT
+                || type == FacilityType.AIRSHIP;
     }
 
     private String endpointCapability(FastTravelMode mode) {

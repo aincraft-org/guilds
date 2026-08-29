@@ -137,21 +137,52 @@ public final class FastTravelService {
             return completed(StartResult.COOLDOWN);
         }
 
-        CompletionStage<BoatRouteResult> routeStage = route(mode, origin, destination);
-        routeStage.whenComplete((route, error) -> onMain(() -> {
-            if (error != null || route == null) {
-                outcome.complete(StartResult.ROUTE_UNAVAILABLE);
-                return;
-            }
-            if (route.status() != BoatRouteResult.Status.CONNECTED && mode == FastTravelMode.BOAT) {
-                outcome.complete(mapRoute(route.status()));
-                return;
-            }
-            reserveAfterRoute(player, origin, destination, finalDecision, route, nowMillis)
-                    .whenComplete((result, reservationError) -> outcome.complete(
-                            reservationError == null && result != null
-                                    ? result : StartResult.RESERVATION_FAILED));
-        }));
+        CompletableFuture<StartResult> outcome = new CompletableFuture<>();
+        CompletionStage<BoatRouteResult> routeStage;
+        try {
+            routeStage = route(mode, origin, destination);
+        } catch (RuntimeException exception) {
+            outcome.complete(StartResult.ROUTE_UNAVAILABLE);
+            return outcome;
+        }
+        if (routeStage == null) {
+            outcome.complete(StartResult.ROUTE_UNAVAILABLE);
+            return outcome;
+        }
+        try {
+            routeStage.whenComplete((route, error) -> {
+                try {
+                    onMain(() -> {
+                        try {
+                            if (error != null || route == null) {
+                                outcome.complete(StartResult.ROUTE_UNAVAILABLE);
+                                return;
+                            }
+                            if (route.status() != BoatRouteResult.Status.CONNECTED
+                                    && mode == FastTravelMode.BOAT) {
+                                outcome.complete(mapRoute(route.status()));
+                                return;
+                            }
+                            CompletionStage<StartResult> reservation = reserveAfterRoute(
+                                    player, origin, destination, finalDecision, route, nowMillis);
+                            if (reservation == null) {
+                                outcome.complete(StartResult.RESERVATION_FAILED);
+                                return;
+                            }
+                            reservation.whenComplete((result, reservationError) -> outcome.complete(
+                                    reservationError == null && result != null
+                                            ? result : StartResult.RESERVATION_FAILED));
+                        } catch (RuntimeException exception) {
+                            outcome.complete(StartResult.RESERVATION_FAILED);
+                        }
+                    });
+                } catch (RuntimeException exception) {
+                    outcome.complete(StartResult.RESERVATION_FAILED);
+                }
+            });
+        } catch (RuntimeException exception) {
+            outcome.complete(StartResult.RESERVATION_FAILED);
+        }
         return outcome;
     }
 
@@ -199,12 +230,9 @@ public final class FastTravelService {
                 return StartResult.RESERVATION_FAILED;
             }
             return switch (result.status()) {
-                case RESERVED -> {
-                    scheduleWarmup(player.getUniqueId(), origin.id(), destination.id(), decision.mode(),
-                            decision.travelerGuildId(), amount, result.reservationId(), expiry,
-                            route.scalarDistance());
-                    yield StartResult.STARTED;
-                }
+                case RESERVED -> scheduleWarmup(player.getUniqueId(), origin.id(), destination.id(),
+                        decision.mode(), decision.travelerGuildId(), amount, result.reservationId(),
+                        expiry, route.scalarDistance());
                 case INSUFFICIENT -> StartResult.INSUFFICIENT_CURRENCY;
                 case DUPLICATE_TRIP -> StartResult.DUPLICATE_TRIP;
                 case INVALID_AMOUNT, FAILED -> StartResult.RESERVATION_FAILED;
@@ -212,24 +240,34 @@ public final class FastTravelService {
         });
     }
 
-    private void scheduleWarmup(UUID playerId, String originId, String destinationId,
-                                FastTravelMode mode, String travelerGuildId, long amount,
-                                String reservationId, long expiry, double routeDistance) {
+    private StartResult scheduleWarmup(UUID playerId, String originId, String destinationId,
+                                       FastTravelMode mode, String travelerGuildId, long amount,
+                                       String reservationId, long expiry, double routeDistance) {
         if (reservationId == null || stopped) {
-            if (reservationId != null && currency != null) {
-                releaseQuietly(reservationId, System.currentTimeMillis());
-            }
-            return;
+            releaseQuietly(reservationId, System.currentTimeMillis());
+            return StartResult.RESERVATION_FAILED;
         }
-        BukkitTask task = plugin.getServer().getScheduler().runTaskLater(plugin,
-                () -> complete(playerId), config.waystoneWarmupTicks());
+        final BukkitTask task;
+        try {
+            task = plugin.getServer().getScheduler().runTaskLater(plugin,
+                    () -> complete(playerId), config.waystoneWarmupTicks());
+        } catch (RuntimeException exception) {
+            releaseQuietly(reservationId, System.currentTimeMillis());
+            return StartResult.RESERVATION_FAILED;
+        }
+        if (task == null) {
+            releaseQuietly(reservationId, System.currentTimeMillis());
+            return StartResult.RESERVATION_FAILED;
+        }
         PendingTravel next = new PendingTravel(playerId, originId, destinationId, mode,
                 travelerGuildId, amount, reservationId, expiry, routeDistance, task);
         PendingTravel replaced = pending.putIfAbsent(playerId, next);
         if (replaced != null) {
             task.cancel();
             releaseQuietly(reservationId, System.currentTimeMillis());
+            return StartResult.PENDING_TRIP;
         }
+        return StartResult.STARTED;
     }
 
     private void complete(UUID playerId) {
@@ -270,7 +308,17 @@ public final class FastTravelService {
             }
             double distance = route.status() == BoatRouteResult.Status.CONNECTED
                     ? route.scalarDistance() : endpointDistance(origin, destination);
-            if (costs == null || costs.calculate(trip.mode(), distance) != trip.amount()) {
+            final long recalculatedCost;
+            try {
+                if (costs == null) {
+                    throw new IllegalStateException("travel cost calculator unavailable");
+                }
+                recalculatedCost = costs.calculate(trip.mode(), distance);
+            } catch (RuntimeException exception) {
+                failAndRelease(playerId, trip, System.currentTimeMillis());
+                return;
+            }
+            if (recalculatedCost != trip.amount()) {
                 failAndRelease(playerId, trip, System.currentTimeMillis());
                 return;
             }
