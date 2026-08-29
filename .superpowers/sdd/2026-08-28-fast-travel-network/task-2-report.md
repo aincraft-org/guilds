@@ -117,11 +117,31 @@ requires Java 26; no toolchain or Gradle configuration was changed.
   lexical quota integer validation boundary: PASS
   ```
 
+## Review round two
+
+- `c61093e` adds focused classpath-resource assertions for the conditional
+  wallet debit guard and expiry/recovery `status = 'RESERVED'` predicates while
+  retaining all-resource loading coverage.
+- Re-ran the focused Paper resource test; it stopped before test execution at
+  the private Mint dependency with HTTP 401:
+
+  ```text
+  Could not resolve dev.mintychochip.mint:mint-paper:26.8.12.10
+  Received status code 401 from server: Unauthorized
+  ```
+
+- Independent guard check:
+
+  ```text
+  debit guard and expiry/recovery conditional semantics: PASS
+  ```
+
 ## Commits
 
 - `2151a31` — `feat: persist fast travel policies and currency schema`
 - `594fcd4` — `feat: add capped travel wallet credit statement`
 - `38b3d4a` — `fix: harden fast travel persistence codecs and SQL`
+- `c61093e` — `test: assert travel SQL debit and recovery guards`
 
 ## Concerns
 
