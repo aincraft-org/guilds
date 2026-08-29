@@ -172,7 +172,7 @@ public class GuildsServices {
     private final AllianceListener allianceListener;
     private FastTravelListener fastTravelListener;
     private BoatWaterChangeListener boatWaterChangeListener;
-    
+
     // Governance (guilds as local governments, alliances as alliances)
     private final GuildsGovernanceSource governanceSource;
 
