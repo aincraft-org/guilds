@@ -153,17 +153,31 @@ public final class BuildingListener implements Listener {
                         : fastTravel.destinations(player.getUniqueId(), facility);
                 event.setCancelled(true);
                 if (facility.type() == FacilityType.TELEPORT_TERMINAL && travel != null) {
-                    if (reachable.size() != 1) {
-                        player.sendMessage(Component.text(
-                                "Your guild crystal is unavailable.", NamedTextColor.RED));
-                        return;
+                    SettlementFacility ownCrystal = reachable.stream()
+                            .filter(candidate -> {
+                                FastTravelAccess.AccessDecision decision =
+                                        fastTravel.authorize(player.getUniqueId(), facility, candidate);
+                                return decision != null && decision.allowed()
+                                        && java.util.Objects.equals(decision.travelerGuildId(),
+                                        decision.destinationGuildId());
+                            })
+                            .findFirst().orElse(null);
+                    if (ownCrystal != null) {
+                        travel.start(player, facility, ownCrystal.id(), System.currentTimeMillis())
+                                .whenComplete((result, error) -> travel.executeOnMain(
+                                        () -> player.sendMessage(Component.text(
+                                                error == null
+                                                        && result == FastTravelService.StartResult.STARTED
+                                                        ? "Fast travel warming up." : "Fast travel failed.",
+                                                error == null
+                                                        && result == FastTravelService.StartResult.STARTED
+                                                        ? NamedTextColor.GREEN : NamedTextColor.RED))));
+                        reachable = reachable.stream()
+                                .filter(candidate -> !candidate.id().equals(ownCrystal.id()))
+                                .toList();
                     }
-                    travel.start(player, facility, reachable.getFirst().id(), System.currentTimeMillis())
-                            .whenComplete((result, error) -> travel.executeOnMain(() -> player.sendMessage(
-                                    Component.text(error == null && result == FastTravelService.StartResult.STARTED
-                                            ? "Fast travel warming up." : "Fast travel failed.",
-                                            error == null && result == FastTravelService.StartResult.STARTED
-                                                    ? NamedTextColor.GREEN : NamedTextColor.RED))));
+                }
+                if (facility.type() == FacilityType.TELEPORT_TERMINAL && reachable.isEmpty()) {
                     return;
                 }
                 selections.select(player.getUniqueId(), facility.id(), System.currentTimeMillis());

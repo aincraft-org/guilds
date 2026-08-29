@@ -45,12 +45,11 @@ public final class FastTravelService {
     private final TechTreeService techTree;
     private final GuildService guilds;
     private final ConcurrentMap<UUID, PendingTravel> pending = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, TravelAttempt> attempts = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, EnumMap<FastTravelMode, Long>> cooldowns = new ConcurrentHashMap<>();
     private final EnumMap<FastTravelMode, Long> modeCooldowns;
     private final long reservationDurationMillis;
+    private final Map<String, Double> cooldownReductions;
     private volatile boolean stopped;
-
     /**
      * Legacy wiring constructor. It deliberately has no currency rail, so it
      * reports reservation failure until the shared currency service is injected.
@@ -106,6 +105,21 @@ public final class FastTravelService {
                              ResidentService residents, AllianceService alliances,
                              Map<FastTravelMode, Long> cooldowns,
                              long reservationDurationMillis) {
+        this(plugin, facilities, anchors, access, landings, protection, config,
+                currency, costs, boatRoutes, techTree, guilds, residents, alliances,
+                cooldowns, reservationDurationMillis, Map.of());
+    }
+
+    public FastTravelService(JavaPlugin plugin, FacilityRegistry facilities,
+                             FacilityAnchorValidator anchors, FastTravelAccess access,
+                             SafeLandingResolver landings, BlockProtection protection,
+                             BuildingConfig config, TravelCurrencyService currency,
+                             FastTravelCostCalculator costs, BoatRouteService boatRoutes,
+                             TechTreeService techTree, GuildService guilds,
+                             ResidentService residents, AllianceService alliances,
+                             Map<FastTravelMode, Long> cooldowns,
+                             long reservationDurationMillis,
+                             Map<String, Double> cooldownReductions) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.facilities = Objects.requireNonNull(facilities, "facilities");
         this.anchors = Objects.requireNonNull(anchors, "anchors");
@@ -122,6 +136,7 @@ public final class FastTravelService {
             throw new IllegalArgumentException("reservation duration must be positive");
         }
         this.reservationDurationMillis = reservationDurationMillis;
+        this.cooldownReductions = Map.copyOf(cooldownReductions);
         this.modeCooldowns = copyCooldowns(cooldowns);
     }
 
@@ -136,12 +151,16 @@ public final class FastTravelService {
             return completed(StartResult.RESERVATION_FAILED);
         }
         UUID playerId = player.getUniqueId();
-        TravelAttempt attempt = new TravelAttempt(playerId);
+        TravelAttempt attempt = new TravelAttempt(playerId, safeExpiry(nowMillis));
         if (attempts.putIfAbsent(playerId, attempt) != null) {
             return completed(StartResult.PENDING_TRIP);
         }
         SettlementFacility destination = destinationId == null
                 ? null : facilities.get(destinationId).orElse(null);
+        if (origin != null && destination != null && origin.id().equals(destination.id())) {
+            attempts.remove(playerId, attempt);
+            return completed(StartResult.TYPE_MISMATCH);
+        }
         FastTravelAccess.AccessDecision decision = access.authorize(playerId, origin, destination);
         if (decision == null) {
             decision = legacyWaystoneDecision(playerId, origin, destination);
@@ -162,6 +181,7 @@ public final class FastTravelService {
         }
 
         CompletableFuture<StartResult> outcome = new CompletableFuture<>();
+        attempt.outcome = outcome;
         CompletionStage<BoatRouteResult> routeStage;
         try {
             routeStage = route(mode, origin, destination);
@@ -380,23 +400,32 @@ public final class FastTravelService {
                             failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
                             return;
                         }
+                        SettlementFacility latestOrigin =
+                                facilities.get(trip.originId()).orElse(null);
+                        SettlementFacility latestDestination =
+                                facilities.get(trip.destinationId()).orElse(null);
+                        if (latestOrigin == null || latestDestination == null
+                                || !origin.equals(latestOrigin) || !destination.equals(latestDestination)) {
+                            failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
+                            return;
+                        }
                         FastTravelAccess.AccessDecision refreshed =
-                                access.authorize(playerId, origin, destination);
+                                access.authorize(playerId, latestOrigin, latestDestination);
                         if (refreshed == null) {
-                            refreshed = legacyWaystoneDecision(playerId, origin, destination);
+                            refreshed = legacyWaystoneDecision(playerId, latestOrigin, latestDestination);
                         }
                         if (!refreshed.allowed() || refreshed.mode() != trip.mode()) {
                             failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
                             return;
                         }
-                        Location landing = landings.find(destination).orElse(null);
-                        if (landing == null || !protection.canTeleportInto(destination.worldId(),
+                        Location landing = landings.find(latestDestination).orElse(null);
+                        if (landing == null || !protection.canTeleportInto(latestDestination.worldId(),
                                 landing.getBlockX(), landing.getBlockZ(), playerId.toString())) {
                             failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
                             return;
                         }
                         double distance = route.status() == BoatRouteResult.Status.CONNECTED
-                                ? route.scalarDistance() : endpointDistance(origin, destination);
+                                ? route.scalarDistance() : endpointDistance(latestOrigin, latestDestination);
                         final long recalculatedCost;
                         try {
                             if (costs == null) {
@@ -407,7 +436,8 @@ public final class FastTravelService {
                             failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
                             return;
                         }
-                        if (recalculatedCost != trip.amount()
+                        if (trip.expiresAtMillis() <= System.currentTimeMillis()
+                                || recalculatedCost != trip.amount()
                                 || !attempt.state.compareAndSet(
                                 AttemptState.ACTIVE, AttemptState.COMMITTING)) {
                             failAndRelease(playerId, attempt, trip, System.currentTimeMillis());
@@ -484,6 +514,9 @@ public final class FastTravelService {
                 releaseQuietly(trip.reservationId(), System.currentTimeMillis());
             }
         }
+        if (attempt.outcome != null) {
+            attempt.outcome.complete(StartResult.RESERVATION_FAILED);
+        }
     }
 
     public long remainingCooldownMillis(UUID playerId, FastTravelMode mode, long nowMillis) {
@@ -512,16 +545,21 @@ public final class FastTravelService {
                 // In-memory expired trips are still cleared below.
             }
         }
-        pending.forEach((playerId, trip) -> {
-            if (trip.expiresAtMillis() <= nowMillis) {
-                TravelAttempt attempt = attempts.get(playerId);
-                if (attempt != null) {
-                    failAndRelease(playerId, attempt, trip, nowMillis);
+        attempts.forEach((playerId, attempt) -> {
+            if (attempt.expiresAtMillis <= nowMillis
+                    && attempt.state.compareAndSet(AttemptState.ACTIVE, AttemptState.TERMINAL)
+                    && attempts.remove(playerId, attempt)) {
+                PendingTravel trip = attempt.trip;
+                if (trip != null && pending.remove(playerId, trip)) {
+                    cancelTask(trip.task());
+                    releaseQuietly(trip.reservationId(), nowMillis);
+                }
+                if (attempt.outcome != null) {
+                    attempt.outcome.complete(StartResult.RESERVATION_FAILED);
                 }
             }
         });
     }
-
     public void stop() {
         stopped = true;
         attempts.forEach((playerId, attempt) -> {
@@ -531,6 +569,9 @@ public final class FastTravelService {
                 if (trip != null && pending.remove(playerId, trip)) {
                     cancelTask(trip.task());
                     releaseQuietly(trip.reservationId(), System.currentTimeMillis());
+                }
+                if (attempt.outcome != null) {
+                    attempt.outcome.complete(StartResult.RESERVATION_FAILED);
                 }
             }
         });
@@ -551,12 +592,28 @@ public final class FastTravelService {
             return CompletableFuture.completedFuture(BoatRouteResult.unavailable());
         }
         try {
-            return boatRoutes.route(world.getUID(),
-                    new BoatWaterMask.Cell(origin.x(), origin.y(), origin.z()),
-                    new BoatWaterMask.Cell(destination.x(), destination.y(), destination.z()));
+            BoatWaterMask.Cell originCell = waterEntryCell(world, origin);
+            BoatWaterMask.Cell destinationCell = waterEntryCell(world, destination);
+            if (originCell == null || destinationCell == null) {
+                return CompletableFuture.completedFuture(BoatRouteResult.unavailable());
+            }
+            return boatRoutes.route(world.getUID(), originCell, destinationCell);
         } catch (RuntimeException exception) {
             return CompletableFuture.completedFuture(BoatRouteResult.unavailable());
         }
+    }
+
+    private static BoatWaterMask.Cell waterEntryCell(World world, SettlementFacility facility) {
+        int[][] offsets = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] offset : offsets) {
+            org.bukkit.block.Block block = world.getBlockAt(
+                    facility.x() + offset[0], facility.y(), facility.z() + offset[1]);
+            if (block.isLiquid()) {
+                return new BoatWaterMask.Cell(
+                        facility.x() + offset[0], facility.y(), facility.z() + offset[1]);
+            }
+        }
+        return null;
     }
 
     private boolean isCurrent(TravelAttempt attempt) {
@@ -609,15 +666,18 @@ public final class FastTravelService {
 
     private void setCooldown(UUID playerId, FastTravelMode mode, String guildId, long nowMillis) {
         long duration = modeCooldowns.getOrDefault(mode, 0L);
-        if (mode == FastTravelMode.WAYSTONE && duration > 0L && techTree != null && guilds != null
-                && guildId != null) {
-            Guild guild = guilds.getGuildById(guildId).orElse(null);
-            if (guild != null) {
-                double reduction = techTree.cooldownReduction(guild, FastTravelMode.WAYSTONE);
-                if (Double.isFinite(reduction)) {
-                    reduction = Math.max(0.0, Math.min(1.0, reduction));
-                    duration = Math.max(0L, Math.round(duration * (1.0 - reduction)));
+        if (mode == FastTravelMode.WAYSTONE && duration > 0L && guildId != null) {
+            Double reduction = cooldownReductions.get(guildId);
+            if (reduction == null && cooldownReductions.isEmpty()
+                    && techTree != null && guilds != null) {
+                Guild guild = guilds.getGuildById(guildId).orElse(null);
+                if (guild != null) {
+                    reduction = techTree.cooldownReduction(guild, FastTravelMode.WAYSTONE);
                 }
+            }
+            if (reduction != null && Double.isFinite(reduction)) {
+                reduction = Math.max(0.0, Math.min(1.0, reduction));
+                duration = Math.max(0L, Math.round(duration * (1.0 - reduction)));
             }
         }
         try {
@@ -789,12 +849,15 @@ public final class FastTravelService {
 
     private static final class TravelAttempt {
         private final UUID playerId;
+        private final long expiresAtMillis;
         private final AtomicReference<AttemptState> state =
                 new AtomicReference<>(AttemptState.ACTIVE);
         private volatile PendingTravel trip;
+        private volatile CompletableFuture<StartResult> outcome;
 
-        private TravelAttempt(UUID playerId) {
+        private TravelAttempt(UUID playerId, long expiresAtMillis) {
             this.playerId = playerId;
+            this.expiresAtMillis = expiresAtMillis;
         }
     }
 

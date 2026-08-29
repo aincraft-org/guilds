@@ -99,9 +99,12 @@ class FastTravelAccessTest {
         when(guilds.getGuildById("guild-a")).thenReturn(java.util.Optional.of(guild));
         when(tech.hasCapability(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(true);
+        FastTravelFacilityValidator validator = mock(FastTravelFacilityValidator.class);
+        when(validator.isActive(terminal)).thenReturn(true);
+        when(validator.isActive(crystal)).thenReturn(true);
 
         FastTravelAccess.AccessDecision result = new FastTravelAccess(
-                facilities, territories, anchors, mock(BuildingAuthorization.class), tech, guilds,
+                facilities, territories, anchors, mock(BuildingAuthorization.class), validator, tech, guilds,
                 residents, mock(org.aincraft.guilds.services.AllianceService.class))
                 .authorize(playerId, terminal, crystal);
 

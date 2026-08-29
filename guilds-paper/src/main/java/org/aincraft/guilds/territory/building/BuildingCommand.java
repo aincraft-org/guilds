@@ -49,7 +49,8 @@ public final class BuildingCommand {
     }
 
     public boolean execute(CommandSender sender, String label, String[] args) {
-        if (!sender.hasPermission("guilds.territory.building.manage")
+        boolean travelCommand = args.length > 0 && "travel".equalsIgnoreCase(args[0]);
+        if (!travelCommand && !sender.hasPermission("guilds.territory.building.manage")
                 && !sender.hasPermission("guilds.territory.admin") && !sender.isOp()) {
             message(sender, "You cannot manage territory buildings.", NamedTextColor.RED);
             return true;

@@ -167,6 +167,9 @@ public final class FastTravelAccess {
         if (destination == null || !isActive(destination)) {
             return denied(AccessResult.INACTIVE_DESTINATION, null);
         }
+        if (origin.id().equals(destination.id())) {
+            return denied(AccessResult.TYPE_MISMATCH, null);
+        }
         Optional<FastTravelMode> originMode = FastTravelMode.fromFacilityType(origin.type());
         Optional<FastTravelMode> destinationMode = FastTravelMode.fromFacilityType(destination.type());
         boolean terminalFlow = origin.type() == FacilityType.TELEPORT_TERMINAL
@@ -184,18 +187,21 @@ public final class FastTravelAccess {
         }
         String originGuild = originTerritory.governedByGuildId().orElse(null);
         String destinationGuild = destinationTerritory.governedByGuildId().orElse(null);
+        FastTravelSnapshot snapshot = snapshotFor(playerId);
         FastTravelMode mode = selectedMode;
         if (mode == FastTravelMode.WAYSTONE) {
+            boolean canUseWaystones = snapshot == null
+                    ? authorization.canUseWaystones(playerId, originGuild)
+                    : snapshot.canUseWaystones(originGuild);
             if (originGuild == null || destinationGuild == null
                     || !originGuild.equals(destinationGuild)
-                    || !authorization.canUseWaystones(playerId, originGuild)) {
+                    || !canUseWaystones) {
                 return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
             }
             return allowed(mode, originGuild, originGuild, destinationGuild,
                     originTerritory, destinationTerritory);
         }
 
-        FastTravelSnapshot snapshot = snapshotFor(playerId);
         String travelerGuild = travelerGuild(playerId, snapshot).orElse(null);
         if (travelerGuild == null) {
             return denied(AccessResult.MISSING_MEMBERSHIP, mode);
@@ -219,10 +225,9 @@ public final class FastTravelAccess {
                 && !hasCapability(travelerGuild, "remote_crystal", snapshot)) {
             return denied(AccessResult.MISSING_CAPABILITY, mode);
         }
-        boolean allied = sameGuild || allied(originGuild, destinationGuild, snapshot);
-        if (!allied) {
-            return denied(AccessResult.NON_ALLIED_DESTINATION, mode);
-        }
+        boolean allied = sameGuild || (allied(travelerGuild, originGuild, snapshot)
+                && allied(travelerGuild, destinationGuild, snapshot)
+                && allied(originGuild, destinationGuild, snapshot));
 
         if (!origin.worldId().equals(destination.worldId())) {
             return denied(AccessResult.WORLD_MISMATCH, mode);
@@ -320,6 +325,9 @@ public final class FastTravelAccess {
      */
     public interface FastTravelSnapshot {
         Optional<String> travelerGuildId();
+        default boolean canUseWaystones(String guildId) {
+            return hasCapability(guildId, "waystone_travel");
+        }
 
         boolean hasCapability(String guildId, String nodeId);
 
