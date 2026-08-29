@@ -1,0 +1,302 @@
+---
+title: "Guilds player guide"
+description: "How Guilds works: the basics, everyday commands, progression, territory, travel, and current limitations."
+---
+
+## Status legend
+
+This page describes the current Guilds plugin surface for players and server operators. Status labels keep configured descriptions separate from behavior that is actually reachable:
+
+- **Implemented** — the source registers the behavior and its runtime path is available when its prerequisites are present.
+- **Declared** — a config or model describes the idea, but this page does not treat the description as a guarantee until runtime consumes it.
+- **Declared, not active** — configuration or metadata exists, but no runtime consumer currently applies the advertised effect.
+- **API/operator-only** — available to integrations or administrators rather than as a normal player command.
+- **Unavailable or pending** — disabled by default, unregistered, explicitly unverified, or still planned by the active specification.
+
+## The idea: Guilds as shared territory and progression
+
+Guilds gives players an organization that owns a shared set of claimed chunks. A guild has residents, a mayor, and assistants. Its members can work together on land, plots, resources, projects, quests, and alliances. A guild can also be connected to a larger territory: the territory is the named region used by spatial systems, while guild claims and plots are the guild's own chunk-level land model.
+
+A **claim** is a chunk claimed for the guild. A **plot** is a chunk-level parcel inside a guild claim that can be guild-owned or owned by an individual resident. A territory is different: it is a larger polygon or chunk-set region with named zones such as `WILDERNESS` or `CLAIMABLE`. A territory may be governed by a guild, but the territory registry and the guild plot registry are not interchangeable.
+
+Governance answers who rules land and what formal authority they have. A guild government is local; an alliance government is the larger group's government. The available government forms are Anarchy, Monarchy, Oligarchy, and Democracy. Seats derive from stored guild or alliance roles, so changing roles can change authority. Protection still evaluates the current land, membership, plot ownership, and permission rules rather than assuming that every alliance member owns every allied plot.
+
+Progression is shared guild work. Guild levels use experience (XP) contributions, and each upgrade grants project skill points equal to the guild's resulting level. Those points can fund technology projects. One project can be active at a time, and a project must meet its prerequisites before it can be selected. Guild specializations and quests add further long-lived choices and activities.
+
+## The basics: joining a guild and understanding your land (basics)
+
+### Membership and roles
+
+You can belong to one current guild resident record at a time. Creating a guild makes the creator its mayor, and joining an existing guild makes you a resident. A mayor cannot leave until a new mayor is set. The source also persists resident and role information in SQL, so an offline resident can still be recognized for data operations even though a live player is needed for a physical interaction or message.
+
+The everyday role ladder is simple: residents participate, assistants have additional guild administration authority, and the mayor is the guild's primary authority. Plot permissions can additionally distinguish residents, allies, outsiders, and alliance members. Server permissions and these guild roles are separate gates: having a role does not imply that every command is enabled for every server player.
+
+### Claims, plots, and protection
+
+Guild claims are chunks, not individual blocks. A new guild starts with a home block and the creation flow attempts to claim the home chunk automatically. Later `/guild claim` operations must touch an existing guild claim and stop at the guild's configured claim limit. `/guild unclaim` removes the guild's ownership of the chunk when the caller has permission and the chunk belongs to that guild.
+
+A resident plot can be claimed only where the guild has already claimed the territory. A plot may be claimed for a resident, placed for sale, bought by another player, unclaimed by its owner, assigned a plot type, or given role-based build, destroy, switch, and item-use permissions. The default permission settings in `guilds-config.yml` are false for build, destroy, switch, and item use; the effective result can also be changed by the server's permission setup or a plot's stored policy.
+
+Protection is evaluated at the location. Enchanting tables and other interactable blocks are subject to the same territory and plot interaction rules as other blocks; being able to see an enchanting table does not bypass protection. A public guild can allow outsiders to place and interact in the supported public-access path, but breaking remains protected according to the current governance and plot rules.
+
+### Your first look at land
+
+To understand where you are, look at the chunk and plot you occupy, then open the guild map. A MapGUI installation gives you the interactive claim map; without MapGUI, the same map command falls back to a chat-rendered map. The map distinguishes your location, wilderness, your guild's blocks, other guild blocks, personally owned plots, and several plot types.
+
+A guild plot is a guild claim subdivided for ownership and permissions. A territory zone is the larger spatial result used by territory protection, governance, influence, standing, upkeep, and travel. A plot can be inside a territory, but claiming a plot never creates or changes a territory boundary.
+
+## Everyday: the player command reference
+
+Use the commands below after the concepts above, not as substitutes for them. Aliases are registered redirects: `/g`, `/t`, and `/town` reach the `/guild` command; `/n` and `/a` reach `/alliance`; `/guildchat` reaches the guild chat command; and `/tq` reaches `/quest`. A command can still be hidden by a server permission or by a missing optional integration.
+
+### Guild lifecycle and information
+
+Use `/guild create <name>` (or `/g new <name>`) when you are not already a resident and want to become the mayor of a new guild. Names must be between 3 and 20 characters. Use `/guild join <guild>` when an existing guild is open to you, `/guild leave` when you want to leave, and `/guild delete` followed by `/guild delete confirm` only when you are the mayor and intend to permanently remove the guild, its residents, and its claims.
+
+Use `/guild info` to inspect your guild or `/guild info <guild>` to inspect a named guild, and `/guild list` to see a short list of guilds. `/guild setspawn` records a guild spawn while you are in the home-block chunk and world. The old `/g spawn` and hearthstone bypasses are not registered; `/guild setspawn` remains useful because a guild crystal must match the persisted spawn.
+
+`/guild toggle list` shows guild toggles. A guild authority can use `/guild toggle <type> <on|off>` for the supported `pvp`, `fire`, `explosions`, `mobs`, and `public` settings. `/guild top residents`, `/guild top guilds`, `/guild top land`, and `/guild top alliances` show rankings. The same rankings are available under `/guilds top ...`.
+
+`/guilds version` reports plugin information, `/guilds time` reports server time, `/guilds prices` prints the command's current informational price list, and `/guilds universe` reports aggregate guild, resident, plot, and online-player statistics. `/guilds top residents`, `/guilds top guilds`, `/guilds top land`, and `/guilds top alliances` are the general-command ranking forms. These general paths are read/help surfaces; their availability still follows the server's general-command permissions.
+
+### Claims, plots, and permissions
+
+Stand in the target chunk before using `/guild claim` or `/guild unclaim`. Use `/plot claim` to claim the plot you are standing on after the guild has claimed it, `/plot info` to inspect the current plot, `/plot forsale <price>` to list your plot, `/plot forsale` to remove its sale listing, and `/plot buy` to buy a listed plot where you are standing. `/plot set <type>` selects an enabled plot type when you are allowed to modify the plot.
+
+Use `/plot perm list` or `/plot perm list <role>` to inspect plot permissions. A plot owner or an authorized guild administrator can use `/plot perm set <role> <permission> <value>` for the roles `resident`, `ally`, `outsider`, and `alliance`, and the permissions `build`, `destroy`, `switch`, and `item_use`. These are human role and action choices; they are not a promise that an arbitrary server permission node is granted.
+
+The built-in plot types are Resident (standard residential land), Farm (agriculture), Blacksmith (crafting and smithing), Bank (financial services), and Storage (storage and warehouse). Their descriptions and metadata are visible to the plugin, but only a behavior with a runtime handler should be treated as an active gameplay effect.
+
+### Map and chat
+
+Use `/guild map` for the full map centered on you, `/guild map compact` or `/guild map small` for a compact 7x7-chunk view, `/guild map big`, `/guild map large`, or `/guild map full` for the full 11x11-chunk view, and `/guild map here <x> <z>` to center on chunk coordinates. `/guild map help` prints the legend. `/guilds map` and `/g map` are aliases for the same nested map command.
+
+Use `/tc <message>` for a one-off guild-chat message. Run `/tc` with no message to toggle guild chat as your default channel; `/guildchat` is the toggle alias. `/guilds chat <message>` and `/guilds chat tc <message>` provide the general-command chat form. Messages go to online residents of your guild. There is a separate broadcast service and join/welcome messaging in the plugin, but broadcast management commands are not implemented; see the limitations table below.
+
+### Banks, storage, quests, and progression
+
+The resource bank and cash bank are separate ideas. Use `/guildlevel bank` to inspect contributed progression resources, `/guildlevel deposit EXPERIENCE <amount>` to contribute XP, `/guildlevel contributions` to inspect progress, `/guildlevel level` to see level, claim limit, assistant slots, and points, and `/guildlevel upgrade` when the mayor or a guild administrator is ready to spend the next level's XP progress. Guild upgrades are XP-only; a successful level gives project skill points equal to the new level.
+
+Use `/guild bank open` to enroll/open the Mint cash account, `/guild bank` to read its balance, `/guild bank deposit <amount>` to deposit personal Mint funds, and `/guild bank withdraw <amount>` to withdraw them. These operations are asynchronous and require a trusted Mint rail; they are not the SQL `Guild.balance` field.
+
+Use `/guild storage` while standing at an active storage facility anchor to open the shared guild item-storage UI. The same UI can open when you interact with the registered storage anchor. Access requires current membership in the governing guild and a valid active facility; the storage bank is durable and separate from facility location metadata. The default policy allows members to deposit, assistants to withdraw, and the mayor to manage policy. Capacity starts with a 54-slot `General` tab; later expansion is a stored bank operation, not a property of the facility itself.
+
+Use `/quest` or `/tq` to list active guild quests and `/quest progress` for details. A quest reports its type, description, progress, and tech-point reward. `/quest refresh` is an administrator refresh path rather than an ordinary daily command. Completing a quest with an attributable player can also award that player's personal travel currency once for the stable event.
+
+Use `/guild storage` while standing at an active storage facility anchor to open the shared guild item-storage UI. The same UI can open when you interact with the registered storage anchor. Access requires current membership in the governing guild and a valid active facility; the storage bank is durable and separate from facility location metadata. The default policy allows members to deposit, assistants to withdraw, and the mayor to manage policy. Capacity starts with a 54-slot `General` tab; no player-facing expansion command is registered.
+
+Use `/alliance` (or `/n` or `/a`) to inspect your alliance. A mayor can propose `/alliance create <name> <guild>`; the target guild's mayor must run `/alliance accept <name>`. The default creation requirement is two guilds. Alliance leaders can invite or kick guilds, set the alliance open state, transfer kingship, manage ministers, and add allies or enemies. `/alliance list` and `/alliance info [alliance]` are useful before attempting allied travel.
+
+Use `/territory building travel <destinationId>` from an eligible interactive travel facility. Travel is asynchronous and cancellable: a reservation is made before warm-up, current authorization and route state are checked again before arrival, and moving, taking damage, dying, or quitting cancels the pending trip. A canceled or failed trip releases the reserved personal travel currency.
+
+### Compact everyday cheat sheet
+
+| What you want to do | Reachable command | Who or what it needs |
+| --- | --- | --- |
+| Create, join, leave, or delete a guild | `/guild create <name>`, `/guild join <guild>`, `/guild leave`, `/guild delete confirm` | Player; create/join/leave/delete permissions; delete is mayor-only |
+| Inspect guilds and rankings | `/guild info [guild]`, `/guild list`, `/guild top <residents\|guilds\|land\|alliances>` | Information/list permission; rankings are read paths |
+| Claim or release a guild chunk | `/guild claim`, `/guild unclaim` | Stand in the chunk; guild membership and action permission; claims must be adjacent |
+| Claim or manage a plot | `/plot claim`, `/plot unclaim`, `/plot info`, `/plot set <type>`, `/plot perm ...` | Stand in the plot; guild claim first; owner/role gate |
+| Buy or sell a plot | `/plot forsale <price>`, `/plot forsale`, `/plot buy` | Owner to list; buyer must be able to afford a listed plot |
+| See land | `/guild map [compact\|small\|big\|large\|full\|here <x> <z>\|help]` | Map permission; MapGUI gives the interactive view, otherwise chat fallback |
+| Speak to residents | `/tc [message]`, `/guildchat`, `/guilds chat <message>` | Guild-chat permission; message form requires guild membership |
+| Contribute and upgrade | `/guildlevel level`, `/guildlevel deposit EXPERIENCE <amount>`, `/guildlevel bank`, `/guildlevel contributions`, `/guildlevel upgrade` | Guild membership; upgrade is mayor/admin gated |
+| Use cash guild bank | `/guild bank [open\|deposit <amount>\|withdraw <amount>]` | Current resident, permission for transfers, trusted Mint rail |
+| Use item storage | `/guild storage` | Stand at active STORAGE facility; current governing-guild resident |
+| Follow quests | `/quest`, `/quest progress` | Guild membership; refresh is admin-only |
+| Work with alliances | `/alliance` and `/alliance <create\|accept\|invite\|join\|leave\|list\|info\|ally\|enemy\|kick\|set\|minister\|government>` | Alliance command permission plus mayor/king/minister role where required |
+| Travel between facilities | `/territory building travel <destinationId>` | Eligible endpoint, capability, allied/current policy checks, safe landing, and personal travel currency |
+
+## Advanced
+
+<Callout type="info">
+  Advanced — you do not need this to get started.
+</Callout>
+
+### Levels, XP, projects, and the technology tree
+
+Guild levels are configured up to level 150, but the packaged level definitions currently provide explicit entries for levels 2, 3, 4, 5, and 10. Those entries require XP only: 50, 75, 100, 150, and 400 XP respectively. The configured benefits at those entries grant one tech point, two claim-limit bonus chunks, and a 0.5 daily-income bonus; level 10 additionally grants one assistant slot and unlocks the `BANK` plot type. The server's actual level data remains the authority if it has been customized.
+
+Contributing XP removes the contribution from the player's inventory and persists guild progress. If the durable write fails, the source refunds the removed contribution. An upgrade rechecks the locked guild row, consumes progress once, and leaves tech points equal to the guild's current level. Only one technology project can be active at a time; the project must meet its prerequisites before it can be started, and completion can award the attributable player personal travel currency.
+
+The current registered player entry point for the upgrade graph is `/guild upgrade`, which opens the MapGUI upgrade screen when MapGUI is installed. The standalone `/techtree` root is not registered. Some internal help text still names `/techtree start`, but it is not a player command on the current registry; use the upgrade screen instead.
+
+The following table lists every configured node. A node's cost is in guild tech points. `Implemented` means its capability is consumed by current runtime paths. A descriptive effect that is stored or logged without an active consumer is explicitly marked `Declared, not active`.
+
+#### Infrastructure
+
+| Node | Cost | Prerequisites | Current status and meaning |
+| --- | ---: | --- | --- |
+| Better Storage | 2 | — | **Declared, not active** — the configured capacity/income metadata is not a runtime storage-capacity upgrade. |
+| Fast Travel | 3 | Better Storage | **Implemented** — enables the current crystal/terminal capability path and its waystone cooldown reduction, which applies only to waystone mode. |
+| Remote Crystal | 3 | Fast Travel | **Implemented** — enables travel to an allied guild crystal after all other checks. |
+| Boat Travel | 3 | Fast Travel | **Implemented** — enables BOAT travel when both endpoints and route checks pass. |
+| Airship Travel | 4 | Fast Travel | **Implemented** — enables AIRSHIP travel when launch and destination checks pass. |
+| Advanced Farming | 3 | Better Storage | **Declared, not active** — the configured farm-yield metadata has no active tech consumer. |
+| Auto Sorter | 5 | Fast Travel, Advanced Farming | **Declared, not active** — the configured automatic sorting metadata has no active tech consumer. |
+
+#### Defense
+
+| Node | Cost | Prerequisites | Current status and meaning |
+| --- | ---: | --- | --- |
+| Reinforced Walls | 2 | — | **Declared, not active** — the configured TNT reduction metadata is not applied by the tech runtime. |
+| Guard Posts | 3 | Reinforced Walls | **Declared, not active** — border-alert metadata is not applied by the tech runtime. |
+| Siege Shields | 4 | Guard Posts | **Declared, not active** — siege-immunity metadata is not applied by the tech runtime. |
+| Fortification | 6 | Siege Shields | **Declared, not active** — the configured war-defense metadata is not applied by the tech runtime. |
+
+#### Commerce
+
+| Node | Cost | Prerequisites | Current status and meaning |
+| --- | ---: | --- | --- |
+| Marketplace | 2 | — | **Declared, not active** — lower shop-fee metadata is not applied by the tech runtime. |
+| Trade Routes | 3 | Marketplace | **Declared, not active** — the configured income metadata is not applied by the tech runtime. |
+| Tax Optimization | 4 | Trade Routes | **Declared, not active** — the configured resident-tax metadata is not applied by the tech runtime. |
+| Merchant Guild | 6 | Tax Optimization | **Declared, not active** — NPC-merchant and income metadata are not applied by the tech runtime. |
+
+#### Culture
+
+| Node | Cost | Prerequisites | Current status and meaning |
+| --- | ---: | --- | --- |
+| Guild Banner | 1 | — | **Declared, not active** — banner metadata is not applied by the tech runtime. |
+| Broadcast Tower | 3 | Guild Banner | **Declared, not active** — global broadcast-range metadata is not applied; broadcast management is not a registered command surface. |
+| Guild Hall | 4 | Broadcast Tower | **Declared, not active** — the configured hall/meeting-room metadata is not applied by the tech runtime. |
+| Monument | 6 | Guild Hall | **Declared, not active** — extra-claims and morale metadata is not applied by the tech runtime. |
+
+### Specializations
+
+A specialization is persisted on the guild, not on an individual resident. The `/guild specialize` command is nested under the registered `/guild` root and requires the specialization command permission. The service reports each specialization's own availability level, but setting or resetting one is mayor-only (or administrator override), and setting is blocked until the guild reaches level 10.
+
+| Specialization | Declared availability level | Declared description | Runtime status |
+| --- | ---: | --- | --- |
+| Mining | 2 | Increases ore yield and mining speed for guild members | **Declared, not active** — the ore and speed perk metadata has no runtime consumer. |
+| Trade Hub | 3 | Reduces market taxes and increases trading profits | **Declared, not active** — the tax and profit perk metadata has no runtime consumer. |
+| Military | 4 | Increases defense bonuses and combat effectiveness | **Declared, not active** — the defense and combat perk metadata has no runtime consumer. |
+| Arcane | 5 | Reduces XP costs for enchanting and magical activities | **Declared, not active** — Arcane's declared enchanting values are metadata only; they do not change enchanting gameplay. |
+| Agricultural | 1 | Increases crop yields and reduces hunger penalties | **Declared, not active** — the crop and hunger perk metadata has no runtime consumer. |
+
+### Territories, zones, protection, and governance
+
+A territory has a world, a boundary, and zero or more named zones. Boundaries can be polygons or chunk sets, territories in one world cannot overlap, and zones inside one territory cannot overlap. If a location is inside a territory but no named zone matches, the territory's default zone type is used. The current zone types are `WILDERNESS` and `CLAIMABLE`; `CLAIMABLE` is a spatial label and is not by itself a player claim.
+
+The player-facing lookup is `/territory lookup` (also `/territory here`), which reports the containing territory and zone at your location. `/territory list` lists registered territories. These are read paths; reload and save are operator actions. `/territory govern <territoryId> <guildId|->` binds or clears the governing guild and requires an operator-level territory permission.
+
+Protection consumes the current governance and guild/plot facts. Anarchy is the form with no formal land permission system; Monarchy, Oligarchy, and Democracy derive formal seats from local guild roles. Alliance government governs alliance-level decisions, but it does not automatically turn every alliance officer into the owner of every local guild plot. Current source and living-spec notes still identify scope-hardening work, so a server should not promise alliance-wide local build authority merely because two guilds are allied.
+
+Influence is a separate contest race, not a plot claim and not standing. An eligible attacker and owner must belong to different alliances; same-alliance and unaffiliated guilds cannot contest. Activity sources are PvP kills, PvE kills, block breaks, block placement, and crafting. Bars are capped at 100 by the packaged default, defender activity pushes attacker bars down, and reaching the cap does not flip land automatically: a player must explicitly declare, then a configured countdown (24 hours by default) runs before a flip. A post-flip cooldown (7 days by default) blocks a new race. The player declaration path is `/territory declare <territoryId> confirm`, and `/territory declare cancel <territoryId>` cancels a pending declaration. `/territory influence <territoryId>` is a status readout.
+
+Standing is the governing guild's territory-development track. Governing members' PvP kills, PvE kills, and block breaks accrue standing; block placement and crafting do not. There is no passive decay. Configured standing tiers can add harvest multipliers for governing members and a multiplier read by the influence engine, but standing is not personal XP. `/territory standing <territoryId>` reads a bar; operator set/reset forms exist for administration. Failed durable loads fail closed rather than silently creating an empty contest.
+
+Upkeep is recurring territory treasury assessment, not a player wallet. The packaged defaults enable it with a base amount of 100, chunk amount 0.5, facility amount 10, development amount 25, a seven-day interval, and a two-day grace period. `/territory upkeep [territoryId]` is an operator/status surface. The active economy path charges expenses through its durable, idempotent expense journal.
+
+### Facilities and fast travel
+
+A facility is a location record with one functional anchor block. Surrounding RP construction is unrestricted for ordinary facilities; the anchor is the part Guilds validates. The available facility types are waystones, guild crystals, teleport terminals, boats, airships, trading posts, storage, and banks. Packaged anchor defaults are LODESTONE for waystones and terminals, AMETHYST_BLOCK for guild crystals, OAK_PLANKS for boats, IRON_BLOCK for airships, GOLD_BLOCK for banks, and BARREL or CHEST for generic facility anchors where configured.
+
+Operators or authorized guild residents begin placement with `/territory building create <type> <id> [name]`, then right-click the anchor. `/territory building cancel`, `list [territoryId]`, `info <id>`, and `remove <id>` manage placement and records. The placement window is 60 seconds by default. Building creation and removal are territory-management actions; `/territory building travel <destinationId>` is the player travel action.
+
+Waystones are the legacy same-governing-guild route. An active waystone can show reachable same-guild waystones, and waystone travel does not inherit the cross-territory transport policy. Crystals and terminals are the generalized transport path. A guild has at most one persisted crystal and one persisted teleport terminal. A crystal must match the guild's current persisted spawn world and block coordinates, with the spawn inside a territory governed by that guild. A terminal sends an eligible resident to a guild crystal in the local-terminal exception; an allied crystal requires the separate Remote Crystal capability.
+
+Boat endpoints must match BOAT mode and pass a bounded shoreline and entry-window check. Airship endpoints must match AIRSHIP mode and pass a bounded launch-platform and clear-sky check. Airship travel does not search a three-dimensional corridor. Cross-world travel is not supported. Boat route analysis is bounded and cached, but a pending, invalidated, unloaded, or budget-exhausted route cannot start travel.
+
+For crystal, terminal, boat, and airship transport, both endpoints and the initiating player must have the relevant capability. The traveler and endpoint guilds must be the same guild or satisfy the alliance checks. Cross-territory transport requires both territories' immutable policy to allow the mode; a quota does not grant boundary permission, and a boundary allowance does not create capacity. A terminal-to-own-crystal trip in one territory is the local exception. Governance loss, missing upgrade, wrong spawn, bad anchor, or quota/cardinality validation can make a persisted endpoint inactive while retaining its record.
+
+The travel currency is a finite personal wallet, not guild resources and not the guild's cash bank. Packaged defaults give a player 10 starter units, a maximum of 1,000, a base cost of 1, a distance divisor of 100, and mode multipliers of 1.0 for waystone/crystal, 1.25 for boat, and 1.5 for airship. Cost is the ceiling of base plus mode multiplier times distance divided by the divisor. A reservation lasts 30,000 milliseconds by default; commit finalizes the cost, while release returns it after cancellation or failure. The service rechecks membership, capabilities, endpoint state, route, cost, safe landing, and protection at completion, so a change during warm-up can safely fail and refund rather than silently charging.
+
+Travel can award personal currency from `QUEST_COMPLETION` (20 by default), `EXPLORATION_MILESTONE` (10), and `GUILD_ACTIVITY` (5). Each award requires a player actor and stable event id and is idempotent; actorless events do not award. Expired and orphan reservations are recovered before runtime transport activation and during shutdown.
+
+### Invasions
+
+An invasion is an operator-triggered mob event against a guild's claimed plots, not an automatic influence war. The packaged invasion system is enabled and operator-gated. `/territory invasion start <guild>`, `/territory invasion stop <guild>`, and `/territory invasion status <guild>` are administrator commands. Current defaults include a 500-block damage budget, a 24-block spawn radius, 24 spawn attempts, and a 96-block nearby boss-bar radius. The source does not claim automatic scheduling, repair/reset, or reconstruction.
+
+### Alliances, authority, and ownership
+
+An alliance starts as a pending proposal. The proposing guild's mayor names a target guild; the target mayor accepts. The configured minimum is two guilds, and an operator may change that requirement with `/alliance requirement <count>` (minimum two), which persists across restarts. A guild can be in at most one alliance in the intended durable model.
+
+Within an alliance, the king is the primary authority and ministers are additional authority roles. The king can transfer kingship, add/remove ministers, set the alliance tax rate, toggle whether it is open, manage allies/enemies, and kick guilds. A capital guild cannot leave without first transferring or disbanding as required by the command. `/alliance government <form>` changes the alliance's governance form and is king-only. Guild `/guild government <form>` is mayor-only. Governance-derived territory ownership follows the current governing guild binding; a facility does not create a second ownership authority.
+
+### Quests, resources, contracts, storage, and money
+
+Quests are guild-scoped records with a type, description, target, current progress, and tech-point reward. The command shows progress; the service persists updates. Resource contributions feed level progress and use the same durable-before-memory discipline as other progression. Failed writes refund inventory removed for a contribution where the source can identify that failure.
+
+Guild contracts are deliberately a service/API contract today. Posting debits escrow, fulfillment releases it, cancellation refunds it, and an unaffordable post is rejected. There is no registered player command or event/inventory sourcing path for contracts, so do not look for a `/contract` command.
+
+The shared item bank is different from the Mint cash bank. Item storage lives in a durable guild-owned aggregate accessed at a STORAGE facility, starts with one 54-slot General tab, and applies default role thresholds of member for deposit, assistant for withdrawal, and mayor for management. Inventory moves use operation identities and reconciliation so a failed or unknown database outcome is not treated as a successful item deletion. The facility record itself stores location metadata, not item stacks.
+
+The Mint cash guild bank is a namespaced coins account (`guild:<guildId>`) managed through a trusted asynchronous Mint lease. It has a level-based capacity (the packaged guild-bank capacity is 1,000.00 per level with a scale of 2), membership enrollment, idempotent transfers, and player-facing `/guild bank` commands. `/guild info` can show the Mint guild-bank balance and capacity when the rail is available. The legacy SQL `Guild.balance` field remains a separate balance and is not silently merged into Mint or into the travel wallet.
+
+The configured economy mode in the territory config defaults to `SIMULATION`; a trusted Mint binding can provide the asynchronous Mint rail. Guilds does not document Vault as supported for this plugin's cash-bank/player command path. Economy integrations that report sales, crafts, or expenses consume API contracts and must provide values explicitly; Guilds is not a shop, auction house, or price-discovery system.
+
+### Map, WorldGuard, web, and integrations
+
+MapGUI is an optional soft dependency. When present, the player claim map supports panning, recentering, and explicit Claim/Unclaim tools with permission checks and confirmations. When absent, `/guild map` renders a chat map. MapGUI is also required for the `/guild upgrade` graph screen.
+
+squaremap is an optional soft dependency for display-only territory, zone, and influence layers. Its bridge refreshes on a short interval and does not mutate claims or territory data. If squaremap is missing, core Guilds systems do not fail merely because the map layer is unavailable. The public Vercel deployment at `guilds.mintychochip.dev` is not verified by the current source/spec inventory; it needs a real Vercel project, DNS, upstream API, and safe operator credentials before it should be treated as available.
+
+WorldGuard is an optional soft dependency and receives a one-way, read-only projection of territory shapes and governing rosters. Guilds' own governance-aware protection remains the enforcement path; mirrored WorldGuard regions carry no restrictive flags. If WorldGuard or its API is missing, the bridge degrades to a no-op.
+
+The embedded web server is a REST/API surface, not a player web map. It is disabled by default (`web.enabled: false`), binds to `127.0.0.1:8765` when enabled, and exposes territory CRUD/resolve plus influence and standing reads. Mutating routes stage registry changes, save to SQL, then replace in-memory state. An API token can protect mutations. TLS is disabled by default; operators can configure a keystore or terminate HTTPS at a reverse proxy with the documented trust-proxy/public-base-url settings. The editor is operator-facing, not a player draw tool, and browser session support is a separate authenticated path.
+
+PlaceholderAPI is an optional soft dependency. When installed, the internal `guilds` expansion exposes `guild`, `guild_name`, `guild_id`, `role`, `guild_role`, `level`, `guild_level`, `balance`, `guild_balance`, `members`, `guild_members`, `open`, `guild_open`, `in_guild`, `has_guild`, and `chat_prefix`. Values come from persisted service data and may work for offline players when another formatter supplies an OfflinePlayer.
+
+### Enchantments and enhancements
+
+Guilds supports vanilla enchanting only. An enchanting table is an ordinary protected/interactable block: whether you can use it depends on the territory, guild, plot, and role permission result at that location.
+
+There is no custom enchantment API, custom enchantment item, custom enchantment command, custom enchantment event, enchantment cost modifier, or enchantment chance modifier. Arcane's declared XP-cost and enchant-chance values are **Declared, not active** metadata and do not change vanilla enchanting.
+
+### Persistence and environment boundaries
+
+Durable Guilds state uses one shared SQL connection pool. PostgreSQL is the default backend; MySQL 8.x is selectable. Guild membership, plots, progression, quests, storage, facilities, influence, standing, travel wallets, reservations, and relevant journals are persisted rather than treated as memory-only state. The plugin requires a reachable SQL database for durable runtime paths and does not use JSON or SQLite as a second runtime source of truth.
+
+That durability changes what failures mean: changes are treated as committed only after durable save, contribution failures refund where supported, travel reservations release after a failed/canceled trip, and unknown storage outcomes should be retried with the same operation identity rather than guessed. Live Paper/server smoke across multiple territories, physical facilities, safe landing, governance changes, real Mint/Vault environments, and database-gated paths can remain environment-dependent; the current source inventory does not claim that a live scenario was observed here.
+
+## What it means for you
+
+Role gates are part of normal gameplay. Being a resident does not make you mayor, assistant, plot owner, alliance minister, or operator. If a command is visible in help but rejected, check the role and the server's assigned permission rather than assuming the feature is missing. Operators should also remember that several permission and configuration names are implementation details; the user-visible rule is who may act and where.
+
+Persistence comes before memory. A successful-looking action that cannot be saved should not be treated as durable. This is why XP contributions can be refunded, cash and item transfers return typed failure outcomes, and travel reservations are released on cancellation or revalidation failure. Travel itself is intentionally asynchronous: remain still during warm-up, and expect damage, movement, logout, changed governance, an inactive anchor, or an unsafe/protected destination to cancel it.
+
+A configured description is not automatically an active benefit. The tech tree and specialization tables preserve the server's declared catalog, while this guide labels effects with no runtime consumer `Declared, not active`. In particular, Arcane does not alter enchanting, and no custom enchantment system exists. The same caution applies to plot-type metadata and optional web/integration descriptions.
+
+Optional integrations change the surface you see. MapGUI adds inventory interfaces and the upgrade graph; without it, the guild map falls back to chat. Mint adds the asynchronous cash bank; without a trusted Mint rail, `/guild bank` reports that the bank is unavailable. squaremap adds display layers, WorldGuard adds a read-only projection, PlaceholderAPI adds placeholders, and the embedded web API stays disabled unless an operator enables and secures it. Vault is not a supported Guilds cash-bank promise.
+
+Server operators should expect live Paper smoke and database-backed integration checks to depend on their environment. The active specifications explicitly leave some multi-territory travel, physical anchor restoration, production web deployment, and database-gated smoke unverified. This guide records those boundaries instead of claiming a live result.
+
+## Final command and status tables
+
+### Operator and advanced command sheet
+
+| Surface | Command | Status and audience |
+| --- | --- | --- |
+| Territory lookup | `/territory lookup` or `/territory here` | **Implemented** read path; players can inspect their location |
+| Territory list | `/territory list` | **Implemented** read path |
+| Territory persistence | `/territory reload`, `/territory save` | **API/operator-only**; administrator operation |
+| Territory governance | `/territory govern <territoryId> <guildId|->` | **API/operator-only**; operator-level territory permission |
+| Influence status/admin | `/territory influence <id>`, `/territory influence set/reset ...` | Status is **Implemented**; set/reset are **API/operator-only** |
+| Influence declaration | `/territory declare <id> confirm`, `/territory declare cancel <id>` | **Implemented** when influence eligibility and persistence are available |
+| Standing status/admin | `/territory standing <id>`, `/territory standing set/reset ...` | Status is **Implemented**; set/reset are **API/operator-only** |
+| Upkeep status | `/territory upkeep [id]` | **API/operator-only** status surface |
+| Invasion | `/territory invasion start\|stop\|status <guild>` | **API/operator-only**, operator-gated |
+| Facilities | `/territory building create\|cancel\|list\|info\|remove ...` | **API/operator-only** except travel; physical Paper smoke remains environment-dependent |
+| Travel | `/territory building travel <destinationId>` | **Implemented** player path; asynchronous and cancellable |
+| Permission diagnostics | `/perm check\|build\|destroy\|plot\|guild\|flags\|here` | **API/operator-only** troubleshooting command |
+| Plot type management | `/plottype` or `/ptype` | **Unavailable or pending**: only a help message; management subcommands are not implemented |
+
+### Intentionally absent or limited surfaces
+
+| Surface | Status | What the source supports |
+| --- | --- | --- |
+| Custom enchantments | **Unavailable or pending** | Vanilla enchanting only. No custom enchant API, item, command, event, cost modifier, or chance modifier. |
+| Arcane enchanting perks | **Declared, not active** | The specialization metadata declares XP/chance values, but runtime does not apply them. |
+| Standalone `/techtree` | **Unavailable or pending** | The command class exists for internal handlers, but the registry does not register the top-level root. Use `/guild upgrade` with MapGUI. |
+| `/broadcast` management | **Unavailable or pending** | `/broadcast` and `/guildbroadcast` only print that subcommands are not implemented; `/tb` is the alias. Join/welcome messaging is separate. |
+| Guild-permission mutations | **Unavailable or pending** | `/guildperm` is registered only as an admin help message; its advertised set/add/remove/list/reset mutations are not registered. |
+| Contracts as commands | **API/operator-only** | Escrow and refund behavior exists in `GuildContractService`; no player contract command, event, or inventory-sourcing path is registered. |
+| Vault cash-bank support | **Unavailable or pending** | Do not treat Vault as supported for the Guilds Mint bank or `/guild bank`; the current cash-bank path is Mint-backed and the territory economy config defaults to simulation. |
+| Embedded web API | **Unavailable or pending** by default | REST server, TLS, token auth, and editor routes exist in source, but `web.enabled` defaults false and deployment/security setup is operator work. |
+| Vercel editor deployment | **Unavailable or pending** | The current specification says the production Vercel project/domain/upstream and safe credentials remain unverified. |
+| squaremap layers | **Unavailable or pending** when absent | Optional display-only integration; missing squaremap must not disable core Guilds behavior. |
+| WorldGuard projection | **Unavailable or pending** when absent | Optional read-only mirror; missing WorldGuard degrades to no-op and does not replace Guilds protection. |
+| MapGUI screens | **Unavailable or pending** when absent | The claim map falls back to chat, and the `/guild upgrade` graph requires MapGUI. |
+| PlaceholderAPI expansion | **Unavailable or pending** when absent | Optional `guilds` placeholders are exposed only when PlaceholderAPI is installed. |
+| Live Paper/database smoke | **Unavailable or pending** in an unconfigured environment | Physical facilities, multi-territory travel, production integrations, and SQL-gated scenarios require the server and database environment; this guide makes no live-observation claim. |
