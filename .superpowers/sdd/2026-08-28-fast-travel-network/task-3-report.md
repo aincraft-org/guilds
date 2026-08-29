@@ -102,9 +102,45 @@ or unrelated worktree files were changed.
    update-wallet-balance.sql: params=4
    ```
 
-## Commit
+## Commits
 
 - `94ea38c` — `feat: add durable travel currency service`
+- `a606131` — `docs: correct Task 3 commit reference`
+- `6d3788d` — `fix: harden travel currency recovery semantics`
+
+## Review round 1
+
+The review fixes add the following behavioral coverage and implementation
+changes:
+
+- The concurrent reservation test pre-creates the wallet, then uses two
+  independently constructed `TravelCurrencyServiceImpl` instances sharing the
+  same durable `DatabaseManager`; it asserts one conditional debit succeeds,
+  one fails, and the durable balance is 3.
+- A duplicate trip now ensures the requesting player's starter wallet before
+  classifying the duplicate and performs no debit.
+- Commit and release propagate an exceptional completion when the shared
+  transaction helper returns an empty result, rather than reporting
+  `NOT_FOUND`.
+- Expiry recovery propagates an exceptional completion when its transaction
+  rolls back, rather than reporting zero recoveries.
+
+The exact focused command was rerun after these fixes and stopped at the same
+environment prerequisite before test compilation:
+
+```text
+./gradlew :guilds-paper:test --tests 'org.aincraft.guilds.config.TravelCurrencyConfigLoaderTest' --tests 'org.aincraft.guilds.territory.building.FastTravelCostCalculatorTest' --tests 'org.aincraft.guilds.services.TravelCurrencyServiceImplTest'
+BUILD FAILED
+Could not resolve dev.mintychochip.mint:mint-paper:26.8.12.10.
+Received status code 401 from server: Unauthorized
+```
+
+Independent separate-connection SQLite concurrency smoke output:
+
+```text
+conditional_debit_row_counts: [0, 1]
+final_durable_balance: 3
+```
 
 ## Concerns
 
