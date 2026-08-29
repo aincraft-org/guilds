@@ -32,6 +32,18 @@ public final class DatabaseConfig {
         // Connectivity and common schema are initialized by the host.
     }
 
+    public String poolStatistics() {
+        return database.poolStatistics();
+    }
+    /**
+     * Closes the database when this configuration is used with an explicitly owned manager
+     * (for example, an isolated test fixture). The normal plugin path never calls this method;
+     * the host owns the shared pool and closes it during its own shutdown.
+     */
+    public void closeOwnedDatabase() {
+        database.close();
+    }
+
     public void shutdown() {
         // The host plugin owns and closes the shared pool.
         plugin.getLogger().info("Guilds released shared " + database.type() + " data source.");

@@ -97,12 +97,12 @@ public class DatabaseManager {
      * Close the database connection pool
      */
     public void shutdown() {
-        if (ownsDataSource && dataSource instanceof com.zaxxer.hikari.HikariDataSource hikari) {
-            hikari.close();
+        if (ownsDataSource && databaseConfig != null) {
+            databaseConfig.closeOwnedDatabase();
             plugin.getLogger().info("Guilds test database pool closed.");
         } else {
             plugin.getLogger().info("Guilds database manager released shared "
-                    + databaseConfig.type() + " resources.");
+                    + (databaseConfig == null ? "SQL" : databaseConfig.type()) + " resources.");
         }
     }
 
@@ -123,13 +123,8 @@ public class DatabaseManager {
      * @return Connection pool info as string
      */
     public String getPoolStatistics() {
-        if (dataSource instanceof com.zaxxer.hikari.HikariDataSource) {
-            com.zaxxer.hikari.HikariPoolMXBean pool = ((com.zaxxer.hikari.HikariDataSource) dataSource).getHikariPoolMXBean();
-            return String.format("Active: %d, Idle: %d, Total: %d, Waiting: %d",
-                    pool.getActiveConnections(),
-                    pool.getIdleConnections(),
-                    pool.getTotalConnections(),
-                    pool.getThreadsAwaitingConnection());
+        if (databaseConfig != null) {
+            return databaseConfig.poolStatistics();
         }
         return "Pool statistics not available";
     }
