@@ -3,11 +3,14 @@ package org.aincraft.guilds.services.impl;
 
 
 import org.bukkit.plugin.java.JavaPlugin;
+import org.aincraft.guilds.config.TravelCurrencyConfig;
 import org.aincraft.guilds.database.DatabaseManager;
+import org.aincraft.guilds.services.QuestService;
+import org.aincraft.guilds.services.travel.TravelCurrencyRewardSource;
+import org.aincraft.guilds.services.travel.TravelCurrencyService;
 import org.aincraft.guilds.territory.persist.SqlStatements;
 import org.aincraft.guilds.models.GuildQuest;
 import org.aincraft.guilds.models.GuildQuestType;
-import org.aincraft.guilds.services.QuestService;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -26,12 +29,22 @@ import java.util.UUID;
 public class QuestServiceImpl implements QuestService {
     private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
+    private final TravelCurrencyService travelCurrencyService;
+    private final TravelCurrencyConfig travelCurrencyConfig;
     private final Map<String, List<GuildQuest>> questsByGuild = new HashMap<>();
 
 
     public QuestServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager) {
+        this(plugin, databaseManager, null, null);
+    }
+
+    public QuestServiceImpl(JavaPlugin plugin, DatabaseManager databaseManager,
+                            TravelCurrencyService travelCurrencyService,
+                            TravelCurrencyConfig travelCurrencyConfig) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
+        this.travelCurrencyService = travelCurrencyService;
+        this.travelCurrencyConfig = travelCurrencyConfig;
         loadQuestsFromDatabase();
     }
 
@@ -80,12 +93,22 @@ public class QuestServiceImpl implements QuestService {
     }
 
     @Override
-    public void incrementProgress(String guildId, String questId, int amount) {
+    public void incrementProgress(String guildId, String questId, int amount, UUID contributorUuid) {
         List<GuildQuest> quests = questsByGuild.getOrDefault(guildId, new ArrayList<>());
         for (GuildQuest quest : quests) {
             if (quest.getId().equals(questId) && quest.isActive() && !quest.isCompleted()) {
+                boolean wasCompleted = quest.isCompleted();
                 quest.incrementProgress(amount);
                 updateQuestInDatabase(quest);
+                if (!wasCompleted && quest.isCompleted() && contributorUuid != null
+                        && travelCurrencyService != null && travelCurrencyConfig != null) {
+                    travelCurrencyService.award(
+                            contributorUuid,
+                            TravelCurrencyRewardSource.QUEST_COMPLETION,
+                            "quest:" + guildId + ":" + questId,
+                            travelCurrencyConfig.rewardAmount(TravelCurrencyRewardSource.QUEST_COMPLETION),
+                            System.currentTimeMillis());
+                }
                 break;
             }
         }

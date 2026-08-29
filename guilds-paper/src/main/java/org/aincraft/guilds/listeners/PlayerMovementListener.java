@@ -1,6 +1,9 @@
 package org.aincraft.guilds.listeners;
 
 
+import org.aincraft.guilds.config.TravelCurrencyConfig;
+import org.aincraft.guilds.services.travel.TravelCurrencyRewardSource;
+import org.aincraft.guilds.services.travel.TravelCurrencyService;
 import org.aincraft.guilds.territory.listener.TerritoryTransitionTitleFormatter;
 import org.aincraft.guilds.territory.model.LookupResult;
 import org.aincraft.guilds.territory.registry.TerritoryRegistry;
@@ -38,6 +41,8 @@ public class PlayerMovementListener implements Listener {
     private final PlotTypeHandlerManager plotTypeHandlerManager;
     private final PlotTypeRegistry plotTypeRegistry;
     private final TerritoryRegistry territoryRegistry;
+    private final TravelCurrencyService travelCurrencyService;
+    private final TravelCurrencyConfig travelCurrencyConfig;
 
     private final Map<UUID, String> lastGuildByPlayer = new ConcurrentHashMap<>();
     private final Map<UUID, String> lastPlotTypeByPlayer = new ConcurrentHashMap<>();
@@ -46,6 +51,15 @@ public class PlayerMovementListener implements Listener {
     public PlayerMovementListener(JavaPlugin plugin, PlotService plotService, GuildService guildService,
                                   ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager,
                                   PlotTypeRegistry plotTypeRegistry, TerritoryRegistry territoryRegistry) {
+        this(plugin, plotService, guildService, residentService, plotTypeHandlerManager,
+                plotTypeRegistry, territoryRegistry, null, null);
+    }
+
+    public PlayerMovementListener(JavaPlugin plugin, PlotService plotService, GuildService guildService,
+                                  ResidentService residentService, PlotTypeHandlerManager plotTypeHandlerManager,
+                                  PlotTypeRegistry plotTypeRegistry, TerritoryRegistry territoryRegistry,
+                                  TravelCurrencyService travelCurrencyService,
+                                  TravelCurrencyConfig travelCurrencyConfig) {
         this.plugin = plugin;
         this.plotService = plotService;
         this.guildService = guildService;
@@ -53,6 +67,8 @@ public class PlayerMovementListener implements Listener {
         this.plotTypeHandlerManager = plotTypeHandlerManager;
         this.plotTypeRegistry = plotTypeRegistry;
         this.territoryRegistry = territoryRegistry;
+        this.travelCurrencyService = travelCurrencyService;
+        this.travelCurrencyConfig = travelCurrencyConfig;
     }
 
     @EventHandler
@@ -190,21 +206,42 @@ public class PlayerMovementListener implements Listener {
         }.runTask(plugin);
     }
     private void updateTerritoryTitle(Player player, PlayerMoveEvent event) {
+        UUID playerUuid = player.getUniqueId();
+        TerritoryLocation previous = lastTerritoryByPlayer.get(playerUuid);
+        boolean firstObservation = previous == null;
+        if (firstObservation) {
+            previous = resolveTerritory(event.getFrom().getWorld().getName(),
+                    event.getFrom().getBlockX(), event.getFrom().getBlockZ());
+        }
         String toWorld = event.getTo().getWorld().getName();
-        TerritoryLocation previous = lastTerritoryByPlayer.get(player.getUniqueId());
         TerritoryLocation current = resolveTerritory(toWorld, event.getTo().getBlockX(), event.getTo().getBlockZ());
-        if (previous == null) {
-            lastTerritoryByPlayer.put(player.getUniqueId(), current);
-            return;
-        }
         if (current.equals(previous)) {
+            lastTerritoryByPlayer.put(playerUuid, current);
             return;
         }
-        lastTerritoryByPlayer.put(player.getUniqueId(), current);
-        TerritoryTransitionTitleFormatter.Title title = current.contained()
-                ? TerritoryTransitionTitleFormatter.enter(Optional.of(current.territoryName()), current.zoneType())
-                : TerritoryTransitionTitleFormatter.leave();
-        sendTitle(player, title);
+        lastTerritoryByPlayer.put(playerUuid, current);
+        if (current.contained()
+                && (!previous.contained() || !current.territoryId().equals(previous.territoryId()))) {
+            awardExplorationMilestone(playerUuid, current.territoryId());
+        }
+        if (!firstObservation) {
+            TerritoryTransitionTitleFormatter.Title title = current.contained()
+                    ? TerritoryTransitionTitleFormatter.enter(Optional.of(current.territoryName()), current.zoneType())
+                    : TerritoryTransitionTitleFormatter.leave();
+            sendTitle(player, title);
+        }
+    }
+
+    private void awardExplorationMilestone(UUID playerUuid, String territoryId) {
+        if (travelCurrencyService == null || travelCurrencyConfig == null) {
+            return;
+        }
+        travelCurrencyService.award(
+                playerUuid,
+                TravelCurrencyRewardSource.EXPLORATION_MILESTONE,
+                "territory:" + territoryId + ":" + playerUuid,
+                travelCurrencyConfig.rewardAmount(TravelCurrencyRewardSource.EXPLORATION_MILESTONE),
+                System.currentTimeMillis());
     }
 
     private TerritoryLocation resolveTerritory(String world, int blockX, int blockZ) {

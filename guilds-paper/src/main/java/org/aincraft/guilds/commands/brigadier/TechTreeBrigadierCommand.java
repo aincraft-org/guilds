@@ -17,6 +17,9 @@ import org.aincraft.guilds.services.ResidentService;
 import org.aincraft.guilds.services.TechTreeService;
 import org.aincraft.guilds.services.GuildProjectService;
 import org.aincraft.guilds.services.GuildService;
+import org.aincraft.guilds.config.TravelCurrencyConfig;
+import org.aincraft.guilds.services.travel.TravelCurrencyRewardSource;
+import org.aincraft.guilds.services.travel.TravelCurrencyService;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -41,17 +44,31 @@ public class TechTreeBrigadierCommand {
     private final GuildService guildService;
     private final ResidentService residentService;
     private final TechTreeGUI techTreeGUI;
+    private final TravelCurrencyService travelCurrencyService;
+    private final TravelCurrencyConfig travelCurrencyConfig;
 
 
     public TechTreeBrigadierCommand(TechTreeService techTreeService,
                                     GuildProjectService guildProjectService,
                                     GuildService guildService, ResidentService residentService,
                                     TechTreeGUI techTreeGUI) {
+        this(techTreeService, guildProjectService, guildService, residentService,
+                techTreeGUI, null, null);
+    }
+
+    public TechTreeBrigadierCommand(TechTreeService techTreeService,
+                                    GuildProjectService guildProjectService,
+                                    GuildService guildService, ResidentService residentService,
+                                    TechTreeGUI techTreeGUI,
+                                    TravelCurrencyService travelCurrencyService,
+                                    TravelCurrencyConfig travelCurrencyConfig) {
         this.techTreeService = techTreeService;
         this.guildProjectService = guildProjectService;
         this.guildService = guildService;
         this.residentService = residentService;
         this.techTreeGUI = techTreeGUI;
+        this.travelCurrencyService = travelCurrencyService;
+        this.travelCurrencyConfig = travelCurrencyConfig;
     }
 
     public LiteralCommandNode<CommandSourceStack> buildCommand() {
@@ -234,7 +251,17 @@ public class TechTreeBrigadierCommand {
             player.sendMessage("§cYou are not in a guild!");
             return 0;
         }
+        Optional<String> activeProjectId = guildProjectService.getActiveProjectId(guild);
         if (guildProjectService.completeActiveProject(guild)) {
+            if (activeProjectId.isPresent()
+                    && travelCurrencyService != null && travelCurrencyConfig != null) {
+                travelCurrencyService.award(
+                        player.getUniqueId(),
+                        TravelCurrencyRewardSource.GUILD_ACTIVITY,
+                        "project:" + guild.getId() + ":" + activeProjectId.get(),
+                        travelCurrencyConfig.rewardAmount(TravelCurrencyRewardSource.GUILD_ACTIVITY),
+                        System.currentTimeMillis());
+            }
             player.sendMessage("§aCompleted the active guild project. You can start another.");
             return Command.SINGLE_SUCCESS;
         }
