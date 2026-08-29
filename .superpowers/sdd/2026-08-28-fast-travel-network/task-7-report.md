@@ -127,6 +127,17 @@ Focused regressions were rerun after this round with the required selector comma
 
 Focused selector verification was rerun after these changes; Gradle failed before execution in 3s (`4 actionable tasks: 4 up-to-date`) because the Mint dependency remained unavailable with HTTP 401.
 
+## Round-four review corrections
+
+- Restored the in-flight attempt map and ensured attempt expiry/future completion is initialized before asynchronous route or reservation work.
+- Added the missing unrelated-alliance rejection while retaining same-guild travel.
+- Boat routing now resolves exact `Material.WATER` cells with clear vertical entry space around persisted anchors, including adjacent-water structural anchors.
+- Commit cooldown reduction uses the refreshed authorization identity and accepts preloaded reductions without a main-thread GuildService lookup; legacy fallback remains only for empty reduction maps.
+- WAYSTONE snapshots retain membership-only behavior by default instead of requiring a synthetic capability.
+- Final endpoint, authorization, expiry, and terminal UI guards remain in place; travel permission bypass is retained for resident clickable commands.
+
+The required focused selector command was rerun after this round and failed before execution in 3s (`4 actionable tasks: 4 up-to-date`) on the known Mint HTTP 401 blocker.
+
 ## Commit
 
 - `d22cd1c` — `feat: generalize waystone travel into fast travel`
@@ -135,6 +146,7 @@ Focused selector verification was rerun after these changes; Gradle failed befor
 - `37c11c4` — `fix: revalidate fast travel completion`
 - `be01f11` — `fix: harden fast travel routing and recovery`
 - `aa8be84` — `fix: guard waystone snapshot authorization`
+- `1aa1c74` — `fix: finalize fast travel lifecycle guards`
 
 ## Concerns
 
