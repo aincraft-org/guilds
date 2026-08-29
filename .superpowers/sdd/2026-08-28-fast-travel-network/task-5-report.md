@@ -85,3 +85,17 @@ Implemented only Task 5 of the approved fast-travel-network plan. The implementa
 - `MINT_PACKAGES_ACTOR`/`MINT_PACKAGES_TOKEN` (or equivalent GitHub Packages credentials) are unavailable, so the required focused tests and module compile could not reach test compilation/execution.
 - Java 26/`javac` is unavailable locally; no build/toolchain changes were made.
 - Full repository validation remains the main agent's responsibility after sibling Task 5-10 changes land.
+## Review round 1
+
+- Reviewer finding: removal had not invoked the injected validator before durable save.
+- Fixed `FacilityMutationService.remove` to validate the post-unregister candidate registry before `store.save`; validation failure now leaves live state, durable state, and callbacks unchanged.
+- Added `FacilityMutationServiceTest.removalValidatesCandidateBeforeSaveAndPublication`, which asserts validator invocation, rejection, no save, and unchanged live registry.
+- Re-ran the required focused command:
+
+  ```text
+  ./gradlew :guilds-paper:test --tests 'org.aincraft.guilds.territory.building.FacilityAnchorValidatorTest' --tests 'org.aincraft.guilds.territory.building.FastTravelFacilityValidatorTest' --tests 'org.aincraft.guilds.territory.building.FacilityMutationServiceTest'
+  ```
+
+  Result: `BUILD FAILED` before test execution because `dev.mintychochip.mint:mint-paper:26.8.12.10` could not be fetched from GitHub Packages (HTTP `401 Unauthorized`).
+
+- `405fc43` — `fix: validate facility removal candidates`
