@@ -134,6 +134,7 @@ Focused selector verification was rerun after these changes; Gradle failed befor
 - `ccb2b9b` — `fix: make fast travel attempts cancellable`
 - `37c11c4` — `fix: revalidate fast travel completion`
 - `be01f11` — `fix: harden fast travel routing and recovery`
+- `aa8be84` — `fix: guard waystone snapshot authorization`
 
 ## Concerns
 
