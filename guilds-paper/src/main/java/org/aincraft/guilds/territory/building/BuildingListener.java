@@ -36,17 +36,28 @@ public final class BuildingListener implements Listener {
     private final BuildingAuthorization authorization;
     private final FacilityMutationService mutations;
     private final FacilityAnchorValidator anchors;
-    private final WaystoneAccess waystones;
-    private final WaystoneSelections selections;
+    private final FastTravelAccess fastTravel;
+    private final FastTravelSelections selections;
+    private final FastTravelService travel;
     private final PluginManager pluginManager;
     private final StorageFacilityOpener storageOpener;
 
     public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
                             TerritoryRegistry territories, FacilityRegistry facilities,
                             BuildingAuthorization authorization, FacilityMutationService mutations,
-                            FacilityAnchorValidator anchors, WaystoneAccess waystones,
-                            WaystoneSelections selections, PluginManager pluginManager,
+                            FacilityAnchorValidator anchors, FastTravelAccess fastTravel,
+                            FastTravelSelections selections, PluginManager pluginManager,
                             StorageFacilityOpener storageOpener) {
+        this(sessions, config, territories, facilities, authorization, mutations, anchors,
+                fastTravel, selections, pluginManager, storageOpener, null);
+    }
+
+    public BuildingListener(BuildingPlacementSessions sessions, BuildingConfig config,
+                            TerritoryRegistry territories, FacilityRegistry facilities,
+                            BuildingAuthorization authorization, FacilityMutationService mutations,
+                            FacilityAnchorValidator anchors, FastTravelAccess fastTravel,
+                            FastTravelSelections selections, PluginManager pluginManager,
+                            StorageFacilityOpener storageOpener, FastTravelService travel) {
         this.sessions = sessions;
         this.config = config;
         this.territories = territories;
@@ -54,10 +65,11 @@ public final class BuildingListener implements Listener {
         this.authorization = authorization;
         this.mutations = mutations;
         this.anchors = anchors;
-        this.waystones = waystones;
+        this.fastTravel = fastTravel;
         this.selections = selections;
         this.pluginManager = pluginManager;
         this.storageOpener = storageOpener;
+        this.travel = travel;
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -101,7 +113,10 @@ public final class BuildingListener implements Listener {
             player.sendMessage(Component.text("Registered " + facility.name() + ".", NamedTextColor.GREEN));
         } catch (IOException | IllegalArgumentException e) {
             LOGGER.log(Level.WARNING, "Building registration failed for " + player.getName(), e);
-            player.sendMessage(Component.text("Building registration failed.", NamedTextColor.RED));
+            String category = e.getMessage() == null || e.getMessage().isBlank()
+                    ? "unknown failure" : e.getMessage();
+            player.sendMessage(Component.text("Building registration failed: " + category,
+                    NamedTextColor.RED));
         }
     }
 
@@ -128,11 +143,33 @@ public final class BuildingListener implements Listener {
                         tradingPostEvent.isCancelled() ? NamedTextColor.RED : NamedTextColor.GOLD));
                 return;
             }
-            if (facility.type() == FacilityType.WAYSTONE) {
-                var reachable = waystones.reachable(player.getUniqueId(), facility);
-                selections.select(player.getUniqueId(), facility.id(), System.currentTimeMillis());
+            if (facility.type() == FacilityType.WAYSTONE
+                    || facility.type() == FacilityType.GUILD_CRYSTAL
+                    || facility.type() == FacilityType.TELEPORT_TERMINAL
+                    || facility.type() == FacilityType.BOAT
+                    || facility.type() == FacilityType.AIRSHIP) {
+                var reachable = facility.type() == FacilityType.WAYSTONE
+                        ? fastTravel.reachable(player.getUniqueId(), facility)
+                        : fastTravel.destinations(player.getUniqueId(), facility);
                 event.setCancelled(true);
-                player.sendMessage(Component.text("Reachable waystones:", NamedTextColor.GOLD));
+                if (facility.type() == FacilityType.TELEPORT_TERMINAL && travel != null) {
+                    if (reachable.size() != 1) {
+                        player.sendMessage(Component.text(
+                                "Your guild crystal is unavailable.", NamedTextColor.RED));
+                        return;
+                    }
+                    travel.start(player, facility, reachable.getFirst().id(), System.currentTimeMillis())
+                            .whenComplete((result, error) -> travel.executeOnMain(() -> player.sendMessage(
+                                    Component.text(error == null && result == FastTravelService.StartResult.STARTED
+                                            ? "Fast travel warming up." : "Fast travel failed.",
+                                            error == null && result == FastTravelService.StartResult.STARTED
+                                                    ? NamedTextColor.GREEN : NamedTextColor.RED))));
+                    return;
+                }
+                selections.select(player.getUniqueId(), facility.id(), System.currentTimeMillis());
+                String label = facility.type() == FacilityType.WAYSTONE
+                        ? "Reachable waystones:" : "Eligible fast-travel destinations:";
+                player.sendMessage(Component.text(label, NamedTextColor.GOLD));
                 for (SettlementFacility destination : reachable) {
                     player.sendMessage(Component.text(" • " + destination.name(), NamedTextColor.YELLOW)
                             .clickEvent(ClickEvent.runCommand(
@@ -140,7 +177,6 @@ public final class BuildingListener implements Listener {
                 }
                 return;
             }
-            return;
         }
 
         Optional<SettlementFacility> nearbyStorage = anchors.activeStorageNear(
@@ -185,9 +221,12 @@ public final class BuildingListener implements Listener {
         try {
             mutations.remove(facility.id());
             event.setCancelled(false);
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
             LOGGER.log(Level.WARNING, "Facility removal failed for " + event.getPlayer().getName(), e);
-            event.getPlayer().sendMessage(Component.text("Could not remove the facility.", NamedTextColor.RED));
+            String category = e.getMessage() == null || e.getMessage().isBlank()
+                    ? "unknown failure" : e.getMessage();
+            event.getPlayer().sendMessage(Component.text(
+                    "Could not remove the facility: " + category, NamedTextColor.RED));
         }
     }
 }

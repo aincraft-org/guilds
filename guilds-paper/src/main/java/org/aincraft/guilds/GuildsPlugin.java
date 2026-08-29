@@ -95,7 +95,7 @@ public final class GuildsPlugin extends JavaPlugin {
     private PostgresFacilityStore facilityStore;
     private org.aincraft.guilds.territory.building.BuildingCommand buildingCommand;
     private org.aincraft.guilds.territory.building.FacilityMutationService facilityMutations;
-    private org.aincraft.guilds.territory.building.WaystoneTravelService waystoneTravelService;
+    private org.aincraft.guilds.territory.building.FastTravelService fastTravelService;
     private org.aincraft.guilds.territory.building.FacilityAnchorValidator facilityAnchorValidator;
     private PostgresTerritoryStore store;
     private Database database;
@@ -384,9 +384,9 @@ public final class GuildsPlugin extends JavaPlugin {
         stopInfluenceStatus();
         stopWeb();
         stopSquaremap();
-        if (waystoneTravelService != null) {
-            waystoneTravelService.stop();
-            waystoneTravelService = null;
+        if (fastTravelService != null) {
+            fastTravelService.stop();
+            fastTravelService = null;
         }
         if (standingEngine != null) {
             try {
@@ -772,8 +772,8 @@ public final class GuildsPlugin extends JavaPlugin {
         return facilityMutations;
     }
 
-    public org.aincraft.guilds.territory.building.WaystoneTravelService getWaystoneTravelService() {
-        return waystoneTravelService;
+    public org.aincraft.guilds.territory.building.FastTravelService getFastTravelService() {
+        return fastTravelService;
     }
 
     public PostgresTerritoryStore getStore() {
@@ -813,24 +813,25 @@ public final class GuildsPlugin extends JavaPlugin {
             guilds.wireStorage(facilities, governance, anchors);
             var sessions = new org.aincraft.guilds.territory.building.BuildingPlacementSessions(
                     config.placementTimeoutMillis());
-            var selections = new org.aincraft.guilds.territory.building.WaystoneSelections(
+            var selections = new org.aincraft.guilds.territory.building.FastTravelSelections(
                     config.placementTimeoutMillis());
-            var access = new org.aincraft.guilds.territory.building.WaystoneAccess(
+            var access = new org.aincraft.guilds.territory.building.FastTravelAccess(
                     facilities, registry, anchors, authorization);
-            this.waystoneTravelService = new org.aincraft.guilds.territory.building.WaystoneTravelService(
+            this.fastTravelService = new org.aincraft.guilds.territory.building.FastTravelService(
                     this, facilities, anchors, access,
                     new org.aincraft.guilds.territory.building.SafeLandingResolver(getServer()),
                     blockProtection, config);
             this.buildingCommand = new org.aincraft.guilds.territory.building.BuildingCommand(
                     sessions, facilities, registry, anchors, authorization,
-                    facilityMutations, config, selections, waystoneTravelService);
+                    facilityMutations, config, selections, fastTravelService);
             getServer().getPluginManager().registerEvents(
                     new org.aincraft.guilds.territory.building.BuildingListener(
                             sessions, config, registry, facilities, authorization,
                             facilityMutations, anchors, access, selections,
-                            getServer().getPluginManager(), guilds.getStorageFacilityOpener()), this);
+                            getServer().getPluginManager(), guilds.getStorageFacilityOpener(),
+                            fastTravelService), this);
             getServer().getPluginManager().registerEvents(
-                    new org.aincraft.guilds.territory.building.WaystoneTravelListener(waystoneTravelService),
+                    new org.aincraft.guilds.territory.building.FastTravelListener(fastTravelService),
                     this);
             if (guilds.getGuildBankVillagerListener() != null) {
                 guilds.getGuildBankVillagerListener().setBankBuildings(facilities, registry);
@@ -840,7 +841,7 @@ public final class GuildsPlugin extends JavaPlugin {
         } catch (RuntimeException e) {
             this.buildingCommand = null;
             this.facilityMutations = null;
-            this.waystoneTravelService = null;
+            this.fastTravelService = null;
             getLogger().log(Level.SEVERE, "Failed to start territory buildings — disabled", e);
         }
     }

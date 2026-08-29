@@ -5,11 +5,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-public final class WaystoneSelections {
+public final class FastTravelSelections {
     private final long timeoutMillis;
     private final Map<UUID, Selection> selections = new HashMap<>();
 
-    public WaystoneSelections(long timeoutMillis) {
+    public FastTravelSelections(long timeoutMillis) {
         this.timeoutMillis = timeoutMillis;
     }
 

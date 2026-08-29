@@ -14,11 +14,11 @@ class BuildingLifecycleWiringTest {
         Method facilities = GuildsPlugin.class.getMethod("getFacilities");
         Method mutations = GuildsPlugin.class.getMethod("getFacilityMutations");
         Method command = GuildsPlugin.class.getMethod("getBuildingCommand");
-        Method travel = GuildsPlugin.class.getMethod("getWaystoneTravelService");
+        Method travel = GuildsPlugin.class.getMethod("getFastTravelService");
 
         assertEquals(FacilityRegistry.class, facilities.getReturnType());
         assertEquals(FacilityMutationService.class, mutations.getReturnType());
         assertEquals(BuildingCommand.class, command.getReturnType());
-        assertEquals(WaystoneTravelService.class, travel.getReturnType());
+        assertEquals(FastTravelService.class, travel.getReturnType());
     }
 }
