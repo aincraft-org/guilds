@@ -1,4 +1,4 @@
-package org.aincraft.guilds.territory;
+package org.aincraft.guilds;
 
 import org.junit.jupiter.api.Test;
 
@@ -107,6 +107,38 @@ class GuildsIntegrationTest {
         Object resource = services.getField("GUILDS_CONFIG").get(null);
         assertEquals("guilds-config.yml", resource);
         assertNotNull(getClass().getClassLoader().getResourceAsStream((String) resource));
+    }
+
+    @Test
+    void removedSpawnBypasses_areAbsentFromRuntimeDescriptorsAndSource() throws Exception {
+        String plugin = readResource("plugin.yml");
+        assertFalse(plugin.contains("guilds.guild.spawn"));
+        assertFalse(readResource("paper-plugin.yml").contains("guilds.guild.spawn"));
+
+        Path source = findGuildCommandSource();
+        String command = Files.readString(source);
+        assertFalse(command.contains("handleOwnSpawn"));
+        assertFalse(command.contains("handleGuildSpawn"));
+        assertTrue(command.contains("literal(\"setspawn\")"));
+        assertFalse(readResource("guilds-config.yml").contains("hearthstone:"));
+    }
+
+    private String readResource(String name) throws Exception {
+        try (InputStream in = Objects.requireNonNull(
+                getClass().getClassLoader().getResourceAsStream(name), name + " missing")) {
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static Path findGuildCommandSource() throws Exception {
+        Path cwd = Path.of("").toAbsolutePath();
+        Path candidate = cwd.resolve(
+                "src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
+        if (Files.isRegularFile(candidate)) {
+            return candidate;
+        }
+        return cwd.resolve("..").resolve(
+                "guilds-paper/src/main/java/org/aincraft/guilds/commands/brigadier/GuildBrigadierCommand.java");
     }
 
     private static Path findMainSource() throws Exception {

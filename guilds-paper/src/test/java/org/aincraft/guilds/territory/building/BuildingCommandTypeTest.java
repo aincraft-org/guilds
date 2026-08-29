@@ -14,4 +14,13 @@ class BuildingCommandTypeTest {
         assertEquals(FacilityType.BANK, BuildingCommand.parseType("guild-bank"));
         assertNotNull(BuildingCommand.parseType("storage"));
     }
+
+    @Test
+    void parseTypeAcceptsAllFastTravelFacilityTypes() {
+        assertEquals(FacilityType.GUILD_CRYSTAL, BuildingCommand.parseType("guild_crystal"));
+        assertEquals(FacilityType.TELEPORT_TERMINAL, BuildingCommand.parseType("terminal"));
+        assertEquals(FacilityType.BOAT, BuildingCommand.parseType("boat"));
+        assertEquals(FacilityType.AIRSHIP, BuildingCommand.parseType("airship"));
+    }
 }
+

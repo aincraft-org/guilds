@@ -1,5 +1,6 @@
-package org.aincraft.guilds.territory;
+package org.aincraft.guilds;
 
+import org.aincraft.guilds.territory.PostgresTestDatabase;
 import org.aincraft.guilds.territory.persist.PostgresDatabase;
 import org.aincraft.guilds.GuildsServices;
 import org.aincraft.guilds.services.PermissionService;
@@ -13,6 +14,12 @@ import org.aincraft.guilds.storage.service.StorageFacilityAccessValidator;
 import org.aincraft.guilds.territory.building.FacilityAnchorValidator;
 import org.aincraft.guilds.territory.permission.GovernanceRegistry;
 import org.aincraft.guilds.territory.registry.FacilityRegistry;
+import org.aincraft.guilds.commands.BrigadierCommandRegistry;
+import org.aincraft.guilds.commands.brigadier.TechTreeBrigadierCommand;
+import org.aincraft.guilds.listeners.PlayerMovementListener;
+import org.aincraft.guilds.services.impl.QuestServiceImpl;
+import org.aincraft.guilds.services.travel.TravelCurrencyService;
+
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
@@ -41,6 +48,33 @@ class GuildsServicesWiringTest {
             assertNotNull(services.getGuildService());
             assertNotNull(services.getPermissionService());
             assertNotNull(services.getCommandRegistry());
+        } finally {
+            wiring.database().close();
+        }
+    }
+
+    @Test
+    void travelCurrency_isOneSharedInstanceAcrossRewardConsumers() throws Exception {
+        Wiring wiring = newServicesWithTempDataFolder();
+        try {
+            GuildsServices services = wiring.services();
+            TravelCurrencyService currency = services.getTravelCurrencyService();
+            assertNotNull(currency);
+
+            Field questField = QuestServiceImpl.class.getDeclaredField("travelCurrencyService");
+            questField.setAccessible(true);
+            assertSame(currency, questField.get(services.getQuestService()));
+
+            Field movementField = PlayerMovementListener.class.getDeclaredField("travelCurrencyService");
+            movementField.setAccessible(true);
+            assertSame(currency, movementField.get(services.getPlayerMovementListener()));
+
+            Field registryTechField = BrigadierCommandRegistry.class.getDeclaredField("techTreeCommand");
+            registryTechField.setAccessible(true);
+            Object techCommand = registryTechField.get(services.getCommandRegistry());
+            Field techField = TechTreeBrigadierCommand.class.getDeclaredField("travelCurrencyService");
+            techField.setAccessible(true);
+            assertSame(currency, techField.get(techCommand));
         } finally {
             wiring.database().close();
         }

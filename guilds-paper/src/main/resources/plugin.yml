@@ -48,7 +48,6 @@ permissions:
       guilds.guild.leave: true
       guilds.guild.claim: true
       guilds.guild.unclaim: true
-      guilds.guild.spawn: true
       guilds.guild.set: true
       guilds.guild.kick: true
       guilds.guild.invite: true

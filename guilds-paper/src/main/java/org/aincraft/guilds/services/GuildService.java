@@ -181,13 +181,6 @@ public interface GuildService {
      */
     Optional<Location> getGuildSpawn(String guildName);
 
-    /**
-     * Check if a player can teleport to a guild spawn
-     * @param playerUuid Player UUID
-     * @param guildName Guild name
-     * @return True if player can teleport
-     */
-    boolean canTeleportToSpawn(UUID playerUuid, String guildName);
 
     // Guild level system methods
 

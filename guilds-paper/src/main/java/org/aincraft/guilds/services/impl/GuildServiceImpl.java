@@ -1363,32 +1363,6 @@ public class GuildServiceImpl implements org.aincraft.guilds.services.GuildServi
         return Optional.empty();
     }
 
-    @Override
-    public boolean canTeleportToSpawn(UUID playerUuid, String guildName) {
-        // Check if guild exists
-        if (!guildExists(guildName)) {
-            return false;
-        }
-
-        // Check if guild has a spawn set
-        Optional<Location> spawnLocation = getGuildSpawn(guildName);
-        if (spawnLocation.isEmpty()) {
-            return false;
-        }
-
-        // Check if player is a resident of the guild
-        Optional<Guild> guild = getGuild(guildName);
-        if (guild.isEmpty()) {
-            return false;
-        }
-
-        // Allow teleportation if:
-        // 1. Player is a resident of the guild
-        // 2. Guild is open to public
-        // 3. Player has permission (could be extended with permission system)
-
-        return guild.get().isResident(playerUuid) || guild.get().isOpen();
-    }
 
     /**
      * Fallback method to use home_block as spawn if spawn columns don't exist
