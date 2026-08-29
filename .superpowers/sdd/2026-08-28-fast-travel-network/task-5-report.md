@@ -78,6 +78,7 @@ Implemented only Task 5 of the approved fast-travel-network plan. The implementa
 ## Commits
 
 - `fc5f3eb` — `feat: validate fast travel facility construction`
+- `1a317e6` — `fix: scope transport geometry checks to boat and airship`
 
 ## Concerns
 
