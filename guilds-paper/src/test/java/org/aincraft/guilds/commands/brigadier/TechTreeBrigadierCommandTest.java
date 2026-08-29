@@ -41,6 +41,7 @@ import static org.mockito.Mockito.when;
 
 class TechTreeBrigadierCommandTest {
     private static final TravelCurrencyConfig CURRENCY_CONFIG = rewardConfig(41L);
+    private static final Logger LOGGER = Logger.getLogger(TechTreeBrigadierCommand.class.getName());
     @Test
     void successfulCompletionAwardsTheInitiatingPlayer() throws Exception {
         UUID playerUuid = UUID.randomUUID();
@@ -109,7 +110,7 @@ class TechTreeBrigadierCommandTest {
         GuildService guildService = mock(GuildService.class);
         when(guildService.getGuild(guild.getName())).thenReturn(Optional.of(guild));
 
-        Logger logger = Logger.getLogger(TechTreeBrigadierCommand.class.getName());
+        Logger logger = LOGGER;
         CapturingHandler handler = new CapturingHandler();
         boolean useParentHandlers = logger.getUseParentHandlers();
         logger.setUseParentHandlers(false);

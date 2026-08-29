@@ -179,9 +179,9 @@ public final class FastTravelService {
                 decision = legacyWaystoneDecision(playerId, origin, destination);
             }
             final FastTravelAccess.AccessDecision finalDecision = decision;
-            if (finalDecision == null || !finalDecision.allowed()) {
+            if (!finalDecision.allowed()) {
                 attempts.remove(playerId, current);
-                return completed(map(finalDecision == null ? null : finalDecision.result()));
+                return completed(map(finalDecision.result()));
             }
             FastTravelMode mode = finalDecision.mode();
             if (mode == null) {
