@@ -77,7 +77,8 @@ class FastTravelFacilityValidatorTest {
                 FacilityType.BOAT, Set.of(Material.OAK_PLANKS),
                 FacilityType.AIRSHIP, Set.of(Material.IRON_BLOCK)),
                 100L, 60_000L);
-        validator = new FastTravelFacilityValidator(server, territories, facilities, guilds, tech, config);
+        validator = new FastTravelFacilityValidator(server, territories, facilities, guilds, tech, config,
+                apiOnlyBlockStateSemantics());
     }
 
     @Test
@@ -199,6 +200,22 @@ class FastTravelFacilityValidatorTest {
         assertFalse(validator.validateBoatAnchor(new org.bukkit.Location(world, 20, 64, 20)).valid());
         org.mockito.Mockito.verify(world, org.mockito.Mockito.atMost(25))
                 .getBlockAt(anyInt(), anyInt(), anyInt());
+    }
+
+    private static FastTravelFacilityValidator.BlockStateSemantics apiOnlyBlockStateSemantics() {
+        return new FastTravelFacilityValidator.BlockStateSemantics() {
+            @Override
+            public boolean isAir(Block block) {
+                Material type = block.getType();
+                return type == Material.AIR || type == Material.CAVE_AIR || type == Material.VOID_AIR;
+            }
+
+            @Override
+            public boolean isSolid(Block block) {
+                Material type = block.getType();
+                return type == Material.STONE || type == Material.IRON_BLOCK;
+            }
+        };
     }
 
     private FacilityRegistry registryWith(SettlementFacility... entries) {

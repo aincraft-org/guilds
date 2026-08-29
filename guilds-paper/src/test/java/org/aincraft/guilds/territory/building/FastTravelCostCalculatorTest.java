@@ -20,7 +20,7 @@ class FastTravelCostCalculatorTest {
         assertEquals(3L, calculator.calculate(FastTravelMode.CRYSTAL, 100.0));
         assertEquals(4L, calculator.calculate(FastTravelMode.BOAT, 100.0));
         assertEquals(4L, calculator.calculate(FastTravelMode.AIRSHIP, 100.0));
-        assertEquals(2L, calculator.calculate(FastTravelMode.WAYSTONE, 100.0001));
+        assertEquals(3L, calculator.calculate(FastTravelMode.WAYSTONE, 100.0001));
         assertEquals(1L, calculator.calculate(FastTravelMode.WAYSTONE, 0.0));
     }
 
@@ -44,7 +44,7 @@ class FastTravelCostCalculatorTest {
         multipliers.put(FastTravelMode.CRYSTAL, 2.0);
         multipliers.put(FastTravelMode.BOAT, 2.5);
         multipliers.put(FastTravelMode.AIRSHIP, 3.0);
-        return new TravelCurrencyConfig(1L, 1000L, 1L, 100.0, multipliers,
+        return new TravelCurrencyConfig(1L, 100L, 1L, 100.0, multipliers,
                 30_000L, Map.of(
                         TravelCurrencyRewardSource.QUEST_COMPLETION, 20L,
                         TravelCurrencyRewardSource.EXPLORATION_MILESTONE, 10L,

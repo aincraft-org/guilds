@@ -28,6 +28,25 @@ public final class FastTravelFacilityValidator {
     public static final String BOAT_TRAVEL_NODE = "boat_travel";
     public static final String AIRSHIP_TRAVEL_NODE = "airship_travel";
 
+    interface BlockStateSemantics {
+        boolean isAir(Block block);
+
+        boolean isSolid(Block block);
+    }
+
+    private static final BlockStateSemantics BUKKIT_BLOCK_STATE_SEMANTICS =
+            new BlockStateSemantics() {
+                @Override
+                public boolean isAir(Block block) {
+                    return block.getType().isAir();
+                }
+
+                @Override
+                public boolean isSolid(Block block) {
+                    return block.getType().isSolid();
+                }
+            };
+
     private final Server server;
     private final TerritoryRegistry territories;
     private final FacilityRegistry facilities;
@@ -35,6 +54,7 @@ public final class FastTravelFacilityValidator {
     private final TechTreeService techTree;
     private final BuildingConfig config;
     private final FacilityAnchorValidator anchors;
+    private final BlockStateSemantics blockStateSemantics;
 
     public FastTravelFacilityValidator(
             Server server,
@@ -44,7 +64,8 @@ public final class FastTravelFacilityValidator {
             TechTreeService techTree,
             BuildingConfig config) {
         this(server, territories, facilities, guilds, techTree, config,
-                new FacilityAnchorValidator(server, territories, facilities, config));
+                new FacilityAnchorValidator(server, territories, facilities, config),
+                BUKKIT_BLOCK_STATE_SEMANTICS);
     }
 
     public FastTravelFacilityValidator(
@@ -55,6 +76,32 @@ public final class FastTravelFacilityValidator {
             TechTreeService techTree,
             BuildingConfig config,
             FacilityAnchorValidator anchors) {
+        this(server, territories, facilities, guilds, techTree, config, anchors,
+                BUKKIT_BLOCK_STATE_SEMANTICS);
+    }
+
+    FastTravelFacilityValidator(
+            Server server,
+            TerritoryRegistry territories,
+            FacilityRegistry facilities,
+            GuildService guilds,
+            TechTreeService techTree,
+            BuildingConfig config,
+            BlockStateSemantics blockStateSemantics) {
+        this(server, territories, facilities, guilds, techTree, config,
+                new FacilityAnchorValidator(server, territories, facilities, config),
+                blockStateSemantics);
+    }
+
+    private FastTravelFacilityValidator(
+            Server server,
+            TerritoryRegistry territories,
+            FacilityRegistry facilities,
+            GuildService guilds,
+            TechTreeService techTree,
+            BuildingConfig config,
+            FacilityAnchorValidator anchors,
+            BlockStateSemantics blockStateSemantics) {
         this.server = Objects.requireNonNull(server, "server");
         this.territories = Objects.requireNonNull(territories, "territories");
         this.facilities = Objects.requireNonNull(facilities, "facilities");
@@ -62,6 +109,8 @@ public final class FastTravelFacilityValidator {
         this.techTree = Objects.requireNonNull(techTree, "techTree");
         this.config = Objects.requireNonNull(config, "config");
         this.anchors = Objects.requireNonNull(anchors, "anchors");
+        this.blockStateSemantics = Objects.requireNonNull(
+                blockStateSemantics, "blockStateSemantics");
     }
     public FastTravelFacilityValidator(
             Server server,
@@ -218,7 +267,7 @@ public final class FastTravelFacilityValidator {
         int height = config.transportGeometry().airshipVerticalClearanceHeight();
         for (int dy = 1; dy <= height; dy++) {
             Block above = world.getBlockAt(x, y + dy, z);
-            if (above == null || above.getType() == null || !above.getType().isAir()) {
+            if (above == null || above.getType() == null || !blockStateSemantics.isAir(above)) {
                 return failure(AnchorStatus.AIRSHIP_CLEARANCE_BLOCKED,
                         "airship vertical clearance is blocked");
             }
@@ -342,8 +391,8 @@ public final class FastTravelFacilityValidator {
                 && candidate.x() == block[0] && candidate.y() == block[1] && candidate.z() == block[2];
     }
 
-    private static boolean hasWaterWindow(World world, int x, int y, int z,
-                                          int radius, int width, int clearHeight) {
+    private boolean hasWaterWindow(World world, int x, int y, int z,
+                                   int radius, int width, int clearHeight) {
         int navigableCells = 0;
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
@@ -357,7 +406,8 @@ public final class FastTravelFacilityValidator {
                 boolean clear = true;
                 for (int dy = 1; dy <= clearHeight; dy++) {
                     Block above = world.getBlockAt(x + dx, y + dy, z + dz);
-                    if (above == null || above.getType() == null || !above.getType().isAir()) {
+                    if (above == null || above.getType() == null
+                            || !blockStateSemantics.isAir(above)) {
                         clear = false;
                         break;
                     }
@@ -370,17 +420,19 @@ public final class FastTravelFacilityValidator {
         return false;
     }
 
-    private static boolean hasLaunchPlatform(World world, int x, int y, int z, int radius) {
+    private boolean hasLaunchPlatform(World world, int x, int y, int z, int radius) {
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 Block platform = world.getBlockAt(x + dx, y - 1, z + dz);
-                if (platform != null && platform.getType() != null && platform.getType().isSolid()) {
+                if (platform != null && platform.getType() != null
+                        && blockStateSemantics.isSolid(platform)) {
                     return true;
                 }
             }
         }
         return false;
     }
+
 
     private static boolean isTransport(FacilityType type) {
         return type == FacilityType.GUILD_CRYSTAL || type == FacilityType.TELEPORT_TERMINAL
