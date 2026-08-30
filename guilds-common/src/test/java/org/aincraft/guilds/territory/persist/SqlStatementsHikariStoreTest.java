@@ -1,6 +1,5 @@
 package org.aincraft.guilds.territory.persist;
 
-import com.zaxxer.hikari.HikariDataSource;
 import org.aincraft.guilds.territory.model.BlockPos;
 import org.aincraft.guilds.territory.model.Boundary;
 import org.aincraft.guilds.territory.model.Territory;
@@ -12,7 +11,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -30,8 +28,7 @@ class SqlStatementsHikariStoreTest {
                 false, 5, url);
         try (Database database = DatabaseFactory.open(settings)) {
             database.initializeSchema();
-            HikariDataSource dataSource = assertInstanceOf(HikariDataSource.class, database.dataSource());
-            try (Connection connection = dataSource.getConnection()) {
+            try (Connection connection = database.dataSource().getConnection()) {
                 assertTrue(connection.isValid(5));
             }
 

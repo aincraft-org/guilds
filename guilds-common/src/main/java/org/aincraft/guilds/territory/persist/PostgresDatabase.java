@@ -23,5 +23,6 @@ public final class PostgresDatabase implements Database {
     @Override public DatabaseType type() { return DatabaseType.POSTGRESQL; }
     @Override public DatabaseDialect dialect() { return delegate.dialect(); }
     @Override public void initializeSchema() throws IOException { delegate.initializeSchema(); }
+    @Override public String poolStatistics() { return delegate.poolStatistics(); }
     @Override public void close() { delegate.close(); }
 }

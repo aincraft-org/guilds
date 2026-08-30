@@ -9,6 +9,9 @@ dependencies {
 
     // Domain persistence + territory web payloads; Paper ships Gson at runtime
     // but we shade it for self-containment.
+    // Shared SQL lifecycle (Hikari + Jdbi + explicit migration runner).
+    implementation("org.aincraft:utilities-db-sql:2026.08.27")
+    // JDBC drivers remain consumer/runtime dependencies for both supported backends.
     implementation("com.google.code.gson:gson:2.11.0")
 
     // Remote SQL stores. Both drivers are shaded so deployments can select either backend.

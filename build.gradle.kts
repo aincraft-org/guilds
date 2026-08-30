@@ -97,6 +97,20 @@ subprojects {
                 password = token?.takeIf { it.isNotBlank() } ?: ""
             }
         }
+        maven {
+            name = "UtilitiesGitHubPackages"
+            url = uri("https://maven.pkg.github.com/mintychochip/Utilities")
+            credentials {
+                username =
+                    project.findProperty("gpr.user") as String?
+                        ?: System.getenv("GITHUB_ACTOR")
+                        ?: ""
+                password =
+                    project.findProperty("gpr.key") as String?
+                        ?: System.getenv("GITHUB_TOKEN")
+                        ?: ""
+            }
+        }
         mavenCentral()
         // PlaceholderAPI's provided API artifact (the server supplies the plugin).
         maven("https://repo.extendedclip.com/releases/")

@@ -1,6 +1,5 @@
 package org.aincraft.guilds.territory.persist;
 
-import com.zaxxer.hikari.HikariDataSource;
 import org.aincraft.guilds.territory.PostgresTestDatabase;
 import org.aincraft.guilds.territory.model.BlockPos;
 import org.aincraft.guilds.territory.model.Boundary;
@@ -15,7 +14,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -40,8 +38,7 @@ class PostgresTerritoryStoreTest {
 
     @Test
     void saveLoadRoundTrip() throws Exception {
-        HikariDataSource dataSource = assertInstanceOf(HikariDataSource.class, database.dataSource());
-        try (Connection connection = dataSource.getConnection()) {
+        try (Connection connection = database.dataSource().getConnection()) {
             assertTrue(connection.isValid(5));
         }
         assertEquals("SELECT doc FROM territories ORDER BY id",
