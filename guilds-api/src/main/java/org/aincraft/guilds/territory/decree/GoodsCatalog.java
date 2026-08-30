@@ -33,7 +33,7 @@ public final class GoodsCatalog {
     }
 
     /**
-     * Default in-process catalog used by tests and the deterministic transcriber.
+     * Default in-process catalog used by tests and integration wiring.
      * Vegetables: carrot, potato, beetroot, cabbage, onion. Plus a few non-vegetable goods.
      */
     public static GoodsCatalog defaultCatalog() {
